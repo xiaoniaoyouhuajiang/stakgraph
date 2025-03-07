@@ -1,0 +1,17 @@
+/target
+.DS_Store
+examples/whisker
+notes.md
+examples/*.json
+!examples/repo2graph.json
+examples/sphinx-tribes
+examples/sphinx-tribes-frontend
+examples/next-example
+examples/ruby
+.ruby-lsp
+examples/senza-lnd
+examples/campsite
+examples/cabal
+examples/**/*.json
+examples/**/*.jsonl
+examples/cabal-routes.txt

@@ -1,0 +1,5 @@
+target
+.DS_Store
+schema_script.py
+*ontology*.json
+

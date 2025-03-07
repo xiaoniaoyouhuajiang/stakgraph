@@ -1,0 +1,94 @@
+[package]
+name = "ast"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lsp = { path = "../lsp" }
+tokio = { version = "1.27.0", features = ["full"] }
+git2 = "0.20.0"
+
+tree-sitter-rust = "0.23.0"
+tree-sitter-go = "0.23.1"
+# tree-sitter-javascript = "0.23.0"
+tree-sitter-python = "0.23.0"
+tree-sitter-c = "0.23.0"
+tree-sitter-cpp = "0.23.0"
+tree-sitter-php = "0.23.0"
+tree-sitter-html = "0.23.0"
+tree-sitter-ruby = "0.23.0"
+tree-sitter-json = "0.23.0"
+tree-sitter-css = "0.23.0"
+tree-sitter-typescript = "0.23.0"
+tree-sitter-bash = "0.23.0"
+tree-sitter-toml-ng = { git = "https://github.com/tree-sitter-grammars/tree-sitter-toml", rev = "64b56832c2cffe41758f28e05c756a3a98d16f41" }
+tree-sitter-embedded-template = "0.23.0"
+tree-sitter-haml = { git = "https://github.com/Evanfeenstra/tree-sitter-haml" }
+tree-sitter = "0.24.3"
+serde_json = "1.0.132"
+serde = { version = "1", features = ["derive"] }
+anyhow = "1"
+walkdir = "2.3"
+streaming-iterator = "0.1.9"
+git-url-parse = "0.4.5"
+# gitoxide-core = { version = "0.42.0", features = ["blocking-client"] }
+# gix = { version = "0.67.0", features = [
+#     "blocking-http-transport-reqwest-rust-tls",
+# ] }
+tracing = { version = "0.1.37" }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+sha256 = "1.5.0"
+serde-jsonlines = "0.7.0"
+regex = "1.11.1"
+
+[[example]]
+name = "python"
+path = "examples/python.rs"
+
+[[example]]
+name = "minimal"
+path = "examples/minimal.rs"
+
+[[example]]
+name = "tribes"
+path = "examples/tribes.rs"
+
+[[example]]
+name = "tribes-front"
+path = "examples/tribes_front.rs"
+
+[[example]]
+name = "next"
+path = "examples/next.rs"
+
+[[example]]
+name = "ruby"
+path = "examples/ruby.rs"
+
+[[example]]
+name = "stak"
+path = "examples/stak.rs"
+
+[[example]]
+name = "cabal"
+path = "examples/cabal.rs"
+
+[[example]]
+name = "url"
+path = "examples/url.rs"
+
+[[example]]
+name = "file"
+path = "examples/file.rs"
+
+[[example]]
+name = "files"
+path = "examples/files.rs"
+
+[[bin]]
+name = "print_queries"
+path = "src/print_queries.rs"
+
+[[bin]]
+name = "urls"
+path = "src/urls.rs"

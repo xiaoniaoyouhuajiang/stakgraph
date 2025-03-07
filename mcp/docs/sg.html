@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StakGraph - Network Visualization Platform</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            color: #ffffff;
+            background-color: #0A0A0E;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .content-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+            font-weight: 700;
+            background: linear-gradient(90deg, #6fddeb, #8e85ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        p.tagline {
+            font-size: 1.8rem;
+            max-width: 700px;
+            margin-bottom: 2rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 300;
+            line-height: 1.4;
+        }
+
+        .cta-button {
+            background: linear-gradient(90deg, #6fddeb, #8e85ff);
+            color: #0A0A0E;
+            border: none;
+            padding: 1rem 2.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 20px rgba(142, 133, 255, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(142, 133, 255, 0.5);
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 3.5rem;
+            }
+            p.tagline {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="content-container">
+        <h1>StakGraph</h1>
+        <p class="tagline">Visualize complex networks with an intuitive, powerful graph exploration platform</p>
+        <button class="cta-button">Explore the Demo</button>
+    </div>
+
+    <script>
+        let nodes = [];
+        let connections = [];
+        const MAX_NODES = 120;
+        const NODE_TYPES = ["circle", "hexagon"];
+        const CONNECTION_DISTANCE_THRESHOLD = 180;
+        const ANGLE_SIMILARITY_THRESHOLD = Math.PI/3;
+        const MAX_CONNECTIONS_PER_NODE = 5;
+        const CENTER_OPACITY_FACTOR = 0.005;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            colorMode(HSB, 360, 100, 100, 1);
+            
+            // Jumpstart the animation with nodes already moving outward
+            initializeAnimationState();
+        }
+
+        function initializeAnimationState() {
+            // Create nodes at different distances from the center to simulate time progression
+            
+            // Near center nodes (just starting)
+            for (let i = 0; i < 8; i++) {
+                createNodeAtDistance(random(5, 20), random(2, 5), 0.02);
+            }
+            
+            // Mid-range nodes
+            for (let i = 0; i < 25; i++) {
+                const distance = random(40, 120);
+                const size = map(distance, 40, 120, 5, 12);
+                const normalizedDist = constrain(map(distance, 0, width/2.5, 0, 1), 0, 1);
+                const opacity = constrain(pow(normalizedDist, 1.8) * 0.5, 0.02, 0.5);
+                createNodeAtDistance(distance, size, opacity);
+            }
+            
+            // Outer nodes
+            for (let i = 0; i < 15; i++) {
+                const distance = random(150, 280);
+                const size = map(distance, 150, 280, 12, 20);
+                const normalizedDist = constrain(map(distance, 0, width/2.5, 0, 1), 0, 1);
+                const opacity = constrain(pow(normalizedDist, 1.8) * 0.5, 0.02, 0.5);
+                createNodeAtDistance(distance, size, opacity);
+            }
+            
+            // Create connections between existing nodes
+            generateInitialConnections();
+        }
+
+        function createNodeAtDistance(distance, size, opacity) {
+            const nodeType = random(NODE_TYPES);
+            const angle = random(TWO_PI);
+            const x = width / 2 + cos(angle) * distance;
+            const y = height / 2 + sin(angle) * distance;
+            const maxSize = size * random(1.5, 2.2);
+            
+            const node = {
+                x: x,
+                y: y,
+                size: size,
+                maxSize: maxSize,
+                growthRate: random(0.1, 0.2),
+                angle: angle,
+                speed: random(0.2, 0.5),
+                hue: random(180, 260),
+                opacity: opacity,
+                type: nodeType,
+                connections: 0
+            };
+            
+            nodes.push(node);
+            return node;
+        }
+
+        function generateInitialConnections() {
+            // First create some "chains" of connections to make it look more natural
+            for (let i = 0; i < 10; i++) {
+                if (nodes.length < 3) continue;
+                
+                // Select a random starting node
+                let currentNode = nodes[floor(random(nodes.length))];
+                
+                // Create a chain of 2-4 connections
+                const chainLength = floor(random(2, 5));
+                
+                for (let j = 0; j < chainLength; j++) {
+                    // Find a suitable next node in the chain
+                    const candidates = nodes
+                        .filter(node => 
+                            node !== currentNode && 
+                            !connections.some(conn => 
+                                (conn.from === currentNode && conn.to === node) || 
+                                (conn.from === node && conn.to === currentNode)
+                            ) &&
+                            node.connections < MAX_CONNECTIONS_PER_NODE &&
+                            dist(node.x, node.y, currentNode.x, currentNode.y) < CONNECTION_DISTANCE_THRESHOLD
+                        );
+                    
+                    if (candidates.length === 0) break;
+                    
+                    const nextNode = candidates[floor(random(candidates.length))];
+                    
+                    // Create connection between current and next node
+                    const distFromCenter = dist((currentNode.x + nextNode.x)/2, (currentNode.y + nextNode.y)/2, width/2, height/2);
+                    const normalizedDist = constrain(map(distFromCenter, 0, width/2.5, 0, 1), 0, 1);
+                    const opacity = constrain(
+                        CENTER_OPACITY_FACTOR + pow(normalizedDist, 2.2) * 0.35, 
+                        0.01, 0.35
+                    );
+                    
+                    connections.push({
+                        from: currentNode,
+                        to: nextNode,
+                        opacity: opacity,
+                        weight: random(0.3, 1.0)
+                    });
+                    
+                    currentNode.connections++;
+                    nextNode.connections++;
+                    
+                    // Move to next node in the chain
+                    currentNode = nextNode;
+                }
+            }
+            
+            // Then add some random additional connections
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i].connections >= MAX_CONNECTIONS_PER_NODE) continue;
+                
+                const node = nodes[i];
+                
+                // With 70% probability, try to add a connection
+                if (random() < 0.7) {
+                    connectToNearbyNodes(node);
+                }
+            }
+        }
+
+        function draw() {
+            clear();
+            
+            // Create new nodes periodically at the center
+            if (frameCount % 20 === 0 && nodes.length < MAX_NODES) {
+                createNewNode();
+            }
+            
+            // Update and display connections first (drawn behind nodes)
+            updateAndDisplayConnections();
+            
+            // Update and display nodes
+            updateAndDisplayNodes();
+            
+            // Periodically check for new possible connections between existing nodes
+            if (frameCount % 45 === 0) {
+                createNewConnections();
+            }
+        }
+
+        function createNewNode() {
+            const nodeType = random(NODE_TYPES);
+            const angle = random(TWO_PI);
+            const distance = random(5, 15);
+            const x = width / 2 + cos(angle) * distance;
+            const y = height / 2 + sin(angle) * distance;
+            const size = random(2, 5);
+            const hue = random(180, 260);
+            
+            const node = {
+                x: x,
+                y: y,
+                size: size,
+                maxSize: random(15, 25),
+                growthRate: random(0.1, 0.2),
+                angle: angle,
+                speed: random(0.2, 0.5),
+                hue: hue,
+                opacity: 0.02,
+                type: nodeType,
+                connections: 0
+            };
+            
+            nodes.push(node);
+            
+            // Create connections with nearby nodes with higher probability
+            if (random() < 0.5) {
+                connectToNearbyNodes(node);
+            }
+        }
+
+        function connectToNearbyNodes(node) {
+            // If this node already has max connections, don't create more
+            if (node.connections >= MAX_CONNECTIONS_PER_NODE) return;
+            
+            // Sort nodes by distance to prioritize closer ones
+            const nearbyNodes = nodes
+                .filter(otherNode => otherNode !== node)
+                .map(otherNode => ({
+                    node: otherNode,
+                    distance: dist(node.x, node.y, otherNode.x, otherNode.y),
+                    angleDiff: getAngleDifference(node.angle, otherNode.angle)
+                }))
+                .filter(item => 
+                    item.distance < CONNECTION_DISTANCE_THRESHOLD && 
+                    item.angleDiff < ANGLE_SIMILARITY_THRESHOLD &&
+                    item.node.connections < MAX_CONNECTIONS_PER_NODE
+                )
+                .sort((a, b) => a.distance - b.distance);
+            
+            // Connect to closest nodes with some probability
+            for (let i = 0; i < nearbyNodes.length && node.connections < MAX_CONNECTIONS_PER_NODE; i++) {
+                const item = nearbyNodes[i];
+                
+                // Check if connection already exists
+                const connectionExists = connections.some(conn => 
+                    (conn.from === node && conn.to === item.node) || 
+                    (conn.from === item.node && conn.to === node)
+                );
+                
+                if (!connectionExists) {
+                    // Higher probability than before
+                    const connectionProbability = 
+                        map(item.distance, 0, CONNECTION_DISTANCE_THRESHOLD, 0.7, 0.25) * 
+                        map(item.angleDiff, 0, ANGLE_SIMILARITY_THRESHOLD, 0.8, 0.3);
+                    
+                    if (random() < connectionProbability) {
+                        connections.push({
+                            from: node,
+                            to: item.node,
+                            opacity: 0.01,
+                            weight: random(0.3, 1.0)
+                        });
+                        
+                        node.connections++;
+                        item.node.connections++;
+                        
+                        // If we've reached max connections, break out
+                        if (node.connections >= MAX_CONNECTIONS_PER_NODE) break;
+                    }
+                }
+            }
+        }
+
+        function getAngleDifference(angle1, angle2) {
+            const angleDifference = abs(angle1 - angle2);
+            return min(angleDifference, TWO_PI - angleDifference);
+        }
+
+        function createNewConnections() {
+            // Process a slightly larger subset of nodes
+            const nodesToProcess = min(nodes.length, 15);
+            
+            for (let i = 0; i < nodesToProcess; i++) {
+                const nodeIndex = floor(random(nodes.length));
+                const node = nodes[nodeIndex];
+                
+                // Skip if node already has max connections
+                if (node.connections >= MAX_CONNECTIONS_PER_NODE) continue;
+                
+                connectToNearbyNodes(node);
+            }
+        }
+
+        function updateAndDisplayNodes() {
+            for (let i = nodes.length - 1; i >= 0; i--) {
+                const node = nodes[i];
+                
+                // Update position - move outward
+                const distFromCenter = dist(node.x, node.y, width/2, height/2);
+                node.x += cos(node.angle) * node.speed * (distFromCenter / 200 + 0.3);
+                node.y += sin(node.angle) * node.speed * (distFromCenter / 200 + 0.3);
+                
+                // Update size
+                if (node.size < node.maxSize) {
+                    node.size += node.growthRate;
+                }
+                
+                // Update opacity - using a power curve for more dramatic transition from center
+                const normalizedDist = constrain(map(distFromCenter, 0, width/2.5, 0, 1), 0, 1);
+                node.opacity = constrain(pow(normalizedDist, 1.8) * 0.5, 0.02, 0.5);
+                
+                // Draw node with outline
+                // Calculate stroke opacity - higher than fill opacity but related to it
+                const strokeOpacity = min(1, node.opacity * 2.5);
+                
+                // Set stroke color (same hue, higher saturation, lower brightness for contrast)
+                stroke(node.hue, 90, 60, strokeOpacity);
+                strokeWeight(0.8); // Thin but visible outline
+                
+                // Set fill color
+                fill(node.hue, 70, 90, node.opacity);
+                
+                if (node.type === "circle") {
+                    circle(node.x, node.y, node.size);
+                } else if (node.type === "hexagon") {
+                    drawHexagon(node.x, node.y, node.size);
+                }
+                
+                // Remove nodes that are off-screen
+                if (node.x < -100 || node.x > width + 100 || 
+                    node.y < -100 || node.y > height + 100) {
+                    nodes.splice(i, 1);
+                }
+            }
+        }
+
+        function updateAndDisplayConnections() {
+            for (let i = connections.length - 1; i >= 0; i--) {
+                const conn = connections[i];
+                
+                // Check if either node has been removed
+                if (!nodes.includes(conn.from) || !nodes.includes(conn.to)) {
+                    removeConnection(i);
+                    continue;
+                }
+                
+                // Calculate distance from center for opacity
+                const centerX = (conn.from.x + conn.to.x) / 2;
+                const centerY = (conn.from.y + conn.to.y) / 2;
+                const distFromCenter = dist(centerX, centerY, width/2, height/2);
+                
+                // Calculate opacity - much lower near center with a power curve for faster transition
+                const normalizedDist = constrain(map(distFromCenter, 0, width/2.5, 0, 1), 0, 1);
+                // Use a power curve with center factor for even more dramatic fade-in from center
+                conn.opacity = constrain(
+                    CENTER_OPACITY_FACTOR + pow(normalizedDist, 2.2) * 0.35, 
+                    0.01, 0.35
+                );
+                
+                // Draw connection
+                stroke(conn.from.hue, 50, 90, conn.opacity);
+                strokeWeight(conn.weight);
+                line(conn.from.x, conn.from.y, conn.to.x, conn.to.y);
+                
+                // Remove connections if nodes are too far apart
+                const nodeDistance = dist(conn.from.x, conn.from.y, conn.to.x, conn.to.y);
+                if (nodeDistance > CONNECTION_DISTANCE_THRESHOLD * 2.5) {
+                    removeConnection(i);
+                }
+            }
+        }
+        
+        function removeConnection(index) {
+            // Decrement connection counters for the nodes
+            if (connections[index].from && nodes.includes(connections[index].from)) {
+                connections[index].from.connections = max(0, connections[index].from.connections - 1);
+            }
+            if (connections[index].to && nodes.includes(connections[index].to)) {
+                connections[index].to.connections = max(0, connections[index].to.connections - 1);
+            }
+            
+            // Remove the connection
+            connections.splice(index, 1);
+        }
+
+        function drawHexagon(x, y, size) {
+            beginShape();
+            for (let i = 0; i < 6; i++) {
+                const angle = TWO_PI / 6 * i;
+                const px = x + cos(angle) * size;
+                const py = y + sin(angle) * size;
+                vertex(px, py);
+            }
+            endShape(CLOSE);
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>

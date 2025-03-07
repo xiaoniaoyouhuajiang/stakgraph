@@ -1,0 +1,188 @@
+import neo4j, { Driver, Session } from "neo4j-driver";
+import fs from "fs";
+import readline from "readline";
+import { Node, Edge } from "./types.js";
+import { create_node_key } from "./utils.js";
+import {
+  PAGES_QUERY,
+  COMPONENTS_QUERY,
+  PATH_QUERY,
+  PKGS_QUERY,
+} from "./queries.js";
+import { Node as CodeNode } from "./codebody.js";
+
+class Db {
+  private driver: Driver;
+
+  constructor() {
+    const uri = `neo4j://${process.env.NEO4J_HOST || "localhost"}`;
+    const user = process.env.NEO4J_USER || "neo4j";
+    const pswd = process.env.NEO4J_PASSWORD || "testtest";
+    console.log("===> connecting to", uri, user, pswd);
+    this.driver = neo4j.driver(uri, neo4j.auth.basic(user, pswd));
+  }
+
+  async get_pkg_files(): Promise<CodeNode[]> {
+    const session = this.driver.session();
+    try {
+      const r = await session.run(PKGS_QUERY);
+      return r.records.map((record) => record.get("file"));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_function_path(
+    page: string | null,
+    func: string | null,
+    include_tests: boolean
+  ) {
+    const session = this.driver.session();
+    let page_name = page || null;
+    let function_name = func || null;
+    try {
+      return await session.run(PATH_QUERY, {
+        page_name,
+        function_name,
+        include_tests,
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_pages() {
+    const session = this.driver.session();
+    try {
+      return await session.run(PAGES_QUERY);
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_components() {
+    const session = this.driver.session();
+    try {
+      return await session.run(COMPONENTS_QUERY);
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Main function to process both nodes and edges
+  async init_graph(node_file: string, edge_file: string) {
+    const session = this.driver.session();
+    try {
+      console.log("Processing nodes...", node_file);
+      await process_file(session, node_file, (data) =>
+        construct_merge_node_query(data)
+      );
+      console.log("Processing edges...", edge_file);
+      await process_file(session, edge_file, (data) =>
+        construct_merge_edge_query(data)
+      );
+      console.log("Processing complete!");
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      await session.close();
+    }
+  }
+}
+
+export const db = new Db();
+
+interface MergeQuery {
+  query: string;
+  parameters: any;
+}
+
+// Function to construct node merge query
+export function construct_merge_node_query(node: Node): MergeQuery {
+  const { node_type, node_data } = node;
+  const node_key = create_node_key(node_data);
+  const query = `
+      MERGE (node:${node_type} {node_key: $node_key})
+      ON CREATE SET node += $properties
+      ON MATCH SET node += $properties
+      RETURN node
+    `;
+  return {
+    query,
+    parameters: {
+      node_key,
+      properties: { ...node_data, node_key },
+    },
+  };
+}
+
+// Function to construct edge merge query
+function construct_merge_edge_query(edge_data: Edge): MergeQuery {
+  const { edge, source, target } = edge_data;
+  const source_key = create_node_key(source.node_data);
+  const target_key = create_node_key(target.node_data);
+  const query = `
+      MATCH (source:${source.node_type} {node_key: $source_key})
+      MATCH (target:${target.node_type} {node_key: $target_key})
+      MERGE (source)-[r:${edge.edge_type}]->(target)
+      RETURN r
+    `;
+  return {
+    query,
+    parameters: {
+      source_key,
+      target_key,
+    },
+  };
+}
+
+const BATCH_SIZE = 256;
+
+async function process_file(
+  session: Session,
+  file_path: string,
+  process_fn: (data: any) => any
+) {
+  const file_interface = readline.createInterface({
+    input: fs.createReadStream(file_path),
+    crlfDelay: Infinity,
+  });
+  let batch = [];
+  let count = 0;
+  for await (const line of file_interface) {
+    try {
+      const data = JSON.parse(line);
+      // console.log(data);
+      const query_data = process_fn(data);
+      // console.log(query_data);
+      batch.push(query_data);
+
+      if (batch.length >= BATCH_SIZE) {
+        await execute_batch(session, batch);
+        console.log(`Processed ${(count += batch.length)} items`);
+        batch = [];
+      }
+    } catch (error) {
+      console.error(`Error processing line: ${line}`, error);
+    }
+  }
+  // Process remaining items
+  if (batch.length > 0) {
+    await execute_batch(session, batch);
+    console.log(`Processed ${(count += batch.length)} items`);
+  }
+}
+
+async function execute_batch(session: Session, batch: any[]) {
+  const tx = session.beginTransaction();
+  try {
+    for (const { query, parameters } of batch) {
+      await tx.run(query, parameters);
+    }
+    await tx.commit();
+  } catch (error) {
+    await tx.rollback();
+    console.error("Error executing batch:", error);
+    throw error;
+  }
+}
