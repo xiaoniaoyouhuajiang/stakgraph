@@ -108,7 +108,9 @@ impl Repo {
             let imports = self.lang.get_imports(&code, &filename)?;
             // imports are concatenated into one section
             let import_section = combine_imports(imports);
-            i += 1;
+            if !import_section.is_empty() {
+                i += 1;
+            }
             graph.add_imports(import_section);
         }
         info!("=> got {} import sections", i);

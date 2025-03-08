@@ -14,7 +14,7 @@ async fn test_go() {
     )
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
-    println!("graph: {:?}", graph);
+    // println!("graph: {:?}", graph);
     assert!(graph.nodes.len() == 73);
     assert!(graph.edges.len() == 82);
 
@@ -40,9 +40,9 @@ async fn test_go() {
     // assert_eq!(files.len(), 5);
 
     let imports = graph
-        .edges
+        .nodes
         .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Imports))
+        .filter(|n| matches!(n, Node::Import(_)))
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 3);
 
