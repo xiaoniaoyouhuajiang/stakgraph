@@ -4,3 +4,5 @@ notes.md
 treesitter/tree-sitter-haml
 treesitter/tree-sitter-typescript
 treesitter/tree-sitter-embedded-template
+venv
+__pycache__
