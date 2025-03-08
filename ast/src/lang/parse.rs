@@ -673,12 +673,12 @@ impl Lang {
         graph: &Graph,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<FunctionCall>> {
-        trace!("format_function_call");
         let mut fc = Calls::default();
         let mut external_func = None;
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == FUNCTION_NAME {
                 let called = body;
+                trace!("format_function_call {} {}", caller_name, called);
                 if let Some(lsp) = lsp_tx {
                     let p = node.start_position();
                     log_cmd(format!("=> {} looking for {:?}", caller_name, called));

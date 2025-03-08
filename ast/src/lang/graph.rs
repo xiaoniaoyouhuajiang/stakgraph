@@ -830,7 +830,13 @@ impl Node {
             Node::DataModel(d) => d.clone(),
             Node::Feature(f) => f.clone(),
             Node::Page(p) => p.clone(),
-            _ => Default::default(),
+            Node::Language(l) => l.clone(),
+            Node::Directory(d) => d.clone(),
+            Node::Library(l) => l.clone(),
+            Node::E2eTest(t) => t.clone(),
+            Node::Trait(t) => t.clone(),
+            Node::Module(_m) => Default::default(),
+            Node::Arg(_a) => Default::default(),
         }
     }
     pub fn to_node_type(&self) -> NodeType {

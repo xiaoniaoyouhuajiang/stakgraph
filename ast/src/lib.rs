@@ -6,3 +6,6 @@ pub mod utils;
 
 pub use lang::Lang;
 pub use repo::Repo;
+
+#[cfg(test)]
+mod testing;
