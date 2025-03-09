@@ -119,7 +119,7 @@ pub fn link_api_nodes(graph: &mut Graph) -> Result<()> {
     Ok(())
 }
 
-fn normalize_frontend_path(path: &str) -> Option<String> {
+pub fn normalize_frontend_path(path: &str) -> Option<String> {
     // Skip paths that are entirely template literals
     if path.starts_with("${") && path.ends_with("}") && !path[2..].contains("${") {
         return None;
@@ -149,7 +149,7 @@ fn normalize_frontend_path(path: &str) -> Option<String> {
     Some(format!("/{}", normalized))
 }
 
-fn normalize_backend_path(path: &str) -> Option<String> {
+pub fn normalize_backend_path(path: &str) -> Option<String> {
     // Handle various backend parameter formats:
     let re_patterns = [
         // Flask/FastAPI "<type:param>" or "<param>" style - needs to come first

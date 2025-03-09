@@ -244,7 +244,7 @@ impl Stack for Go {
         // the surrounding () is required to match the match work
         let type_finder = format!(
             r#"(
-    (type_identifier) @struct-name (#match? @struct-name "^[A-Z].*")
+    (type_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
 )"#
         );
         Some(type_finder)
