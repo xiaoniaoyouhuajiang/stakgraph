@@ -85,6 +85,7 @@ impl Repo {
                     text: code.to_string(),
                     lang: self.lang.kind.clone(),
                 };
+                debug!("didopen: {:?}", didopen);
                 let _ = LspCmd::DidOpen(didopen).send(&lsp_tx)?;
             }
         }

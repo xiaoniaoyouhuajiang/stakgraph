@@ -8,7 +8,7 @@ pub use language::Language;
 pub use utils::*;
 
 use anyhow::{anyhow, Context, Result};
-use lsp_types::{GotoDefinitionResponse, Hover,Location};
+use lsp_types::{GotoDefinitionResponse, Hover, Location};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::mpsc;
@@ -85,8 +85,9 @@ impl Position {
                     return None;
                 }
                 // if there are multiple, filter out mocks and tests
-                let locs_no_mocks:Vec<&Location> = locs.iter().filter(|loc| non_mock_location(loc)).collect();
-                let theloc = if locs_no_mocks.len()==1 {
+                let locs_no_mocks: Vec<&Location> =
+                    locs.iter().filter(|loc| non_mock_location(loc)).collect();
+                let theloc = if locs_no_mocks.len() == 1 {
                     locs_no_mocks.first().unwrap()
                 } else {
                     locs.first().unwrap()
@@ -109,10 +110,10 @@ impl Position {
 }
 
 fn non_mock_location(loc: &Location) -> bool {
-    !loc.uri.path().contains("mock")&&
-    !loc.uri.path().contains("test")&&
-    !loc.uri.path().contains("spec")&&
-    !loc.uri.path().contains("__")
+    !loc.uri.path().contains("mock")
+        && !loc.uri.path().contains("test")
+        && !loc.uri.path().contains("spec")
+        && !loc.uri.path().contains("__")
 }
 
 impl TryFrom<Hover> for Res {
@@ -184,6 +185,7 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
         mainloop.run_buffered(stdout, stdin).await.unwrap();
     });
 
+    info!("initializing {:?}...", lang);
     let init_ret = conn.init().await?;
     info!("Initialized: {:?}", init_ret.server_info);
 

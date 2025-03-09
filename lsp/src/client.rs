@@ -7,7 +7,9 @@ use async_lsp::router::Router;
 use async_lsp::tracing::{Tracing, TracingLayer};
 use async_lsp::MainLoop;
 use async_lsp::{LanguageServer, ServerSocket};
-use lsp_types::notification::{LogMessage, Progress, PublishDiagnostics, ShowMessage};
+use lsp_types::notification::{
+    DidChangeWatchedFiles, LogMessage, Progress, PublishDiagnostics, ShowMessage,
+};
 use lsp_types::request::{
     GotoDeclarationParams, GotoImplementationParams, GotoImplementationResponse,
     WorkDoneProgressCreate,
@@ -18,7 +20,7 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use tokio::sync::oneshot;
 use tower::ServiceBuilder;
-use tracing::info;
+use tracing::{debug, info};
 
 pub struct LspClient {
     root: PathBuf,
@@ -36,6 +38,7 @@ pub type ClientLoop = MainLoop<Tracing<CatchUnwind<Concurrency<Router<ClientStat
 
 impl LspClient {
     pub fn new(root_dir: &PathBuf, lang: &Language) -> (Self, ClientLoop, oneshot::Receiver<()>) {
+        debug!("new: {:?}", lang);
         let (tx, rx) = oneshot::channel();
         let (client, mainloop) = start(tx, root_dir, lang);
         (client, mainloop, rx)
@@ -50,6 +53,7 @@ impl LspClient {
         Ok(file)
     }
     pub async fn handle(&mut self, cmd: Cmd) -> Result<Res> {
+        debug!("handle: {:?}", cmd);
         Ok(match cmd {
             Cmd::DidOpen(di) => {
                 let fp = self.file_path(&di.file)?;
@@ -89,6 +93,7 @@ impl LspClient {
         Ok(())
     }
     pub async fn init(&mut self) -> Result<InitializeResult> {
+        debug!("LSP init... {:?}", self.root);
         let ret = self
             .server
             .initialize(InitializeParams {
@@ -192,12 +197,16 @@ fn start(
 
         router
             .notification::<PublishDiagnostics>(|_, _| ControlFlow::Continue(()))
+            .notification::<DidChangeWatchedFiles>(|this, c| {
+                info!("===> DidChangeWatchedFiles: {:?}", c);
+                ControlFlow::Continue(())
+            })
             .notification::<ShowMessage>(|_, params| {
-                tracing::debug!("ShowMessage::: {:?}: {}", params.typ, params.message);
+                debug!("ShowMessage::: {:?}: {}", params.typ, params.message);
                 ControlFlow::Continue(())
             })
             .notification::<LogMessage>(|this, params| {
-                tracing::debug!("LogMessage::: {:?}: {}", params.typ, params.message);
+                debug!("LogMessage::: {:?}: {}", params.typ, params.message);
                 if let Some(tx) = this.indexed_tx.take() {
                     let _: Result<_, _> = tx.send(());
                 }
@@ -209,7 +218,7 @@ fn start(
                 if matches!(ev, Stop) {
                     ControlFlow::Break(Ok(()))
                 } else {
-                    tracing::debug!("event: {:?}", ev);
+                    debug!("event: {:?}", ev);
                     ControlFlow::Continue(())
                 }
             });
@@ -218,7 +227,7 @@ fn start(
             Language::Rust => {
                 router.notification::<Progress>(|this, prog| {
                     println!("Progress: {:?}", prog);
-                    tracing::info!("{:?} {:?}", prog.token, prog.value);
+                    info!("{:?} {:?}", prog.token, prog.value);
 
                     if matches!(prog.token, NumberOrString::String(s) if s == "rustAnalyzer/Indexing") {
                         let ProgressParamsValue::WorkDone(wd) = prog.value;
