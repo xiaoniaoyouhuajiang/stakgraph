@@ -19,7 +19,7 @@ func NewRouter() *http.Server {
 	r := initChi()
 
 	r.Group(func(r chi.Router) {
-		r.Get("/person", GetPerson)
+		r.Get("/person/{id}", GetPerson)
 		r.Post("/person", CreatePerson)
 	})
 
@@ -41,7 +41,7 @@ func NewRouter() *http.Server {
 }
 
 func GetPerson(w http.ResponseWriter, r *http.Request) {
-	idstr := r.URL.Query().Get("id")
+	idstr := chi.URLParam(r, "id")
 	id, _ := strconv.Atoi(idstr)
 	p, err := DB.GetPerson(uint(id))
 	if err != nil {
