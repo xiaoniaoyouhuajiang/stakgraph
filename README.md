@@ -19,3 +19,23 @@ cargo run --bin urls
 - [x] React
 - [x] Ruby on Rails
 - [x] Typescript
+
+### LSP
+
+This project uses the Language Server Protocol to connect nodes in the graph.
+
+##### go
+
+`go install golang.org/x/tools/gopls@latest`
+
+##### rust
+
+https://github.com/rust-lang/rust-analyzer/releases
+
+##### typescript
+
+`npm install -g typescript-language-server`
+
+##### python
+
+`pip install python-lsp-server`
