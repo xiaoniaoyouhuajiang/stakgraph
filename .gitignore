@@ -6,3 +6,4 @@ treesitter/tree-sitter-typescript
 treesitter/tree-sitter-embedded-template
 venv
 __pycache__
+*.db
