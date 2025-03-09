@@ -70,20 +70,12 @@ name = "stak"
 path = "examples/stak.rs"
 
 [[example]]
-name = "cabal"
-path = "examples/cabal.rs"
-
-[[example]]
 name = "url"
 path = "examples/url.rs"
 
 [[example]]
 name = "file"
 path = "examples/file.rs"
-
-[[example]]
-name = "files"
-path = "examples/files.rs"
 
 [[bin]]
 name = "print_queries"

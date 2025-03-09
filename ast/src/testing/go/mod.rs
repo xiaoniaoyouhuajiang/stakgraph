@@ -82,7 +82,7 @@ async fn test_go() {
     assert_eq!(ends.len(), 2);
 
     let end = ends[0].into_data();
-    assert_eq!(end.name, "/person");
+    assert_eq!(end.name, "/person/{id}");
     assert_eq!(end.file, "src/testing/go/routes.go");
     assert_eq!(end.meta.get("verb").unwrap(), "GET");
 
