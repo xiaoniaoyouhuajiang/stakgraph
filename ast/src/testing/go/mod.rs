@@ -16,7 +16,7 @@ async fn test_go() {
     let graph = repo.build_graph().await.unwrap();
     // println!("graph: {:?}", graph);
     assert!(graph.nodes.len() == 73);
-    assert!(graph.edges.len() == 82);
+    assert!(graph.edges.len() == 88);
 
     let l = graph
         .nodes
@@ -90,4 +90,12 @@ async fn test_go() {
     assert_eq!(end.name, "/person");
     assert_eq!(end.file, "src/testing/go/routes.go");
     assert_eq!(end.meta.get("verb").unwrap(), "POST");
+
+    // get handler edges
+    let edges = graph
+        .edges
+        .iter()
+        .filter(|e| matches!(e.edge, EdgeType::Handler))
+        .collect::<Vec<_>>();
+    assert_eq!(edges.len(), 2);
 }

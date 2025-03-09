@@ -293,7 +293,7 @@ impl Lang {
                 endp.start = node.start_position().row;
                 endp.end = node.end_position().row;
             } else if o == HANDLER {
-                // println!("found HANDLER {:?} {:?}", body, inst.name);
+                tracing::info!("found HANDLER {:?} {:?}", body, endp.name);
                 let handler_name = trim_quotes(&body);
                 endp.add_handler(&handler_name);
                 let p = node.start_position();
@@ -353,6 +353,9 @@ impl Lang {
                                 handler = Some(Edge::handler(&endp, &target));
                             }
                         }
+                    } else {
+                        // FALLBACK to find?
+                        return Ok(self.lang().handler_finder(endp, graph, params));
                     }
                 }
             }
@@ -751,6 +754,14 @@ impl Lang {
                 // fc.target = NodeKeys::new(&body, &tf);
                 } else {
                     // println!("no target for {:?}", body);
+                    // FALLBACK to find?
+                    if let Some(tf) = func_target_file_finder(&called, &None, graph) {
+                        log_cmd(format!(
+                            "==> ? (no lsp) ONE target for {:?} {}",
+                            called, &tf
+                        ));
+                        fc.target = NodeKeys::new(&called, &tf);
+                    }
                 }
             } else if o == FUNCTION_CALL {
                 fc.source = NodeKeys::new(&caller_name, file);
@@ -1133,13 +1144,7 @@ pub fn trim_quotes(value: &str) -> &str {
 }
 
 fn log_cmd(cmd: String) {
-    tracing::debug!("{}", cmd);
-    if cmd.contains("aGetBountiesLeaderboard") {
-        println!("{}", cmd);
-    }
-    // if cmd.contains("TestUnitCreateOrEditWorkspace") {
-    //     println!("{}", cmd);
-    // }
+    debug!("{}", cmd);
 }
 
 fn is_capitalized(name: &str) -> bool {

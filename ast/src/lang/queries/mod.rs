@@ -178,10 +178,16 @@ pub trait Stack {
     }
     fn handler_finder(
         &self,
-        _endpoint: NodeData,
-        _graph: &Graph,
+        endpoint: NodeData,
+        graph: &Graph,
         _handler_params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
+        if let Some(handler) = endpoint.meta.get("handler") {
+            if let Some(nd) = graph.find_exact_func(handler, &endpoint.file) {
+                let edge = Edge::handler(&endpoint, &nd);
+                return vec![(endpoint, Some(edge))];
+            }
+        }
         Vec::new()
     }
     fn integration_test_query(&self) -> Option<String> {
