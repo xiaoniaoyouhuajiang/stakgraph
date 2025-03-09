@@ -24,7 +24,10 @@ RUN apt-get update
 RUN apt-get install -y ca-certificates openssl
 RUN apt-get install -y linux-headers-generic
 RUN apt update
-RUN apt install -y sed curl npm nodejs git
+RUN apt install -y sed curl npm nodejs git python3-full python3-pip
+
+# python
+RUN pip install python-lsp-server --break-system-packages
 
 # js
 RUN npm install -g typescript typescript-language-server
