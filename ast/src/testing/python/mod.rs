@@ -12,8 +12,8 @@ async fn test_python(){
     Vec::new()).unwrap();
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len() , 26);
-    assert_eq!(graph.edges.len() ,27);
+    assert_eq!(graph.nodes.len() , 32);
+    assert_eq!(graph.edges.len() ,30);
 
     let languages = graph.nodes
     .iter()
@@ -64,28 +64,31 @@ async fn test_python(){
     .filter(|n| matches!(n, Node::DataModel(_)))
     .collect::<Vec<_>>();
     //Data models are zero because they are just classes in python
-    assert_eq!(data_models.len(), 0);
+    assert_eq!(data_models.len(), 3);
 
 
-    // Node::Endpoints does not recognize FASTAPI endpoints as endpoints, so we find them using Node::Function as regular functions in the routes.py file
-    let route_functions = graph.nodes
-        .iter()
-        .filter(|n| matches!(n, Node::Function(_)) && 
-               n.into_data().file == "src/testing/python/routes.py")
-        .collect::<Vec<_>>();
-    
-    println!("Route functions count: {:?}", route_functions.len());
-    assert_eq!(route_functions.len(), 2); 
+    let endpoints = graph.nodes
+    .iter()
+    .filter(|n| matches!(n, Node::Endpoint(_)))
+    .collect::<Vec<_>>();
 
-    
+   
+    assert_eq!(endpoints.len(), 3);
 
-    let endpoint = route_functions[0].into_data();
-    assert_eq!(endpoint.name, "get_user");
+    let endpoint = endpoints[0].into_data();
+    assert_eq!(endpoint.name, "/");
+    assert_eq!(endpoint.file, "src/testing/python/main.py");
+   
+
+    let endpoint = endpoints[1].into_data();
+    assert_eq!(endpoint.name, "/users/{user_id}");
     assert_eq!(endpoint.file, "src/testing/python/routes.py");
+ 
 
-    let endpoint = route_functions[1].into_data();
-    assert_eq!(endpoint.name, "create_user");
+    let endpoint = endpoints[2].into_data();
+    assert_eq!(endpoint.name, "/users/");
     assert_eq!(endpoint.file, "src/testing/python/routes.py");
+   
 
 
 }
