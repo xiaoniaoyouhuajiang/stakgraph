@@ -1,4 +1,3 @@
-@ -0,0 +1,65 @@
 import { useState } from 'react';
 
 function NewPerson() {

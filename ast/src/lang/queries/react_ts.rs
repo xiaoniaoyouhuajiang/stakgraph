@@ -336,20 +336,5 @@ impl Stack for ReactTs {
         Ok(parent_of)
     }
 
-    fn endpoint_finders(&self) -> Vec<String> {
-    vec![
-        format!(
-            r#"(call_expression
-                function: [
-                    (identifier) @function-name (#match? @function-name "^(fetch|get|post|put|delete|axios.get|axios.post)$")
-                ]
-                arguments: (arguments
-                    [(string) @endpoint]
-                )
-            ) @route"#
-        )
-    ]
-}
-
 
 }

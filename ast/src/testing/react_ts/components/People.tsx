@@ -1,4 +1,3 @@
-@ -0,0 +1,30 @@
 import { useEffect, useState } from 'react';
 import { Person } from './Person';
 

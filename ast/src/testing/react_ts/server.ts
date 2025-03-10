@@ -1,4 +1,3 @@
-@ -0,0 +1,32 @@
 import express from 'express';
 import cors from 'cors';
 
