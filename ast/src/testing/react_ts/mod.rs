@@ -22,7 +22,7 @@ async fn test_react_typescript() {
 
 
     assert!(graph.nodes.len() == 42);
-    assert!(graph.edges.len() == 39);
+    assert!(graph.edges.len() == 41);
 
 
     let l = graph
@@ -84,7 +84,7 @@ async fn test_react_typescript() {
         .iter()
         .filter(|e| matches!(e.edge, EdgeType::Calls(_)))
         .collect::<Vec<_>>();
-    assert_eq!(calls_edges.len(), 3);
+    assert_eq!(calls_edges.len(), 5);
 
 
     let page_node = graph
