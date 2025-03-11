@@ -1,5 +1,5 @@
 use crate::utils::logger;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::lang::graph::{EdgeType, Graph, Node};
 use crate::lang::Lang;
@@ -49,7 +49,7 @@ impl BackendTester {
 
     pub fn test_backend(&self) -> Result<(), anyhow::Error> {
         info!(
-            "\n\nTesting backend for {} at {}\n\n",
+            "\n\nTesting backend for {} at src/testing/{}\n\n",
             self.lang.kind.to_string(),
             self.repo.as_ref().unwrap()
         );
@@ -179,28 +179,100 @@ impl BackendTester {
                         .graph
                         .find_functions_called_by_handler(&endpoint_handler);
 
-                    for triggered_function in triggered_functions {
-                        let contains_data_model = self.graph.edges.iter().any(|edge| {
+                    if triggered_functions.is_empty() {
+                        error!("No functions triggered by handler {}", formatted_handler);
+                    }
+
+                    let mut data_model_found = false;
+
+                    for func in &triggered_functions {
+                        let func_name = func.into_data().name.clone();
+
+                        let direction_connection = self.graph.edges.iter().any(|edge| {
                             edge.edge == EdgeType::Contains
                                 && edge.target.node_data.name == data_model
-                                && edge.source.node_data.name == triggered_function.into_data().name
-                            //FIXME: Fails for Python flask because between handler and data model there is a function call run a session of the database
+                                && edge.source.node_data.name == func_name
                         });
 
-                        info!("✓ Function contains {} Data Model", data_model);
+                        if direction_connection {
+                            data_model_found = true;
+                            break;
+                        }
 
-                        assert!(
-                            contains_data_model,
-                            "Does not contain data model {}",
-                            data_model
+                        let indirect_connection = self.check_indirect_data_model_usage(
+                            &func,
+                            data_model,
+                            &mut Vec::new(),
+                        );
+
+                        if indirect_connection {
+                            data_model_found = true;
+                            info!(
+                                "✓ Found function {} that indirectly triggers data model {}",
+                                func_name, data_model
+                            );
+                            break;
+                        }
+                    }
+
+                    if data_model_found {
+                        info!(
+                            "✓ Data model {} used by handler {}",
+                            data_model, formatted_handler
+                        );
+                    } else {
+                        error!(
+                            "Data model {} not used by handler {}",
+                            data_model, formatted_handler
                         );
                     }
+
+                    assert!(
+                        data_model_found,
+                        "No function triggers data model {}",
+                        data_model
+                    );
                 }
                 None => anyhow::bail!("Handler not found for endpoint {}", path),
             }
         }
 
         Ok(())
+    }
+
+    fn check_indirect_data_model_usage(
+        &self,
+        func: &Node,
+        data_model: &str,
+        visited: &mut Vec<String>,
+    ) -> bool {
+        let func_name = func.into_data().name.clone();
+
+        if visited.contains(&func_name) {
+            return false;
+        }
+
+        visited.push(func_name.clone());
+
+        let direct_connection = self.graph.edges.iter().any(|edge| {
+            edge.edge == EdgeType::Contains
+                && edge.target.node_data.name == data_model
+                && edge.source.node_data.name == func_name
+        });
+
+        if direct_connection {
+            return true;
+        }
+
+        let called_functions = self.graph.find_functions_called_by_handler(func);
+
+        for called_func in called_functions {
+            if self.check_indirect_data_model_usage(&called_func, data_model, visited) {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
