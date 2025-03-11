@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String
-from .db import Base
+from database import Base
 from pydantic import BaseModel
+from typing import Optional
 
 
 class Person(Base):
@@ -11,7 +12,7 @@ class Person(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
-    email = Column(String, unique=True, index=True)
+    email = Column(String, index=True)
 
     def __repr__(self):
         return f"<Person {self.name}>"
@@ -28,6 +29,7 @@ class CreateOrEditPerson(BaseModel):
     """
     PersonCreate model for creating new person
     """
+    id: Optional[int] = None
     name: str
     email: str
 

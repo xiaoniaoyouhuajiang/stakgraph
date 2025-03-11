@@ -1,17 +1,12 @@
-from flask import Flask, request, jsonify
-import os
+from flask import Blueprint, request, jsonify
+from db import db_session, get_person_by_id, create_new_person
+from model import CreateOrEditPerson
 
-from .db import get_person_by_id, create_new_person, engine, Base, db_session
-from .model import CreateOrEditPerson
-
-Base.metadata.create_all(bind=engine)
-
-app = Flask(__name__)
-
-basedir = os.path.abspath(os.path.dirname(__file__))
+# Create a Blueprint for Flask routes
+flask_bp = Blueprint('flask_routes', __name__)
 
 
-@app.route('/person/<int:id>', methods=['GET'])
+@flask_bp.route('/person/<int:id>', methods=['GET'])
 def get_person(id):
     with db_session() as db:
         person = get_person_by_id(db, id)
@@ -20,7 +15,7 @@ def get_person(id):
         return jsonify({'person': {'id': person.id, 'name': person.name, 'email': person.email}}), 200
 
 
-@app.route('/person/', methods=['POST'])
+@flask_bp.route('/person/', methods=['POST'])
 def create_person():
     # Get data from request
     data = request.get_json()
@@ -34,11 +29,3 @@ def create_person():
         # Create new person
         new_person = create_new_person(db, person_data)
         return jsonify({'id': new_person.id, 'name': new_person.name, 'email': new_person.email}), 201
-
-
-# Create tables before running
-with app.app_context():
-    Base.metadata.create_all(bind=engine)
-
-if __name__ == '__main__':
-    app.run(debug=True)
