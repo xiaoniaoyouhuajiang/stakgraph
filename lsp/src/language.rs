@@ -37,7 +37,7 @@ impl Language {
             Self::Rust => vec!["rs"],
             Self::Go => vec!["go"],
             Self::Typescript => vec!["jsx", "tsx", "ts", "js"],
-            Self::Python => vec!["py"],
+            Self::Python => vec!["py", "ipynb", "txt"],
             Self::Ruby => vec!["rb"],
             Self::Bash => vec!["sh"],
             Self::Toml => vec!["toml"],

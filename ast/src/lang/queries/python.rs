@@ -101,8 +101,9 @@ impl Stack for Python {
     }
 
     fn endpoint_finders(&self) -> Vec<String> {
-        vec![format!(
-          r#"(decorated_definition
+        vec![
+            format!(
+                r#"(decorated_definition
     (decorator
         (call
             function: (attribute
@@ -116,11 +117,38 @@ impl Stack for Python {
     definition: (function_definition
         name: (identifier) @{HANDLER}
     )
-)"#  
-        )]
+)"#
+            ),
+            //Flask style
+            format!(
+                r#"(decorated_definition
+    (decorator
+        (call
+            function: (attribute
+                object: (_) 
+                attribute: (identifier) @route_func (#eq? @route_func "route")
+            )
+            arguments: (argument_list
+                (string) @{ENDPOINT}
+                .
+                (keyword_argument
+                    name: (identifier) @method_kw (#eq? @method_kw "methods")
+                    value: (list
+                        (string) @{ENDPOINT_VERB} 
+                    )
+                )?
+            )
+        )
+    ) @{ROUTE}
+    definition: (function_definition
+        name: (identifier) @{HANDLER}
+    )
+)"#
+            ),
+        ]
     }
 
- fn data_model_query(&self) -> Option<String> {
+    fn data_model_query(&self) -> Option<String> {
         Some(format!(
             "(class_definition
     name: (identifier) @{STRUCT_NAME}
@@ -128,9 +156,30 @@ impl Stack for Python {
         ))
     }
 
-     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
-        func_name.starts_with("test_")
+    fn data_model_within_query(&self) -> Option<String> {
+        Some(format!(
+            r#"[
+                (assignment
+                    (call
+                        function: (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+                    )
+                )
+                (call
+                    arguments: (argument_list
+                        (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+                    )
+                )
+                (call
+                    function: (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+                )
+                (attribute
+                    object: (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+                )
+            ]"#
+        ))
     }
 
-    
+    fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
+        func_name.starts_with("test_")
+    }
 }

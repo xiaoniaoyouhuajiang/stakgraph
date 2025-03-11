@@ -1,37 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException, status 
-from sqlalchemy.orm import Session 
-from typing import List
-from .model import UserCreate, UserResponse, User
-from .db import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from .model import CreateOrEditPerson, PersonResponse
+from .db import get_db, get_person_by_id, create_new_person
 
 
 router = APIRouter()
 
-@router.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int, db: Session = Depends(get_db)):
+
+@router.get("/person/{id}", response_model=PersonResponse)
+async def get_person(id: int, db: Session = Depends(get_db)):
     """
     Get user details by user id
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    person = get_person_by_id(db, id)
+    if person is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Person not found")
     return {
-        "data" : user,
-        "message" : "User details fetched successfully",
-        "status" : status.HTTP_200_OK
+        "data": person,
+        "message": "Person details fetched successfully",
+        "status": status.HTTP_200_OK
     }
 
-@router.post("/users/", response_model=UserResponse)
-async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+
+@router.post("/person/", response_model=PersonResponse)
+async def create_person(person: CreateOrEditPerson, db: Session = Depends(get_db)):
     """
     Create new user
     """
-    new_user = User(name=user.name, email=user.email, is_active=user.is_active)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    new_person = create_new_person(db, person)
     return {
-        "data" : new_user,
-        "message" : "User created successfully",
-        "status" : status.HTTP_201_CREATED
+        "data": new_person,
+        "message": "Person created successfully",
+        "status": status.HTTP_201_CREATED
     }
