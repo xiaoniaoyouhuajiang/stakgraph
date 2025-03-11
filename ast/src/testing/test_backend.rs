@@ -2,7 +2,7 @@ use crate::utils::logger;
 use tracing::{error, info};
 
 use crate::lang::graph::{EdgeType, Graph, Node};
-use crate::lang::Lang;
+use crate::lang::{linker::normalize_backend_path, Lang};
 use crate::repo::Repo;
 
 pub struct BackendTester {
@@ -131,7 +131,7 @@ impl BackendTester {
 
     fn test_endpoints(&self, endpoints: Vec<(&str, &str)>) -> Result<(), anyhow::Error> {
         for (method, path) in endpoints {
-            let normalized_expected_path = normalize_path(path);
+            let normalized_expected_path = normalize_backend_path(path).unwrap();
 
             let endpoint = self
                 .graph

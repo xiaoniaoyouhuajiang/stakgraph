@@ -145,6 +145,32 @@ impl Stack for Python {
     )
 )"#
             ),
+            format!(
+                r#"(assignment
+    (identifier) @url_patterns (#match? @url_patterns "^urlpatterns$")
+    (list
+        (call
+            (identifier) @path_func (#match? @path_func "^path$|^re_path$")
+            (argument_list
+                (string) @{ENDPOINT}
+                .
+                [
+                    (attribute
+                        (identifier)
+                        (identifier) @{HANDLER}
+                    )
+                    (identifier) @{HANDLER}
+                ]
+                .
+                (keyword_argument
+                    (identifier) @name_kw (#eq? @name_kw "name")
+                    (string) @route_name
+                )?
+            )
+        ) @{ROUTE}
+    )
+)"#
+            ),
         ]
     }
 
