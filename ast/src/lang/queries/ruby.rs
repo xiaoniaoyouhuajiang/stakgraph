@@ -131,42 +131,22 @@ impl Stack for Ruby {
     }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
-            r#"(call
-    receiver: [
-        (element_reference
-            object: (scope_resolution
-                scope: (constant) @scope (#eq? @scope "ActiveRecord")
-                name: (constant) @name (#eq? @name "Schema")
-            )
-        )
-        (scope_resolution
-            scope: (constant) @scope (#eq? @scope "ActiveRecord")
-            name: (constant) @name (#eq? @name "Schema")
-        )
-    ]
-    block: (do_block
-        body: (body_statement
-            (call
-                method: (identifier) @create (#eq? @create "create_table")
-                arguments: (argument_list
-                    (string) @{STRUCT_NAME}
-                )
-            ) @{STRUCT}
-        )
-    )
-)"#
+            r#"(class
+    name: (constant) @{STRUCT_NAME}
+) @{STRUCT}"#
         ))
     }
     fn data_model_path_filter(&self) -> Option<String> {
-        Some("db/schema.rb".to_string())
+        Some("app/models/".to_string())
     }
     fn use_data_model_within_finder(&self) -> bool {
         true
     }
     fn data_model_within_finder(&self, data_model: &NodeData, graph: &Graph) -> Vec<Edge> {
-        // file: app/controllers/api/advisor_groups_controller.rb
         let mut models = Vec::new();
-        let funcs = graph.find_funcs_by(|f| is_controller(&f, &data_model.name));
+
+        let controller_name = data_model.name.to_lowercase();
+        let funcs = graph.find_funcs_by(|f| is_controller(&f, &controller_name));
         for func in funcs {
             models.push(Edge::contains(
                 NodeType::Function,
@@ -175,11 +155,49 @@ impl Stack for Ruby {
                 data_model,
             ));
         }
-        // without: Returning Graph with 12726 nodes and 13283 edges
-        // if edge:Handler with source.node_data.name == name, then the target -> Contains this data model
-        // "advisor_groups"
+
+        let service_name_pattern = format!("{}Service", data_model.name);
+        let controller_funcs = graph.find_funcs_by(|f| f.file.contains("_controller.rb"));
+
+        for func in controller_funcs {
+            let call_edges = graph.find_edges_by(|edge| {
+                if let EdgeType::Calls(_) = &edge.edge {
+                    if edge.source.node_data.name == func.name
+                        && edge.source.node_data.file == func.file
+                    {
+                        return edge.target.node_data.name.contains(&service_name_pattern);
+                    }
+                }
+                false
+            });
+
+            if !call_edges.is_empty() || func.body.contains(&service_name_pattern) {
+                models.push(Edge::contains(
+                    NodeType::Function,
+                    &func,
+                    NodeType::DataModel,
+                    data_model,
+                ));
+            }
+        }
+
         models
     }
+
+    fn data_model_within_query(&self) -> Option<String> {
+        Some(format!(
+            r#"[
+            (call
+                receiver: (constant) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^.*Person.*$")
+            )
+            (constant) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^.*Person.*$")
+            (class
+                name: (constant) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^.*Person.*$")
+            )
+        ]"#
+        ))
+    }
+
     fn is_test(&self, _func_name: &str, func_file: &str) -> bool {
         self.is_test_file(func_file)
     }
