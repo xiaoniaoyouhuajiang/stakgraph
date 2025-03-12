@@ -3,9 +3,7 @@ use crate::lang::Graph;
 use crate::lang::{asg::NodeData, graph::NodeType};
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
-use lsp::Language;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tokio::fs;
 use tracing::{debug, info};
@@ -15,7 +13,6 @@ const MAX_FILE_SIZE: u64 = 100_000; // 100kb max file size
 impl Repo {
     pub async fn build_graph(&self) -> Result<Graph> {
         let mut graph = Graph::new();
-        let mut actual_class: BTreeMap<String, bool> = BTreeMap::new();
 
         println!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
@@ -124,11 +121,6 @@ impl Repo {
         for (filename, code) in &filez {
             let classes = self.lang.get_classes(&code, &filename)?;
             i += classes.len();
-            if let Language::Go = self.lang.kind {
-                for class in &classes {
-                    actual_class.insert(class.name.clone(), false);
-                }
-            }
 
             graph.add_classes(classes);
         }
@@ -180,15 +172,6 @@ impl Repo {
                     .get_functions_and_tests(&code, &filename, &graph, &self.lsp_tx)?;
             i += funcs.len();
 
-            if let Language::Go = self.lang.kind {
-                for (node_data, ..) in &funcs {
-                    if let Some(operand) = node_data.meta.get("operand") {
-                        if let Some(_) = actual_class.get(operand) {
-                            actual_class.insert(operand.to_string(), true);
-                        }
-                    }
-                }
-            }
             graph.add_functions(funcs);
             i += tests.len();
             graph.add_tests(tests);
@@ -303,16 +286,7 @@ impl Repo {
             info!("=> got {} function calls", i);
         }
 
-        // filter out classes from function that do not have a classname as operand
-        if let Language::Go = self.lang.kind {
-            for (key, value) in actual_class {
-                if !value {
-                    if let Some(index) = graph.find_index_by_name(NodeType::Class, &key) {
-                        graph.nodes.remove(index);
-                    }
-                }
-            }
-        }
+        self.lang.lang().clean_graph(&mut graph);
 
         // prefix the "file" of each node and edge with the root
         for node in &mut graph.nodes {
