@@ -7,3 +7,4 @@ treesitter/tree-sitter-embedded-template
 venv
 __pycache__
 *.db
+*.egg-info

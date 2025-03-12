@@ -1,4 +1,4 @@
-use super::*;
+use super::{linker::normalize_backend_path, *};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
@@ -681,6 +681,91 @@ impl Graph {
             }
         }
         None
+    }
+
+    pub fn find_languages(&self) -> Vec<Node> {
+        self.nodes
+            .iter()
+            .filter(|n| matches!(n, Node::Language(_)))
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    pub fn find_specific_endpoints(&self, verb: &str, path: &str) -> Option<Node> {
+        let endpoints_nodes = self
+            .nodes
+            .iter()
+            .filter(|n| matches!(n, Node::Endpoint(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        endpoints_nodes
+            .iter()
+            .find(|node| {
+                if let Node::Endpoint(data) = node {
+                    let normalized_actual_path =
+                        normalize_backend_path(&data.name).unwrap_or_default();
+
+                    let actual_verb = match data.meta.get("verb") {
+                        Some(v) => v.trim_matches('\''),
+                        None => "",
+                    };
+
+                    normalized_actual_path == path
+                        && actual_verb.to_uppercase() == verb.to_uppercase()
+                } else {
+                    false
+                }
+            })
+            .cloned()
+    }
+
+    pub fn find_target_by_edge_type(&self, source: &Node, edge_type: EdgeType) -> Option<Node> {
+        let source_data = source.into_data();
+
+        for edge in &self.edges {
+            if edge.edge == edge_type
+                && source_data.name == edge.source.node_data.name
+                && source_data.file == edge.source.node_data.file
+            {
+                for node in &self.nodes {
+                    let node_data = node.into_data();
+                    if node_data.name == edge.target.node_data.name
+                        && node_data.file == edge.target.node_data.file
+                        && node.to_node_type() == edge.target.node_type
+                    {
+                        return Some(node.clone());
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn find_functions_called_by_handler(&self, handler: &Node) -> Vec<Node> {
+        let handler_data = handler.into_data();
+        let mut called_functions = Vec::new();
+
+        for edge in &self.edges {
+            if let EdgeType::Calls(_) = &edge.edge {
+                let source_data = &handler_data;
+                if edge.source.node_data.name == source_data.name
+                    && edge.source.node_data.file == source_data.file
+                {
+                    for node in &self.nodes {
+                        let node_data = node.into_data();
+                        if node_data.name == edge.target.node_data.name
+                            && node_data.file == edge.target.node_data.file
+                        {
+                            called_functions.push(node.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        called_functions
     }
 }
 
