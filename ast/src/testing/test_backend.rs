@@ -1,8 +1,7 @@
-use tracing::{error, info};
-// use crate::utils::logger;
 use crate::lang::graph::{EdgeType, Graph, Node};
 use crate::lang::{linker::normalize_backend_path, Lang};
 use crate::repo::Repo;
+use tracing::{error, info};
 
 pub struct BackendTester {
     graph: Graph,
