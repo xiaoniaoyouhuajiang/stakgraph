@@ -1,6 +1,7 @@
 pub mod go;
 pub mod python;
 pub mod react_ts;
+<<<<<<< HEAD
 pub mod test_backend;
 
 pub mod utils;
@@ -14,3 +15,6 @@ async fn run_server_tests() {
         .unwrap();
     tester.test_backend().unwrap();
 }
+=======
+pub mod ruby;
+>>>>>>> e344f09 (enhancement: tested ruby parsing and added to mod.rs for compatibility with test_backend)

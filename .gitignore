@@ -9,9 +9,6 @@ treesitter/tree-sitter-embedded-template
 venv
 __pycache__
 *.db
-<<<<<<< HEAD
-*.egg-info
-=======
 *.egg-info
 
 #Ruby
@@ -39,4 +36,3 @@ __pycache__
 
 # Others
 .vscode
->>>>>>> efff799 (feature: setup minimal ruby on rails server)
