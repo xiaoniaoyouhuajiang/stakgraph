@@ -19,7 +19,7 @@ cargo run --bin urls
 - [x] React
 - [x] Ruby on Rails
 - [x] Typescript
-- [ ] Python
+- [x] Python
 - [ ] Swift
 - [ ] Kotlin
 - [ ] Rust
