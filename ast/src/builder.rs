@@ -121,6 +121,7 @@ impl Repo {
         for (filename, code) in &filez {
             let classes = self.lang.get_classes(&code, &filename)?;
             i += classes.len();
+
             graph.add_classes(classes);
         }
         info!("=> got {} classes", i);
@@ -170,6 +171,7 @@ impl Repo {
                 self.lang
                     .get_functions_and_tests(&code, &filename, &graph, &self.lsp_tx)?;
             i += funcs.len();
+
             graph.add_functions(funcs);
             i += tests.len();
             graph.add_tests(tests);
@@ -283,6 +285,8 @@ impl Repo {
             }
             info!("=> got {} function calls", i);
         }
+
+        self.lang.lang().clean_graph(&mut graph);
 
         // prefix the "file" of each node and edge with the root
         for node in &mut graph.nodes {

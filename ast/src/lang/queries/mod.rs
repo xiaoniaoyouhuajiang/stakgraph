@@ -219,6 +219,10 @@ pub trait Stack {
     fn extra_page_finder(&self, _file_name: &str, _graph: &Graph) -> Option<Edge> {
         None
     }
+
+    fn clean_graph(&self, _graph: &mut Graph) -> bool {
+        false
+    }
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {
