@@ -19,6 +19,11 @@ cargo run --bin urls
 - [x] React
 - [x] Ruby on Rails
 - [x] Typescript
+- [ ] Python
+- [ ] Swift
+- [ ] Kotlin
+- [ ] Rust
+- [ ] Java
 
 ### LSP
 
