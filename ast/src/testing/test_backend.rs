@@ -1,8 +1,6 @@
 use crate::lang::graph::{EdgeType, Graph, Node};
 use crate::lang::{linker::normalize_backend_path, Lang};
 use crate::repo::Repo;
-use inflection_rs::inflection;
-use lsp::Language;
 use tracing::{error, info};
 
 pub struct BackendTester {
@@ -59,19 +57,11 @@ impl BackendTester {
 
         let expected_endpoints = vec![("GET", "person/:param"), ("POST", "person")];
 
+        self.test_data_model(data_model)?;
+
         self.test_endpoints(expected_endpoints.clone())?;
 
-        match self.lang.kind {
-            Language::Ruby => {
-                let pluralized_data_model = to_plural(data_model).to_lowercase();
-                self.test_data_model(&pluralized_data_model)?;
-                self.test_handler_functions(expected_endpoints, &pluralized_data_model)?;
-            }
-            _ => {
-                self.test_data_model(data_model)?;
-                self.test_handler_functions(expected_endpoints, data_model)?;
-            }
-        }
+        self.test_handler_functions(expected_endpoints, data_model)?;
 
         Ok(())
     }
@@ -307,8 +297,4 @@ fn normalize_path(path: &str) -> String {
 }
 fn normalize_function_name(name: &str) -> String {
     name.replace('_', "").to_lowercase()
-}
-
-fn to_plural(singular: &str) -> String {
-    inflection::pluralize(singular)
 }
