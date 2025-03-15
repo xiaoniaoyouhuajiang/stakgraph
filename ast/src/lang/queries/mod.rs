@@ -126,9 +126,9 @@ pub trait Stack {
         Ok(None)
     }
     // not used:
-    fn endpoint_handler_queries(&self) -> Vec<String> {
-        Vec::new()
-    }
+    // fn endpoint_handler_queries(&self) -> Vec<String> {
+    //     Vec::new()
+    // }
     fn endpoint_finders(&self) -> Vec<String> {
         Vec::new()
     }
