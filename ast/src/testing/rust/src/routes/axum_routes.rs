@@ -7,7 +7,7 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::{db::get_db, model::Person};
+use crate::{db::Database, model::Person};
 
 pub fn create_router() -> Router {
     Router::new()
@@ -16,9 +16,7 @@ pub fn create_router() -> Router {
 }
 
 async fn get_person(Path(id): Path<u32>) -> (StatusCode, JsonResponse<serde_json::Value>) {
-    let db = get_db();
-
-    match db.await.get_person_by_id(id).await {
+    match Database::get_person_by_id(id).await {
         Ok(person) => (StatusCode::OK, JsonResponse(json!(person))),
         Err(err) => {
             let error_message = err.to_string();
@@ -31,9 +29,7 @@ async fn get_person(Path(id): Path<u32>) -> (StatusCode, JsonResponse<serde_json
 }
 
 async fn create_person(Json(person): Json<Person>) -> impl axum::response::IntoResponse {
-    let db = get_db();
-
-    match db.await.new_person(person).await {
+    match Database::new_person(person).await {
         Ok(created_person) => {
             (StatusCode::CREATED, JsonResponse(json!(created_person))).into_response()
         }

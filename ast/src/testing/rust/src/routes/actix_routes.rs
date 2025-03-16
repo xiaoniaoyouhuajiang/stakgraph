@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Responder};
 use serde_json::json;
 
-use crate::{db::get_db, model::Person};
+use crate::{db::Database, model::Person};
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/person/{id}").route(web::get().to(get_person)))
@@ -10,9 +10,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
 async fn get_person(path: web::Path<u32>) -> impl Responder {
     let id = path.into_inner();
-    let db = get_db();
 
-    match db.await.get_person_by_id(id).await {
+    match Database::get_person_by_id(id).await {
         Ok(person) => HttpResponse::Ok().json(person),
         Err(err) => {
             let error_message = err.to_string();
@@ -22,9 +21,7 @@ async fn get_person(path: web::Path<u32>) -> impl Responder {
 }
 
 async fn create_person(person: web::Json<Person>) -> impl Responder {
-    let db = get_db();
-
-    match db.await.new_person(person.into_inner()).await {
+    match Database::new_person(person.into_inner()).await {
         Ok(created_person) => HttpResponse::Created().json(created_person),
         Err(err) => {
             let error_message = err.to_string();

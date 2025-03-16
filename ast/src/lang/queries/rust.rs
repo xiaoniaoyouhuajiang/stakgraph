@@ -186,4 +186,50 @@ impl Stack for Rust {
                 "#
         ))
     }
+
+    fn add_endpoint_verb(&self, endpoint: &mut NodeData, call: &Option<String>) {
+        // First look for explicit verb pattern matches from tree-sitter queries
+        if let Some(verb) = endpoint.meta.remove("http_method") {
+            endpoint.add_verb(&verb);
+            return;
+        }
+
+        if let Some(call_text) = call {
+            if call_text.contains(".get(") || call_text.contains("get(") {
+                endpoint.add_verb("GET");
+                return;
+            } else if call_text.contains(".post(") || call_text.contains("post(") {
+                endpoint.add_verb("POST");
+                return;
+            } else if call_text.contains(".put(") || call_text.contains("put(") {
+                endpoint.add_verb("PUT");
+                return;
+            } else if call_text.contains(".delete(") || call_text.contains("delete(") {
+                endpoint.add_verb("DELETE");
+                return;
+            }
+        }
+
+        if let Some(handler) = endpoint.meta.get("handler") {
+            let handler_lower = handler.to_lowercase();
+            if handler_lower.starts_with("get_") {
+                endpoint.add_verb("GET");
+            } else if handler_lower.starts_with("post_") || handler_lower.starts_with("create_") {
+                endpoint.add_verb("POST");
+            } else if handler_lower.starts_with("put_") || handler_lower.starts_with("update_") {
+                endpoint.add_verb("PUT");
+            } else if handler_lower.starts_with("delete_") || handler_lower.starts_with("remove_") {
+                endpoint.add_verb("DELETE");
+            }
+        }
+
+        // Default to GET if no verb is found
+        if !endpoint.meta.contains_key("verb") {
+            println!(
+                "WARNING: No verb detected for endpoint {}. Using GET as default.",
+                endpoint.name
+            );
+            endpoint.add_verb("GET");
+        }
+    }
 }

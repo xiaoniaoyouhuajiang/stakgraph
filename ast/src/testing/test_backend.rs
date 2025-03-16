@@ -130,8 +130,6 @@ impl BackendTester {
         for (method, path) in endpoints {
             let normalized_expected_path = normalize_backend_path(path).unwrap();
 
-            info!("Checking endpoint {} {}", method, path);
-
             let endpoint = self
                 .graph
                 .find_specific_endpoints(method, &normalized_expected_path);
@@ -263,13 +261,20 @@ impl BackendTester {
     ) -> bool {
         let func_name = func.into_data().name.clone();
 
+        println!("Checking indirect usage of {} in {}", data_model, func_name);
+
         if visited.contains(&func_name) {
+            println!("Visited {:?}", func_name);
             return false;
         }
 
         visited.push(func_name.clone());
 
         let direct_connection = self.graph.edges.iter().any(|edge| {
+            println!(
+                "\n\n edgetype: {:?} from {} to {}\n",
+                edge.edge, edge.source.node_data.name, edge.target.node_data.name
+            );
             edge.edge == EdgeType::Contains
                 && edge.target.node_data.name == data_model
                 && edge.source.node_data.name == func_name

@@ -1,15 +1,18 @@
 use crate::model::Person;
 use anyhow::{Context, Result};
 use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite};
+// Change this import to use the thread-safe version
+use std::sync::OnceLock;
 
 pub struct Database {
     pool: Pool<Sqlite>,
 }
 
-static mut DB_INSTANCE: Option<Database> = None;
+// Use OnceLock instead of OnceCell for thread safety
+static DB_INSTANCE: OnceLock<Database> = OnceLock::new();
 
-pub async fn get_db() -> &'static Database {
-    unsafe { DB_INSTANCE.as_ref().expect("Database not initialized") }
+async fn get_db() -> &'static Database {
+    DB_INSTANCE.get().expect("Database not initialized")
 }
 
 pub async fn init_db() -> Result<()> {
@@ -32,15 +35,19 @@ pub async fn init_db() -> Result<()> {
     .await
     .context("failed to create table")?;
 
-    unsafe {
-        DB_INSTANCE = Some(Database { pool });
+    let db = Database { pool };
+    // Use the get_or_init pattern with OnceLock
+    if DB_INSTANCE.get().is_none() {
+        if let Err(_) = DB_INSTANCE.set(db) {
+            return Err(anyhow::anyhow!("Database already initialized"));
+        }
     }
 
     Ok(())
 }
 
 impl Database {
-    pub async fn new_person(&self, person: Person) -> Result<Person> {
+    async fn new_person_impl(&self, person: Person) -> Result<Person> {
         let id = sqlx::query("INSERT INTO people (name, email) VALUES (?, ?)")
             .bind(&person.name)
             .bind(&person.email)
@@ -55,7 +62,7 @@ impl Database {
         })
     }
 
-    pub async fn get_person_by_id(&self, id: u32) -> Result<Person> {
+    async fn get_person_by_id_impl(&self, id: u32) -> Result<Person> {
         let person = sqlx::query_as::<_, Person>("SELECT id, name, email FROM people WHERE id = ?")
             .bind(id as i32)
             .fetch_one(&self.pool)
@@ -63,5 +70,13 @@ impl Database {
             .context("Person not found")?;
 
         Ok(person)
+    }
+
+    pub async fn new_person(person: Person) -> Result<Person> {
+        get_db().await.new_person_impl(person).await
+    }
+
+    pub async fn get_person_by_id(id: u32) -> Result<Person> {
+        get_db().await.get_person_by_id_impl(id).await
     }
 }
