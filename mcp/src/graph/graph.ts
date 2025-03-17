@@ -84,10 +84,32 @@ async function get_feature_code(req: Request, res: Response) {
 
 async function get_pages_links(req: Request, res: Response) {
   try {
+    const is_json = req.query.json === "true";
     const result = await db.get_pages();
     const pages = result.records.map(toPage);
-    const html = createLinksList(pages, "page");
-    res.send(html);
+    if (is_json) {
+      res.json(createLinksJson(pages, "page"));
+    } else {
+      const html = createLinksList(pages, "page");
+      res.send(html);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+async function get_components_links(req: Request, res: Response) {
+  try {
+    const is_json = req.query.json === "true";
+    const result = await db.get_components();
+    const components = result.records.map(toComponent);
+    if (is_json) {
+      res.json(createLinksJson(components, "function"));
+    } else {
+      const html = createLinksList(components, "function");
+      res.send(html);
+    }
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");
@@ -117,22 +139,17 @@ function createLinksList(data: any[], type: "page" | "function") {
   return html;
 }
 
+function createLinksJson(data: any[], type: "page" | "function") {
+  return data.map((item) => ({
+    name: item.name,
+    file: item.file,
+  }));
+}
+
 function toComponent(rec: Record): any {
   const page = rec.get("component");
   return {
     node_type: page.labels[0],
     ...page.properties,
   };
-}
-
-async function get_components_links(req: Request, res: Response) {
-  try {
-    const result = await db.get_components();
-    const components = result.records.map(toComponent);
-    const html = createLinksList(components, "function");
-    res.send(html);
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).send("Internal Server Error");
-  }
 }
