@@ -16,8 +16,8 @@ async fn test_react_typescript() {
 
     let graph = repo.build_graph().await.unwrap();
 
-    assert!(graph.nodes.len() == 44);
-    assert!(graph.edges.len() == 44);
+    assert!(graph.nodes.len() == 52);
+    assert!(graph.edges.len() == 61);
 
     // Function to normalize paths and replace backslashes with forward slashes
     fn normalize_path(path: &str) -> String {
@@ -58,7 +58,7 @@ async fn test_react_typescript() {
 
     functions.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
 
-    assert_eq!(functions.len(), 4);
+    assert_eq!(functions.len(), 11);
 
     let people_component = functions[0].into_data();
     assert_eq!(people_component.name, "App");
@@ -68,11 +68,25 @@ async fn test_react_typescript() {
     );
 
     let new_person_component = functions[1].into_data();
-    assert_eq!(new_person_component.name, "NewPerson");
+    assert_eq!(new_person_component.name, "FormContainer");
     assert_eq!(
         normalize_path(&new_person_component.file),
         "src/testing/react_ts/components/NewPerson.tsx"
     );
+
+    let styled_components = graph
+        .nodes
+        .iter()
+        .filter(|n| matches!(n, Node::Function(_)) && n.into_data().name == "SubmitButton")
+        .collect::<Vec<_>>();
+
+    assert_eq!(styled_components.len(), 1);
+
+    let styled_component = styled_components[0].into_data();
+    assert_eq!(styled_component.name, "SubmitButton");
+    assert_eq!(
+        normalize_path(&styled_component.file),
+        "src/testing/react_ts/components/NewPerson.tsx");
 
     let requests = graph
         .nodes
@@ -86,7 +100,7 @@ async fn test_react_typescript() {
         .iter()
         .filter(|e| matches!(e.edge, EdgeType::Calls(_)))
         .collect::<Vec<_>>();
-    assert_eq!(calls_edges.len(), 5);
+    assert_eq!(calls_edges.len(), 14);
 
     let page_node = graph
         .nodes

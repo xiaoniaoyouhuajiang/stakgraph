@@ -143,6 +143,17 @@ impl Stack for ReactTs {
             )
         )
     )
+    (lexical_declaration
+        (variable_declarator
+            name: (identifier) @{FUNCTION_NAME}
+            value: (call_expression
+                function: (member_expression
+                    object: (identifier) @styled-object (#eq @styled-object "styled")
+                    property: (property_identifier) @styled-method
+                )
+            )
+        )
+    )
 ] @{FUNCTION_DEFINITION}"#
         )
     }
