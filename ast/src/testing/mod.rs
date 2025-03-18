@@ -1,7 +1,7 @@
 use crate::lang::Lang;
-use crate::utils::logger;
 use lsp::Language;
 use std::str::FromStr;
+use test_log::test;
 
 pub mod go;
 pub mod python;
@@ -9,9 +9,8 @@ pub mod react_ts;
 pub mod test_backend;
 pub mod utils;
 
-#[tokio::test]
+#[test(tokio::test)]
 async fn run_server_tests() {
-    logger();
     let implemented_servers = ["go", "python", "ruby"];
 
     for server in implemented_servers.iter() {
