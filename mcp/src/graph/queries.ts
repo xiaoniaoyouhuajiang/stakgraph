@@ -1,9 +1,9 @@
 export const PKGS_QUERY = `
 MATCH (file:File)
-WHERE file.name ENDS WITH 'Cargo.toml' 
-   OR file.name ENDS WITH 'go.mod' 
-   OR file.name ENDS WITH 'package.json' 
-   OR file.name ENDS WITH 'requirements.txt' 
+WHERE file.name ENDS WITH 'Cargo.toml'
+   OR file.name ENDS WITH 'go.mod'
+   OR file.name ENDS WITH 'package.json'
+   OR file.name ENDS WITH 'requirements.txt'
    OR file.name ENDS WITH 'Gemfile'
 RETURN file
 `;
@@ -105,7 +105,7 @@ RETURN
 `;
 
 export const SHORTEST_PATH_QUERY = `
-MATCH (start {ref_id: $start_ref_id}), (end {ref_id: $end_ref_id})
+MATCH (start {node_key: $start_node_key}), (end {node_key: $end_node_key})
 MATCH path = shortestPath((start)-[*]-(end))
 RETURN path
 `;

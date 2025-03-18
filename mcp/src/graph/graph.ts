@@ -83,12 +83,22 @@ async function get_feature_code(req: Request, res: Response) {
   }
 }
 
+function toNode(segment: any) {
+  const node = segment.start;
+  return {
+    node_type: node.labels[0],
+    ...node.properties,
+  };
+}
+
 async function get_shortest_path(req: Request, res: Response) {
   try {
-    const start_ref_id = req.query.start_ref_id as string;
-    const end_ref_id = req.query.end_ref_id as string;
-    const result = await db.get_shortest_path(start_ref_id, end_ref_id);
-    res.json(result);
+    const start_node_key = req.query.start_node_key as string;
+    const end_node_key = req.query.end_node_key as string;
+    const result = await db.get_shortest_path(start_node_key, end_node_key);
+    const path = result.records[0].get("path");
+    const nodes = path.segments.map(toNode);
+    res.json(nodes);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");

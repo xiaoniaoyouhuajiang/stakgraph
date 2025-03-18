@@ -46,12 +46,12 @@ class Db {
     }
   }
 
-  async get_shortest_path(start_ref_id: string, end_ref_id: string) {
+  async get_shortest_path(start_node_key: string, end_node_key: string) {
     const session = this.driver.session();
     try {
       return await session.run(Q.SHORTEST_PATH_QUERY, {
-        start_ref_id,
-        end_ref_id,
+        start_node_key,
+        end_node_key,
       });
     } finally {
       await session.close();
