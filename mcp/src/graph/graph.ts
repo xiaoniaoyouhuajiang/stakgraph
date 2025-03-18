@@ -37,30 +37,40 @@ async function get_pages(req: Request, res: Response) {
   }
 }
 
+const DEFAULT_DEPTH = 7;
+
 interface Params {
   page_name: string | null;
   function_name: string | null;
   tests: boolean;
+  depth: number;
 }
 
 function params(req: Request): Params {
   const page_name = req.query.page_name as string;
   const function_name = req.query.function_name as string;
   const tests = !(req.query.tests === "false" || req.query.tests === "0");
+  const depth = parseInt(req.query.depth as string) || DEFAULT_DEPTH;
   if (!page_name && !function_name)
     throw new Error("page or function required");
   return {
     page_name: page_name || null,
     function_name: function_name || null,
     tests,
+    depth,
   };
 }
 
 async function get_feature_map(req: Request, res: Response) {
   try {
-    const { page_name, function_name, tests } = params(req);
-    console.log("=> get_feature_map:", page_name, function_name, tests);
-    const result = await db.get_function_path(page_name, function_name, tests);
+    const { page_name, function_name, tests, depth } = params(req);
+    console.log("=> get_feature_map:", page_name, function_name, tests, depth);
+    const result = await db.get_function_path(
+      page_name,
+      function_name,
+      tests,
+      depth
+    );
     const fn = result.records[0];
     const tree = await buildTree(fn);
     const text = archy(tree);
@@ -73,9 +83,14 @@ async function get_feature_map(req: Request, res: Response) {
 
 async function get_feature_code(req: Request, res: Response) {
   try {
-    const { page_name, function_name, tests } = params(req);
+    const { page_name, function_name, tests, depth } = params(req);
     const pkg_files = await db.get_pkg_files();
-    const result = await db.get_function_path(page_name, function_name, tests);
+    const result = await db.get_function_path(
+      page_name,
+      function_name,
+      tests,
+      depth
+    );
     const text = code_body(result.records[0], pkg_files);
     res.send(text);
   } catch (error) {

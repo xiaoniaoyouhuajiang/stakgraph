@@ -30,7 +30,8 @@ class Db {
   async get_function_path(
     page: string | null,
     func: string | null,
-    include_tests: boolean
+    include_tests: boolean,
+    depth: number
   ) {
     const session = this.driver.session();
     let page_name = page || null;
@@ -40,6 +41,7 @@ class Db {
         page_name,
         function_name,
         include_tests,
+        depth: depth || 7,
       });
     } finally {
       await session.close();

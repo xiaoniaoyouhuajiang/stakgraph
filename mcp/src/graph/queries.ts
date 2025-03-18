@@ -26,7 +26,8 @@ RETURN f as component
 export const PATH_QUERY = `
 WITH $include_tests as include_tests,
      $function_name as function_name,
-     $page_name as page_name
+     $page_name as page_name,
+     $depth as depth
 
 // Decide which node to use based on parameters
 OPTIONAL MATCH (start_page:Page)
@@ -36,7 +37,7 @@ OPTIONAL MATCH (start_func:Function)
 WHERE page_name IS NULL AND function_name IS NOT NULL AND start_func.name = function_name
 
 // Combine into a single starting node
-WITH include_tests,
+WITH include_tests, depth,
      CASE WHEN start_page IS NOT NULL THEN start_page ELSE start_func END as start_node
 
 // Ensure we found a valid starting node
@@ -46,7 +47,7 @@ WHERE start_node IS NOT NULL
 CALL apoc.path.expandConfig(start_node, {
     relationshipFilter: "CALLS>|CONTAINS>|HANDLER>|RENDERS>",
     minLevel: 0,
-    maxLevel: 10,
+    maxLevel: depth,
     uniqueness: "NODE_GLOBAL"
 }) YIELD path
 WITH include_tests, start_node, collect(path) as expanded_paths
