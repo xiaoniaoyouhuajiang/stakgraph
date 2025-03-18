@@ -15,6 +15,7 @@ export function graph_routes(app: Express) {
   app.post("/upload", upload_files);
   app.get("/status/:requestId", check_status);
   app.get("/shortest_path", get_shortest_path);
+  app.get("/shortest_path_ref_id", get_shortest_path_ref_id);
 }
 
 function toPage(rec: Record): any {
@@ -96,6 +97,20 @@ async function get_shortest_path(req: Request, res: Response) {
     const start_node_key = req.query.start_node_key as string;
     const end_node_key = req.query.end_node_key as string;
     const result = await db.get_shortest_path(start_node_key, end_node_key);
+    const path = result.records[0].get("path");
+    const nodes = path.segments.map(toNode);
+    res.json(nodes);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+async function get_shortest_path_ref_id(req: Request, res: Response) {
+  try {
+    const start_ref_id = req.query.start_ref_id as string;
+    const end_ref_id = req.query.end_ref_id as string;
+    const result = await db.get_shortest_path_ref_id(start_ref_id, end_ref_id);
     const path = result.records[0].get("path");
     const nodes = path.segments.map(toNode);
     res.json(nodes);

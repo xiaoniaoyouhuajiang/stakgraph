@@ -110,6 +110,12 @@ MATCH path = shortestPath((start)-[*]-(end))
 RETURN path
 `;
 
+export const SHORTEST_PATH_QUERY_REF_ID = `
+MATCH (start {ref_id: $start_ref_id}), (end {ref_id: $end_ref_id})
+MATCH path = shortestPath((start)-[*]-(end))
+RETURN path
+`;
+
 /*
 MATCH (start {node_key: 'p-stakworksphinxtribesfrontendsrcpagesindextsx'}), (end {node_key: 'person-stakworksphinxtribesdbstructsgo'})
 CALL apoc.algo.shortestPath(start, end, '')

@@ -58,6 +58,18 @@ class Db {
     }
   }
 
+  async get_shortest_path_ref_id(start_ref_id: string, end_ref_id: string) {
+    const session = this.driver.session();
+    try {
+      return await session.run(Q.SHORTEST_PATH_QUERY_REF_ID, {
+        start_ref_id,
+        end_ref_id,
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
   async get_pages() {
     const session = this.driver.session();
     try {
