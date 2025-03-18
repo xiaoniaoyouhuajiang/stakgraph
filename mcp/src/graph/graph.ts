@@ -14,6 +14,7 @@ export function graph_routes(app: Express) {
   app.get("/components/links", get_components_links);
   app.post("/upload", upload_files);
   app.get("/status/:requestId", check_status);
+  app.get("/shortest_path", get_shortest_path);
 }
 
 function toPage(rec: Record): any {
@@ -76,6 +77,18 @@ async function get_feature_code(req: Request, res: Response) {
     const result = await db.get_function_path(page_name, function_name, tests);
     const text = code_body(result.records[0], pkg_files);
     res.send(text);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+async function get_shortest_path(req: Request, res: Response) {
+  try {
+    const start_ref_id = req.query.start_ref_id as string;
+    const end_ref_id = req.query.end_ref_id as string;
+    const result = await db.get_shortest_path(start_ref_id, end_ref_id);
+    res.json(result);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");

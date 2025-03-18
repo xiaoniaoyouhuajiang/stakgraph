@@ -3,12 +3,7 @@ import fs from "fs";
 import readline from "readline";
 import { Node, Edge } from "./types.js";
 import { create_node_key } from "./utils.js";
-import {
-  PAGES_QUERY,
-  COMPONENTS_QUERY,
-  PATH_QUERY,
-  PKGS_QUERY,
-} from "./queries.js";
+import * as Q from "./queries.js";
 import { Node as CodeNode } from "./codebody.js";
 
 class Db {
@@ -25,7 +20,7 @@ class Db {
   async get_pkg_files(): Promise<CodeNode[]> {
     const session = this.driver.session();
     try {
-      const r = await session.run(PKGS_QUERY);
+      const r = await session.run(Q.PKGS_QUERY);
       return r.records.map((record) => record.get("file"));
     } finally {
       await session.close();
@@ -41,7 +36,7 @@ class Db {
     let page_name = page || null;
     let function_name = func || null;
     try {
-      return await session.run(PATH_QUERY, {
+      return await session.run(Q.PATH_QUERY, {
         page_name,
         function_name,
         include_tests,
@@ -51,10 +46,22 @@ class Db {
     }
   }
 
+  async get_shortest_path(start_ref_id: string, end_ref_id: string) {
+    const session = this.driver.session();
+    try {
+      return await session.run(Q.SHORTEST_PATH_QUERY, {
+        start_ref_id,
+        end_ref_id,
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
   async get_pages() {
     const session = this.driver.session();
     try {
-      return await session.run(PAGES_QUERY);
+      return await session.run(Q.PAGES_QUERY);
     } finally {
       await session.close();
     }
@@ -63,7 +70,7 @@ class Db {
   async get_components() {
     const session = this.driver.session();
     try {
-      return await session.run(COMPONENTS_QUERY);
+      return await session.run(Q.COMPONENTS_QUERY);
     } finally {
       await session.close();
     }

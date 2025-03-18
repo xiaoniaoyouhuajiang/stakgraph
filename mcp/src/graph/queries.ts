@@ -103,3 +103,25 @@ RETURN
     start_node as function,
     all_paths as paths
 `;
+
+export const SHORTEST_PATH_QUERY = `
+MATCH (start {ref_id: $start_ref_id}), (end {ref_id: $end_ref_id})
+MATCH path = shortestPath((start)-[*]-(end))
+RETURN path
+`;
+
+/*
+MATCH (start {node_key: 'p-stakworksphinxtribesfrontendsrcpagesindextsx'}), (end {node_key: 'person-stakworksphinxtribesdbstructsgo'})
+CALL apoc.algo.shortestPath(start, end, '')
+YIELD path
+RETURN path
+
+MATCH (start {node_key: 'p-stakworksphinxtribesfrontendsrcpagesindextsx'}), (end {node_key: 'person-stakworksphinxtribesdbstructsgo'})
+MATCH path = shortestPath((start)-[*]-(end))
+RETURN path
+
+MATCH (start {ref_id: 'bb6bab51-018b-41ad-948e-d7bb53179e57'}), (end {ref_id: '426dd007-e2e9-475a-b3a7-36928042bf7b'})
+MATCH path = shortestPath((start)-[*]-(end))
+RETURN path
+
+*/
