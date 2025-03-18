@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
+    "@microsoft/tiktokenizer": "^1.0.9",
     "@modelcontextprotocol/sdk": "^1.4.1",
     "archy": "^1.0.0",
     "dotenv": "^16.4.7",

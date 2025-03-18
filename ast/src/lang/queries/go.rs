@@ -266,7 +266,7 @@ impl Stack for Go {
             operand: (identifier)
             field: (field_identifier) @{HANDLER}
         )
-    )    
+    )
 )"#
         ))
     }

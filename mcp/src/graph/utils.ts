@@ -1,28 +1,34 @@
 import { NodeData } from "./types.js";
+import { TikTokenizer } from "@microsoft/tiktokenizer";
 
-export function getNodeLabel(node: any) {
+export function getNodeLabel(node: any, tokenizer?: TikTokenizer) {
   let label = node.labels[0];
   if (node.labels.length > 1 && node.labels[0] === "Data_Bank") {
     label = node.labels[1];
   }
   const props = node.properties;
+  let name = props.name;
+  if (tokenizer) {
+    const tokens = tokenizer.encode(props.body, []);
+    name = `${name} (${tokens.length})`;
+  }
   switch (label) {
     case "Function":
-      return `Function: ${props.name}`;
+      return `Function: ${name}`;
     case "Datamodel":
-      return `Datamodel: ${props.name}`;
+      return `Datamodel: ${name}`;
     case "Request":
-      return `Request: ${props.verb} ${props.name}`;
+      return `Request: ${props.verb} ${name}`;
     case "Endpoint":
-      return `Endpoint: ${props.verb} ${props.name}`;
+      return `Endpoint: ${props.verb} ${name}`;
     case "Class":
-      return `Class: ${props.name}`;
+      return `Class: ${name}`;
     case "Test":
-      return `Test: ${props.name}`;
+      return `Test: ${name}`;
     case "E2etest":
-      return `E2ETest: ${props.name}`;
+      return `E2ETest: ${name}`;
     default:
-      return `${label}: ${props.name || JSON.stringify(props)}`;
+      return `${label}: ${name || JSON.stringify(props)}`;
   }
 }
 

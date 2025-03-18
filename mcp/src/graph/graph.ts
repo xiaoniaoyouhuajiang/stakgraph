@@ -60,7 +60,7 @@ async function get_feature_map(req: Request, res: Response) {
     console.log("=> get_feature_map:", page_name, function_name, tests);
     const result = await db.get_function_path(page_name, function_name, tests);
     const fn = result.records[0];
-    const tree = buildTree(fn);
+    const tree = await buildTree(fn);
     const text = archy(tree);
     res.send(`<pre>${text}</pre>`);
   } catch (error) {

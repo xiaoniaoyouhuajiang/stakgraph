@@ -1,12 +1,15 @@
 import { Record } from "neo4j-driver";
 import { getNodeLabel } from "./utils.js";
+import { createByModelName } from "@microsoft/tiktokenizer";
 
 interface TreeNode {
   label: string;
   nodes: TreeNode[];
 }
 
-export function buildTree(record: Record): TreeNode {
+export async function buildTree(record: Record): Promise<TreeNode> {
+  const tokenizer = await createByModelName("gpt-4");
+
   // Extract data from the record
   const startFunction = record.get("function");
   const paths = record.get("paths");
@@ -63,7 +66,7 @@ export function buildTree(record: Record): TreeNode {
 
   // Create TreeNodes for all Neo4j nodes
   for (const [id, node] of nodeMap.entries()) {
-    const label = getNodeLabel(node);
+    const label = getNodeLabel(node, tokenizer);
 
     treeNodeMap.set(id, {
       label,
