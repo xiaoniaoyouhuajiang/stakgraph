@@ -15,7 +15,7 @@ RETURN DISTINCT page
 
 export const COMPONENTS_QUERY = `
 MATCH (f:Function)
-WHERE 
+WHERE
   // Check if first character is uppercase (ASCII A-Z range)
   f.name =~ '^[A-Z].*'
   // Check if file ends with tsx or jsx
@@ -24,7 +24,7 @@ RETURN f as component
 `;
 
 export const PATH_QUERY = `
-WITH $include_tests as include_tests, 
+WITH $include_tests as include_tests,
      $function_name as function_name,
      $page_name as page_name
 
@@ -36,7 +36,7 @@ OPTIONAL MATCH (start_func:Function)
 WHERE page_name IS NULL AND function_name IS NOT NULL AND start_func.name = function_name
 
 // Combine into a single starting node
-WITH include_tests, 
+WITH include_tests,
      CASE WHEN start_page IS NOT NULL THEN start_page ELSE start_func END as start_node
 
 // Ensure we found a valid starting node
@@ -46,15 +46,15 @@ WHERE start_node IS NOT NULL
 CALL apoc.path.expandConfig(start_node, {
     relationshipFilter: "CALLS>|CONTAINS>|HANDLER>|RENDERS>",
     minLevel: 0,
-    maxLevel: 7,
+    maxLevel: 10,
     uniqueness: "NODE_GLOBAL"
 }) YIELD path
 WITH include_tests, start_node, collect(path) as expanded_paths
 
 // Ensure we always have at least one path with the starting node
-WITH include_tests, start_node, 
-     CASE WHEN size(expanded_paths) > 0 
-          THEN expanded_paths 
+WITH include_tests, start_node,
+     CASE WHEN size(expanded_paths) > 0
+          THEN expanded_paths
           ELSE [apoc.path.create(start_node, [])]
      END as function_paths
 
@@ -65,7 +65,7 @@ WITH include_tests, start_node, function_paths, collect(DISTINCT node) as all_no
 
 // Find additional nodes: classes, traits, and tests
 OPTIONAL MATCH (n)-[r]-(related)
-WHERE n IN all_nodes 
+WHERE n IN all_nodes
   AND (
     (n:Function AND related:Class) OR
     (n:Function AND related:Trait) OR
@@ -73,7 +73,7 @@ WHERE n IN all_nodes
     (include_tests AND n:Function AND related:E2etest) OR
     (n:Function AND related:Page)
   )
-WITH include_tests, start_node, function_paths, all_nodes, 
+WITH include_tests, start_node, function_paths, all_nodes,
      collect(DISTINCT r) as additional_rels
 
 // Create paths for these additional relationships
@@ -88,7 +88,7 @@ WITH include_tests, start_node, function_paths, additional_paths, collect(DISTIN
 // OPTIONAL MATCH for Imports in the same files
 OPTIONAL MATCH (file:File)-[imp_rel:CONTAINS]->(import:Import)
 WHERE file IN files
-WITH include_tests, start_node, function_paths, additional_paths, 
+WITH include_tests, start_node, function_paths, additional_paths,
      collect(DISTINCT import) as imports
 
 // Create simple paths for imports (if any)
