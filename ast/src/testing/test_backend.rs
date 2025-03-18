@@ -53,15 +53,16 @@ impl BackendTester {
         self.test_language()?;
         self.test_package_file()?;
 
-        let data_model = "Person";
+        let data_model = self.lang.lang().data_model_name("Person");
 
         let expected_endpoints = vec![("GET", "person/:param"), ("POST", "person")];
 
-        self.test_data_model(data_model)?;
+        
+        self.test_data_model(data_model.as_str())?;
 
         self.test_endpoints(expected_endpoints.clone())?;
 
-        self.test_handler_functions(expected_endpoints, data_model)?;
+        self.test_handler_functions(expected_endpoints, data_model.as_str())?;
 
         Ok(())
     }

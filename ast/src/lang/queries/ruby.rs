@@ -130,16 +130,7 @@ impl Stack for Ruby {
         format!("name: [(constant) (scope_resolution)] @identifier")
     }
     fn data_model_name(&self, dm_name: &str) -> String {
-        let singular = inflection::singularize(dm_name);
-        if !singular.is_empty() {
-            let mut s = singular.to_string();
-            if let Some(r) = s.get_mut(0..1) {
-                r.make_ascii_uppercase();
-            }
-            s
-        } else {
-            dm_name.to_string()
-        }
+      inflection::pluralize(dm_name).to_lowercase()
     }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
@@ -166,7 +157,7 @@ impl Stack for Ruby {
             ) @{STRUCT}
         )
     )
-)"#
+    )"#
         ))
     }
     fn data_model_path_filter(&self) -> Option<String> {

@@ -373,8 +373,7 @@ impl Lang {
         let mut inst = NodeData::in_file(file);
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == STRUCT_NAME {
-                let name = trim_quotes(&body).to_string();
-                inst.name = self.lang.data_model_name(&name);
+                inst.name = trim_quotes(&body).to_string();
             } else if o == STRUCT {
                 inst.body = body;
                 inst.start = node.start_position().row;
