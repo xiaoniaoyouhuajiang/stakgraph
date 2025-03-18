@@ -2,7 +2,7 @@ import { Record } from "neo4j-driver";
 import { db } from "./neo4j.js";
 import archy from "archy";
 import { buildTree } from "./codemap.js";
-import { code_body } from "./codebody.js";
+import { code_body, formatNode } from "./codebody.js";
 import { Express, Request, Response } from "express";
 import { upload_files, check_status } from "./uploads.js";
 
@@ -84,12 +84,15 @@ async function get_feature_code(req: Request, res: Response) {
   }
 }
 
-function toNode(segment: any) {
-  const node = segment.start;
-  return {
-    node_type: node.labels[0],
-    ...node.properties,
-  };
+function toSnippets(path: any) {
+  let r = "";
+  for (const segment of path.segments) {
+    const snip = formatNode(segment.start);
+    r += snip;
+  }
+  const snip = formatNode(path.end);
+  r += snip;
+  return r;
 }
 
 async function get_shortest_path(req: Request, res: Response) {
@@ -98,8 +101,8 @@ async function get_shortest_path(req: Request, res: Response) {
     const end_node_key = req.query.end_node_key as string;
     const result = await db.get_shortest_path(start_node_key, end_node_key);
     const path = result.records[0].get("path");
-    const nodes = path.segments.map(toNode);
-    res.json(nodes);
+    console.log(path);
+    res.send(toSnippets(path));
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");
@@ -112,8 +115,7 @@ async function get_shortest_path_ref_id(req: Request, res: Response) {
     const end_ref_id = req.query.end_ref_id as string;
     const result = await db.get_shortest_path_ref_id(start_ref_id, end_ref_id);
     const path = result.records[0].get("path");
-    const nodes = path.segments.map(toNode);
-    res.json(nodes);
+    res.send(toSnippets(path));
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");

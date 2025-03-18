@@ -13,6 +13,25 @@ export interface NodeProps {
   body: string;
 }
 
+// Helper function to format node
+export function formatNode(node: Node): string {
+  if (node && node.properties) {
+    // Regular format for other nodes
+    return [
+      `<snippet>`,
+      `name: ${getNodeLabel(node)}`,
+      `file: ${node.properties.file || "Not specified"}`,
+      `start: ${node.properties.start || "N/A"}, end: ${
+        node.properties.end || "N/A"
+      }`,
+      node.properties.body ? "```\n" + node.properties.body + "\n```" : "",
+      "</snippet>",
+      "", // Empty line for spacing
+    ].join("\n");
+  }
+  return "";
+}
+
 export function code_body(
   record: any,
   extra_nodes: Node[],
@@ -88,25 +107,6 @@ export function code_body(
         console.warn("Error processing path:", err);
       }
     }
-
-    // Helper function to format node
-    const formatNode = (node: Node): string => {
-      if (node && node.properties) {
-        // Regular format for other nodes
-        return [
-          `<snippet>`,
-          `name: ${getNodeLabel(node)}`,
-          `file: ${node.properties.file || "Not specified"}`,
-          `start: ${node.properties.start || "N/A"}, end: ${
-            node.properties.end || "N/A"
-          }`,
-          node.properties.body ? "```\n" + node.properties.body + "\n```" : "",
-          "</snippet>",
-          "", // Empty line for spacing
-        ].join("\n");
-      }
-      return "";
-    };
 
     // Convert the Map values to an array
     let nodes = Array.from(uniqueNodes.values());

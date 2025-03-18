@@ -105,14 +105,33 @@ RETURN
 `;
 
 export const SHORTEST_PATH_QUERY = `
-MATCH (start {node_key: $start_node_key}), (end {node_key: $end_node_key})
+MATCH (start {node_key: $start_node_key}),
+      (end {node_key: $end_node_key})
 MATCH path = shortestPath((start)-[*]-(end))
+WHERE ALL(node IN nodes(path) WHERE
+    node:Page OR
+    node:Function OR
+    node:Request OR
+    node:Endpoint OR
+    node:Datamodel)
 RETURN path
 `;
+
+// export const SHORTEST_PATH_QUERY = `
+// MATCH (start {node_key: $start_node_key}), (end {node_key: $end_node_key})
+// MATCH path = shortestPath((start)-[*]-(end))
+// RETURN path
+// `;
 
 export const SHORTEST_PATH_QUERY_REF_ID = `
 MATCH (start {ref_id: $start_ref_id}), (end {ref_id: $end_ref_id})
 MATCH path = shortestPath((start)-[*]-(end))
+WHERE ALL(node IN nodes(path) WHERE
+    node:Page OR
+    node:Function OR
+    node:Request OR
+    node:Endpoint OR
+    node:Datamodel)
 RETURN path
 `;
 
