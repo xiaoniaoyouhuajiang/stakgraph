@@ -14,9 +14,8 @@ pub async fn clone_repo(
     path: &str,
     username: Option<String>,
     pat: Option<String>,
-    rev: Vec<String>,
 ) -> Result<()> {
-    Ok(git_clone(url, path, username, pat, rev).await?)
+    Ok(git_clone(url, path, username, pat).await?)
 }
 
 pub struct Repo {
@@ -25,6 +24,7 @@ pub struct Repo {
     pub lang: Lang,
     pub lsp_tx: Option<CmdSender>,
     pub files_filter: Vec<String>,
+    pub revs: Vec<String>,
 }
 
 pub struct Repos(pub Vec<Repo>);
@@ -78,12 +78,12 @@ impl Repo {
         root: &str,
         lang: Lang,
         lsp: bool,
-        mut files_filter: Vec<String>,
+        files_filter: Vec<String>,
         revs: Vec<String>,
     ) -> Result<Self> {
-        if let Some(new_files) = check_revs(&root, revs) {
-            files_filter = new_files;
-        }
+        // if let Some(new_files) = check_revs(&root, revs) {
+        //     files_filter = new_files;
+        // }
         for cmd in lang.kind.post_clone_cmd() {
             Self::run_cmd(&cmd, &root)?;
         }
@@ -94,31 +94,33 @@ impl Repo {
             lang,
             lsp_tx,
             files_filter,
+            revs,
         })
     }
     pub async fn new_clone_multi_detect(
         url: &str,
         username: Option<String>,
         pat: Option<String>,
-        mut files_filter: Vec<String>,
+        files_filter: Vec<String>,
         revs: Vec<String>,
     ) -> Result<Repos> {
         let gurl = GitUrl::parse(url)?;
         let root = format!("/tmp/{}", gurl.fullname);
         println!("Cloning to {:?}...", &root);
         fs::remove_dir_all(&root).ok();
-        clone_repo(url, &root, username, pat, revs.clone()).await?;
-        if let Some(new_files) = check_revs(&root, revs) {
-            info!("new files: {:?}", new_files);
-            files_filter = new_files;
-        }
-        let repos = Self::new_multi_detect(&root, Some(url.into()), files_filter).await?;
+        clone_repo(url, &root, username, pat).await?;
+        // if let Some(new_files) = check_revs(&root, revs) {
+        //     info!("new files: {:?}", new_files);
+        //     files_filter = new_files;
+        // }
+        let repos = Self::new_multi_detect(&root, Some(url.into()), files_filter, revs).await?;
         Ok(repos)
     }
     pub async fn new_multi_detect(
         root: &str,
         url: Option<String>,
         files_filter: Vec<String>,
+        revs: Vec<String>,
     ) -> Result<Repos> {
         let mut repos: Vec<Repo> = Vec::new();
         for l in PROGRAMMING_LANGUAGES {
@@ -148,6 +150,7 @@ impl Repo {
                     lang: thelang,
                     lsp_tx,
                     files_filter: files_filter.clone(),
+                    revs: revs.clone(),
                 });
             }
         }
@@ -160,7 +163,7 @@ impl Repo {
         lsp: bool,
         username: Option<String>,
         pat: Option<String>,
-        mut files_filter: Vec<String>,
+        files_filter: Vec<String>,
         revs: Vec<String>,
     ) -> Result<Self> {
         let lang = Lang::from_str(language_indicator.context("no lang indicated")?)?;
@@ -169,10 +172,10 @@ impl Repo {
         let root = format!("/tmp/{}", gurl.fullname);
         println!("Cloning to {:?}... lsp: {}", &root, lsp);
         fs::remove_dir_all(&root).ok();
-        clone_repo(url, &root, username, pat, revs.clone()).await?;
-        if let Some(new_files) = check_revs(&root, revs) {
-            files_filter = new_files;
-        }
+        clone_repo(url, &root, username, pat).await?;
+        // if let Some(new_files) = check_revs(&root, revs) {
+        //     files_filter = new_files;
+        // }
         for cmd in lang.kind.post_clone_cmd() {
             Self::run_cmd(&cmd, &root)?;
         }
@@ -183,6 +186,7 @@ impl Repo {
             lang,
             lsp_tx,
             files_filter,
+            revs,
         })
     }
     fn run_cmd(cmd: &str, root: &str) -> Result<()> {
@@ -396,7 +400,7 @@ impl std::fmt::Debug for Repo {
     }
 }
 
-fn check_revs(repo_path: &str, mut revs: Vec<String>) -> Option<Vec<String>> {
+pub fn check_revs_files(repo_path: &str, mut revs: Vec<String>) -> Option<Vec<String>> {
     if revs.len() == 0 {
         return None;
     }
