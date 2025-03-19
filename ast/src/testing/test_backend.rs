@@ -276,18 +276,6 @@ impl BackendTester {
             return true;
         }
 
-        let func_data = func.into_data();
-        if func_data.body.contains(data_model) {
-            return true;
-        }
-
-        if func_name
-            .to_lowercase()
-            .contains(&data_model.to_lowercase())
-        {
-            return true;
-        }
-
         let called_functions = self.graph.find_functions_called_by_handler(func);
 
         for called_func in called_functions {

@@ -39,11 +39,21 @@ impl Stack for Rust {
     fn imports_query(&self) -> Option<String> {
         Some(
             r#"
-            (use_declaration) @import
-            (use_list) @import_list
-            (scoped_use_list) @scoped_import
-            (extern_crate_declaration) @extern_crate
+           (source_file
+             (use_declaration)+ @imports
+            )
         "#
+            .to_string(),
+        )
+    }
+    fn trait_query(&self) -> Option<String> {
+        Some(
+            r#"
+            (trait_item
+                name: (type_identifier) @trait-name
+                body: (declaration_list)
+            ) @trait
+            "#
             .to_string(),
         )
     }
@@ -51,18 +61,9 @@ impl Stack for Rust {
     fn class_definition_query(&self) -> String {
         format!(
             r#"
-            (struct_item
-                name: (type_identifier) @{STRUCT_NAME}
-                body: (field_declaration_list)? @struct.body) @{STRUCT}
-                
-            (trait_item
-                name: (type_identifier) @{TRAIT_NAME}
-                body: (declaration_list)? @trait.body) @{TRAIT}
-                
-            (impl_item
-                trait: (type_identifier)? @impl.trait
-                type: (type_identifier) @{PARENT_TYPE}
-                body: (declaration_list)? @impl.body) @impl
+           (struct_item
+                name: (type_identifier) @class-name
+            ) @class-definition
             "#
         )
     }
@@ -185,30 +186,20 @@ impl Stack for Rust {
         Some(format!(
             r#"
                 (struct_item
-                    name: (type_identifier) @{STRUCT_NAME}
-                    body: (field_declaration_list)? @struct.body) @{STRUCT}
-                    
-                (trait_item
-                    name: (type_identifier) @{TRAIT_NAME}
-                    body: (declaration_list)? @trait.body) @{TRAIT}
-                    
-                (impl_item
-                    trait: (type_identifier)? @impl.trait
-                    type: (type_identifier) @{PARENT_TYPE}
-                    body: (declaration_list)? @impl.body) @impl
-                "#
+                    name: (type_identifier) @struct-name
+                ) @struct
+            "#
         ))
     }
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(
             r#"
-                (type_identifier) @struct_name
+                (type_identifier) @struct-name
             "#,
         ))
     }
 
     fn add_endpoint_verb(&self, endpoint: &mut NodeData, call: &Option<String>) {
-        // First look for explicit verb pattern matches from tree-sitter queries
         if let Some(verb) = endpoint.meta.remove("http_method") {
             endpoint.add_verb(&verb);
             return;
