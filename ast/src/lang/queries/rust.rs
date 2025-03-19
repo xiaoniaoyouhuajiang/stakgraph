@@ -243,4 +243,7 @@ impl Stack for Rust {
             endpoint.add_verb("GET");
         }
     }
+    fn clean_graph(&self, graph: &mut Graph) -> bool {
+        filter_out_classes_without_methods(graph)
+    }
 }
