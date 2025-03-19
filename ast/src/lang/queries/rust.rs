@@ -159,6 +159,25 @@ impl Stack for Rust {
                 ) @nested_route
                 "#
             ),
+            // Actix endpoint finder (#[get("/path")])
+            format!(
+                r#"
+                 (
+                (attribute_item
+                    (attribute
+                    (identifier) @http_method (#match? @http_method "^get$|^post$|^put$|^delete$")
+                    arguments: (token_tree
+                        (string_literal) @endpoint . (_)*
+                    )
+                    )
+                )
+                .
+                (function_item
+                    name: (identifier) @handler
+                )
+                ) @route_with_handler
+            "#,
+            ),
         ]
     }
 
