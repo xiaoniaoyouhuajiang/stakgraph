@@ -6,7 +6,6 @@ pub async fn git_clone(
     path: &str,
     username: Option<String>,
     pat: Option<String>,
-    rev: Vec<String>,
 ) -> Result<()> {
     let repo_url = if username.is_some() && pat.is_some() {
         let username = username.unwrap();

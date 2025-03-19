@@ -1,4 +1,4 @@
-use super::repo::Repo;
+use super::repo::{check_revs_files, Repo};
 use crate::lang::Graph;
 use crate::lang::{asg::NodeData, graph::NodeType};
 use anyhow::{Ok, Result};
@@ -288,6 +288,9 @@ impl Repo {
 
         self.lang.lang().clean_graph(&mut graph);
 
+        // FIXME: filter by revs???
+        graph = filter_by_revs(&self.root.to_str().unwrap(), self.revs.clone(), graph);
+
         // prefix the "file" of each node and edge with the root
         for node in &mut graph.nodes {
             node.add_root(&self.root_less_tmp());
@@ -312,6 +315,31 @@ impl Repo {
         } else {
             ret
         }
+    }
+}
+
+fn filter_by_revs(root: &str, revs: Vec<String>, graph: Graph) -> Graph {
+    if revs.is_empty() {
+        return graph;
+    }
+    if let Some(final_filter) = check_revs_files(root, revs) {
+        let mut new_graph = Graph::new();
+        // only add nodes that are in the final filter
+        for node in graph.nodes {
+            let node_data = node.into_data();
+            if final_filter.contains(&node_data.file) {
+                new_graph.nodes.push(node);
+            }
+        }
+        // and edges outgoing from them
+        for edge in graph.edges {
+            if final_filter.contains(&edge.source.node_data.file) {
+                new_graph.edges.push(edge);
+            }
+        }
+        new_graph
+    } else {
+        graph
     }
 }
 
