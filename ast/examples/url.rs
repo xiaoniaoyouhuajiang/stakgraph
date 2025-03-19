@@ -3,7 +3,7 @@ use ast::utils::{logger, print_json};
 use ast::{self, repo::Repo};
 
 /*
-REV=0969bc15e41e3c8475798dbfdd6c9e9d6db8138f URL=https://github.com/stakwork/sphinx-tribes.git cargo run --example url
+REV=a858f95a6e89b0ff8e7f1797685b73e126e4c5ae URL=https://github.com/stakwork/sphinx-tribes.git cargo run --example url
 */
 
 #[tokio::main(flavor = "multi_thread")]
