@@ -8,7 +8,7 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::{db::Database, model::Person};
+use crate::db::{Database, Person};
 
 pub fn create_router() -> Router {
     Router::new()

@@ -1,7 +1,16 @@
-use crate::model::Person;
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite};
 use std::sync::OnceLock;
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct Person {
+    #[serde(skip_deserializing)]
+    pub id: Option<i32>,
+    pub name: String,
+    pub email: String,
+}
 
 pub struct Database {
     pool: Pool<Sqlite>,

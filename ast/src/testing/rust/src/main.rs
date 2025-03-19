@@ -1,5 +1,4 @@
 mod db;
-mod model;
 mod routes;
 
 use anyhow::Result;

@@ -3,7 +3,7 @@ use rocket::response::status;
 use rocket::{get, post, routes, serde::json::Json};
 use serde_json::json;
 
-use crate::{db::Database, model::Person};
+use crate::db::{Database, Person};
 
 // Example for rocket_routes.rs
 #[get("/person/<id>")]

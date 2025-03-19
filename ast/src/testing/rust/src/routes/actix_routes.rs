@@ -1,4 +1,4 @@
-use crate::{db::Database, model::Person};
+use crate::db::{Database, Person};
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde_json::json;
 
