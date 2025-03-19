@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::{
     extract::{Json, Path},
     http::StatusCode,
@@ -16,8 +17,13 @@ pub fn create_router() -> Router {
 }
 
 async fn get_person(Path(id): Path<u32>) -> (StatusCode, JsonResponse<serde_json::Value>) {
-    match Database::get_person_by_id(id).await {
-        Ok(person) => (StatusCode::OK, JsonResponse(json!(person))),
+    let person_result: Result<Person> = Database::get_person_by_id(id).await;
+
+    match person_result {
+        Ok(person) => {
+            let person_data: Person = person;
+            (StatusCode::OK, JsonResponse(json!(person_data)))
+        }
         Err(err) => {
             let error_message = err.to_string();
             (
@@ -29,7 +35,9 @@ async fn get_person(Path(id): Path<u32>) -> (StatusCode, JsonResponse<serde_json
 }
 
 async fn create_person(Json(person): Json<Person>) -> impl axum::response::IntoResponse {
-    match Database::new_person(person).await {
+    let result: Result<Person> = Database::new_person(person).await;
+
+    match result {
         Ok(created_person) => {
             (StatusCode::CREATED, JsonResponse(json!(created_person))).into_response()
         }

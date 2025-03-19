@@ -1,14 +1,12 @@
 use crate::model::Person;
 use anyhow::{Context, Result};
 use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite};
-// Change this import to use the thread-safe version
 use std::sync::OnceLock;
 
 pub struct Database {
     pool: Pool<Sqlite>,
 }
 
-// Use OnceLock instead of OnceCell for thread safety
 static DB_INSTANCE: OnceLock<Database> = OnceLock::new();
 
 async fn get_db() -> &'static Database {
@@ -36,7 +34,7 @@ pub async fn init_db() -> Result<()> {
     .context("failed to create table")?;
 
     let db = Database { pool };
-    // Use the get_or_init pattern with OnceLock
+
     if DB_INSTANCE.get().is_none() {
         if let Err(_) = DB_INSTANCE.set(db) {
             return Err(anyhow::anyhow!("Database already initialized"));
@@ -55,19 +53,22 @@ impl Database {
             .await?
             .last_insert_rowid();
 
-        Ok(Person {
+        let result: Person = Person {
             id: Some(id as i32),
             name: person.name,
             email: person.email,
-        })
+        };
+
+        Ok(result)
     }
 
     async fn get_person_by_id_impl(&self, id: u32) -> Result<Person> {
-        let person = sqlx::query_as::<_, Person>("SELECT id, name, email FROM people WHERE id = ?")
-            .bind(id as i32)
-            .fetch_one(&self.pool)
-            .await
-            .context("Person not found")?;
+        let person: Person =
+            sqlx::query_as::<_, Person>("SELECT id, name, email FROM people WHERE id = ?")
+                .bind(id as i32)
+                .fetch_one(&self.pool)
+                .await
+                .context("Person not found")?;
 
         Ok(person)
     }
@@ -75,8 +76,8 @@ impl Database {
     pub async fn new_person(person: Person) -> Result<Person> {
         get_db().await.new_person_impl(person).await
     }
-
     pub async fn get_person_by_id(id: u32) -> Result<Person> {
-        get_db().await.get_person_by_id_impl(id).await
+        let result: Result<Person> = get_db().await.get_person_by_id_impl(id).await;
+        result
     }
 }

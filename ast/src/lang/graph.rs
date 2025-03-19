@@ -746,6 +746,7 @@ impl Graph {
     pub fn find_functions_called_by_handler(&self, handler: &Node) -> Vec<Node> {
         let handler_data = handler.into_data();
         let mut called_functions = Vec::new();
+        let mut visited = std::collections::HashSet::new();
 
         for edge in &self.edges {
             if let EdgeType::Calls(_) = &edge.edge {
@@ -765,6 +766,24 @@ impl Graph {
             }
         }
 
+        if called_functions.is_empty() && !handler_data.body.is_empty() {
+            for node in &self.nodes {
+                if let Node::Function(func) = node {
+                    if func.name == handler_data.name && func.file == handler_data.file {
+                        continue;
+                    }
+                    if handler_data.body.contains(&format!("::{}", func.name))
+                        || handler_data.body.contains(&format!(" {}(", func.name))
+                        || handler_data.body.contains(&format!(".{}(", func.name))
+                    {
+                        if !visited.contains(&func.name) {
+                            visited.insert(func.name.clone());
+                            called_functions.push(node.clone());
+                        }
+                    }
+                }
+            }
+        }
         called_functions
     }
 }

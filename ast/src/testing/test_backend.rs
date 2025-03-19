@@ -57,7 +57,6 @@ impl BackendTester {
 
         let expected_endpoints = vec![("GET", "person/:param"), ("POST", "person")];
 
-        
         self.test_data_model(data_model.as_str())?;
 
         self.test_endpoints(expected_endpoints.clone())?;
@@ -274,6 +273,18 @@ impl BackendTester {
         });
 
         if direct_connection {
+            return true;
+        }
+
+        let func_data = func.into_data();
+        if func_data.body.contains(data_model) {
+            return true;
+        }
+
+        if func_name
+            .to_lowercase()
+            .contains(&data_model.to_lowercase())
+        {
             return true;
         }
 

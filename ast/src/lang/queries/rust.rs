@@ -95,9 +95,21 @@ impl Stack for Rust {
     fn function_call_query(&self) -> String {
         format!(
             r#"
-            (call_expression
-              function: (identifier) @{FUNCTION_NAME}
-              arguments: (arguments) @{ARGUMENTS}) @{FUNCTION_CALL}
+                (call_expression
+        function: [
+            (identifier) @FUNCTION_NAME
+            ;; module method
+            (scoped_identifier
+                path: (identifier) @PARENT_NAME
+                name: (identifier) @FUNCTION_NAME
+            )
+            ;; chained call
+            (field_expression
+                field: (field_identifier) @FUNCTION_NAME
+            )
+        ]
+                arguments: (arguments) @ARGUMENTS
+            ) @FUNCTION_CALL
             "#
         )
     }
@@ -107,17 +119,17 @@ impl Stack for Rust {
             format!(
                 r#"
         (call_expression
-    (arguments
-        (string_literal) @endpoint
-        (call_expression
-            function: (identifier) @verb (#match? @verb "^get$|^post$|^put$|^delete$")
-            arguments: (arguments
-                (identifier) @handler
+            (arguments
+                (string_literal) @endpoint
+                (call_expression
+                    function: (identifier) @verb (#match? @verb "^get$|^post$|^put$|^delete$")
+                    arguments: (arguments
+                        (identifier) @handler
+                    )
+                )
             )
-        )
-    )
-) @route
-        "#
+        ) @route
+                "#
             ),
             // Method-specific routes (.get("/path", handler))
             format!(
@@ -136,16 +148,16 @@ impl Stack for Rust {
             // Nested routes (.nest("/base", Router...))
             format!(
                 r#"
-        (call_expression
-            function: (field_expression
-                field: (field_identifier) @nest_method (#eq? @nest_method "nest")
-            )
-            arguments: (arguments
-                (string_literal) @base_path
-                (_) @nested_router
-            )
-        ) @nested_route
-        "#
+                (call_expression
+                    function: (field_expression
+                        field: (field_identifier) @nest_method (#eq? @nest_method "nest")
+                    )
+                    arguments: (arguments
+                        (string_literal) @base_path
+                        (_) @nested_router
+                    )
+                ) @nested_route
+                "#
             ),
         ]
     }
@@ -171,19 +183,8 @@ impl Stack for Rust {
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(
             r#"
-                (struct_item
-                    name: (type_identifier) @{STRUCT_NAME}
-                    body: (field_declaration_list)? @struct.body) @{STRUCT}
-                    
-                (trait_item
-                    name: (type_identifier) @{TRAIT_NAME}
-                    body: (declaration_list)? @trait.body) @{TRAIT}
-                    
-                (impl_item
-                    trait: (type_identifier)? @impl.trait
-                    type: (type_identifier) @{PARENT_TYPE}
-                    body: (declaration_list)? @impl.body) @impl
-                "#
+                (type_identifier) @struct_name
+            "#,
         ))
     }
 
