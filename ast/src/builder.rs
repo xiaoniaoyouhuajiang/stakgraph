@@ -331,9 +331,11 @@ fn filter_by_revs(root: &str, revs: Vec<String>, graph: Graph) -> Graph {
                 new_graph.nodes.push(node);
             }
         }
-        // and edges outgoing from them
+        // and edges incoming/outgoing from them
         for edge in graph.edges {
             if final_filter.contains(&edge.source.node_data.file) {
+                new_graph.edges.push(edge);
+            } else if final_filter.contains(&edge.target.node_data.file) {
                 new_graph.edges.push(edge);
             }
         }
