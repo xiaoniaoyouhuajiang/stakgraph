@@ -1,0 +1,20 @@
+CREATE TABLE person (
+    id INTEGER NOT NULL,
+    alias TEXT NOT NULL,
+    img TEXT,
+    publicKey TEXT NOT NULL,
+    routeHint TEXT
+);
+
+selectAll:
+SELECT * FROM person;
+
+insertPerson:
+INSERT INTO person (id, alias, img, publicKey, routeHint) VALUES (?, ?, ?, ?, ?);
+
+updatePerson:
+UPDATE person SET alias = :alias
+WHERE id = ?;
+
+deleteAll:
+DELETE FROM person;

@@ -8,6 +8,7 @@ mod rails_routes;
 pub mod react_ts;
 pub mod ruby;
 pub mod toml;
+pub mod kotlin;
 
 use crate::lang::asg::Operand;
 use crate::lang::graph::{Edge, Graph};
@@ -106,7 +107,7 @@ pub trait Stack {
         Vec::new()
     }
     fn data_model_name(&self, dm_name: &str) -> String {
-        dm_name.to_string()
+    dm_name.to_string()
     }
     fn find_function_parent(
         &self,
@@ -235,6 +236,7 @@ pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {
         LspLanguage::Python => tree_sitter_python::LANGUAGE.into(),
         LspLanguage::Ruby => tree_sitter_ruby::LANGUAGE.into(),
         LspLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
+        LspLanguage::Kotlin => tree_sitter_kotlin_sg::LANGUAGE.into(),
         _ => tree_sitter_bash::LANGUAGE.into(),
     }
 }

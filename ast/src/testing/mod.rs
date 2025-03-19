@@ -8,6 +8,7 @@ pub mod python;
 pub mod react_ts;
 pub mod test_backend;
 pub mod utils;
+pub mod kotlin;
 
 #[test(tokio::test)]
 async fn run_server_tests() {
