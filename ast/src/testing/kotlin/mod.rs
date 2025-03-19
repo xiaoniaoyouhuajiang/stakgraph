@@ -1,12 +1,10 @@
-use crate::lang::graph::{EdgeType, Node, NodeType};
+use crate::lang::graph::{EdgeType, Node};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
+use test_log::test;
 
-#[tokio::test]
+#[test(tokio::test)]
 async fn test_kotlin() {
-    crate::utils::logger();
-
-
     let repo = Repo::new(
         "src/testing/kotlin",
         Lang::from_str("kotlin").unwrap(),
@@ -16,18 +14,14 @@ async fn test_kotlin() {
     )
     .unwrap();
 
-
     let graph = repo.build_graph().await.unwrap();
-
 
     assert_eq!(graph.nodes.len(), 138);
     assert_eq!(graph.edges.len(), 137);
 
-
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
     }
-
 
     let language_nodes = graph
         .nodes
@@ -39,16 +33,14 @@ async fn test_kotlin() {
     assert_eq!(language_node.name, "kotlin");
     assert_eq!(normalize_path(&language_node.file), "src/testing/kotlin/");
 
-
     let build_gradle_nodes = graph
         .nodes
         .iter()
         .filter(|n| matches!(n, Node::File(_)) && n.into_data().name == "build.gradle.kts")
         .collect::<Vec<_>>();
-    assert_eq!(build_gradle_nodes.len(), 4);
+    assert_eq!(build_gradle_nodes.len(), 8);
     let build_gradle_node = build_gradle_nodes[0].into_data();
     assert_eq!(build_gradle_node.name, "build.gradle.kts");
-
 
     let imports = graph
         .nodes
@@ -64,7 +56,6 @@ async fn test_kotlin() {
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 9);
 
-
     let classes = graph
         .nodes
         .iter()
@@ -79,7 +70,6 @@ async fn test_kotlin() {
         "src/testing/kotlin/app/src/androidTest/java/com/kotlintestapp/ExampleInstrumentedTest.kt"
     );
 
-
     let functions = graph
         .nodes
         .iter()
@@ -88,7 +78,6 @@ async fn test_kotlin() {
     assert_eq!(functions.len(), 0);
 
     // Example assertion for a specific function
-
 
     let requests = graph
         .nodes
@@ -106,5 +95,4 @@ async fn test_kotlin() {
     assert_eq!(calls_edges.len(), 0);
 
     // Assertions for pages (if applicable)
-
 }

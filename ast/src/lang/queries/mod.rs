@@ -3,12 +3,12 @@ pub mod consts;
 pub mod erb;
 pub mod go;
 pub mod haml;
+pub mod kotlin;
 pub mod python;
 mod rails_routes;
 pub mod react_ts;
 pub mod ruby;
 pub mod toml;
-pub mod kotlin;
 
 use crate::lang::asg::Operand;
 use crate::lang::graph::{Edge, Graph};
@@ -107,7 +107,7 @@ pub trait Stack {
         Vec::new()
     }
     fn data_model_name(&self, dm_name: &str) -> String {
-    dm_name.to_string()
+        dm_name.to_string()
     }
     fn find_function_parent(
         &self,
