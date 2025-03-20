@@ -11,15 +11,17 @@ pub enum Language {
     Python,
     Ruby,
     Kotlin,
+    Swift,
 }
 
-pub const PROGRAMMING_LANGUAGES: [Language; 6] = [
+pub const PROGRAMMING_LANGUAGES: [Language; 7] = [
     Language::Rust,
     Language::Go,
     Language::Typescript,
     Language::Python,
     Language::Ruby,
     Language::Kotlin,
+    Language:: Swift,
 ];
 
 impl Language {
@@ -31,6 +33,7 @@ impl Language {
             Self::Python => "requirements.txt",
             Self::Ruby => "Gemfile",
             Self::Kotlin => "build.gradle.kts",
+            Self::Swift => "Podfile",
             Self::Bash => "",
             Self::Toml => "",
         }
@@ -44,6 +47,7 @@ impl Language {
             Self::Python => vec!["py", "ipynb"],
             Self::Ruby => vec!["rb"],
             Self::Kotlin => vec!["kt", "kts"],
+            Self::Swift => vec!["swift", "xcodeproj", "xcworkspace"],
             Self::Bash => vec!["sh"],
             Self::Toml => vec!["toml"],
         }
@@ -57,6 +61,7 @@ impl Language {
             Self::Python => vec!["__pycache__", ".git", ".venv", "venv"],
             Self::Ruby => vec!["migrate", "tmp", ".git"],
             Self::Kotlin => vec![".gradle", ".idea", "build", ".git"],
+            Self::Swift => vec![".git"],
             Self::Bash => vec![".git"],
             Self::Toml => vec![".git"],
         }
@@ -77,6 +82,7 @@ impl Language {
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
+            Self::Swift => Vec::new(),
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
         }
@@ -90,6 +96,7 @@ impl Language {
             Self::Python => false,
             Self::Ruby => false,
             Self::Kotlin => true,
+            Self::Swift => true,
             Self::Bash => false,
             Self::Toml => false,
         }
@@ -103,6 +110,7 @@ impl Language {
             Self::Python => "pylsp",
             Self::Ruby => "ruby-lsp",
             Self::Kotlin => "kotlin-language-server",
+            Self::Swift => "sourcekit-lsp",
             Self::Bash => "",
             Self::Toml => "",
         }
@@ -117,6 +125,7 @@ impl Language {
             Self::Python => "--version",
             Self::Ruby => "--version",
             Self::Kotlin => "--version",
+            Self::Swift => "--version",
             Self::Bash => "",
             Self::Toml => "",
         }
@@ -131,6 +140,7 @@ impl Language {
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
+            Self::Swift => Vec::new(),
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
         }
@@ -144,6 +154,7 @@ impl Language {
             Self::Python => "python",
             Self::Ruby => "ruby",
             Self::Kotlin => "kotlin",
+            Self::Swift => "swift",
             Self::Bash => "bash",
             Self::Toml => "toml",
         }
@@ -161,6 +172,7 @@ impl Language {
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
+            Self::Swift => Vec::new(),
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
         }
@@ -200,6 +212,7 @@ impl FromStr for Language {
             "toml" => Ok(Language::Toml),
             "Toml" => Ok(Language::Toml),
             "kotlin" => Ok(Language::Kotlin),
+            "swift" => Ok(Language::Swift),
             _ => Err(anyhow::anyhow!("unsupported language")),
         }
     }

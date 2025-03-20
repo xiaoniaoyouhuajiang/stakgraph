@@ -72,6 +72,12 @@ impl Lang {
             lang: Box::new(kotlin::Kotlin::new()),
         }
     }
+    pub fn new_swift() -> Self {
+        Self {
+            kind: Language::Swift,
+            lang: Box::new(swift::Swift::new()),
+        }
+    }
     pub fn lang(&self) -> &dyn Stack {
         self.lang.as_ref()
     }
@@ -266,6 +272,7 @@ impl Lang {
             Language::Bash => unimplemented!(),
             Language::Toml => unimplemented!(),
             Language::Kotlin => Lang::new_kotlin(),
+            Language::Swift => Lang::new_swift(),
         }
     }
 }

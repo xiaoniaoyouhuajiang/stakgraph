@@ -9,6 +9,7 @@ pub mod react_ts;
 pub mod test_backend;
 pub mod utils;
 pub mod kotlin;
+pub mod swift;
 
 #[test(tokio::test)]
 async fn run_server_tests() {
