@@ -8,6 +8,7 @@ pub mod python;
 mod rails_routes;
 pub mod react_ts;
 pub mod ruby;
+pub mod rust;
 pub mod toml;
 
 use crate::lang::asg::Operand;

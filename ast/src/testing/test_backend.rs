@@ -57,7 +57,6 @@ impl BackendTester {
 
         let expected_endpoints = vec![("GET", "person/:param"), ("POST", "person")];
 
-        
         self.test_data_model(data_model.as_str())?;
 
         self.test_endpoints(expected_endpoints.clone())?;
@@ -290,11 +289,13 @@ impl BackendTester {
 }
 
 fn normalize_path(path: &str) -> String {
-    if path.starts_with("/") {
+    let path_with_slash = if path.starts_with("/") {
         path.to_string()
     } else {
         format!("/{}", path)
-    }
+    };
+
+    normalize_backend_path(&path_with_slash).unwrap_or(path_with_slash)
 }
 fn normalize_function_name(name: &str) -> String {
     name.replace('_', "").to_lowercase()
