@@ -157,7 +157,8 @@ impl Language {
         match self {
             Self::Rust => Vec::new(),
             Self::Go => Vec::new(),
-            Self::Typescript => vec!["npm install --force"],
+            //Self::Typescript => vec!["npm install --force"],
+            Self::Typescript => Vec::new(),
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
@@ -200,6 +201,9 @@ impl FromStr for Language {
             "toml" => Ok(Language::Toml),
             "Toml" => Ok(Language::Toml),
             "kotlin" => Ok(Language::Kotlin),
+            "TypeScript" => Ok(Language::Typescript),
+            "typescript" => Ok(Language::Typescript),
+            "Typescript" => Ok(Language::Typescript),
             _ => Err(anyhow::anyhow!("unsupported language")),
         }
     }

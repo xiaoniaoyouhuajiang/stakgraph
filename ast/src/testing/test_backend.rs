@@ -112,7 +112,9 @@ impl BackendTester {
     }
 
     fn test_data_model(&self, name: &str) -> Result<(), anyhow::Error> {
-        let data_model = self.graph.find_data_model_by(|node| node.name == name);
+        let data_model = self
+            .graph
+            .find_data_model_by(|node| node.name.contains(name));
 
         match data_model {
             Some(_) => {

@@ -72,10 +72,17 @@ impl Lang {
             lang: Box::new(ruby::Ruby::new()),
         }
     }
+
     pub fn new_kotlin() -> Self {
         Self {
             kind: Language::Kotlin,
             lang: Box::new(kotlin::Kotlin::new()),
+        }
+    }
+    pub fn new_typescript() -> Self {
+        Self {
+            kind: Language::Typescript,
+            lang: Box::new(typescript::TypeScript::new()),
         }
     }
     pub fn lang(&self) -> &dyn Stack {
@@ -267,19 +274,36 @@ impl Lang {
             Language::Rust => Lang::new_rust(),
             Language::Python => Lang::new_python(),
             Language::Go => Lang::new_go(),
-            Language::Typescript => Lang::new_react_ts(),
+            Language::Typescript => Lang::new_typescript_for(None),
             Language::Ruby => Lang::new_ruby(),
             Language::Bash => unimplemented!(),
             Language::Toml => unimplemented!(),
             Language::Kotlin => Lang::new_kotlin(),
         }
     }
+
+    pub fn new_typescript_for(file_path: Option<&str>) -> Self {
+        if let Some(path) = file_path {
+            if path.ends_with(".tsx") || path.contains("/components/") {
+                Lang::new_react_ts()
+            } else {
+                Lang::new_typescript()
+            }
+        } else {
+            Lang::new_typescript()
+        }
+    }
 }
 impl FromStr for Lang {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let ss = Language::from_str(s)?;
-        Ok(Lang::from_language(ss))
+        match s {
+            "tsx" => Ok(Lang::new_react_ts()),
+            _ => {
+                let ss = Language::from_str(s)?;
+                Ok(Lang::from_language(ss))
+            }
+        }
     }
 }
 
