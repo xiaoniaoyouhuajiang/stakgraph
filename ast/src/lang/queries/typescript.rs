@@ -117,17 +117,17 @@ impl Stack for TypeScript {
             r#"(call_expression
                 function: (member_expression
                     object: (identifier) @app_object
-                    property: (property_identifier) @endpoint-verb (#match? @endpoint-verb "^get$|^post$|^put$|^delete$")
+                    property: (property_identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
                 )
                 arguments: (arguments
-                    (string (string_fragment) @endpoint)
+                    (string) @{ENDPOINT}
                     [
-                    (arrow_function) @handler
-                    (function_expression) @handler
-                    (identifier) @handler
+                    (arrow_function) @{HANDLER}
+                    (function_expression) @{HANDLER}
+                    (identifier) @{HANDLER}
                     ]
                 )
-                ) @route
+                ) @{ROUTE}
             "#
         )]
     }

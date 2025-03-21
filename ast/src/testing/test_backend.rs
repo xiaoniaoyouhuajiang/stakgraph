@@ -74,6 +74,12 @@ impl BackendTester {
             .find(|node| node.into_data().name == self.lang.kind.to_string())
             .unwrap();
 
+        //to visualize the nodes built
+        self.graph.nodes.iter().any(|node| {
+            println!("\n {:?} \n", node);
+            false
+        });
+
         assert_eq!(
             language_node.into_data().name,
             self.lang.kind.to_string(),
