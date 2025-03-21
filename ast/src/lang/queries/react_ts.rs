@@ -23,14 +23,14 @@ impl Stack for ReactTs {
     fn lib_query(&self) -> Option<String> {
         Some(format!(
             r#"(pair
-  key: (string (_) @dependency_type) (#match? @dependency_type "^(dependencies|devDependencies)$")
-  value: (object
-    (pair
-      key: (string (_) @{LIBRARY_NAME}) (#match? @{LIBRARY_NAME} "^[@a-zA-Z]")
-      value: (string (_) @{LIBRARY_VERSION}) (#match? @{LIBRARY_VERSION} "^[\\^~]?\\d|\\*")
-    ) @{LIBRARY}
-  )
-)"#
+                key: (string (_) @dependency_type) (#match? @dependency_type "^(dependencies|devDependencies)$")
+                value: (object
+                    (pair
+                    key: (string (_) @{LIBRARY_NAME}) (#match? @{LIBRARY_NAME} "^[@a-zA-Z]")
+                    value: (string (_) @{LIBRARY_VERSION}) (#match? @{LIBRARY_VERSION} "^[\\^~]?\\d|\\*")
+                    ) @{LIBRARY}
+                )
+                )"#
         ))
     }
     fn is_lib_file(&self, file_name: &str) -> bool {
@@ -39,8 +39,8 @@ impl Stack for ReactTs {
     fn imports_query(&self) -> Option<String> {
         Some(format!(
             r#"(program
-    (import_statement)+ @{IMPORTS}
-)"#
+                (import_statement)+ @{IMPORTS}
+            )"#,
         ))
     }
     fn is_component(&self, func_name: &str) -> bool {
@@ -52,8 +52,8 @@ impl Stack for ReactTs {
     fn class_definition_query(&self) -> String {
         format!(
             "(class_declaration
-    name: (type_identifier) @{CLASS_NAME}
-) @{CLASS_DEFINITION}"
+                name: (type_identifier) @{CLASS_NAME}
+               ) @{CLASS_DEFINITION}"
         )
     }
     // FIXME "render" is always discluded to avoid jsx classes

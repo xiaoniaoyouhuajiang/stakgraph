@@ -62,7 +62,7 @@ impl Lang {
     }
     pub fn new_react_ts() -> Self {
         Self {
-            kind: Language::Typescript,
+            kind: Language::React,
             lang: Box::new(react_ts::ReactTs::new()),
         }
     }
@@ -72,10 +72,17 @@ impl Lang {
             lang: Box::new(ruby::Ruby::new()),
         }
     }
+
     pub fn new_kotlin() -> Self {
         Self {
             kind: Language::Kotlin,
             lang: Box::new(kotlin::Kotlin::new()),
+        }
+    }
+    pub fn new_typescript() -> Self {
+        Self {
+            kind: Language::Typescript,
+            lang: Box::new(typescript::TypeScript::new()),
         }
     }
     pub fn lang(&self) -> &dyn Stack {
@@ -267,7 +274,8 @@ impl Lang {
             Language::Rust => Lang::new_rust(),
             Language::Python => Lang::new_python(),
             Language::Go => Lang::new_go(),
-            Language::Typescript => Lang::new_react_ts(),
+            Language::Typescript => Lang::new_typescript(),
+            Language::React => Lang::new_react_ts(),
             Language::Ruby => Lang::new_ruby(),
             Language::Bash => unimplemented!(),
             Language::Toml => unimplemented!(),
@@ -278,8 +286,13 @@ impl Lang {
 impl FromStr for Lang {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let ss = Language::from_str(s)?;
-        Ok(Lang::from_language(ss))
+        match s {
+            "tsx" | "jsx" => Ok(Lang::new_react_ts()),
+            _ => {
+                let ss = Language::from_str(s)?;
+                Ok(Lang::from_language(ss))
+            }
+        }
     }
 }
 

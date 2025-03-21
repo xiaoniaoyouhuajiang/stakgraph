@@ -10,13 +10,14 @@ pub mod react_ts;
 pub mod ruby;
 pub mod rust;
 pub mod toml;
+pub mod typescript;
 
 use crate::lang::asg::Operand;
 use crate::lang::graph::{Edge, Graph};
 use crate::lang::{Function, Node, NodeData, NodeType};
 use anyhow::Result;
 use lsp::Language as LspLanguage;
-use lsp::{Cmd as LspCmd, CmdSender, Position, Res as LspRes};
+use lsp::{CmdSender, Position};
 use tree_sitter::{Node as TreeNode, Query, Tree};
 
 // next: Java, PHP, Dart, C++
