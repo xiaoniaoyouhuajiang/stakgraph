@@ -62,7 +62,7 @@ impl Lang {
     }
     pub fn new_react_ts() -> Self {
         Self {
-            kind: Language::Typescript,
+            kind: Language::React,
             lang: Box::new(react_ts::ReactTs::new()),
         }
     }
@@ -274,23 +274,12 @@ impl Lang {
             Language::Rust => Lang::new_rust(),
             Language::Python => Lang::new_python(),
             Language::Go => Lang::new_go(),
-            Language::Typescript => Lang::new_typescript_for(None),
+            Language::Typescript => Lang::new_typescript(),
+            Language::React => Lang::new_react_ts(),
             Language::Ruby => Lang::new_ruby(),
             Language::Bash => unimplemented!(),
             Language::Toml => unimplemented!(),
             Language::Kotlin => Lang::new_kotlin(),
-        }
-    }
-
-    pub fn new_typescript_for(file_path: Option<&str>) -> Self {
-        if let Some(path) = file_path {
-            if path.ends_with(".tsx") || path.contains("/components/") {
-                Lang::new_react_ts()
-            } else {
-                Lang::new_typescript()
-            }
-        } else {
-            Lang::new_typescript()
         }
     }
 }
