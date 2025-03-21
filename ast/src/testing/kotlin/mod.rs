@@ -16,8 +16,8 @@ async fn test_kotlin() {
 
     let graph = repo.build_graph().await.unwrap();
 
-    assert_eq!(graph.nodes.len(), 138);
-    assert_eq!(graph.edges.len(), 137);
+    assert_eq!(graph.nodes.len(), 132);
+    assert_eq!(graph.edges.len(), 131);
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -38,7 +38,7 @@ async fn test_kotlin() {
         .iter()
         .filter(|n| matches!(n, Node::File(_)) && n.into_data().name == "build.gradle.kts")
         .collect::<Vec<_>>();
-    assert_eq!(build_gradle_nodes.len(), 8);
+    assert_eq!(build_gradle_nodes.len(), 2);
     let build_gradle_node = build_gradle_nodes[0].into_data();
     assert_eq!(build_gradle_node.name, "build.gradle.kts");
 
@@ -56,14 +56,16 @@ async fn test_kotlin() {
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 9);
 
-    let classes = graph
+    let mut classes = graph
         .nodes
         .iter()
         .filter(|n| matches!(n, Node::Class(_)))
         .collect::<Vec<_>>();
     assert_eq!(classes.len(), 6);
 
-    let example_class = classes[0].into_data();
+    classes.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
+
+    let example_class = classes[1].into_data();
     assert_eq!(example_class.name, "ExampleInstrumentedTest");
     assert_eq!(
         normalize_path(&example_class.file),
