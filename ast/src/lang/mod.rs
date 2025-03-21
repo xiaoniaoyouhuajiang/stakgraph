@@ -298,7 +298,7 @@ impl FromStr for Lang {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "tsx" => Ok(Lang::new_react_ts()),
+            "tsx" | "jsx" => Ok(Lang::new_react_ts()),
             _ => {
                 let ss = Language::from_str(s)?;
                 Ok(Lang::from_language(ss))
