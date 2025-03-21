@@ -63,32 +63,9 @@ impl Stack for TypeScript {
     fn function_definition_query(&self) -> String {
         format!(
             r#"
-           (class_declaration
-                name: (type_identifier) @{CLASS_NAME}
-                body: (class_body
-                    (method_definition
-                    name: (property_identifier) @{FUNCTION_NAME}
-                    parameters: (formal_parameters
-                        (required_parameter
-                        (identifier) @{ARGUMENTS}
-                        (type_annotation
-                            (predefined_type) @{RETURN_TYPES}
-                        )?
-                        )*
-                    ) @arguments
-                    return_type: (type_annotation
-                        (generic_type
-                        name: (type_identifier) @{RETURN_TYPES}
-                        (type_arguments
-                            (type_identifier) @{RETURN_TYPES}
-                        )?
-                        )
-                    )?
-                    body: (statement_block) @{FUNCTION_DEFINITION}
-                    )
-                )
-            ) @{CLASS_DEFINITION}
-
+           (function_declaration
+            name: (identifier) @{FUNCTION_NAME}
+            ) @{FUNCTION_DEFINITION}
             "#
         )
     }
@@ -99,7 +76,7 @@ impl Stack for TypeScript {
             (call_expression
                 function: (identifier) @{FUNCTION_NAME}
                 arguments: (arguments) @{ARGUMENTS}
-            )
+            )@{FUNCTION_CALL}
 
             (call_expression
             function: (member_expression
@@ -107,7 +84,7 @@ impl Stack for TypeScript {
                 property: (property_identifier) @{FUNCTION_NAME}
             )
                 arguments: (arguments) @{ARGUMENTS}
-            )
+            )@{FUNCTION_CALL}
             "#
         )
     }
@@ -116,25 +93,41 @@ impl Stack for TypeScript {
         vec![format!(
             r#"(call_expression
                 function: (member_expression
-                    object: (identifier) @app_object
+                    object: (identifier)
                     property: (property_identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
                 )
                 arguments: (arguments
                     (string) @{ENDPOINT}
-                    [
-                    (arrow_function) @{HANDLER}
-                    (function_expression) @{HANDLER}
                     (identifier) @{HANDLER}
-                    ]
                 )
                 ) @{ROUTE}
             "#
         )]
     }
+    fn add_endpoint_verb(&self, inst: &mut NodeData, call: &Option<String>) {
+        if let Some(c) = call {
+            let verb = match c.as_str() {
+                "get" => "GET",
+                "post" => "POST",
+                "put" => "PUT",
+                "delete" => "DELETE",
+                _ => "",
+            };
+
+            if !verb.is_empty() {
+                inst.meta.insert("verb".to_string(), verb.to_string());
+            }
+        }
+    }
 
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
+                ;; Find TypeScript interfaces related to the model
+                (interface_declaration
+                    name: (type_identifier) @{STRUCT_NAME} 
+                    body: (interface_body) @{STRUCT}
+                )
                 ;; sequelize
                 (class_declaration
                     name: (type_identifier) @{STRUCT_NAME}

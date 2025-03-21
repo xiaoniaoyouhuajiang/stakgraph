@@ -4,17 +4,15 @@ use std::str::FromStr;
 use test_log::test;
 
 pub mod go;
+pub mod kotlin;
 pub mod python;
 pub mod react_ts;
 pub mod test_backend;
 pub mod utils;
-pub mod kotlin;
 
 #[test(tokio::test)]
 async fn run_server_tests() {
-
-    //let implemented_servers = ["go", "python", "ruby", "rust", "typescript"];
-        let implemented_servers = ["typescript"];
+    let implemented_servers = ["go", "python", "ruby", "rust", "typescript"];
     for server in implemented_servers.iter() {
         let repo = Some(server.to_string());
         let language = Lang::from_language(Language::from_str(server).unwrap());

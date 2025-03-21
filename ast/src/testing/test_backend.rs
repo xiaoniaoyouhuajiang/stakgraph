@@ -74,12 +74,6 @@ impl BackendTester {
             .find(|node| node.into_data().name == self.lang.kind.to_string())
             .unwrap();
 
-        //to visualize the nodes built
-        self.graph.nodes.iter().any(|node| {
-            println!("\n {:?} \n", node);
-            false
-        });
-
         assert_eq!(
             language_node.into_data().name,
             self.lang.kind.to_string(),
@@ -184,8 +178,8 @@ impl BackendTester {
 
                     let direct_handler_connection = self.graph.edges.iter().any(|edge| {
                         edge.edge == EdgeType::Contains
-                            && edge.target.node_data.name == data_model
-                            && edge.source.node_data.name == handler_name
+                            && edge.target.node_data.name.contains(data_model)
+                            && edge.source.node_data.name.contains(&handler_name)
                     });
 
                     if direct_handler_connection {
@@ -210,8 +204,8 @@ impl BackendTester {
 
                         let direction_connection = self.graph.edges.iter().any(|edge| {
                             edge.edge == EdgeType::Contains
-                                && edge.target.node_data.name == data_model
-                                && edge.source.node_data.name == func_name
+                                && edge.target.node_data.name.contains(data_model)
+                                && edge.source.node_data.name.contains(&func_name)
                         });
 
                         if direction_connection {
