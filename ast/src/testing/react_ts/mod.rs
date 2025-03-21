@@ -39,7 +39,7 @@ async fn test_react_typescript() {
         .iter()
         .filter(|n| matches!(n, Node::File(_)) && n.into_data().name == "package.json")
         .collect::<Vec<_>>();
-    assert_eq!(pkg_file.len(), 2);
+    assert_eq!(pkg_file.len(), 4);
     let pkg_file = pkg_file[0].into_data();
     assert_eq!(pkg_file.name, "package.json");
 
