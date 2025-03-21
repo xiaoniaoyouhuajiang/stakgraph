@@ -16,8 +16,8 @@ async fn test_react_typescript() {
 
     let graph = repo.build_graph().await.unwrap();
 
-    assert!(graph.nodes.len() == 72);
-    assert!(graph.edges.len() == 81);
+    assert!(graph.nodes.len() == 69);
+    assert!(graph.edges.len() == 78);
 
     // Function to normalize paths and replace backslashes with forward slashes
     fn normalize_path(path: &str) -> String {
@@ -39,7 +39,7 @@ async fn test_react_typescript() {
         .iter()
         .filter(|n| matches!(n, Node::File(_)) && n.into_data().name == "package.json")
         .collect::<Vec<_>>();
-    assert_eq!(pkg_file.len(), 4);
+    assert_eq!(pkg_file.len(), 1);
     let pkg_file = pkg_file[0].into_data();
     assert_eq!(pkg_file.name, "package.json");
 

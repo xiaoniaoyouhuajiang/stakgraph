@@ -163,6 +163,9 @@ impl Graph {
         self.edges.push(edge);
     }
     pub fn add_file(&mut self, path: &str, code: &str) {
+        if self.file_data(path).is_some() {
+            return;
+        }
         let mut f = NodeData::in_file(path);
         f.name = path.to_string();
         let skip_file_content = std::env::var("DEV_SKIP_FILE_CONTENT").is_ok();
