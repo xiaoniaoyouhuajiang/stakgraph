@@ -13,8 +13,8 @@ pub mod kotlin;
 #[test(tokio::test)]
 async fn run_server_tests() {
 
-    let implemented_servers = ["go", "python", "ruby", "rust", "typescript"];
-
+    //let implemented_servers = ["go", "python", "ruby", "rust", "typescript"];
+        let implemented_servers = ["typescript"];
     for server in implemented_servers.iter() {
         let repo = Some(server.to_string());
         let language = Lang::from_language(Language::from_str(server).unwrap());

@@ -112,97 +112,24 @@ impl Stack for TypeScript {
         )
     }
 
-    fn find_endpoint_parents(
-        &self,
-        node: TreeNode,
-        code: &str,
-        _file: &str,
-        graph: &Graph,
-    ) -> Result<Vec<HandlerItem>> {
-        let mut parents = Vec::new();
-
-        if let Some(func_node) = node.child_by_field_name("function") {
-            if let Some(obj_node) = func_node.child_by_field_name("object") {
-                let router_var = obj_node
-                    .utf8_text(code.as_bytes())
-                    .unwrap_or("")
-                    .to_string();
-
-                for node in &graph.nodes {
-                    if let Node::Endpoint(endpoint) = node {
-                        if endpoint.file.ends_with("index.ts") {
-                            if let Some(endpoint_router_var) = endpoint.meta.get("router_var") {
-                                if endpoint_router_var == &router_var {
-                                    parents.push(HandlerItem {
-                                        name: endpoint.name.clone(),
-                                        item_type: HandlerItemType::Namespace,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(parents)
-    }
-
     fn endpoint_finders(&self) -> Vec<String> {
-        vec![
-            format!(
-                r#"(call_expression
-                    function: (member_expression
-                        object: (identifier) @router_object
-                        property: (property_identifier) @{ENDPOINT_VERB}
-                    )
-                    arguments: (arguments
-                        (string (string_fragment) @{ENDPOINT})
-                        (_) @{HANDLER}
-                    )
-                ) @{ROUTE}"#
-            ),
-            format!(
-                r#"(call_expression
-                    function: (member_expression
-                        object: (identifier) @app_object
-                        property: (property_identifier) @use_method (#eq? @use_method "use")
-                    )
-                    arguments: (arguments
-                        (string (string_fragment) @{ENDPOINT})
-                        (identifier) @router_var
-                    )
-                ) @{ROUTE}"#
-            ),
-        ]
-    }
-
-    fn add_endpoint_verb(&self, inst: &mut NodeData, call: &Option<String>) {
-        if let Some(c) = call {
-            let verb = match c.as_str() {
-                "get" => "GET".to_string(),
-                "post" => "POST".to_string(),
-                "put" => "PUT".to_string(),
-                "delete" => "DELETE".to_string(),
-                "use" => "USE".to_string(),
-                _ => "".to_string(),
-            };
-            inst.meta.insert("verb".to_string(), verb);
-        }
-
-        if inst.meta.get("verb") == Some(&"USE".to_string()) {
-            if let Some(router_var) = inst.meta.get("router_var") {
-                inst.meta
-                    .insert("router_var".to_string(), router_var.clone());
-            }
-        }
-    }
-
-    fn is_router_file(&self, file_name: &str, _code: &str) -> bool {
-        file_name.ends_with("routes.ts")
-            || file_name.contains("router")
-            || file_name.contains("routes")
-            || file_name.ends_with("index.ts")
+        vec![format!(
+            r#"(call_expression
+                function: (member_expression
+                    object: (identifier) @app_object
+                    property: (property_identifier) @endpoint-verb (#match? @endpoint-verb "^get$|^post$|^put$|^delete$")
+                )
+                arguments: (arguments
+                    (string (string_fragment) @endpoint)
+                    [
+                    (arrow_function) @handler
+                    (function_expression) @handler
+                    (identifier) @handler
+                    ]
+                )
+                ) @route
+            "#
+        )]
     }
 
     fn data_model_query(&self) -> Option<String> {

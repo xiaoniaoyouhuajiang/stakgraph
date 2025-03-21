@@ -1,14 +1,14 @@
 import express from "express";
 import "reflect-metadata";
 import { sequelize, AppDataSource } from "./config.js";
-import router from "./routes.js";
+import { registerRoutes } from "./routes.js";
 
 const app = express();
 const port = 3000;
 
 app.use(express.json());
 
-app.use("/person", router);
+registerRoutes(app);
 
 async function initDatabases() {
   try {
