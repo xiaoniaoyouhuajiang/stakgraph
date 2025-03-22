@@ -60,18 +60,18 @@ impl Stack for Swift {
         r#"
         (function_declaration
             (simple_identifier) @{FUNCTION_NAME}
-        )
+        ) @{FUNCTION_DEFINITION}
         "#
     )
 }
+
 
 
     fn function_call_query(&self) -> String {
         format!(
             r#"
             (call_expression
-                function: (identifier) @method_name
-                arguments: (argument_list) @{ARGUMENTS}
+                 (simple_identifier) @method_name @{ARGUMENTS}
             )
             "#
         )
@@ -88,12 +88,17 @@ impl Stack for Swift {
         _parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         let mut parent = node.parent();
-        while parent.is_some() && parent.unwrap().kind().to_string() != "class_declaration" {
+        while parent.is_some() {
+
+            if parent.unwrap().kind().to_string() == "class_declaration" {
+                // found it!
+                break;
+            }
             parent = parent.unwrap().parent();
         }
         let parent_of = match parent {
             Some(p) => {
-                let query = self.q(&self.identifier_query(), &NodeType::Class);
+                let query = self.q("(type_identifier) @class_name", &NodeType::Class);
                 match query_to_ident(query, p, code)? {
                     Some(parent_name) => Some(Operand {
                         source: NodeKeys::new(&parent_name, file),
@@ -112,10 +117,10 @@ impl Stack for Swift {
         vec![
             format!(
                 r#"
-                (function_declaration
-                    (simple_identifier) @method_name
-                    (#match? @method_name "set|get|post|put|delete")
-                )
+                (statements
+                (call_expression
+                    (simple_identifier) @{REQUEST_CALL}
+                )) @{ROUTE}
                 "#
             ),
         ]
@@ -125,9 +130,10 @@ impl Stack for Swift {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
+            (statements
             (class_declaration
-                (type_identifier) @{STRUCT_NAME}
-            ) @{STRUCT}
+                name: (type_identifier) @{STRUCT_NAME}
+            )) @{STRUCT}
             "#
         ))
     }
@@ -138,11 +144,9 @@ impl Stack for Swift {
         Some(format!(
             r#"
             [
-                (variable_declaration
                     (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-                )
                 (call_expression
-                    function: (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+                     (simple_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
                 )
             ]
             "#

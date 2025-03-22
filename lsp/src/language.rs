@@ -61,7 +61,7 @@ impl Language {
             Self::Python => vec!["__pycache__", ".git", ".venv", "venv"],
             Self::Ruby => vec!["migrate", "tmp", ".git"],
             Self::Kotlin => vec![".gradle", ".idea", "build", ".git"],
-            Self::Swift => vec![".git"],
+            Self::Swift => vec![".git", "Pods"],
             Self::Bash => vec![".git"],
             Self::Toml => vec![".git"],
         }
