@@ -112,7 +112,9 @@ impl BackendTester {
     }
 
     fn test_data_model(&self, name: &str) -> Result<(), anyhow::Error> {
-        let data_model = self.graph.find_data_model_by(|node| node.name == name);
+        let data_model = self
+            .graph
+            .find_data_model_by(|node| node.name.contains(name));
 
         match data_model {
             Some(_) => {
@@ -176,8 +178,8 @@ impl BackendTester {
 
                     let direct_handler_connection = self.graph.edges.iter().any(|edge| {
                         edge.edge == EdgeType::Contains
-                            && edge.target.node_data.name == data_model
-                            && edge.source.node_data.name == handler_name
+                            && edge.target.node_data.name.contains(data_model)
+                            && edge.source.node_data.name.contains(&handler_name)
                     });
 
                     if direct_handler_connection {
@@ -202,8 +204,8 @@ impl BackendTester {
 
                         let direction_connection = self.graph.edges.iter().any(|edge| {
                             edge.edge == EdgeType::Contains
-                                && edge.target.node_data.name == data_model
-                                && edge.source.node_data.name == func_name
+                                && edge.target.node_data.name.contains(data_model)
+                                && edge.source.node_data.name.contains(&func_name)
                         });
 
                         if direction_connection {

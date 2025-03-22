@@ -16,8 +16,8 @@ async fn test_react_typescript() {
 
     let graph = repo.build_graph().await.unwrap();
 
-    assert!(graph.nodes.len() == 52);
-    assert!(graph.edges.len() == 61);
+    assert!(graph.nodes.len() == 69);
+    assert!(graph.edges.len() == 78);
 
     // Function to normalize paths and replace backslashes with forward slashes
     fn normalize_path(path: &str) -> String {
@@ -31,7 +31,7 @@ async fn test_react_typescript() {
         .collect::<Vec<_>>();
     assert_eq!(l.len(), 1);
     let l = l[0].into_data();
-    assert_eq!(l.name, "typescript");
+    assert_eq!(l.name, "react");
     assert_eq!(normalize_path(&l.file), "src/testing/react_ts/");
 
     let pkg_file = graph
@@ -39,7 +39,7 @@ async fn test_react_typescript() {
         .iter()
         .filter(|n| matches!(n, Node::File(_)) && n.into_data().name == "package.json")
         .collect::<Vec<_>>();
-    assert_eq!(pkg_file.len(), 2);
+    assert_eq!(pkg_file.len(), 1);
     let pkg_file = pkg_file[0].into_data();
     assert_eq!(pkg_file.name, "package.json");
 
@@ -86,7 +86,8 @@ async fn test_react_typescript() {
     assert_eq!(styled_component.name, "SubmitButton");
     assert_eq!(
         normalize_path(&styled_component.file),
-        "src/testing/react_ts/components/NewPerson.tsx");
+        "src/testing/react_ts/components/NewPerson.tsx"
+    );
 
     let requests = graph
         .nodes

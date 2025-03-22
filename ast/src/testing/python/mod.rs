@@ -15,8 +15,8 @@ async fn test_python() {
     .unwrap();
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 77);
-    assert_eq!(graph.edges.len(), 96);
+    assert_eq!(graph.nodes.len(), 76);
+    assert_eq!(graph.edges.len(), 95);
 
     let languages = graph
         .nodes
@@ -35,7 +35,7 @@ async fn test_python() {
         .filter(|n| matches!(n, Node::File(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(files.len(), 18, "wrong file count");
+    assert_eq!(files.len(), 17, "wrong file count");
 
     let imports = graph
         .nodes

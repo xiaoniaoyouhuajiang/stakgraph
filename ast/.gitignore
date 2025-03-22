@@ -15,3 +15,7 @@ examples/cabal
 examples/**/*.json
 examples/**/*.jsonl
 examples/cabal-routes.txt
+
+node_modules
+dist
+package-lock.json

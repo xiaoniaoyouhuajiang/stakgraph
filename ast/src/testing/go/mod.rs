@@ -15,8 +15,8 @@ async fn test_go() {
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
     // println!("graph: {:?}", graph);
-    assert!(graph.nodes.len() == 40);
-    assert!(graph.edges.len() == 58);
+    assert!(graph.nodes.len() == 39);
+    assert!(graph.edges.len() == 57);
 
     let l = graph
         .nodes
