@@ -35,6 +35,6 @@ async fn run_client_tests() {
         let tester = test_frontend::FrontendTester::new(language, repo)
             .await
             .unwrap();
-        tester.test_frontend().unwrap();
+        tester.test_frontend(None).unwrap();
     }
 }

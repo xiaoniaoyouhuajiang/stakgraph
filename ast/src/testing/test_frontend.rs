@@ -1,6 +1,7 @@
 use crate::lang::graph::{Graph, Node};
 use crate::lang::Lang;
 use crate::repo::Repo;
+use anyhow::Context;
 use std::collections::HashMap;
 use std::result::Result;
 use tracing::info;
@@ -11,44 +12,50 @@ pub struct FrontendTester {
     repo: Option<String>,
 }
 
+pub struct FrontendArtefact<'a> {
+    pub components: Vec<&'a str>,
+    pub request: Vec<(&'a str, &'a str)>,
+    pub pages: Vec<&'a str>,
+    pub data_model: &'a str,
+}
+
+impl FrontendArtefact<'_> {
+    pub fn default() -> FrontendArtefact<'static> {
+        FrontendArtefact {
+            components: vec!["NewPerson", "People"],
+            request: vec![("GET", "/people"), ("POST", "/person")],
+            pages: vec!["/new-person", "/people"],
+            data_model: "Person",
+        }
+    }
+}
 impl FrontendTester {
     pub async fn new(lang: Lang, repo: Option<String>) -> Result<Self, anyhow::Error> {
         let language_name = lang.kind.clone();
         let language_in_repository = Lang::from_language(language_name.clone());
-        let return_repo = match &repo {
-            Some(repo) => repo.clone(),
-            None => language_name.to_string(),
-        };
-        let repository = match repo {
-            Some(repo) => Repo::new(
-                &format!("src/testing/{}", repo.clone()),
-                language_in_repository,
-                false,
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-            None => Repo::new(
-                &format!("src/testing/{}", language_name.to_string()),
-                language_in_repository,
-                false,
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-        };
+
+        let repo_path = repo.clone().unwrap_or_else(|| language_name.to_string());
+        let repository = Repo::new(
+            &format!("src/testing/{}", repo_path),
+            language_in_repository,
+            false,
+            Vec::new(),
+            Vec::new(),
+        )?;
 
         Ok(Self {
             graph: repository
                 .build_graph()
                 .await
-                .expect("Could not Build Graph"),
+                .with_context(|| format!("Failed to build graph for {}", repo_path))?,
             lang,
-            repo: Some(return_repo),
+            repo: Some(repo_path),
         })
     }
 
-    pub fn test_frontend(&self) -> Result<(), anyhow::Error> {
+    pub fn test_frontend(&self, artefact: Option<FrontendArtefact>) -> Result<(), anyhow::Error> {
+        let artefact = artefact.unwrap_or_else(|| FrontendArtefact::default());
+
         info!(
             "\n\nTesting frontend for {} at src/testing/{}\n\n",
             self.lang.kind.to_string().to_uppercase(),
@@ -57,19 +64,10 @@ impl FrontendTester {
 
         self.test_language()?;
         self.test_package_file()?;
-
-        let expected_componets = vec!["NewPerson", "People"];
-        let expected_requests = vec![("GET", "/people"), ("POST", "/person")];
-        let expected_pages = vec!["/new-person", "/people"];
-        let data_model = "Person";
-
-        self.test_data_model(data_model)?;
-
-        self.test_components(expected_componets)?;
-
-        self.test_pages(expected_pages)?;
-
-        self.test_requests(expected_requests)?;
+        self.test_data_model(artefact.data_model)?;
+        self.test_components(artefact.components)?;
+        self.test_pages(artefact.pages)?;
+        self.test_requests(artefact.request)?;
 
         Ok(())
     }
@@ -137,64 +135,23 @@ impl FrontendTester {
     }
 
     fn test_components(&self, expected_components: Vec<&str>) -> Result<(), anyhow::Error> {
-        let components = self
-            .graph
-            .nodes
-            .iter()
-            .filter(|node| matches!(node, Node::Function(_)))
-            .collect::<Vec<_>>();
-
-        let mut found_components: HashMap<String, bool> = expected_components
-            .iter()
-            .map(|component| (component.to_string(), false))
-            .collect();
-
-        for component in components {
-            let component_data = component.into_data();
-            if let Some(found) = found_components.get_mut(&component_data.name) {
-                *found = true;
-            }
-        }
-
-        for (component, found) in found_components.iter() {
-            info!("✓ Found component {}", component);
-            assert!(
-                *found,
-                "Component {} not found in graph",
-                component.to_string()
-            );
-        }
-
-        Ok(())
+        self.verify_nodes(
+            expected_components,
+            |node| matches!(node, Node::Function(_)),
+            |node| node.into_data().name.to_string(),
+            |component, name| component.contains(name),
+            "component",
+        )
     }
 
     fn test_pages(&self, expected_pages: Vec<&str>) -> Result<(), anyhow::Error> {
-        let pages = self
-            .graph
-            .nodes
-            .iter()
-            .filter(|node| matches!(node, Node::Page(_)))
-            .collect::<Vec<_>>();
-
-        let mut found_pages: HashMap<String, bool> = expected_pages
-            .iter()
-            .map(|page| (page.to_string(), false))
-            .collect();
-
-        for page in pages {
-            let page_data = page.into_data();
-            println!("\n{:?}\n", page_data);
-            if let Some(found) = found_pages.get_mut(&page_data.name) {
-                *found = true;
-            }
-        }
-
-        for (page, found) in found_pages.iter() {
-            info!("✓ Found page {}", page);
-            assert!(*found, "Page {} not found in graph", page);
-        }
-
-        Ok(())
+        self.verify_nodes(
+            expected_pages,
+            |node| matches!(node, Node::Page(_)),
+            |node| node.into_data().name.to_string(),
+            |page, name| page.contains(name),
+            "page",
+        )
     }
 
     fn test_requests(&self, expected_requests: Vec<(&str, &str)>) -> Result<(), anyhow::Error> {
@@ -218,7 +175,7 @@ impl FrontendTester {
                 None => "".to_string(),
             };
 
-            let endpoint = extract_request_endpoint(&request_data.name);
+            let endpoint = Self::extract_request_endpoint(&request_data.name);
 
             if let Some(found) = found_requests.get_mut(&(verb.clone(), endpoint.clone())) {
                 *found = true;
@@ -237,17 +194,59 @@ impl FrontendTester {
 
         Ok(())
     }
-}
 
-fn extract_request_endpoint(url: &str) -> String {
-    let path = url
-        .split_terminator("/")
-        .skip(3)
-        .collect::<Vec<&str>>()
-        .join("/");
+    fn verify_nodes<T, F>(
+        &self,
+        expected_items: Vec<T>,
+        filter_fn: F,
+        get_name: impl Fn(&Node) -> String,
+        match_fn: impl Fn(&T, &String) -> bool,
+        item_type: &str,
+    ) -> Result<(), anyhow::Error>
+    where
+        T: std::fmt::Display + std::cmp::Eq + std::hash::Hash,
+        F: Fn(&&Node) -> bool,
+    {
+        let nodes = self
+            .graph
+            .nodes
+            .iter()
+            .filter(filter_fn)
+            .collect::<Vec<_>>();
 
-    if path.is_empty() {
-        return "/".to_string();
+        let mut found_map: HashMap<T, bool> = expected_items
+            .into_iter()
+            .map(|item| (item, false))
+            .collect();
+
+        for node in nodes {
+            let name = get_name(node);
+
+            for (item, found) in found_map.iter_mut() {
+                if match_fn(item, &name) {
+                    *found = true;
+                    info!("✓ Found {} {}", item_type, name);
+                }
+            }
+        }
+
+        for (item, found) in found_map.iter() {
+            assert!(*found, "{} {} not found in graph", item_type, item);
+        }
+
+        Ok(())
     }
-    format!("/{}", path)
+
+    fn extract_request_endpoint(url: &str) -> String {
+        let path = url
+            .split_terminator("/")
+            .skip(3)
+            .collect::<Vec<&str>>()
+            .join("/");
+
+        if path.is_empty() {
+            return "/".to_string();
+        }
+        format!("/{}", path)
+    }
 }
