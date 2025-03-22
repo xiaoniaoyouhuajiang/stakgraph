@@ -53,8 +53,8 @@ impl FrontendTester {
         })
     }
 
-    pub fn test_frontend(&self, artefact: Option<FrontendArtefact>) -> Result<(), anyhow::Error> {
-        let artefact = artefact.unwrap_or_else(|| FrontendArtefact::default());
+    pub fn test_frontend(&self) -> Result<(), anyhow::Error> {
+        let artefact = FrontendArtefact::default();
 
         info!(
             "\n\nTesting frontend for {} at src/testing/{}\n\n",
