@@ -72,7 +72,7 @@ impl Stack for Swift {
             r#"
             (call_expression
                  (simple_identifier) @method_name @{ARGUMENTS}
-            )
+            ) @FUNCTION_CALL
             "#
         )
         }
