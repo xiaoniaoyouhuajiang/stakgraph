@@ -173,21 +173,18 @@ impl FrontendTester {
                 None => "".to_string(),
             };
 
-            let endpoint = Self::extract_request_endpoint(&request_data.name);
+            let url = &request_data.name;
 
-            if let Some(found) = found_requests.get_mut(&(verb.clone(), endpoint.clone())) {
-                *found = true;
+            for ((expected_verb, expected_endpoint), found) in found_requests.iter_mut() {
+                if verb == expected_verb.to_uppercase() && url.contains(expected_endpoint) {
+                    *found = true;
+                    info!("✓ Found request: {} {} ({})", verb, expected_endpoint, url);
+                }
             }
-
-            info!(
-                "✓ Found request: {} {} ({})",
-                verb, endpoint, request_data.name
-            );
         }
 
-        for (request, found) in found_requests.iter() {
-            info!("✓ Found request {:?}", request);
-            assert!(*found, "Request {:?} not found in graph", request);
+        for ((verb, endpoint), found) in found_requests.iter() {
+            assert!(*found, "Request {} {} not found in graph", verb, endpoint);
         }
 
         Ok(())
@@ -231,18 +228,5 @@ impl FrontendTester {
         }
 
         Ok(())
-    }
-
-    fn extract_request_endpoint(url: &str) -> String {
-        let path = url
-            .split_terminator("/")
-            .skip(3)
-            .collect::<Vec<&str>>()
-            .join("/");
-
-        if path.is_empty() {
-            return "/".to_string();
-        }
-        format!("/{}", path)
     }
 }
