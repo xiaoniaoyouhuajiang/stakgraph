@@ -138,7 +138,6 @@ impl FrontendTester {
         self.verify_nodes(
             expected_components,
             |node| matches!(node, Node::Function(_)),
-            |node| node.into_data().name.to_string(),
             |component, name| component.contains(name),
             "component",
         )
@@ -148,7 +147,6 @@ impl FrontendTester {
         self.verify_nodes(
             expected_pages,
             |node| matches!(node, Node::Page(_)),
-            |node| node.into_data().name.to_string(),
             |page, name| page.contains(name),
             "page",
         )
@@ -199,7 +197,6 @@ impl FrontendTester {
         &self,
         expected_items: Vec<T>,
         filter_fn: F,
-        get_name: impl Fn(&Node) -> String,
         match_fn: impl Fn(&T, &String) -> bool,
         item_type: &str,
     ) -> Result<(), anyhow::Error>
@@ -220,8 +217,7 @@ impl FrontendTester {
             .collect();
 
         for node in nodes {
-            let name = get_name(node);
-
+            let name = node.into_data().name.to_string();
             for (item, found) in found_map.iter_mut() {
                 if match_fn(item, &name) {
                     *found = true;

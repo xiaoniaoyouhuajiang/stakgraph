@@ -6,7 +6,7 @@ pub mod haml;
 pub mod kotlin;
 pub mod python;
 mod rails_routes;
-pub mod react_ts;
+pub mod react;
 pub mod ruby;
 pub mod rust;
 pub mod toml;

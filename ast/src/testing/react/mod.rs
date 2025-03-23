@@ -6,7 +6,7 @@ use test_log::test;
 #[test(tokio::test)]
 async fn test_react_typescript() {
     let repo = Repo::new(
-        "src/testing/react_ts",
+        "src/testing/react",
         Lang::from_str("tsx").unwrap(),
         false,
         Vec::new(),
@@ -32,7 +32,7 @@ async fn test_react_typescript() {
     assert_eq!(l.len(), 1);
     let l = l[0].into_data();
     assert_eq!(l.name, "react");
-    assert_eq!(normalize_path(&l.file), "src/testing/react_ts/");
+    assert_eq!(normalize_path(&l.file), "src/testing/react/");
 
     let pkg_file = graph
         .nodes
@@ -64,14 +64,14 @@ async fn test_react_typescript() {
     assert_eq!(people_component.name, "App");
     assert_eq!(
         normalize_path(&people_component.file),
-        "src/testing/react_ts/App.tsx"
+        "src/testing/react/App.tsx"
     );
 
     let new_person_component = functions[1].into_data();
     assert_eq!(new_person_component.name, "FormContainer");
     assert_eq!(
         normalize_path(&new_person_component.file),
-        "src/testing/react_ts/components/NewPerson.tsx"
+        "src/testing/react/components/NewPerson.tsx"
     );
 
     let styled_components = graph
@@ -86,7 +86,7 @@ async fn test_react_typescript() {
     assert_eq!(styled_component.name, "SubmitButton");
     assert_eq!(
         normalize_path(&styled_component.file),
-        "src/testing/react_ts/components/NewPerson.tsx"
+        "src/testing/react/components/NewPerson.tsx"
     );
 
     let requests = graph
@@ -112,5 +112,5 @@ async fn test_react_typescript() {
 
     let page = page_node[0].into_data();
     assert_eq!(page.name, "/people");
-    assert_eq!(normalize_path(&page.file), "src/testing/react_ts/App.tsx");
+    assert_eq!(normalize_path(&page.file), "src/testing/react/App.tsx");
 }
