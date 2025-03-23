@@ -23,6 +23,28 @@ WHERE
 RETURN f as component
 `;
 
+export const SUBTREE_QUERY = `
+WITH $node_label AS nodeLabel,
+     $node_name as nodeName
+MATCH (f {name: nodeName})
+WHERE any(label IN labels(f) WHERE label = nodeLabel)
+CALL apoc.path.expandConfig(f, {
+    relationshipFilter: "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND",
+    uniqueness: "NODE_PATH",
+    minLevel: 1,
+    maxLevel: 10
+})
+YIELD path
+WITH path, nodes(path) AS pathNodes
+UNWIND pathNodes AS node
+WITH DISTINCT path, node.file AS fileName
+WHERE fileName IS NOT NULL
+WITH path, COLLECT(fileName) AS fileNames
+MATCH (file:File)-[:CONTAINS]->(import:Import)
+WHERE file.file IN fileNames
+RETURN path, COLLECT(DISTINCT import) AS imports
+`;
+
 export const PATH_QUERY = `
 WITH $include_tests as include_tests,
      $function_name as function_name,
