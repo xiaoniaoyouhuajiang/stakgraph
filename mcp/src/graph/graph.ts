@@ -3,12 +3,15 @@ import { db } from "./neo4j.js";
 import archy from "archy";
 import { buildTree } from "./codemap.js";
 import { code_body, formatNode } from "./codebody.js";
+import { extractNodesFromRecord } from "./codebody2.js";
 import { Express, Request, Response } from "express";
 import { upload_files, check_status } from "./uploads.js";
 
 export function graph_routes(app: Express) {
   app.get("/pages", get_pages);
   app.get("/pages/links", get_pages_links);
+  app.get("/map", get_map);
+  app.get("/code", get_code);
   app.get("/feature_map", get_feature_map);
   app.get("/feature_code", get_feature_code);
   app.get("/components/links", get_components_links);
@@ -92,6 +95,56 @@ async function get_feature_code(req: Request, res: Response) {
       depth
     );
     const text = code_body(result.records[0], pkg_files);
+    res.send(text);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+interface MapParams {
+  node_type: string;
+  name: string;
+  tests: boolean;
+  depth: number;
+}
+
+function mapParams(req: Request): MapParams {
+  const node_type = req.query.node_type as string;
+  const name = req.query.name as string;
+  const tests = !(req.query.tests === "false" || req.query.tests === "0");
+  const depth = parseInt(req.query.depth as string) || DEFAULT_DEPTH;
+  if (!node_type || !name) throw new Error("node_type and name required");
+  return {
+    node_type,
+    name,
+    tests,
+    depth,
+  };
+}
+
+async function get_map(req: Request, res: Response) {
+  try {
+    const { node_type, name, tests, depth } = mapParams(req);
+    console.log("=> get_map:", node_type, name, tests, depth);
+    const result = await db.get_subtree(node_type, name, tests, depth);
+    const fn = result.records[0];
+    const tree = await buildTree(fn);
+    const text = archy(tree);
+    res.send(`<pre>${text}</pre>`);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+async function get_code(req: Request, res: Response) {
+  try {
+    const { node_type, name, tests, depth } = mapParams(req);
+    console.log("=> get_code:", node_type, name, tests, depth);
+    const pkg_files = await db.get_pkg_files();
+    const result = await db.get_subtree(node_type, name, tests, depth);
+    const text = extractNodesFromRecord(result.records[0], pkg_files);
     res.send(text);
   } catch (error) {
     console.error("Error:", error);

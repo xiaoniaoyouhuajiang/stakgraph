@@ -3,6 +3,11 @@ export interface Node {
   node_data: NodeData;
 }
 
+export interface Neo4jNode {
+  properties: NodeData;
+  labels?: string[];
+}
+
 export interface NodeData {
   name: string;
   file: string;
@@ -12,6 +17,7 @@ export interface NodeData {
   docs?: string;
   hash?: string;
   verb?: string;
+  [key: string]: any; // Allow any other properties
 }
 
 export type NodeType =

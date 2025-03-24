@@ -35,14 +35,15 @@ CALL apoc.path.expandConfig(f, {
     maxLevel: 10
 })
 YIELD path
-WITH path, nodes(path) AS pathNodes
+WITH COLLECT(DISTINCT [n IN nodes(path) | n]) AS allPathNodes
+UNWIND allPathNodes AS pathNodes
 UNWIND pathNodes AS node
-WITH DISTINCT path, node.file AS fileName
-WHERE fileName IS NOT NULL
-WITH path, COLLECT(fileName) AS fileNames
+WITH DISTINCT node
+WHERE node.file IS NOT NULL
+WITH COLLECT(node) AS allNodes, COLLECT(node.file) AS fileNames
 MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames
-RETURN path, COLLECT(DISTINCT import) AS imports
+RETURN allNodes, COLLECT(DISTINCT import) AS imports
 `;
 
 export const PATH_QUERY = `

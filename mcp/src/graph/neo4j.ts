@@ -1,10 +1,9 @@
 import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
-import { Node, Edge } from "./types.js";
+import { Node, Edge, Neo4jNode } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
-import { Node as CodeNode } from "./codebody.js";
 
 class Db {
   private driver: Driver;
@@ -17,7 +16,7 @@ class Db {
     this.driver = neo4j.driver(uri, neo4j.auth.basic(user, pswd));
   }
 
-  async get_pkg_files(): Promise<CodeNode[]> {
+  async get_pkg_files(): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
       const r = await session.run(Q.PKGS_QUERY);
@@ -42,6 +41,25 @@ class Db {
         function_name,
         include_tests,
         depth: depth || 7,
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_subtree(
+    node_type: string,
+    name: string,
+    include_tests: boolean,
+    depth: number
+  ) {
+    const session = this.driver.session();
+    try {
+      return await session.run(Q.SUBTREE_QUERY, {
+        node_label: node_type,
+        node_name: name,
+        include_tests,
+        depth,
       });
     } finally {
       await session.close();
