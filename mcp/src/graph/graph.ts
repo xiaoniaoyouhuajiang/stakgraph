@@ -1,5 +1,5 @@
 import { Record } from "neo4j-driver";
-import { db } from "./neo4j.js";
+import { db, Direction } from "./neo4j.js";
 import archy from "archy";
 import { buildTree } from "./codemap.js";
 import { buildTree as buildTree2 } from "./codemap2.js";
@@ -103,34 +103,45 @@ async function get_feature_code(req: Request, res: Response) {
   }
 }
 
+const DEFAULT_DIRECTION = "down";
+const DEFAULT_NODE_TYPE = "Function";
+const DEFAULT_NAME = "main";
+
 interface MapParams {
   node_type: string;
   name: string;
   tests: boolean;
   depth: number;
+  direction: Direction;
 }
 
 function mapParams(req: Request): MapParams {
   const node_type = req.query.node_type as string;
   const name = req.query.name as string;
+  const direction = req.query.direction as Direction;
   const tests = !(req.query.tests === "false" || req.query.tests === "0");
   const depth = parseInt(req.query.depth as string) || DEFAULT_DEPTH;
   if (!node_type || !name) throw new Error("node_type and name required");
   return {
-    node_type,
-    name,
+    node_type: node_type || DEFAULT_NODE_TYPE,
+    name: name || DEFAULT_NAME,
     tests,
     depth,
+    direction: direction || DEFAULT_DIRECTION,
   };
+}
+
+async function get_record_from_query(fn_name: string, req: Request) {
+  const { node_type, name, tests, depth, direction } = mapParams(req);
+  console.log("=>", fn_name, node_type, name, tests, depth, direction);
+  const r = await db.get_subtree(node_type, name, tests, depth, direction);
+  return r.records[0];
 }
 
 async function get_map(req: Request, res: Response) {
   try {
-    const { node_type, name, tests, depth } = mapParams(req);
-    console.log("=> get_map:", node_type, name, tests, depth);
-    const result = await db.get_subtree(node_type, name, tests, depth);
-    const fn = result.records[0];
-    const tree = await buildTree2(fn);
+    const record = await get_record_from_query("get_map", req);
+    const tree = await buildTree2(record);
     const text = archy(tree);
     res.send(`<pre>${text}</pre>`);
   } catch (error) {
@@ -141,11 +152,9 @@ async function get_map(req: Request, res: Response) {
 
 async function get_code(req: Request, res: Response) {
   try {
-    const { node_type, name, tests, depth } = mapParams(req);
-    console.log("=> get_code:", node_type, name, tests, depth);
+    const record = await get_record_from_query("get_code", req);
     const pkg_files = await db.get_pkg_files();
-    const result = await db.get_subtree(node_type, name, tests, depth);
-    const text = extractNodesFromRecord(result.records[0], pkg_files);
+    const text = extractNodesFromRecord(record, pkg_files);
     res.send(text);
   } catch (error) {
     console.error("Error:", error);

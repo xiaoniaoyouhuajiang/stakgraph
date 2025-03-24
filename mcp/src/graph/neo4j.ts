@@ -1,9 +1,11 @@
 import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
-import { Node, Edge, Neo4jNode } from "./types.js";
+import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
+
+export type Direction = "up" | "down";
 
 class Db {
   private driver: Driver;
@@ -47,12 +49,21 @@ class Db {
     }
   }
 
+  skip_string(skips: NodeType[]) {
+    return skips.map((skip) => `-${skip}`).join("|");
+  }
+
   async get_subtree(
     node_type: string,
     name: string,
     include_tests: boolean,
-    depth: number
+    depth: number,
+    direction: Direction
   ) {
+    let label_filter = "";
+    if (include_tests === false) {
+      label_filter = this.skip_string(["Test", "E2etest"]);
+    }
     const session = this.driver.session();
     try {
       return await session.run(Q.SUBTREE_QUERY, {
@@ -60,6 +71,8 @@ class Db {
         node_name: name,
         include_tests,
         depth,
+        direction,
+        label_filter,
       });
     } finally {
       await session.close();

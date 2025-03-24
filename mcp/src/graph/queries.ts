@@ -25,25 +25,37 @@ RETURN f as component
 
 export const SUBTREE_QUERY = `
 WITH $node_label AS nodeLabel,
-     $node_name as nodeName
+     $node_name as nodeName,
+     $direction as direction,
+     $label_filter as labelFilter,
+     $depth as depth
+
+// Determine the relationshipFilter based on the direction parameter
+WITH nodeLabel, nodeName, labelFilter, depth,
+     CASE direction
+        WHEN "down" THEN "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND"
+        WHEN "up" THEN "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND"
+        ELSE "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND" // default
+     END AS relationshipFilter
+
 MATCH (f {name: nodeName})
 WHERE any(label IN labels(f) WHERE label = nodeLabel)
 
-// First get all relevant paths
+// Now use the dynamically determined relationshipFilter
 CALL apoc.path.expandConfig(f, {
-    relationshipFilter: "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND",
+    relationshipFilter: relationshipFilter,
     uniqueness: "NODE_PATH",
     minLevel: 1,
-    maxLevel: 10
+    maxLevel: depth,
+    labelFilter: labelFilter
 })
 YIELD path
 
-// Collect all nodes and relationships from these paths
+// Rest of your query remains the same
 WITH f as startNode,
      COLLECT(DISTINCT path) AS paths,
      COLLECT(DISTINCT [n IN nodes(path) | n]) AS allPathNodes
 
-// Extract all nodes and their relationships
 UNWIND paths AS path
 UNWIND relationships(path) AS rel
 WITH startNode,
@@ -55,18 +67,15 @@ WITH startNode,
      }) AS relationships,
      allPathNodes
 
-// Process nodes
 UNWIND allPathNodes AS pathNodes
 UNWIND pathNodes AS node
 WITH startNode, relationships, COLLECT(DISTINCT node) AS allNodes
 
-// Get files and imports
 WITH startNode, relationships, allNodes,
      [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
 MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames
 
-// Return everything we need to build the tree
 RETURN startNode,
        allNodes,
        relationships,
