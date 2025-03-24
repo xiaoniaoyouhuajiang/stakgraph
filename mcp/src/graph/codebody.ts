@@ -1,20 +1,8 @@
 import { getNodeLabel } from "./utils.js";
-
-export interface Node {
-  properties: NodeProps;
-  labels?: string[];
-}
-
-export interface NodeProps {
-  name: string;
-  file: string;
-  start: string;
-  end: string;
-  body: string;
-}
+import { Neo4jNode } from "./types.js";
 
 // Helper function to format node
-export function formatNode(node: Node): string {
+export function formatNode(node: Neo4jNode): string {
   if (node && node.properties) {
     // Regular format for other nodes
     return [
@@ -34,7 +22,7 @@ export function formatNode(node: Node): string {
 
 export function code_body(
   record: any,
-  extra_nodes: Node[],
+  extra_nodes: Neo4jNode[],
   include_tests: boolean = false
 ): string {
   try {
@@ -45,10 +33,10 @@ export function code_body(
     console.log("Total paths received:", paths.length);
 
     // Set to store unique nodes
-    const uniqueNodes = new Map<string, Node>();
+    const uniqueNodes = new Map<string, Neo4jNode>();
 
     // Helper function to generate a unique key for each node
-    const getNodeKey = (node: Node): string => {
+    const getNodeKey = (node: Neo4jNode): string => {
       return `${node.properties.file || ""}:${node.properties.name || ""}:${
         node.properties.start || ""
       }`;
@@ -86,7 +74,7 @@ export function code_body(
         // If path has nodes method (Neo4j specific)
         else if (typeof path.nodes === "function") {
           const nodes = path.nodes();
-          nodes.forEach((node: Node) => {
+          nodes.forEach((node: Neo4jNode) => {
             if (node) uniqueNodes.set(getNodeKey(node), node);
           });
         }
@@ -125,15 +113,12 @@ export function code_body(
       // First compare file paths
       const fileA = (a?.properties?.file || "").toLowerCase();
       const fileB = (b?.properties?.file || "").toLowerCase();
-
       if (fileA !== fileB) {
         return fileA.localeCompare(fileB);
       }
-
       // If files are the same, compare start positions
-      const startA = parseInt(a?.properties?.start || "0", 10);
-      const startB = parseInt(b?.properties?.start || "0", 10);
-
+      const startA = Number(a.properties.start?.toString() || 0);
+      const startB = Number(b.properties.start?.toString() || 0);
       return startA - startB;
     });
 
