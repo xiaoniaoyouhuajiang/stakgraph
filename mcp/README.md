@@ -1,6 +1,6 @@
 ### openapi
 
-redocly build-docs src/swagger.yaml
+redocly build-docs docs/swagger.yaml
 
 ### dev
 

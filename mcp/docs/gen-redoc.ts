@@ -16,7 +16,10 @@ name examples can be like LeaderboardPage, TicketPage, etc.
 
 Please make the "summary" of each endpoint just the endpoint path, like "nodes". That makes it easier to navigate
 
-The "concise" param should say "only include name and file in returned data"`;
+The "concise" param should say "only include name and file in returned data"
+
+Return ONLY the yaml swagger doc, nothing else! No backticks, no code blocks, no extra wrapping. Just the yaml.
+`;
 
 const anthropic = new Anthropic({
   apiKey: process.env["ANTHROPIC_API_KEY"], // This is the default and can be omitted
@@ -34,7 +37,7 @@ async function go() {
     const res = await callClaude(prompt);
     if (res.content[0].type === "text") {
       const text = res.content[0].text;
-      fs.writeFileSync(`swagger.yaml`, text);
+      fs.writeFileSync(`docs/swagger.yaml`, text);
     }
   } catch (error) {
     console.error("Error:", error);
@@ -45,6 +48,7 @@ async function callClaude(prompt: string) {
   return await anthropic.messages.create({
     model: "claude-3-7-sonnet-20250219",
     max_tokens: 16000,
+    temperature: 0,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt }],
   });
