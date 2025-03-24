@@ -4,16 +4,16 @@ use std::str::FromStr;
 use test_log::test;
 
 pub mod go;
+pub mod kotlin;
 pub mod python;
 pub mod react_ts;
+pub mod swift;
 pub mod test_backend;
 pub mod utils;
-pub mod kotlin;
-pub mod swift;
 
 #[test(tokio::test)]
 async fn run_server_tests() {
-    let implemented_servers = ["go", "python", "ruby", "rust"];
+    let implemented_servers = ["go", "python", "ruby", "rust", "typescript"];
 
     for server in implemented_servers.iter() {
         let repo = Some(server.to_string());

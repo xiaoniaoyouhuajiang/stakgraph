@@ -21,7 +21,7 @@ pub const PROGRAMMING_LANGUAGES: [Language; 7] = [
     Language::Python,
     Language::Ruby,
     Language::Kotlin,
-    Language:: Swift,
+    Language::Swift,
 ];
 
 impl Language {

@@ -4,12 +4,12 @@ pub mod erb;
 pub mod go;
 pub mod haml;
 pub mod kotlin;
-pub mod swift;
 pub mod python;
 mod rails_routes;
 pub mod react_ts;
 pub mod ruby;
 pub mod rust;
+pub mod swift;
 pub mod toml;
 pub mod typescript;
 
