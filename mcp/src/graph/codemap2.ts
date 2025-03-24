@@ -7,95 +7,64 @@ interface TreeNode {
   nodes: TreeNode[];
 }
 
+// list the edge types which are "parents" that we want shown as "children" in the tree
+const REVERSE_RELATIONSHIPS = ["OPERAND"];
+
 export async function buildTree(record: Record): Promise<TreeNode> {
   const tokenizer = await createByModelName("gpt-4");
 
   // Extract data from the record
+  const startNode = record.get("startNode");
   const allNodes = record.get("allNodes");
-  const allRels = record.get("allRels");
+  const relationships = record.get("relationships");
 
-  if (!allNodes || allNodes.length === 0) {
-    return { label: "No nodes found", nodes: [] };
-  }
-
-  // Create maps to store nodes and relationships
+  // Create maps to store nodes
   const nodeMap = new Map<string, any>(); // Neo4j node by ID
   const treeNodeMap = new Map<string, TreeNode>(); // TreeNode by ID
   const childRelationships = new Map<string, Set<string>>(); // parent -> Set of children
 
-  // Process each node to populate the maps
+  // Add all nodes to the nodeMap
   for (const node of allNodes) {
     const nodeId = node.identity.toString();
     nodeMap.set(nodeId, node);
+  }
 
+  // Add the root node
+  const rootId = startNode.identity.toString();
+  nodeMap.set(rootId, startNode);
+
+  // Process relationships
+  for (const rel of relationships) {
+    const sourceId = rel.source.toString();
+    const targetId = rel.target.toString();
+
+    // Handle relationship directionality based on type
+    if (REVERSE_RELATIONSHIPS.includes(rel.type)) {
+      if (!childRelationships.has(targetId)) {
+        childRelationships.set(targetId, new Set<string>());
+      }
+      childRelationships.get(targetId)!.add(sourceId);
+    } else {
+      if (!childRelationships.has(sourceId)) {
+        childRelationships.set(sourceId, new Set<string>());
+      }
+      childRelationships.get(sourceId)!.add(targetId);
+    }
+  }
+
+  // Create TreeNodes for all Neo4j nodes
+  for (const [id, node] of nodeMap.entries()) {
     const label = getNodeLabel(node, tokenizer);
-    treeNodeMap.set(nodeId, {
+    treeNodeMap.set(id, {
       label,
       nodes: [],
     });
   }
 
-  // Process relationships to build the hierarchy
-  for (const rel of allRels) {
-    const startId = rel.start.toString();
-    const endId = rel.end.toString();
-
-    // Make sure the nodes exist in our nodeMap
-    if (nodeMap.has(startId) && nodeMap.has(endId)) {
-      // Check relationship type and direction
-      const relType = rel.type;
-
-      // Handle relationship directions based on your data model
-      // For regular "outgoing" relationships like RENDERS>, CALLS>, CONTAINS>, HANDLER>
-      if (["RENDERS", "CALLS", "CONTAINS", "HANDLER"].includes(relType)) {
-        // Add relationship (from start to end)
-        if (!childRelationships.has(startId)) {
-          childRelationships.set(startId, new Set<string>());
-        }
-        childRelationships.get(startId)!.add(endId);
-      }
-      // For "incoming" relationships like <OPERAND
-      else if (relType === "OPERAND") {
-        // Add relationship (from end to start, as it's an incoming relationship)
-        if (!childRelationships.has(endId)) {
-          childRelationships.set(endId, new Set<string>());
-        }
-        childRelationships.get(endId)!.add(startId);
-      }
-    }
-  }
-
-  // Find the root node
-  // First, try to find a node that has no incoming relationships
-  const nodesWithIncomingRelationships = new Set<string>();
-  for (const [sourceId, targetIds] of childRelationships.entries()) {
-    for (const targetId of targetIds) {
-      nodesWithIncomingRelationships.add(targetId);
-    }
-  }
-
-  let rootId: string | null = null;
-
-  for (const nodeId of nodeMap.keys()) {
-    if (!nodesWithIncomingRelationships.has(nodeId)) {
-      rootId = nodeId;
-      break;
-    }
-  }
-
-  // If no obvious root, fall back to the first node
-  if (!rootId && allNodes.length > 0) {
-    rootId = allNodes[0].identity.toString();
-  }
-
-  if (!rootId) {
-    return { label: "No root node found", nodes: [] };
-  }
-
-  // Build the tree using breadth-first traversal
+  // Build tree using breadth-first approach to avoid recursion issues
   const processQueue = [rootId];
-  const processedNodes = new Set<string>();
-  const nodePlacement = new Map<string, boolean>();
+  const processedNodes = new Set<string>(); // Track processed nodes to avoid cycles
+  const nodePlacement = new Map<string, boolean>(); // Track if node has been placed in tree
 
   while (processQueue.length > 0) {
     const currentId = processQueue.shift()!;
@@ -141,5 +110,5 @@ export async function buildTree(record: Record): Promise<TreeNode> {
     }
   }
 
-  return rootNode;
+  return rootNode || { label: "Root not found", nodes: [] };
 }

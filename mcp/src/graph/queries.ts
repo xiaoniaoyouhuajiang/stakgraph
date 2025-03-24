@@ -28,6 +28,8 @@ WITH $node_label AS nodeLabel,
      $node_name as nodeName
 MATCH (f {name: nodeName})
 WHERE any(label IN labels(f) WHERE label = nodeLabel)
+
+// First get all relevant paths
 CALL apoc.path.expandConfig(f, {
     relationshipFilter: "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND",
     uniqueness: "NODE_PATH",
@@ -35,15 +37,40 @@ CALL apoc.path.expandConfig(f, {
     maxLevel: 10
 })
 YIELD path
-WITH COLLECT(DISTINCT [n IN nodes(path) | n]) AS allPathNodes
+
+// Collect all nodes and relationships from these paths
+WITH f as startNode,
+     COLLECT(DISTINCT path) AS paths,
+     COLLECT(DISTINCT [n IN nodes(path) | n]) AS allPathNodes
+
+// Extract all nodes and their relationships
+UNWIND paths AS path
+UNWIND relationships(path) AS rel
+WITH startNode,
+     COLLECT(DISTINCT {
+        source: id(startNode(rel)),
+        target: id(endNode(rel)),
+        type: type(rel),
+        properties: properties(rel)
+     }) AS relationships,
+     allPathNodes
+
+// Process nodes
 UNWIND allPathNodes AS pathNodes
 UNWIND pathNodes AS node
-WITH DISTINCT node
-WHERE node.file IS NOT NULL
-WITH COLLECT(node) AS allNodes, COLLECT(node.file) AS fileNames
+WITH startNode, relationships, COLLECT(DISTINCT node) AS allNodes
+
+// Get files and imports
+WITH startNode, relationships, allNodes,
+     [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
 MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames
-RETURN allNodes, COLLECT(DISTINCT import) AS imports
+
+// Return everything we need to build the tree
+RETURN startNode,
+       allNodes,
+       relationships,
+       COLLECT(DISTINCT import) AS imports
 `;
 
 export const PATH_QUERY = `

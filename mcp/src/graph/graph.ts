@@ -2,6 +2,7 @@ import { Record } from "neo4j-driver";
 import { db } from "./neo4j.js";
 import archy from "archy";
 import { buildTree } from "./codemap.js";
+import { buildTree as buildTree2 } from "./codemap2.js";
 import { code_body, formatNode } from "./codebody.js";
 import { extractNodesFromRecord } from "./codebody2.js";
 import { Express, Request, Response } from "express";
@@ -129,7 +130,7 @@ async function get_map(req: Request, res: Response) {
     console.log("=> get_map:", node_type, name, tests, depth);
     const result = await db.get_subtree(node_type, name, tests, depth);
     const fn = result.records[0];
-    const tree = await buildTree(fn);
+    const tree = await buildTree2(fn);
     const text = archy(tree);
     res.send(`<pre>${text}</pre>`);
   } catch (error) {
