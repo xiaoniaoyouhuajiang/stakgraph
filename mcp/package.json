@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsc --noEmit && node --loader ts-node/esm src/index.ts",
     "build": "tsc",
-    "start": "node build/index.js"
+    "start": "node build/index.js",
+    "gen-redoc": "tsc --noEmit && node --loader ts-node/esm docs/gen-redoc.ts"
   },
   "bin": {
     "cursor-tools": "./build/index.js"
@@ -36,5 +37,8 @@
     "ts-node": "^10.9.2",
     "tsc": "^2.0.4",
     "typescript": "^5.7.3"
+  },
+  "scarfSettings": {
+    "enabled": false
   }
 }

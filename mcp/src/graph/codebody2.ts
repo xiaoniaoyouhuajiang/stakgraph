@@ -71,8 +71,8 @@ export function extractNodesFromRecord(
         // Sort by filename first
         if (fileA !== fileB) return fileA.localeCompare(fileB);
         // Then by start position
-        const startA = parseInt(String(a.properties.start || "0"), 10);
-        const startB = parseInt(String(b.properties.start || "0"), 10);
+        const startA = Number(a.properties.start?.toString() || 0);
+        const startB = Number(b.properties.start?.toString() || 0);
         return startA - startB;
       } catch (e) {
         return 0;

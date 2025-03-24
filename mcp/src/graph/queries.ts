@@ -8,6 +8,13 @@ WHERE file.name ENDS WITH 'Cargo.toml'
 RETURN file
 `;
 
+export const LIST_QUERY = `
+WITH $node_label AS nodeLabel
+MATCH (f)
+WHERE any(label IN labels(f) WHERE label = nodeLabel)
+RETURN f
+`;
+
 export const PAGES_QUERY = `
 MATCH (page:Page)
 RETURN DISTINCT page
@@ -26,20 +33,33 @@ RETURN f as component
 export const SUBTREE_QUERY = `
 WITH $node_label AS nodeLabel,
      $node_name as nodeName,
+     $ref_id as refId,
      $direction as direction,
      $label_filter as labelFilter,
      $depth as depth
 
 // Determine the relationshipFilter based on the direction parameter
-WITH nodeLabel, nodeName, labelFilter, depth,
+WITH nodeLabel, nodeName, refId, labelFilter, depth,
      CASE direction
         WHEN "down" THEN "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND"
         WHEN "up" THEN "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND"
         ELSE "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND" // default
      END AS relationshipFilter
 
-MATCH (f {name: nodeName})
-WHERE any(label IN labels(f) WHERE label = nodeLabel)
+// Find the start node using either ref_id or name+label
+OPTIONAL MATCH (fByName {name: nodeName})
+WHERE any(label IN labels(fByName) WHERE label = nodeLabel)
+
+OPTIONAL MATCH (fByRefId {ref_id: refId})
+WHERE refId <> ''
+
+// ref_id takes precedence over name+label
+WITH CASE
+       WHEN fByRefId IS NOT NULL THEN fByRefId
+       ELSE fByName
+     END AS f,
+     relationshipFilter, labelFilter, depth
+WHERE f IS NOT NULL
 
 // Now use the dynamically determined relationshipFilter
 CALL apoc.path.expandConfig(f, {
@@ -51,7 +71,6 @@ CALL apoc.path.expandConfig(f, {
 })
 YIELD path
 
-// Rest of your query remains the same
 WITH f as startNode,
      COLLECT(DISTINCT path) AS paths,
      COLLECT(DISTINCT [n IN nodes(path) | n]) AS allPathNodes

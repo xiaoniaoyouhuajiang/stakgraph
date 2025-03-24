@@ -5,7 +5,13 @@ export interface Node {
 
 export interface Neo4jNode {
   properties: NodeData;
-  labels?: string[];
+  labels: string[];
+}
+
+export interface ReturnNode {
+  node_type: NodeType;
+  ref_id: string;
+  properties: NodeData;
 }
 
 export interface NodeData {

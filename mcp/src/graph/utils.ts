@@ -1,15 +1,40 @@
-import { NodeData, Neo4jNode } from "./types.js";
+import { NodeData, Neo4jNode, ReturnNode, NodeType } from "./types.js";
 import { TikTokenizer } from "@microsoft/tiktokenizer";
+
+const DATA_BANK_LABELS = ["Data_Bank"];
+
+export function rightLabel(node: Neo4jNode): string {
+  let label = node.labels[0];
+  if (DATA_BANK_LABELS.includes(label)) {
+    label = node.labels[1];
+  }
+  return label;
+}
+
+export function toReturnNode(node: Neo4jNode): ReturnNode {
+  const properties = node.properties;
+  delete properties.ref_id;
+  delete properties.text_embeddings;
+  return {
+    node_type: rightLabel(node) as NodeType,
+    ref_id: node.properties.ref_id || "",
+    properties,
+  };
+}
+
+export function nameFileOnly(node: Neo4jNode): { name: string; file: string } {
+  return {
+    name: node.properties.name,
+    file: node.properties.file,
+  };
+}
 
 export function getNodeLabel(node: any, tokenizer?: TikTokenizer) {
   if (!node.labels) {
     console.log("Node has no labels:", node);
     throw new Error("Node has no labels");
   }
-  let label = node.labels[0];
-  if (node.labels.length > 1 && node.labels[0] === "Data_Bank") {
-    label = node.labels[1];
-  }
+  let label = rightLabel(node);
   const props = node.properties;
   let name = props.name;
   if (tokenizer) {

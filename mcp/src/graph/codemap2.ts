@@ -11,6 +11,10 @@ interface TreeNode {
 const REVERSE_RELATIONSHIPS = ["OPERAND"];
 
 export async function buildTree(record: Record): Promise<TreeNode> {
+  if (!record) {
+    throw new Error("failed to get record");
+  }
+
   const tokenizer = await createByModelName("gpt-4");
 
   // Extract data from the record

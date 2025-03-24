@@ -1,0 +1,254 @@
+openapi: 3.0.0
+info:
+  title: repo2graph API
+  description: API for exploring code relationships in a graph database
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /nodes:
+    get:
+      summary: /nodes
+      description: Get nodes of a specific type from the graph database
+      parameters:
+        - name: node_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint]
+          description: The type of node to retrieve
+        - name: concise
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Only include name and file in returned data
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: "#/components/schemas/DetailedNode"
+                    - $ref: "#/components/schemas/ConciseNode"
+        "500":
+          description: Internal Server Error
+  /map:
+    get:
+      summary: /map
+      description: Get a tree visualization of code relationships
+      parameters:
+        - name: node_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint]
+          description: The type of starting node
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "Leaderboard"
+          description: The name of the starting node
+        - name: tests
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include test nodes
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 7
+          description: Maximum depth of the tree
+        - name: direction
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [up, down]
+            default: down
+          description: Direction of the relationships to follow
+      responses:
+        "200":
+          description: HTML response with tree visualization
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+  /code:
+    get:
+      summary: /code
+      description: Get code snippets for a node and its relationships
+      parameters:
+        - name: node_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint]
+          description: The type of starting node
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "Tickets"
+          description: The name of the starting node
+        - name: tests
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include test nodes
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 7
+          description: Maximum depth of relationships
+        - name: direction
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [up, down]
+            default: down
+          description: Direction of the relationships to follow
+      responses:
+        "200":
+          description: HTML response with code snippets
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+  /shortest_path:
+    get:
+      summary: /shortest_path
+      description: Find the shortest path between two nodes in the graph
+      parameters:
+        - name: start_node_key
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The key of the starting node
+        - name: end_node_key
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The key of the ending node
+      responses:
+        "200":
+          description: HTML response with code snippets along the path
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+  /upload:
+    post:
+      summary: /upload
+      description: Upload files for processing
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "200":
+          description: Successful upload response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                    description: ID to check status of the upload processing
+        "500":
+          description: Internal Server Error
+  /status/{requestId}:
+    get:
+      summary: /status/{requestId}
+      description: Check the status of an upload
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The request ID returned from an upload
+      responses:
+        "200":
+          description: Status response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, processing, complete, error]
+                  progress:
+                    type: number
+                    description: Percentage complete (0-100)
+                  message:
+                    type: string
+                    description: Optional status message
+        "500":
+          description: Internal Server Error
+components:
+  schemas:
+    ConciseNode:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Leaderboard"
+        file:
+          type: string
+          example: "src/features/leaderboard.tsx"
+    DetailedNode:
+      type: object
+      properties:
+        node_type:
+          type: string
+          example: "Function"
+        name:
+          type: string
+          example: "Leaderboard"
+        file:
+          type: string
+          example: "src/features/leaderboard.tsx"
+        loc:
+          type: integer
+          example: 42
+        doc:
+          type: string
+          example: "Renders the leaderboard component"

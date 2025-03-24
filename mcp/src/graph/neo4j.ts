@@ -28,6 +28,16 @@ class Db {
     }
   }
 
+  async nodes_by_type(label: NodeType): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const r = await session.run(Q.LIST_QUERY, { node_label: label });
+      return r.records.map((record) => record.get("f"));
+    } finally {
+      await session.close();
+    }
+  }
+
   async get_function_path(
     page: string | null,
     func: string | null,
@@ -56,6 +66,7 @@ class Db {
   async get_subtree(
     node_type: string,
     name: string,
+    ref_id: string,
     include_tests: boolean,
     depth: number,
     direction: Direction
@@ -69,6 +80,7 @@ class Db {
       return await session.run(Q.SUBTREE_QUERY, {
         node_label: node_type,
         node_name: name,
+        ref_id: ref_id,
         include_tests,
         depth,
         direction,

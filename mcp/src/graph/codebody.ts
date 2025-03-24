@@ -116,7 +116,10 @@ export function code_body(
       if (fileA !== fileB) {
         return fileA.localeCompare(fileB);
       }
-      return a.properties.start - b.properties.start;
+      // If files are the same, compare start positions
+      const startA = Number(a.properties.start?.toString() || 0);
+      const startB = Number(b.properties.start?.toString() || 0);
+      return startA - startB;
     });
 
     const output = nodes.map(formatNode);
