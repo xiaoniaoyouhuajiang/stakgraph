@@ -30,6 +30,28 @@ WHERE
 RETURN f as component
 `;
 
+export const BODY_INDEX = "bodyIndex";
+
+export const SEARCH_QUERY = `
+CALL db.index.fulltext.queryNodes('${BODY_INDEX}', $query) YIELD node, score
+RETURN node, score
+ORDER BY score DESC
+LIMIT toInteger($limit)
+`;
+
+export const SEARCH_QUERY_NODE_TYPES = `
+CALL db.index.fulltext.queryNodes('${BODY_INDEX}', $query) YIELD node, score
+WITH node, score
+WHERE
+  CASE
+    WHEN $node_types IS NULL OR size($node_types) = 0 THEN true
+    ELSE ANY(label IN labels(node) WHERE label IN $node_types)
+  END
+RETURN node, score
+ORDER BY score DESC
+LIMIT toInteger($limit)
+`;
+
 export const SUBTREE_QUERY = `
 WITH $node_label AS nodeLabel,
      $node_name as nodeName,

@@ -40,6 +40,24 @@ export async function get_nodes(req: Request, res: Response) {
   }
 }
 
+export async function search(req: Request, res: Response) {
+  try {
+    const query = req.query.query as string;
+    const limit = parseInt(req.query.limit as string) || 25;
+    const concise = req.query.concise === "true";
+    let node_types: NodeType[] = [];
+    if (req.query.node_types) {
+      node_types = (req.query.node_types as string).split(",") as NodeType[];
+    }
+    const result = await db.search(query, limit, node_types);
+    const nodes = result.map((f) => toNode(f, concise));
+    res.json(nodes);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
 export function toNode(node: Neo4jNode, concise: boolean): any {
   return concise ? nameFileOnly(node) : toReturnNode(node);
 }

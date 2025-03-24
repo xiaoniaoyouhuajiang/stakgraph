@@ -24,6 +24,7 @@ app.use(r.authMiddleware);
 
 // Claude: document these endpoints ONLY:
 app.get("/nodes", r.get_nodes);
+app.get("/search", r.search);
 app.get("/map", r.get_map);
 app.get("/code", r.get_code);
 app.get("/shortest_path", r.get_shortest_path);

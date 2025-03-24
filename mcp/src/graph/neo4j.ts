@@ -152,9 +152,89 @@ class Db {
       await session.close();
     }
   }
+
+  async search(
+    query: string,
+    limit: number,
+    node_types: NodeType[]
+  ): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.SEARCH_QUERY_NODE_TYPES, {
+        query,
+        limit,
+        node_types,
+      });
+      return result.records.map((record) => {
+        const node = record.get("node");
+        return {
+          properties: node.properties,
+          labels: node.labels,
+          score: record.get("score"),
+        };
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  index_node_type_string(types: NodeType[]) {
+    return types.join("|");
+  }
+
+  async createFulltextIndex(): Promise<void> {
+    const indexName = Q.BODY_INDEX;
+    const session = this.driver.session();
+    const node_types = this.index_node_type_string([
+      "Repository",
+      "Directory",
+      "File",
+      "Import",
+      "Class",
+      "Library",
+      "Function",
+      "Test",
+      "E2etest",
+      "Endpoint",
+      "Request",
+      "Datamodel",
+      "Page",
+    ]);
+    try {
+      // First check if the index already exists
+      const indexResult = await session.run(
+        `SHOW INDEXES WHERE name = $indexName`,
+        { indexName }
+      );
+      const exists = indexResult.records.length > 0;
+      if (!exists) {
+        console.log("Creating fulltext index...");
+        await session.run(
+          `CREATE FULLTEXT INDEX ${indexName} FOR (f:${node_types})
+          ON EACH [f.body]
+          OPTIONS {
+            indexConfig: {
+              \`fulltext.analyzer\`: 'english'
+            }
+          }
+        `
+        );
+        console.log("Fulltext index created successfully");
+      } else {
+        console.log("Fulltext index already exists, skipping creation");
+      }
+    } catch (error) {
+      console.error("Error creating fulltext index:", error);
+      throw error;
+    } finally {
+      await session.close();
+    }
+  }
 }
 
 export const db = new Db();
+
+db.createFulltextIndex();
 
 interface MergeQuery {
   query: string;

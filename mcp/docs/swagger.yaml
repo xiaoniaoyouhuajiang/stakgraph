@@ -46,6 +46,38 @@ paths:
           description: Internal Server Error
       security:
         - ApiKeyAuth: []
+  /search:
+    get:
+      summary: /search
+      description: Search for nodes matching a query
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Search query string
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 25
+        - name: concise
+          in: query
+          required: false
+          description: Only include name and file in returned data
+          schema:
+            type: boolean
+            default: false
+        - name: node_types
+          in: query
+          required: false
+          description: Comma-separated list of node types to filter by
+          schema:
+            type: string
+            example: "Page,Function,Class"
   /map:
     get:
       summary: /map
