@@ -6,6 +6,7 @@ pub enum Language {
     Bash,
     Toml,
     Rust,
+    React,
     Go,
     Typescript,
     Python,
@@ -14,10 +15,11 @@ pub enum Language {
     Swift,
 }
 
-pub const PROGRAMMING_LANGUAGES: [Language; 7] = [
+pub const PROGRAMMING_LANGUAGES: [Language; 8] = [
     Language::Rust,
     Language::Go,
     Language::Typescript,
+    Language::React,
     Language::Python,
     Language::Ruby,
     Language::Kotlin,
@@ -29,7 +31,7 @@ impl Language {
         match self {
             Self::Rust => "Cargo.toml",
             Self::Go => "go.mod",
-            Self::Typescript => "package.json",
+            Self::Typescript | Self::React => "package.json",
             Self::Python => "requirements.txt",
             Self::Ruby => "Gemfile",
             Self::Kotlin => "build.gradle.kts",
@@ -43,7 +45,7 @@ impl Language {
         match self {
             Self::Rust => vec!["rs"],
             Self::Go => vec!["go"],
-            Self::Typescript => vec!["jsx", "tsx", "ts", "js"],
+            Self::Typescript | Self::React => vec!["jsx", "tsx", "ts", "js"],
             Self::Python => vec!["py", "ipynb"],
             Self::Ruby => vec!["rb"],
             Self::Kotlin => vec!["kt", "kts"],
@@ -57,7 +59,7 @@ impl Language {
         match self {
             Self::Rust => vec!["target", ".git"],
             Self::Go => vec!["vendor", ".git"],
-            Self::Typescript => vec!["node_modules", ".git"],
+            Self::Typescript | Self::React => vec!["node_modules", ".git"],
             Self::Python => vec!["__pycache__", ".git", ".venv", "venv"],
             Self::Ruby => vec!["migrate", "tmp", ".git"],
             Self::Kotlin => vec![".gradle", ".idea", "build", ".git"],
@@ -69,7 +71,7 @@ impl Language {
 
     pub fn skip_file_ends(&self) -> Vec<&'static str> {
         match self {
-            Self::Typescript => vec![".min.js"],
+            Self::Typescript | Self::React => vec![".min.js"],
             _ => Vec::new(),
         }
     }
@@ -78,7 +80,7 @@ impl Language {
         match self {
             Self::Rust => Vec::new(),
             Self::Go => Vec::new(),
-            Self::Typescript => Vec::new(),
+            Self::Typescript | Self::React => Vec::new(),
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
@@ -92,7 +94,7 @@ impl Language {
         match self {
             Self::Rust => true,
             Self::Go => true,
-            Self::Typescript => true,
+            Self::Typescript | Self::React => true,
             Self::Python => false,
             Self::Ruby => false,
             Self::Kotlin => true,
@@ -106,7 +108,7 @@ impl Language {
         match self {
             Self::Rust => "rust-analyzer",
             Self::Go => "gopls",
-            Self::Typescript => "typescript-language-server",
+            Self::Typescript | Self::React => "typescript-language-server",
             Self::Python => "pylsp",
             Self::Ruby => "ruby-lsp",
             Self::Kotlin => "kotlin-language-server",
@@ -121,7 +123,7 @@ impl Language {
         match self {
             Self::Rust => "--version",
             Self::Go => "version",
-            Self::Typescript => "--version",
+            Self::Typescript | Self::React => "--version",
             Self::Python => "--version",
             Self::Ruby => "--version",
             Self::Kotlin => "--version",
@@ -136,7 +138,7 @@ impl Language {
         match self {
             Self::Rust => Vec::new(),
             Self::Go => Vec::new(),
-            Self::Typescript => vec!["--stdio".to_string()],
+            Self::Typescript | Self::React => vec!["--stdio".to_string()],
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
@@ -151,6 +153,7 @@ impl Language {
             Self::Rust => "rust",
             Self::Go => "go",
             Self::Typescript => "typescript",
+            Self::React => "react",
             Self::Python => "python",
             Self::Ruby => "ruby",
             Self::Kotlin => "kotlin",
@@ -168,7 +171,7 @@ impl Language {
         match self {
             Self::Rust => Vec::new(),
             Self::Go => Vec::new(),
-            Self::Typescript => vec!["npm install --force"],
+            Self::Typescript | Self::React => vec!["npm install --force"],
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
@@ -180,7 +183,9 @@ impl Language {
 
     pub fn test_id_regex(&self) -> Option<&'static str> {
         match self {
-            Self::Typescript => Some(r#"data-testid=(?:["']([^"']+)["']|\{['"`]([^'"`]+)['"`]\})"#),
+            Self::Typescript | Self::React => {
+                Some(r#"data-testid=(?:["']([^"']+)["']|\{['"`]([^'"`]+)['"`]\})"#)
+            }
             Self::Python => Some("get_by_test_id"),
             Self::Ruby => Some(r#"get_by_test_id\(['"]([^'"]+)['"]\)"#),
             _ => None,
@@ -198,10 +203,16 @@ impl FromStr for Language {
             "Go" => Ok(Language::Go),
             "golang" => Ok(Language::Go),
             "Golang" => Ok(Language::Go),
-            "react" => Ok(Language::Typescript),
-            "React" => Ok(Language::Typescript),
-            "tsx" => Ok(Language::Typescript),
+            "react" => Ok(Language::React),
+            "React" => Ok(Language::React),
+            "tsx" => Ok(Language::React),
+            "jsx" => Ok(Language::React),
             "ts" => Ok(Language::Typescript),
+            "js" => Ok(Language::Typescript),
+            "typescript" => Ok(Language::Typescript),
+            "TypeScript" => Ok(Language::Typescript),
+            "javascript" => Ok(Language::Typescript),
+            "JavaScript" => Ok(Language::Typescript),
             "ruby" => Ok(Language::Ruby),
             "Ruby" => Ok(Language::Ruby),
             "RubyOnRails" => Ok(Language::Ruby),
@@ -212,7 +223,9 @@ impl FromStr for Language {
             "toml" => Ok(Language::Toml),
             "Toml" => Ok(Language::Toml),
             "kotlin" => Ok(Language::Kotlin),
+            "Kotlin" => Ok(Language::Kotlin),
             "swift" => Ok(Language::Swift),
+            "Swift" => Ok(Language::Swift),
             _ => Err(anyhow::anyhow!("unsupported language")),
         }
     }

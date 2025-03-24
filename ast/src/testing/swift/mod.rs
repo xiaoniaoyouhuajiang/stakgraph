@@ -2,9 +2,8 @@ use crate::lang::graph::{EdgeType, Node, NodeType};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
-use tracing::{info, debug, error};
-use tracing_subscriber::{FmtSubscriber, EnvFilter};
-
+use tracing::{debug, error, info};
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[test(tokio::test)]
 async fn test_swift() {
@@ -57,7 +56,7 @@ async fn test_swift() {
     assert_eq!(classes.len(), 7);
 
     let class = classes[0].into_data();
-    assert_eq!(class.name, "API");
+    assert_eq!(class.name, "ViewController");
 
     let functions = graph
         .nodes
@@ -66,8 +65,7 @@ async fn test_swift() {
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 26);
     let func = functions[0].into_data();
-    assert_eq!(func.name, "createRequest");
-
+    assert_eq!(func.name, "viewDidLoad");
 
     let data_models = graph
         .nodes

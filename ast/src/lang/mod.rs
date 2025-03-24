@@ -66,6 +66,12 @@ impl Lang {
             lang: Box::new(react::ReactTs::new()),
         }
     }
+    pub fn new_typescript() -> Self {
+        Self {
+            kind: Language::Typescript,
+            lang: Box::new(typescript::TypeScript::new()),
+        }
+    }
     pub fn new_ruby() -> Self {
         Self {
             kind: Language::Ruby,
