@@ -1,10 +1,11 @@
 import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
-import { Node, Edge } from "./types.js";
+import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
-import { Node as CodeNode } from "./codebody.js";
+
+export type Direction = "up" | "down";
 
 class Db {
   private driver: Driver;
@@ -17,11 +18,21 @@ class Db {
     this.driver = neo4j.driver(uri, neo4j.auth.basic(user, pswd));
   }
 
-  async get_pkg_files(): Promise<CodeNode[]> {
+  async get_pkg_files(): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
       const r = await session.run(Q.PKGS_QUERY);
       return r.records.map((record) => record.get("file"));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async nodes_by_type(label: NodeType): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const r = await session.run(Q.LIST_QUERY, { node_label: label });
+      return r.records.map((record) => record.get("f"));
     } finally {
       await session.close();
     }
@@ -42,6 +53,38 @@ class Db {
         function_name,
         include_tests,
         depth: depth || 7,
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  skip_string(skips: NodeType[]) {
+    return skips.map((skip) => `-${skip}`).join("|");
+  }
+
+  async get_subtree(
+    node_type: string,
+    name: string,
+    ref_id: string,
+    include_tests: boolean,
+    depth: number,
+    direction: Direction
+  ) {
+    let label_filter = "";
+    if (include_tests === false) {
+      label_filter = this.skip_string(["Test", "E2etest"]);
+    }
+    const session = this.driver.session();
+    try {
+      return await session.run(Q.SUBTREE_QUERY, {
+        node_label: node_type,
+        node_name: name,
+        ref_id: ref_id,
+        include_tests,
+        depth,
+        direction,
+        label_filter,
       });
     } finally {
       await session.close();

@@ -19,6 +19,7 @@ RUN yarn
 # Copy the rest of your application code
 COPY ./tsconfig.json ./tsconfig.json
 COPY ./src ./src
+COPY ./redoc-static.html ./redoc-static.html
 
 # Build the application
 RUN yarn build

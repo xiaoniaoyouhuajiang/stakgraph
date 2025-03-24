@@ -1,0 +1,118 @@
+import { Record } from "neo4j-driver";
+import { getNodeLabel } from "./utils.js";
+import { createByModelName } from "@microsoft/tiktokenizer";
+
+interface TreeNode {
+  label: string;
+  nodes: TreeNode[];
+}
+
+// list the edge types which are "parents" that we want shown as "children" in the tree
+const REVERSE_RELATIONSHIPS = ["OPERAND"];
+
+export async function buildTree(record: Record): Promise<TreeNode> {
+  if (!record) {
+    throw new Error("failed to get record");
+  }
+
+  const tokenizer = await createByModelName("gpt-4");
+
+  // Extract data from the record
+  const startNode = record.get("startNode");
+  const allNodes = record.get("allNodes");
+  const relationships = record.get("relationships");
+
+  // Create maps to store nodes
+  const nodeMap = new Map<string, any>(); // Neo4j node by ID
+  const treeNodeMap = new Map<string, TreeNode>(); // TreeNode by ID
+  const childRelationships = new Map<string, Set<string>>(); // parent -> Set of children
+
+  // Add all nodes to the nodeMap
+  for (const node of allNodes) {
+    const nodeId = node.identity.toString();
+    nodeMap.set(nodeId, node);
+  }
+
+  // Add the root node
+  const rootId = startNode.identity.toString();
+  nodeMap.set(rootId, startNode);
+
+  // Process relationships
+  for (const rel of relationships) {
+    const sourceId = rel.source.toString();
+    const targetId = rel.target.toString();
+
+    // Handle relationship directionality based on type
+    if (REVERSE_RELATIONSHIPS.includes(rel.type)) {
+      if (!childRelationships.has(targetId)) {
+        childRelationships.set(targetId, new Set<string>());
+      }
+      childRelationships.get(targetId)!.add(sourceId);
+    } else {
+      if (!childRelationships.has(sourceId)) {
+        childRelationships.set(sourceId, new Set<string>());
+      }
+      childRelationships.get(sourceId)!.add(targetId);
+    }
+  }
+
+  // Create TreeNodes for all Neo4j nodes
+  for (const [id, node] of nodeMap.entries()) {
+    const label = getNodeLabel(node, tokenizer);
+    treeNodeMap.set(id, {
+      label,
+      nodes: [],
+    });
+  }
+
+  // Build tree using breadth-first approach to avoid recursion issues
+  const processQueue = [rootId];
+  const processedNodes = new Set<string>(); // Track processed nodes to avoid cycles
+  const nodePlacement = new Map<string, boolean>(); // Track if node has been placed in tree
+
+  while (processQueue.length > 0) {
+    const currentId = processQueue.shift()!;
+
+    if (processedNodes.has(currentId)) continue;
+    processedNodes.add(currentId);
+
+    const children = childRelationships.get(currentId);
+    if (!children) continue;
+
+    const parentNode = treeNodeMap.get(currentId);
+    if (!parentNode) continue;
+
+    // Add all child nodes to the parent
+    for (const childId of children) {
+      // Skip if this would create a cycle back to root
+      if (childId === rootId) continue;
+
+      const childNode = treeNodeMap.get(childId);
+      if (!childNode) continue;
+
+      // Check if we already added this child to this parent
+      if (!parentNode.nodes.some((n) => n.label === childNode.label)) {
+        parentNode.nodes.push(childNode);
+        nodePlacement.set(childId, true);
+
+        // Add child to processing queue if we haven't processed it yet
+        if (!processedNodes.has(childId)) {
+          processQueue.push(childId);
+        }
+      }
+    }
+  }
+
+  // Second pass - make sure all nodes are included somewhere in the tree
+  // For any nodes not yet placed, add them as direct children of the root
+  const rootNode = treeNodeMap.get(rootId)!;
+
+  for (const [id, node] of treeNodeMap.entries()) {
+    if (id !== rootId && !nodePlacement.get(id)) {
+      rootNode.nodes.push(node);
+      nodePlacement.set(id, true);
+    }
+  }
+
+  return rootNode || { label: "Root not found", nodes: [] };
+}

@@ -1,24 +1,50 @@
 import { Record } from "neo4j-driver";
-import { db } from "./neo4j.js";
+import { db, Direction } from "./neo4j.js";
 import archy from "archy";
 import { buildTree } from "./codemap.js";
+import { buildTree as buildTree2 } from "./codemap2.js";
 import { code_body, formatNode } from "./codebody.js";
-import { Express, Request, Response } from "express";
-import { upload_files, check_status } from "./uploads.js";
+import { extractNodesFromRecord } from "./codebody2.js";
+import { Request, Response, NextFunction } from "express";
+import { Neo4jNode, NodeType } from "./types.js";
+import { nameFileOnly, toReturnNode } from "./utils.js";
 
-export function graph_routes(app: Express) {
-  app.get("/pages", get_pages);
-  app.get("/pages/links", get_pages_links);
-  app.get("/feature_map", get_feature_map);
-  app.get("/feature_code", get_feature_code);
-  app.get("/components/links", get_components_links);
-  app.post("/upload", upload_files);
-  app.get("/status/:requestId", check_status);
-  app.get("/shortest_path", get_shortest_path);
-  app.get("/shortest_path_ref_id", get_shortest_path_ref_id);
+export function authMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const apiToken = process.env.API_TOKEN;
+  if (!apiToken) {
+    return next();
+  }
+  const requestToken = req.header("x-api-token");
+  if (!requestToken || requestToken !== apiToken) {
+    res.status(401).json({ error: "Unauthorized: Invalid API token" });
+    return;
+  }
+  next();
 }
 
-function toPage(rec: Record): any {
+export async function get_nodes(req: Request, res: Response) {
+  try {
+    console.log("=> get_nodes", req.query);
+    const node_type = req.query.node_type as NodeType;
+    const concise = req.query.concise === "true";
+    const result = await db.nodes_by_type(node_type);
+    const nodes = result.map((f) => toNode(f, concise));
+    res.json(nodes);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+export function toNode(node: Neo4jNode, concise: boolean): any {
+  return concise ? nameFileOnly(node) : toReturnNode(node);
+}
+
+export function toPage(rec: Record): any {
   const page = rec.get("page");
   return {
     node_type: page.labels[0],
@@ -26,7 +52,7 @@ function toPage(rec: Record): any {
   };
 }
 
-async function get_pages(req: Request, res: Response) {
+export async function get_pages(req: Request, res: Response) {
   try {
     const result = await db.get_pages();
     const pages = result.records.map(toPage);
@@ -61,7 +87,7 @@ function params(req: Request): Params {
   };
 }
 
-async function get_feature_map(req: Request, res: Response) {
+export async function get_feature_map(req: Request, res: Response) {
   try {
     const { page_name, function_name, tests, depth } = params(req);
     console.log("=> get_feature_map:", page_name, function_name, tests, depth);
@@ -81,7 +107,7 @@ async function get_feature_map(req: Request, res: Response) {
   }
 }
 
-async function get_feature_code(req: Request, res: Response) {
+export async function get_feature_code(req: Request, res: Response) {
   try {
     const { page_name, function_name, tests, depth } = params(req);
     const pkg_files = await db.get_pkg_files();
@@ -92,6 +118,76 @@ async function get_feature_code(req: Request, res: Response) {
       depth
     );
     const text = code_body(result.records[0], pkg_files);
+    res.send(text);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+const DEFAULT_DIRECTION = "down";
+
+interface MapParams {
+  node_type: string;
+  name: string;
+  ref_id: string;
+  tests: boolean;
+  depth: number;
+  direction: Direction;
+}
+
+function mapParams(req: Request): MapParams {
+  const node_type = req.query.node_type as string;
+  const name = req.query.name as string;
+  const ref_id = req.query.ref_id as string;
+  const name_and_type = node_type && name;
+  if (!name_and_type && !ref_id) {
+    throw new Error("either node_type+name or ref_id required");
+  }
+  const direction = req.query.direction as Direction;
+  const tests = !(req.query.tests === "false" || req.query.tests === "0");
+  const depth = parseInt(req.query.depth as string) || DEFAULT_DEPTH;
+  return {
+    node_type: node_type || "",
+    name: name || "",
+    ref_id: ref_id || "",
+    tests,
+    depth,
+    direction: direction || DEFAULT_DIRECTION,
+  };
+}
+
+async function get_record_from_query(fn_name: string, req: Request) {
+  const { node_type, name, tests, depth, direction, ref_id } = mapParams(req);
+  console.log("=>", fn_name, node_type, name, tests, depth, direction);
+  const r = await db.get_subtree(
+    node_type,
+    name,
+    ref_id,
+    tests,
+    depth,
+    direction
+  );
+  return r.records[0];
+}
+
+export async function get_map(req: Request, res: Response) {
+  try {
+    const record = await get_record_from_query("get_map", req);
+    const tree = await buildTree2(record);
+    const text = archy(tree);
+    res.send(`<pre>${text}</pre>`);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+export async function get_code(req: Request, res: Response) {
+  try {
+    const record = await get_record_from_query("get_code", req);
+    const pkg_files = await db.get_pkg_files();
+    const text = extractNodesFromRecord(record, pkg_files);
     res.send(text);
   } catch (error) {
     console.error("Error:", error);
@@ -110,7 +206,7 @@ function toSnippets(path: any) {
   return r;
 }
 
-async function get_shortest_path(req: Request, res: Response) {
+export async function get_shortest_path(req: Request, res: Response) {
   try {
     const start_node_key = req.query.start_node_key as string;
     const end_node_key = req.query.end_node_key as string;
@@ -124,7 +220,7 @@ async function get_shortest_path(req: Request, res: Response) {
   }
 }
 
-async function get_shortest_path_ref_id(req: Request, res: Response) {
+export async function get_shortest_path_ref_id(req: Request, res: Response) {
   try {
     const start_ref_id = req.query.start_ref_id as string;
     const end_ref_id = req.query.end_ref_id as string;
@@ -137,7 +233,7 @@ async function get_shortest_path_ref_id(req: Request, res: Response) {
   }
 }
 
-async function get_pages_links(req: Request, res: Response) {
+export async function get_pages_links(req: Request, res: Response) {
   try {
     const is_json = req.query.json === "true";
     const result = await db.get_pages();
@@ -154,7 +250,7 @@ async function get_pages_links(req: Request, res: Response) {
   }
 }
 
-async function get_components_links(req: Request, res: Response) {
+export async function get_components_links(req: Request, res: Response) {
   try {
     const is_json = req.query.json === "true";
     const result = await db.get_components();

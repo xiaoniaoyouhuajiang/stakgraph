@@ -1,0 +1,260 @@
+openapi: 3.0.0
+info:
+  title: Repo2Graph API
+  description: API for navigating code repository graph data
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /nodes:
+    get:
+      summary: /nodes
+      description: Get nodes by type
+      parameters:
+        - name: node_type
+          in: query
+          required: true
+          description: Type of node to retrieve
+          schema:
+            type: string
+            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint]
+        - name: concise
+          in: query
+          required: false
+          description: Only include name and file in returned data
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: List of nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    file:
+                      type: string
+                    ref_id:
+                      type: string
+        "500":
+          description: Internal Server Error
+      security:
+        - ApiKeyAuth: []
+  /map:
+    get:
+      summary: /map
+      description: Get a visual tree representation of code relationships
+      parameters:
+        - name: node_type
+          in: query
+          required: false
+          description: Type of node to start from
+          schema:
+            type: string
+            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint]
+        - name: name
+          in: query
+          required: false
+          description: Name of the node to start from
+          schema:
+            type: string
+            example: LeaderboardPage
+        - name: ref_id
+          in: query
+          required: false
+          description: Reference ID of the node to start from (alternative to node_type+name)
+          schema:
+            type: string
+        - name: tests
+          in: query
+          required: false
+          description: Include test files
+          schema:
+            type: boolean
+            default: true
+        - name: depth
+          in: query
+          required: false
+          description: Maximum depth of relationships to traverse
+          schema:
+            type: integer
+            default: 7
+        - name: direction
+          in: query
+          required: false
+          description: Direction to traverse relationships
+          schema:
+            type: string
+            enum: [up, down]
+            default: down
+      responses:
+        "200":
+          description: HTML representation of the code map
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+      security:
+        - ApiKeyAuth: []
+  /code:
+    get:
+      summary: /code
+      description: Get code snippets for a node and its relationships
+      parameters:
+        - name: node_type
+          in: query
+          required: false
+          description: Type of node to start from
+          schema:
+            type: string
+            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint]
+        - name: name
+          in: query
+          required: false
+          description: Name of the node to start from
+          schema:
+            type: string
+            example: TicketPage
+        - name: ref_id
+          in: query
+          required: false
+          description: Reference ID of the node to start from (alternative to node_type+name)
+          schema:
+            type: string
+        - name: tests
+          in: query
+          required: false
+          description: Include test files
+          schema:
+            type: boolean
+            default: true
+        - name: depth
+          in: query
+          required: false
+          description: Maximum depth of relationships to traverse
+          schema:
+            type: integer
+            default: 7
+        - name: direction
+          in: query
+          required: false
+          description: Direction to traverse relationships
+          schema:
+            type: string
+            enum: [up, down]
+            default: down
+      responses:
+        "200":
+          description: HTML representation of the code snippets
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+      security:
+        - ApiKeyAuth: []
+  /shortest_path:
+    get:
+      summary: /shortest_path
+      description: Find the shortest path between two nodes
+      parameters:
+        - name: start_node_key
+          in: query
+          required: true
+          description: Key of the starting node
+          schema:
+            type: string
+        - name: end_node_key
+          in: query
+          required: true
+          description: Key of the ending node
+          schema:
+            type: string
+      responses:
+        "200":
+          description: HTML representation of the code snippets along the path
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+      security:
+        - ApiKeyAuth: []
+  /upload:
+    post:
+      summary: /upload
+      description: Upload files for processing
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "200":
+          description: Upload status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  status:
+                    type: string
+        "500":
+          description: Internal Server Error
+      security:
+        - ApiKeyAuth: []
+  /status/{requestId}:
+    get:
+      summary: /status/{requestId}
+      description: Check the status of an upload request
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          description: ID of the upload request
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Status of the upload request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  status:
+                    type: string
+                  progress:
+                    type: number
+                  message:
+                    type: string
+        "500":
+          description: Internal Server Error
+      security:
+        - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-token

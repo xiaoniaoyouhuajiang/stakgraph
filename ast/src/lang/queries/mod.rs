@@ -9,6 +9,7 @@ mod rails_routes;
 pub mod react;
 pub mod ruby;
 pub mod rust;
+pub mod swift;
 pub mod toml;
 pub mod typescript;
 
@@ -239,6 +240,7 @@ pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {
         LspLanguage::Ruby => tree_sitter_ruby::LANGUAGE.into(),
         LspLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
         LspLanguage::Kotlin => tree_sitter_kotlin_sg::LANGUAGE.into(),
+        LspLanguage::Swift => tree_sitter_swift::LANGUAGE.into(),
         _ => tree_sitter_bash::LANGUAGE.into(),
     }
 }

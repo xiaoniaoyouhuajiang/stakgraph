@@ -8,6 +8,13 @@ WHERE file.name ENDS WITH 'Cargo.toml'
 RETURN file
 `;
 
+export const LIST_QUERY = `
+WITH $node_label AS nodeLabel
+MATCH (f)
+WHERE any(label IN labels(f) WHERE label = nodeLabel)
+RETURN f
+`;
+
 export const PAGES_QUERY = `
 MATCH (page:Page)
 RETURN DISTINCT page
@@ -21,6 +28,77 @@ WHERE
   // Check if file ends with tsx or jsx
   AND (f.file ENDS WITH '.tsx' OR f.file ENDS WITH '.jsx')
 RETURN f as component
+`;
+
+export const SUBTREE_QUERY = `
+WITH $node_label AS nodeLabel,
+     $node_name as nodeName,
+     $ref_id as refId,
+     $direction as direction,
+     $label_filter as labelFilter,
+     $depth as depth
+
+// Determine the relationshipFilter based on the direction parameter
+WITH nodeLabel, nodeName, refId, labelFilter, depth,
+     CASE direction
+        WHEN "down" THEN "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND"
+        WHEN "up" THEN "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND"
+        ELSE "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND" // default
+     END AS relationshipFilter
+
+// Find the start node using either ref_id or name+label
+OPTIONAL MATCH (fByName {name: nodeName})
+WHERE any(label IN labels(fByName) WHERE label = nodeLabel)
+
+OPTIONAL MATCH (fByRefId {ref_id: refId})
+WHERE refId <> ''
+
+// ref_id takes precedence over name+label
+WITH CASE
+       WHEN fByRefId IS NOT NULL THEN fByRefId
+       ELSE fByName
+     END AS f,
+     relationshipFilter, labelFilter, depth
+WHERE f IS NOT NULL
+
+// Now use the dynamically determined relationshipFilter
+CALL apoc.path.expandConfig(f, {
+    relationshipFilter: relationshipFilter,
+    uniqueness: "NODE_PATH",
+    minLevel: 1,
+    maxLevel: depth,
+    labelFilter: labelFilter
+})
+YIELD path
+
+WITH f as startNode,
+     COLLECT(DISTINCT path) AS paths,
+     COLLECT(DISTINCT [n IN nodes(path) | n]) AS allPathNodes
+
+UNWIND paths AS path
+UNWIND relationships(path) AS rel
+WITH startNode,
+     COLLECT(DISTINCT {
+        source: id(startNode(rel)),
+        target: id(endNode(rel)),
+        type: type(rel),
+        properties: properties(rel)
+     }) AS relationships,
+     allPathNodes
+
+UNWIND allPathNodes AS pathNodes
+UNWIND pathNodes AS node
+WITH startNode, relationships, COLLECT(DISTINCT node) AS allNodes
+
+WITH startNode, relationships, allNodes,
+     [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
+MATCH (file:File)-[:CONTAINS]->(import:Import)
+WHERE file.file IN fileNames
+
+RETURN startNode,
+       allNodes,
+       relationships,
+       COLLECT(DISTINCT import) AS imports
 `;
 
 export const PATH_QUERY = `

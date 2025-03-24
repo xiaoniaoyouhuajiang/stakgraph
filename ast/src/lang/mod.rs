@@ -72,17 +72,16 @@ impl Lang {
             lang: Box::new(ruby::Ruby::new()),
         }
     }
-
     pub fn new_kotlin() -> Self {
         Self {
             kind: Language::Kotlin,
             lang: Box::new(kotlin::Kotlin::new()),
         }
     }
-    pub fn new_typescript() -> Self {
+    pub fn new_swift() -> Self {
         Self {
-            kind: Language::Typescript,
-            lang: Box::new(typescript::TypeScript::new()),
+            kind: Language::Swift,
+            lang: Box::new(swift::Swift::new()),
         }
     }
     pub fn lang(&self) -> &dyn Stack {
@@ -280,6 +279,7 @@ impl Lang {
             Language::Bash => unimplemented!(),
             Language::Toml => unimplemented!(),
             Language::Kotlin => Lang::new_kotlin(),
+            Language::Swift => Lang::new_swift(),
         }
     }
 }

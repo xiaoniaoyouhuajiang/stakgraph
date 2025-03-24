@@ -1037,6 +1037,8 @@ fn func_target_file_finder(
     }
     tf
 }
+
+// FIXME: prefer funcitons in the same file?? Instead of skipping if there are 2
 fn find_only_one_function_file(func_name: &str, graph: &Graph) -> Option<String> {
     let mut target_files = Vec::new();
     for node in graph.nodes.iter() {

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf8" />
+  <title>Repo2Graph API</title>
+  <!-- needed for adaptive design -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+  <script src="https://cdn.redocly.com/redoc/v2.4.0/bundles/redoc.standalone.js"></script><style data-styled="true" data-styled-version="6.1.16">.leUrRG{width:calc(100% - 40%);padding:0 40px;}/*!sc*/
+@media print,screen and (max-width: 75rem){.leUrRG{width:100%;padding:40px 40px;}}/*!sc*/
+data-styled.g4[id="sc-glJfXD"]{content:"leUrRG,"}/*!sc*/
+.kZEgJl{padding:40px 0;}/*!sc*/
+.kZEgJl:last-child{min-height:calc(100vh + 1px);}/*!sc*/
+.kZEgJl>.kZEgJl:last-child{min-height:initial;}/*!sc*/
+@media print,screen and (max-width: 75rem){.kZEgJl{padding:0;}}/*!sc*/
+.eCkzqu{padding:40px 0;position:relative;}/*!sc*/
+.eCkzqu:last-child{min-height:calc(100vh + 1px);}/*!sc*/
+.eCkzqu>.eCkzqu:last-child{min-height:initial;}/*!sc*/
+@media print,screen and (max-width: 75rem){.eCkzqu{padding:0;}}/*!sc*/
+.eCkzqu:not(:last-of-type):after{position:absolute;bottom:0;width:100%;display:block;content:'';border-bottom:1px solid rgba(0, 0, 0, 0.2);}/*!sc*/
+data-styled.g5[id="sc-dOfePm"]{content:"kZEgJl,eCkzqu,"}/*!sc*/
+.egscYh{width:40%;color:#ffffff;background-color:#263238;padding:0 40px;}/*!sc*/
+@media print,screen and (max-width: 75rem){.egscYh{width:100%;padding:40px 40px;}}/*!sc*/
+data-styled.g6[id="sc-jgmqJh"]{content:"egscYh,"}/*!sc*/
+.brdjDi{background-color:#263238;}/*!sc*/
+data-styled.g7[id="sc-gIIpAQ"]{content:"brdjDi,"}/*!sc*/
+.gyiXze{display:flex;width:100%;padding:0;}/*!sc*/
+@media print,screen and (max-width: 75rem){.gyiXze{flex-direction:column;}}/*!sc*/
+data-styled.g8[id="sc-kFkjun"]{content:"gyiXze,"}/*!sc*/
+.cKUApr{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.85714em;line-height:1.6em;color:#333333;}/*!sc*/
+data-styled.g9[id="sc-ihGilW"]{content:"cKUApr,"}/*!sc*/
+.kRxete{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.57143em;line-height:1.6em;color:#333333;margin:0 0 20px;}/*!sc*/
+data-styled.g10[id="sc-jRLeyu"]{content:"kRxete,"}/*!sc*/
+.dhJZBt{color:#ffffff;}/*!sc*/
+data-styled.g12[id="sc-jOTjWM"]{content:"dhJZBt,"}/*!sc*/
+.cCiGzA{border-bottom:1px solid rgba(38, 50, 56, 0.3);margin:1em 0 1em 0;color:rgba(38, 50, 56, 0.5);font-weight:normal;text-transform:uppercase;font-size:0.929em;line-height:20px;}/*!sc*/
+data-styled.g13[id="sc-cOPLXt"]{content:"cCiGzA,"}/*!sc*/
+.jnKjlt{cursor:pointer;margin-left:-20px;padding:0;line-height:1;width:20px;display:inline-block;outline:0;}/*!sc*/
+.jnKjlt:before{content:'';width:15px;height:15px;background-size:contain;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgeD0iMCIgeT0iMCIgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA1MTIgNTEyIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cGF0aCBmaWxsPSIjMDEwMTAxIiBkPSJNNDU5LjcgMjMzLjRsLTkwLjUgOTAuNWMtNTAgNTAtMTMxIDUwLTE4MSAwIC03LjktNy44LTE0LTE2LjctMTkuNC0yNS44bDQyLjEtNDIuMWMyLTIgNC41LTMuMiA2LjgtNC41IDIuOSA5LjkgOCAxOS4zIDE1LjggMjcuMiAyNSAyNSA2NS42IDI0LjkgOTAuNSAwbDkwLjUtOTAuNWMyNS0yNSAyNS02NS42IDAtOTAuNSAtMjQuOS0yNS02NS41LTI1LTkwLjUgMGwtMzIuMiAzMi4yYy0yNi4xLTEwLjItNTQuMi0xMi45LTgxLjYtOC45bDY4LjYtNjguNmM1MC01MCAxMzEtNTAgMTgxIDBDNTA5LjYgMTAyLjMgNTA5LjYgMTgzLjQgNDU5LjcgMjMzLjR6TTIyMC4zIDM4Mi4ybC0zMi4yIDMyLjJjLTI1IDI0LjktNjUuNiAyNC45LTkwLjUgMCAtMjUtMjUtMjUtNjUuNiAwLTkwLjVsOTAuNS05MC41YzI1LTI1IDY1LjUtMjUgOTAuNSAwIDcuOCA3LjggMTIuOSAxNy4yIDE1LjggMjcuMSAyLjQtMS40IDQuOC0yLjUgNi44LTQuNWw0Mi4xLTQyYy01LjQtOS4yLTExLjYtMTgtMTkuNC0yNS44IC01MC01MC0xMzEtNTAtMTgxIDBsLTkwLjUgOTAuNWMtNTAgNTAtNTAgMTMxIDAgMTgxIDUwIDUwIDEzMSA1MCAxODEgMGw2OC42LTY4LjZDMjc0LjYgMzk1LjEgMjQ2LjQgMzkyLjMgMjIwLjMgMzgyLjJ6Ii8+PC9zdmc+Cg==');opacity:0.5;visibility:hidden;display:inline-block;vertical-align:middle;}/*!sc*/
+h1:hover>.jnKjlt::before,h2:hover>.jnKjlt::before,.jnKjlt:hover::before{visibility:visible;}/*!sc*/
+data-styled.g14[id="sc-jXuTBK"]{content:"jnKjlt,"}/*!sc*/
+.iMgWAW{height:1.3em;width:1.3em;min-width:1.3em;vertical-align:middle;transition:transform 0.2s ease-out;transform:rotateZ(-90deg);}/*!sc*/
+.jSKTTR{height:1.5em;width:1.5em;min-width:1.5em;vertical-align:middle;float:left;transition:transform 0.2s ease-out;transform:rotateZ(-90deg);}/*!sc*/
+.jSKTTR polygon{fill:#1d8127;}/*!sc*/
+.dOdtJx{height:20px;width:20px;min-width:20px;vertical-align:middle;float:right;transition:transform 0.2s ease-out;transform:rotateZ(0);}/*!sc*/
+.dOdtJx polygon{fill:white;}/*!sc*/
+data-styled.g15[id="sc-cXrvCr"]{content:"iMgWAW,jSKTTR,dOdtJx,"}/*!sc*/
+.rDKIb{border-left:1px solid #7c7cbb;box-sizing:border-box;position:relative;padding:10px 10px 10px 0;}/*!sc*/
+@media screen and (max-width: 50rem){.rDKIb{display:block;overflow:hidden;}}/*!sc*/
+tr:first-of-type>.rDKIb,tr.last>.rDKIb{border-left-width:0;background-position:top left;background-repeat:no-repeat;background-size:1px 100%;}/*!sc*/
+tr:first-of-type>.rDKIb{background-image:linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 22px,
+      #7c7cbb 22px,
+      #7c7cbb 100%
+    );}/*!sc*/
+tr.last>.rDKIb{background-image:linear-gradient(
+      to bottom,
+      #7c7cbb 0%,
+      #7c7cbb 22px,
+      transparent 22px,
+      transparent 100%
+    );}/*!sc*/
+tr.last+tr>.rDKIb{border-left-color:transparent;}/*!sc*/
+tr.last:first-child>.rDKIb{background:none;border-left-color:transparent;}/*!sc*/
+data-styled.g18[id="sc-lnQFQe"]{content:"rDKIb,"}/*!sc*/
+.dRrKge{vertical-align:top;line-height:20px;white-space:nowrap;font-size:13px;font-family:Courier,monospace;}/*!sc*/
+.dRrKge.deprecated{text-decoration:line-through;color:#707070;}/*!sc*/
+data-styled.g20[id="sc-dUwGTt"]{content:"dRrKge,"}/*!sc*/
+.fjmjSR{border-bottom:1px solid #9fb4be;padding:10px 0;width:75%;box-sizing:border-box;}/*!sc*/
+tr.expanded .fjmjSR{border-bottom:none;}/*!sc*/
+@media screen and (max-width: 50rem){.fjmjSR{padding:0 20px;border-bottom:none;border-left:1px solid #7c7cbb;}tr.last>.fjmjSR{border-left:none;}}/*!sc*/
+data-styled.g21[id="sc-eUzcTs"]{content:"fjmjSR,"}/*!sc*/
+.ibYoJt{color:#7c7cbb;font-family:Courier,monospace;margin-right:10px;}/*!sc*/
+.ibYoJt::before{content:'';display:inline-block;vertical-align:middle;width:10px;height:1px;background:#7c7cbb;}/*!sc*/
+.ibYoJt::after{content:'';display:inline-block;vertical-align:middle;width:1px;background:#7c7cbb;height:7px;}/*!sc*/
+data-styled.g22[id="sc-gKcHA-D"]{content:"ibYoJt,"}/*!sc*/
+.fahMGi{border-collapse:separate;border-radius:3px;font-size:14px;border-spacing:0;width:100%;}/*!sc*/
+.fahMGi >tr{vertical-align:middle;}/*!sc*/
+@media screen and (max-width: 50rem){.fahMGi{display:block;}.fahMGi >tr,.fahMGi >tbody>tr{display:block;}}/*!sc*/
+@media screen and (max-width: 50rem) and (-ms-high-contrast:none){.fahMGi td{float:left;width:100%;}}/*!sc*/
+.fahMGi .sc-hKfdAC,.fahMGi .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC,.fahMGi .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC{margin:1em;margin-right:0;background:#fafafa;}/*!sc*/
+.fahMGi .sc-hKfdAC .sc-hKfdAC,.fahMGi .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC,.fahMGi .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC .sc-hKfdAC{background:#ffffff;}/*!sc*/
+data-styled.g24[id="sc-eagvWJ"]{content:"fahMGi,"}/*!sc*/
+.gTnidh >ul{list-style:none;padding:0;margin:0;margin:0 -5px;}/*!sc*/
+.gTnidh >ul >li{padding:5px 10px;display:inline-block;background-color:#11171a;border-bottom:1px solid rgba(0, 0, 0, 0.5);cursor:pointer;text-align:center;outline:none;color:#ccc;margin:0 5px 5px 5px;border:1px solid #07090b;border-radius:5px;min-width:60px;font-size:0.9em;font-weight:bold;}/*!sc*/
+.gTnidh >ul >li.react-tabs__tab--selected{color:#333333;background:#ffffff;}/*!sc*/
+.gTnidh >ul >li.react-tabs__tab--selected:focus{outline:auto;}/*!sc*/
+.gTnidh >ul >li:only-child{flex:none;min-width:100px;}/*!sc*/
+.gTnidh >ul >li.tab-success{color:#1d8127;}/*!sc*/
+.gTnidh >ul >li.tab-redirect{color:#ffa500;}/*!sc*/
+.gTnidh >ul >li.tab-info{color:#87ceeb;}/*!sc*/
+.gTnidh >ul >li.tab-error{color:#d41f1c;}/*!sc*/
+.gTnidh >.react-tabs__tab-panel{background:#11171a;}/*!sc*/
+.gTnidh >.react-tabs__tab-panel>div,.gTnidh >.react-tabs__tab-panel>pre{padding:20px;margin:0;}/*!sc*/
+.gTnidh >.react-tabs__tab-panel>div>pre{padding:0;}/*!sc*/
+data-styled.g30[id="sc-bwSFLc"]{content:"gTnidh,"}/*!sc*/
+.ewwVxe code[class*='language-'],.ewwVxe pre[class*='language-']{text-shadow:0 -0.1em 0.2em black;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none;}/*!sc*/
+@media print{.ewwVxe code[class*='language-'],.ewwVxe pre[class*='language-']{text-shadow:none;}}/*!sc*/
+.ewwVxe pre[class*='language-']{padding:1em;margin:0.5em 0;overflow:auto;}/*!sc*/
+.ewwVxe .token.comment,.ewwVxe .token.prolog,.ewwVxe .token.doctype,.ewwVxe .token.cdata{color:hsl(30, 20%, 50%);}/*!sc*/
+.ewwVxe .token.punctuation{opacity:0.7;}/*!sc*/
+.ewwVxe .namespace{opacity:0.7;}/*!sc*/
+.ewwVxe .token.property,.ewwVxe .token.tag,.ewwVxe .token.number,.ewwVxe .token.constant,.ewwVxe .token.symbol{color:#4a8bb3;}/*!sc*/
+.ewwVxe .token.boolean{color:#e64441;}/*!sc*/
+.ewwVxe .token.selector,.ewwVxe .token.attr-name,.ewwVxe .token.string,.ewwVxe .token.char,.ewwVxe .token.builtin,.ewwVxe .token.inserted{color:#a0fbaa;}/*!sc*/
+.ewwVxe .token.selector+a,.ewwVxe .token.attr-name+a,.ewwVxe .token.string+a,.ewwVxe .token.char+a,.ewwVxe .token.builtin+a,.ewwVxe .token.inserted+a,.ewwVxe .token.selector+a:visited,.ewwVxe .token.attr-name+a:visited,.ewwVxe .token.string+a:visited,.ewwVxe .token.char+a:visited,.ewwVxe .token.builtin+a:visited,.ewwVxe .token.inserted+a:visited{color:#4ed2ba;text-decoration:underline;}/*!sc*/
+.ewwVxe .token.property.string{color:white;}/*!sc*/
+.ewwVxe .token.operator,.ewwVxe .token.entity,.ewwVxe .token.url,.ewwVxe .token.variable{color:hsl(40, 90%, 60%);}/*!sc*/
+.ewwVxe .token.atrule,.ewwVxe .token.attr-value,.ewwVxe .token.keyword{color:hsl(350, 40%, 70%);}/*!sc*/
+.ewwVxe .token.regex,.ewwVxe .token.important{color:#e90;}/*!sc*/
+.ewwVxe .token.important,.ewwVxe .token.bold{font-weight:bold;}/*!sc*/
+.ewwVxe .token.italic{font-style:italic;}/*!sc*/
+.ewwVxe .token.entity{cursor:help;}/*!sc*/
+.ewwVxe .token.deleted{color:red;}/*!sc*/
+data-styled.g32[id="sc-dZnbom"]{content:"ewwVxe,"}/*!sc*/
+.jwxgAi{opacity:0.7;transition:opacity 0.3s ease;text-align:right;}/*!sc*/
+.jwxgAi:focus-within{opacity:1;}/*!sc*/
+.jwxgAi >button{background-color:transparent;border:0;color:inherit;padding:2px 10px;font-family:Roboto,sans-serif;font-size:14px;line-height:1.5em;cursor:pointer;outline:0;}/*!sc*/
+.jwxgAi >button :hover,.jwxgAi >button :focus{background:rgba(255, 255, 255, 0.1);}/*!sc*/
+data-styled.g33[id="sc-ljIkKL"]{content:"jwxgAi,"}/*!sc*/
+.fQPNEB{position:relative;}/*!sc*/
+data-styled.g37[id="sc-eeWQrC"]{content:"fQPNEB,"}/*!sc*/
+.bFzZBc{margin-left:10px;text-transform:none;font-size:0.929em;color:black;}/*!sc*/
+data-styled.g41[id="sc-dSrrqH"]{content:"bFzZBc,"}/*!sc*/
+.kiTOLP{font-family:Roboto,sans-serif;font-weight:400;line-height:1.5em;}/*!sc*/
+.kiTOLP p:last-child{margin-bottom:0;}/*!sc*/
+.kiTOLP h1{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.85714em;line-height:1.6em;color:#32329f;margin-top:0;}/*!sc*/
+.kiTOLP h2{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.57143em;line-height:1.6em;color:#333333;}/*!sc*/
+.kiTOLP code{color:#e53935;background-color:rgba(38, 50, 56, 0.05);font-family:Courier,monospace;border-radius:2px;border:1px solid rgba(38, 50, 56, 0.1);padding:0 5px;font-size:13px;font-weight:400;word-break:break-word;}/*!sc*/
+.kiTOLP pre{font-family:Courier,monospace;white-space:pre;background-color:#11171a;color:white;padding:20px;overflow-x:auto;line-height:normal;border-radius:0;border:1px solid rgba(38, 50, 56, 0.1);}/*!sc*/
+.kiTOLP pre code{background-color:transparent;color:white;padding:0;}/*!sc*/
+.kiTOLP pre code:before,.kiTOLP pre code:after{content:none;}/*!sc*/
+.kiTOLP blockquote{margin:0;margin-bottom:1em;padding:0 15px;color:#777;border-left:4px solid #ddd;}/*!sc*/
+.kiTOLP img{max-width:100%;box-sizing:content-box;}/*!sc*/
+.kiTOLP ul,.kiTOLP ol{padding-left:2em;margin:0;margin-bottom:1em;}/*!sc*/
+.kiTOLP ul ul,.kiTOLP ol ul,.kiTOLP ul ol,.kiTOLP ol ol{margin-bottom:0;margin-top:0;}/*!sc*/
+.kiTOLP table{display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all;border-collapse:collapse;border-spacing:0;margin-top:1.5em;margin-bottom:1.5em;}/*!sc*/
+.kiTOLP table tr{background-color:#fff;border-top:1px solid #ccc;}/*!sc*/
+.kiTOLP table tr:nth-child(2n){background-color:#fafafa;}/*!sc*/
+.kiTOLP table th,.kiTOLP table td{padding:6px 13px;border:1px solid #ddd;}/*!sc*/
+.kiTOLP table th{text-align:left;font-weight:bold;}/*!sc*/
+.kiTOLP .share-link{cursor:pointer;margin-left:-20px;padding:0;line-height:1;width:20px;display:inline-block;outline:0;}/*!sc*/
+.kiTOLP .share-link:before{content:'';width:15px;height:15px;background-size:contain;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgeD0iMCIgeT0iMCIgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA1MTIgNTEyIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cGF0aCBmaWxsPSIjMDEwMTAxIiBkPSJNNDU5LjcgMjMzLjRsLTkwLjUgOTAuNWMtNTAgNTAtMTMxIDUwLTE4MSAwIC03LjktNy44LTE0LTE2LjctMTkuNC0yNS44bDQyLjEtNDIuMWMyLTIgNC41LTMuMiA2LjgtNC41IDIuOSA5LjkgOCAxOS4zIDE1LjggMjcuMiAyNSAyNSA2NS42IDI0LjkgOTAuNSAwbDkwLjUtOTAuNWMyNS0yNSAyNS02NS42IDAtOTAuNSAtMjQuOS0yNS02NS41LTI1LTkwLjUgMGwtMzIuMiAzMi4yYy0yNi4xLTEwLjItNTQuMi0xMi45LTgxLjYtOC45bDY4LjYtNjguNmM1MC01MCAxMzEtNTAgMTgxIDBDNTA5LjYgMTAyLjMgNTA5LjYgMTgzLjQgNDU5LjcgMjMzLjR6TTIyMC4zIDM4Mi4ybC0zMi4yIDMyLjJjLTI1IDI0LjktNjUuNiAyNC45LTkwLjUgMCAtMjUtMjUtMjUtNjUuNiAwLTkwLjVsOTAuNS05MC41YzI1LTI1IDY1LjUtMjUgOTAuNSAwIDcuOCA3LjggMTIuOSAxNy4yIDE1LjggMjcuMSAyLjQtMS40IDQuOC0yLjUgNi44LTQuNWw0Mi4xLTQyYy01LjQtOS4yLTExLjYtMTgtMTkuNC0yNS44IC01MC01MC0xMzEtNTAtMTgxIDBsLTkwLjUgOTAuNWMtNTAgNTAtNTAgMTMxIDAgMTgxIDUwIDUwIDEzMSA1MCAxODEgMGw2OC42LTY4LjZDMjc0LjYgMzk1LjEgMjQ2LjQgMzkyLjMgMjIwLjMgMzgyLjJ6Ii8+PC9zdmc+Cg==');opacity:0.5;visibility:hidden;display:inline-block;vertical-align:middle;}/*!sc*/
+.kiTOLP h1:hover>.share-link::before,.kiTOLP h2:hover>.share-link::before,.kiTOLP .share-link:hover::before{visibility:visible;}/*!sc*/
+.kiTOLP a{text-decoration:auto;color:#32329f;}/*!sc*/
+.kiTOLP a:visited{color:#32329f;}/*!sc*/
+.kiTOLP a:hover{color:#6868cf;text-decoration:auto;}/*!sc*/
+.gxENBN{font-family:Roboto,sans-serif;font-weight:400;line-height:1.5em;}/*!sc*/
+.gxENBN p:last-child{margin-bottom:0;}/*!sc*/
+.gxENBN p:first-child{margin-top:0;}/*!sc*/
+.gxENBN p:last-child{margin-bottom:0;}/*!sc*/
+.gxENBN h1{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.85714em;line-height:1.6em;color:#32329f;margin-top:0;}/*!sc*/
+.gxENBN h2{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.57143em;line-height:1.6em;color:#333333;}/*!sc*/
+.gxENBN code{color:#e53935;background-color:rgba(38, 50, 56, 0.05);font-family:Courier,monospace;border-radius:2px;border:1px solid rgba(38, 50, 56, 0.1);padding:0 5px;font-size:13px;font-weight:400;word-break:break-word;}/*!sc*/
+.gxENBN pre{font-family:Courier,monospace;white-space:pre;background-color:#11171a;color:white;padding:20px;overflow-x:auto;line-height:normal;border-radius:0;border:1px solid rgba(38, 50, 56, 0.1);}/*!sc*/
+.gxENBN pre code{background-color:transparent;color:white;padding:0;}/*!sc*/
+.gxENBN pre code:before,.gxENBN pre code:after{content:none;}/*!sc*/
+.gxENBN blockquote{margin:0;margin-bottom:1em;padding:0 15px;color:#777;border-left:4px solid #ddd;}/*!sc*/
+.gxENBN img{max-width:100%;box-sizing:content-box;}/*!sc*/
+.gxENBN ul,.gxENBN ol{padding-left:2em;margin:0;margin-bottom:1em;}/*!sc*/
+.gxENBN ul ul,.gxENBN ol ul,.gxENBN ul ol,.gxENBN ol ol{margin-bottom:0;margin-top:0;}/*!sc*/
+.gxENBN table{display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all;border-collapse:collapse;border-spacing:0;margin-top:1.5em;margin-bottom:1.5em;}/*!sc*/
+.gxENBN table tr{background-color:#fff;border-top:1px solid #ccc;}/*!sc*/
+.gxENBN table tr:nth-child(2n){background-color:#fafafa;}/*!sc*/
+.gxENBN table th,.gxENBN table td{padding:6px 13px;border:1px solid #ddd;}/*!sc*/
+.gxENBN table th{text-align:left;font-weight:bold;}/*!sc*/
+.gxENBN .share-link{cursor:pointer;margin-left:-20px;padding:0;line-height:1;width:20px;display:inline-block;outline:0;}/*!sc*/
+.gxENBN .share-link:before{content:'';width:15px;height:15px;background-size:contain;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgeD0iMCIgeT0iMCIgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA1MTIgNTEyIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cGF0aCBmaWxsPSIjMDEwMTAxIiBkPSJNNDU5LjcgMjMzLjRsLTkwLjUgOTAuNWMtNTAgNTAtMTMxIDUwLTE4MSAwIC03LjktNy44LTE0LTE2LjctMTkuNC0yNS44bDQyLjEtNDIuMWMyLTIgNC41LTMuMiA2LjgtNC41IDIuOSA5LjkgOCAxOS4zIDE1LjggMjcuMiAyNSAyNSA2NS42IDI0LjkgOTAuNSAwbDkwLjUtOTAuNWMyNS0yNSAyNS02NS42IDAtOTAuNSAtMjQuOS0yNS02NS41LTI1LTkwLjUgMGwtMzIuMiAzMi4yYy0yNi4xLTEwLjItNTQuMi0xMi45LTgxLjYtOC45bDY4LjYtNjguNmM1MC01MCAxMzEtNTAgMTgxIDBDNTA5LjYgMTAyLjMgNTA5LjYgMTgzLjQgNDU5LjcgMjMzLjR6TTIyMC4zIDM4Mi4ybC0zMi4yIDMyLjJjLTI1IDI0LjktNjUuNiAyNC45LTkwLjUgMCAtMjUtMjUtMjUtNjUuNiAwLTkwLjVsOTAuNS05MC41YzI1LTI1IDY1LjUtMjUgOTAuNSAwIDcuOCA3LjggMTIuOSAxNy4yIDE1LjggMjcuMSAyLjQtMS40IDQuOC0yLjUgNi44LTQuNWw0Mi4xLTQyYy01LjQtOS4yLTExLjYtMTgtMTkuNC0yNS44IC01MC01MC0xMzEtNTAtMTgxIDBsLTkwLjUgOTAuNWMtNTAgNTAtNTAgMTMxIDAgMTgxIDUwIDUwIDEzMSA1MCAxODEgMGw2OC42LTY4LjZDMjc0LjYgMzk1LjEgMjQ2LjQgMzkyLjMgMjIwLjMgMzgyLjJ6Ii8+PC9zdmc+Cg==');opacity:0.5;visibility:hidden;display:inline-block;vertical-align:middle;}/*!sc*/
+.gxENBN h1:hover>.share-link::before,.gxENBN h2:hover>.share-link::before,.gxENBN .share-link:hover::before{visibility:visible;}/*!sc*/
+.gxENBN a{text-decoration:auto;color:#32329f;}/*!sc*/
+.gxENBN a:visited{color:#32329f;}/*!sc*/
+.gxENBN a:hover{color:#6868cf;text-decoration:auto;}/*!sc*/
+.jZPdSZ{font-family:Roboto,sans-serif;font-weight:400;line-height:1.5em;}/*!sc*/
+.jZPdSZ p:last-child{margin-bottom:0;}/*!sc*/
+.jZPdSZ p:first-child{margin-top:0;}/*!sc*/
+.jZPdSZ p:last-child{margin-bottom:0;}/*!sc*/
+.jZPdSZ p{display:inline-block;}/*!sc*/
+.jZPdSZ h1{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.85714em;line-height:1.6em;color:#32329f;margin-top:0;}/*!sc*/
+.jZPdSZ h2{font-family:Montserrat,sans-serif;font-weight:400;font-size:1.57143em;line-height:1.6em;color:#333333;}/*!sc*/
+.jZPdSZ code{color:#e53935;background-color:rgba(38, 50, 56, 0.05);font-family:Courier,monospace;border-radius:2px;border:1px solid rgba(38, 50, 56, 0.1);padding:0 5px;font-size:13px;font-weight:400;word-break:break-word;}/*!sc*/
+.jZPdSZ pre{font-family:Courier,monospace;white-space:pre;background-color:#11171a;color:white;padding:20px;overflow-x:auto;line-height:normal;border-radius:0;border:1px solid rgba(38, 50, 56, 0.1);}/*!sc*/
+.jZPdSZ pre code{background-color:transparent;color:white;padding:0;}/*!sc*/
+.jZPdSZ pre code:before,.jZPdSZ pre code:after{content:none;}/*!sc*/
+.jZPdSZ blockquote{margin:0;margin-bottom:1em;padding:0 15px;color:#777;border-left:4px solid #ddd;}/*!sc*/
+.jZPdSZ img{max-width:100%;box-sizing:content-box;}/*!sc*/
+.jZPdSZ ul,.jZPdSZ ol{padding-left:2em;margin:0;margin-bottom:1em;}/*!sc*/
+.jZPdSZ ul ul,.jZPdSZ ol ul,.jZPdSZ ul ol,.jZPdSZ ol ol{margin-bottom:0;margin-top:0;}/*!sc*/
+.jZPdSZ table{display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all;border-collapse:collapse;border-spacing:0;margin-top:1.5em;margin-bottom:1.5em;}/*!sc*/
+.jZPdSZ table tr{background-color:#fff;border-top:1px solid #ccc;}/*!sc*/
+.jZPdSZ table tr:nth-child(2n){background-color:#fafafa;}/*!sc*/
+.jZPdSZ table th,.jZPdSZ table td{padding:6px 13px;border:1px solid #ddd;}/*!sc*/
+.jZPdSZ table th{text-align:left;font-weight:bold;}/*!sc*/
+.jZPdSZ .share-link{cursor:pointer;margin-left:-20px;padding:0;line-height:1;width:20px;display:inline-block;outline:0;}/*!sc*/
+.jZPdSZ .share-link:before{content:'';width:15px;height:15px;background-size:contain;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgeD0iMCIgeT0iMCIgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA1MTIgNTEyIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cGF0aCBmaWxsPSIjMDEwMTAxIiBkPSJNNDU5LjcgMjMzLjRsLTkwLjUgOTAuNWMtNTAgNTAtMTMxIDUwLTE4MSAwIC03LjktNy44LTE0LTE2LjctMTkuNC0yNS44bDQyLjEtNDIuMWMyLTIgNC41LTMuMiA2LjgtNC41IDIuOSA5LjkgOCAxOS4zIDE1LjggMjcuMiAyNSAyNSA2NS42IDI0LjkgOTAuNSAwbDkwLjUtOTAuNWMyNS0yNSAyNS02NS42IDAtOTAuNSAtMjQuOS0yNS02NS41LTI1LTkwLjUgMGwtMzIuMiAzMi4yYy0yNi4xLTEwLjItNTQuMi0xMi45LTgxLjYtOC45bDY4LjYtNjguNmM1MC01MCAxMzEtNTAgMTgxIDBDNTA5LjYgMTAyLjMgNTA5LjYgMTgzLjQgNDU5LjcgMjMzLjR6TTIyMC4zIDM4Mi4ybC0zMi4yIDMyLjJjLTI1IDI0LjktNjUuNiAyNC45LTkwLjUgMCAtMjUtMjUtMjUtNjUuNiAwLTkwLjVsOTAuNS05MC41YzI1LTI1IDY1LjUtMjUgOTAuNSAwIDcuOCA3LjggMTIuOSAxNy4yIDE1LjggMjcuMSAyLjQtMS40IDQuOC0yLjUgNi44LTQuNWw0Mi4xLTQyYy01LjQtOS4yLTExLjYtMTgtMTkuNC0yNS44IC01MC01MC0xMzEtNTAtMTgxIDBsLTkwLjUgOTAuNWMtNTAgNTAtNTAgMTMxIDAgMTgxIDUwIDUwIDEzMSA1MCAxODEgMGw2OC42LTY4LjZDMjc0LjYgMzk1LjEgMjQ2LjQgMzkyLjMgMjIwLjMgMzgyLjJ6Ii8+PC9zdmc+Cg==');opacity:0.5;visibility:hidden;display:inline-block;vertical-align:middle;}/*!sc*/
+.jZPdSZ h1:hover>.share-link::before,.jZPdSZ h2:hover>.share-link::before,.jZPdSZ .share-link:hover::before{visibility:visible;}/*!sc*/
+.jZPdSZ a{text-decoration:auto;color:#32329f;}/*!sc*/
+.jZPdSZ a:visited{color:#32329f;}/*!sc*/
+.jZPdSZ a:hover{color:#6868cf;text-decoration:auto;}/*!sc*/
+data-styled.g42[id="sc-eStNqG"]{content:"kiTOLP,gxENBN,jZPdSZ,"}/*!sc*/
+.dcgeal{display:inline;}/*!sc*/
+data-styled.g43[id="sc-ecLbSZ"]{content:"dcgeal,"}/*!sc*/
+.kochun{position:relative;}/*!sc*/
+data-styled.g44[id="sc-fcNxSY"]{content:"kochun,"}/*!sc*/
+.gzsuAn:hover>.sc-ljIkKL{opacity:1;}/*!sc*/
+data-styled.g49[id="sc-fowSIr"]{content:"gzsuAn,"}/*!sc*/
+.hnBcqa{font-family:Courier,monospace;font-size:13px;white-space:pre;contain:content;overflow-x:auto;}/*!sc*/
+.hnBcqa .redoc-json code>.collapser{display:none;pointer-events:none;}/*!sc*/
+.hnBcqa .callback-function{color:gray;}/*!sc*/
+.hnBcqa .collapser:after{content:'-';cursor:pointer;}/*!sc*/
+.hnBcqa .collapsed>.collapser:after{content:'+';cursor:pointer;}/*!sc*/
+.hnBcqa .ellipsis:after{content:' … ';}/*!sc*/
+.hnBcqa .collapsible{margin-left:2em;}/*!sc*/
+.hnBcqa .hoverable{padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:2px;border-radius:2px;}/*!sc*/
+.hnBcqa .hovered{background-color:rgba(235, 238, 249, 1);}/*!sc*/
+.hnBcqa .collapser{background-color:transparent;border:0;color:#fff;font-family:Courier,monospace;font-size:13px;padding-right:6px;padding-left:6px;padding-top:0;padding-bottom:0;display:flex;align-items:center;justify-content:center;width:15px;height:15px;position:absolute;top:4px;left:-1.5em;cursor:default;user-select:none;-webkit-user-select:none;padding:2px;}/*!sc*/
+.hnBcqa .collapser:focus{outline-color:#fff;outline-style:dotted;outline-width:1px;}/*!sc*/
+.hnBcqa ul{list-style-type:none;padding:0px;margin:0px 0px 0px 26px;}/*!sc*/
+.hnBcqa li{position:relative;display:block;}/*!sc*/
+.hnBcqa .hoverable{display:inline-block;}/*!sc*/
+.hnBcqa .selected{outline-style:solid;outline-width:1px;outline-style:dotted;}/*!sc*/
+.hnBcqa .collapsed>.collapsible{display:none;}/*!sc*/
+.hnBcqa .ellipsis{display:none;}/*!sc*/
+.hnBcqa .collapsed>.ellipsis{display:inherit;}/*!sc*/
+data-styled.g50[id="sc-gozoIq"]{content:"hnBcqa,"}/*!sc*/
+.cnTPdi{padding:0.9em;background-color:rgba(38,50,56,0.4);margin:0 0 10px 0;display:block;font-family:Montserrat,sans-serif;font-size:0.929em;line-height:1.5em;}/*!sc*/
+data-styled.g51[id="sc-buNqiq"]{content:"cnTPdi,"}/*!sc*/
+.gEDIwZ{font-family:Montserrat,sans-serif;font-size:12px;position:absolute;z-index:1;top:-11px;left:12px;font-weight:600;color:rgba(255,255,255,0.7);}/*!sc*/
+data-styled.g52[id="sc-fKfBHT"]{content:"gEDIwZ,"}/*!sc*/
+.bVwklo{position:relative;}/*!sc*/
+data-styled.g53[id="sc-brVvGI"]{content:"bVwklo,"}/*!sc*/
+.eQHTDF{margin-top:15px;}/*!sc*/
+data-styled.g56[id="sc-eTAtz"]{content:"eQHTDF,"}/*!sc*/
+.hQswnt{vertical-align:middle;font-size:13px;line-height:20px;}/*!sc*/
+data-styled.g58[id="sc-cbFRR"]{content:"hQswnt,"}/*!sc*/
+.fowkLL{color:rgba(102,102,102,0.9);}/*!sc*/
+data-styled.g59[id="sc-cQSRAa"]{content:"fowkLL,"}/*!sc*/
+.kmboKU{color:#666;}/*!sc*/
+data-styled.g60[id="sc-hglcZD"]{content:"kmboKU,"}/*!sc*/
+.cngCif{color:#d41f1c;font-size:0.9em;font-weight:normal;margin-left:20px;line-height:1;}/*!sc*/
+data-styled.g62[id="sc-hMWYck"]{content:"cngCif,"}/*!sc*/
+.iZKBpI{border-radius:2px;word-break:break-word;background-color:rgba(51,51,51,0.05);color:rgba(51,51,51,0.9);padding:0 5px;border:1px solid rgba(51,51,51,0.1);font-family:Courier,monospace;}/*!sc*/
++{margin-left:0;}/*!sc*/
+data-styled.g66[id="sc-chKWNQ"]{content:"iZKBpI,"}/*!sc*/
+.fTWpQj{margin:0 5px;vertical-align:text-top;}/*!sc*/
+data-styled.g75[id="sc-jZAjew"]{content:"fTWpQj,"}/*!sc*/
+.jPkEgw:after{content:' and ';font-weight:normal;}/*!sc*/
+.jPkEgw:last-child:after{content:none;}/*!sc*/
+.jPkEgw a{text-decoration:auto;color:#32329f;}/*!sc*/
+.jPkEgw a:visited{color:#32329f;}/*!sc*/
+.jPkEgw a:hover{color:#6868cf;text-decoration:auto;}/*!sc*/
+data-styled.g81[id="sc-ilSuNr"]{content:"jPkEgw,"}/*!sc*/
+.hcQhyb{white-space:nowrap;}/*!sc*/
+.hcQhyb:after{content:' or ';white-space:pre;}/*!sc*/
+.hcQhyb:last-child:after,.hcQhyb:only-child:after{content:none;}/*!sc*/
+.hcQhyb a{text-decoration:auto;color:#32329f;}/*!sc*/
+.hcQhyb a:visited{color:#32329f;}/*!sc*/
+.hcQhyb a:hover{color:#6868cf;text-decoration:auto;}/*!sc*/
+data-styled.g82[id="sc-jlUQNq"]{content:"hcQhyb,"}/*!sc*/
+.hRGLdi{flex:1 1 auto;cursor:pointer;}/*!sc*/
+data-styled.g83[id="sc-iwmfpJ"]{content:"hRGLdi,"}/*!sc*/
+.eerDod{width:75%;text-overflow:ellipsis;border-radius:4px;overflow:hidden;}/*!sc*/
+@media screen and (max-width: 50rem){.eerDod{margin-top:10px;}}/*!sc*/
+data-styled.g84[id="sc-jwoBpI"]{content:"eerDod,"}/*!sc*/
+.iCkPsO{display:inline-block;margin:0;}/*!sc*/
+data-styled.g85[id="sc-irCjQH"]{content:"iCkPsO,"}/*!sc*/
+.gXJBLn{width:100%;display:flex;margin:1em 0;flex-direction:row;}/*!sc*/
+@media screen and (max-width: 50rem){.gXJBLn{flex-direction:column;}}/*!sc*/
+data-styled.g86[id="sc-jrEFQG"]{content:"gXJBLn,"}/*!sc*/
+.iENrAO{margin-top:0;margin-bottom:0.5em;}/*!sc*/
+data-styled.g92[id="sc-kdGFeD"]{content:"iENrAO,"}/*!sc*/
+.grbqCX{width:9ex;display:inline-block;height:13px;line-height:13px;background-color:#333;border-radius:3px;background-repeat:no-repeat;background-position:6px 4px;font-size:7px;font-family:Verdana,sans-serif;color:white;text-transform:uppercase;text-align:center;font-weight:bold;vertical-align:middle;margin-right:6px;margin-top:2px;}/*!sc*/
+.grbqCX.get{background-color:#2F8132;}/*!sc*/
+.grbqCX.post{background-color:#186FAF;}/*!sc*/
+.grbqCX.put{background-color:#95507c;}/*!sc*/
+.grbqCX.options{background-color:#947014;}/*!sc*/
+.grbqCX.patch{background-color:#bf581d;}/*!sc*/
+.grbqCX.delete{background-color:#cc3333;}/*!sc*/
+.grbqCX.basic{background-color:#707070;}/*!sc*/
+.grbqCX.link{background-color:#07818F;}/*!sc*/
+.grbqCX.head{background-color:#A23DAD;}/*!sc*/
+.grbqCX.hook{background-color:#32329f;}/*!sc*/
+.grbqCX.schema{background-color:#707070;}/*!sc*/
+data-styled.g100[id="sc-irjSKf"]{content:"grbqCX,"}/*!sc*/
+.iDUoBi{margin:0;padding:0;}/*!sc*/
+.iDUoBi:first-child{padding-bottom:32px;}/*!sc*/
+.sc-kTgNvW .sc-kTgNvW{font-size:0.929em;}/*!sc*/
+data-styled.g101[id="sc-kTgNvW"]{content:"iDUoBi,"}/*!sc*/
+.dPFZel{list-style:none inside none;overflow:hidden;text-overflow:ellipsis;padding:0;}/*!sc*/
+data-styled.g102[id="sc-buGIZP"]{content:"dPFZel,"}/*!sc*/
+.kzYPJk{cursor:pointer;color:#333333;margin:0;padding:12.5px 20px;display:flex;justify-content:space-between;font-family:Montserrat,sans-serif;background-color:#fafafa;}/*!sc*/
+.kzYPJk:hover{color:#32329f;background-color:#ededed;}/*!sc*/
+.kzYPJk .sc-cXrvCr{height:1.5em;width:1.5em;}/*!sc*/
+.kzYPJk .sc-cXrvCr polygon{fill:#333333;}/*!sc*/
+data-styled.g103[id="sc-dXLCDc"]{content:"kzYPJk,"}/*!sc*/
+.kXFfzE{display:inline-block;vertical-align:middle;width:calc(100% - 38px);overflow:hidden;text-overflow:ellipsis;}/*!sc*/
+data-styled.g104[id="sc-fOHhFR"]{content:"kXFfzE,"}/*!sc*/
+.jFSsqK{font-size:0.8em;margin-top:10px;text-align:center;position:fixed;width:260px;bottom:0;background:#fafafa;}/*!sc*/
+.jFSsqK a,.jFSsqK a:visited,.jFSsqK a:hover{color:#333333!important;padding:5px 0;border-top:1px solid #e1e1e1;text-decoration:none;display:flex;align-items:center;justify-content:center;}/*!sc*/
+.jFSsqK img{width:15px;margin-right:5px;}/*!sc*/
+@media screen and (max-width: 50rem){.jFSsqK{width:100%;}}/*!sc*/
+data-styled.g105[id="sc-kMKgPS"]{content:"jFSsqK,"}/*!sc*/
+.ePBxvF{cursor:pointer;position:relative;margin-bottom:5px;}/*!sc*/
+data-styled.g111[id="sc-dTdpwD"]{content:"ePBxvF,"}/*!sc*/
+.ioopTP{font-family:Courier,monospace;margin-left:10px;flex:1;overflow-x:hidden;text-overflow:ellipsis;}/*!sc*/
+data-styled.g112[id="sc-ieSqsC"]{content:"ioopTP,"}/*!sc*/
+.bgPLGr{outline:0;color:inherit;width:100%;text-align:left;cursor:pointer;padding:10px 30px 10px 20px;border-radius:4px 4px 0 0;background-color:#11171a;display:flex;white-space:nowrap;align-items:center;border:1px solid transparent;border-bottom:0;transition:border-color 0.25s ease;}/*!sc*/
+.bgPLGr ..sc-ieSqsC{color:#ffffff;}/*!sc*/
+.bgPLGr:focus{box-shadow:inset 0 2px 2px rgba(0, 0, 0, 0.45),0 2px 0 rgba(128, 128, 128, 0.25);}/*!sc*/
+data-styled.g113[id="sc-ligLZB"]{content:"bgPLGr,"}/*!sc*/
+.hMeoaw{font-size:0.929em;line-height:20px;background-color:#2F8132;color:#ffffff;padding:3px 10px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin:0;}/*!sc*/
+.kXyRAC{font-size:0.929em;line-height:20px;background-color:#186FAF;color:#ffffff;padding:3px 10px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin:0;}/*!sc*/
+data-styled.g114[id="sc-eeA-dwE"]{content:"hMeoaw,kXyRAC,"}/*!sc*/
+.kCxvuD{position:absolute;width:100%;z-index:100;background:#fafafa;color:#263238;box-sizing:border-box;box-shadow:0 0 6px rgba(0, 0, 0, 0.33);overflow:hidden;border-bottom-left-radius:4px;border-bottom-right-radius:4px;transition:all 0.25s ease;visibility:hidden;transform:translateY(-50%) scaleY(0);}/*!sc*/
+data-styled.g115[id="sc-dMGIQz"]{content:"kCxvuD,"}/*!sc*/
+.sxQGy{padding:10px;}/*!sc*/
+data-styled.g116[id="sc-hYvJMy"]{content:"sxQGy,"}/*!sc*/
+.iPVodL{padding:5px;border:1px solid #ccc;background:#fff;word-break:break-all;color:#32329f;}/*!sc*/
+.iPVodL >span{color:#333333;}/*!sc*/
+data-styled.g117[id="sc-lbKftx"]{content:"iPVodL,"}/*!sc*/
+.owcub{display:block;border:0;width:100%;text-align:left;padding:10px;border-radius:2px;margin-bottom:4px;line-height:1.5em;cursor:pointer;color:#1d8127;background-color:rgba(29,129,39,0.07);}/*!sc*/
+.owcub:focus{outline:auto #1d8127;}/*!sc*/
+.imrKRb{display:block;border:0;width:100%;text-align:left;padding:10px;border-radius:2px;margin-bottom:4px;line-height:1.5em;cursor:pointer;color:#d41f1c;background-color:rgba(212,31,28,0.07);cursor:default;}/*!sc*/
+.imrKRb:focus{outline:auto #d41f1c;}/*!sc*/
+.imrKRb::before{content:"—";font-weight:bold;width:1.5em;text-align:center;display:inline-block;vertical-align:top;}/*!sc*/
+.imrKRb:focus{outline:0;}/*!sc*/
+data-styled.g120[id="sc-jZkJda"]{content:"owcub,imrKRb,"}/*!sc*/
+.eSFldv{vertical-align:top;}/*!sc*/
+data-styled.g123[id="sc-dNrSaK"]{content:"eSFldv,"}/*!sc*/
+.ePsDFX{font-size:1.3em;padding:0.2em 0;margin:3em 0 1.1em;color:#333333;font-weight:normal;}/*!sc*/
+data-styled.g124[id="sc-fRzchz"]{content:"ePsDFX,"}/*!sc*/
+.jpSYGt{margin-bottom:30px;}/*!sc*/
+data-styled.g129[id="sc-bvlCfQ"]{content:"jpSYGt,"}/*!sc*/
+.cRcNbY{user-select:none;width:20px;height:20px;align-self:center;display:flex;flex-direction:column;color:#32329f;}/*!sc*/
+data-styled.g130[id="sc-dzsMmF"]{content:"cRcNbY,"}/*!sc*/
+.dYKZdB{width:260px;background-color:#fafafa;overflow:hidden;display:flex;flex-direction:column;backface-visibility:hidden;height:100vh;position:sticky;position:-webkit-sticky;top:0;}/*!sc*/
+@media screen and (max-width: 50rem){.dYKZdB{position:fixed;z-index:20;width:100%;background:#fafafa;display:none;}}/*!sc*/
+@media print{.dYKZdB{display:none;}}/*!sc*/
+data-styled.g131[id="sc-dQluUV"]{content:"dYKZdB,"}/*!sc*/
+.hXMdUD{outline:none;user-select:none;background-color:#f2f2f2;color:#32329f;display:none;cursor:pointer;position:fixed;right:20px;z-index:100;border-radius:50%;box-shadow:0 0 20px rgba(0, 0, 0, 0.3);bottom:44px;width:60px;height:60px;padding:0 20px;}/*!sc*/
+@media screen and (max-width: 50rem){.hXMdUD{display:flex;}}/*!sc*/
+.hXMdUD svg{color:#0065FB;}/*!sc*/
+@media print{.hXMdUD{display:none;}}/*!sc*/
+data-styled.g132[id="sc-icavQU"]{content:"hXMdUD,"}/*!sc*/
+.buduLu{font-family:Roboto,sans-serif;font-size:14px;font-weight:400;line-height:1.5em;color:#333333;display:flex;position:relative;text-align:left;-webkit-font-smoothing:antialiased;font-smoothing:antialiased;text-rendering:optimizeSpeed!important;tap-highlight-color:rgba(0, 0, 0, 0);text-size-adjust:100%;}/*!sc*/
+.buduLu *{box-sizing:border-box;-webkit-tap-highlight-color:rgba(255, 255, 255, 0);}/*!sc*/
+data-styled.g133[id="sc-kXNbxj"]{content:"buduLu,"}/*!sc*/
+.eLZvZP{z-index:1;position:relative;overflow:hidden;width:calc(100% - 260px);contain:layout;}/*!sc*/
+@media print,screen and (max-width: 50rem){.eLZvZP{width:100%;}}/*!sc*/
+data-styled.g134[id="sc-dUgsUm"]{content:"eLZvZP,"}/*!sc*/
+.dKumiZ{background:#263238;position:absolute;top:0;bottom:0;right:0;width:calc((100% - 260px) * 0.4);}/*!sc*/
+@media print,screen and (max-width: 75rem){.dKumiZ{display:none;}}/*!sc*/
+data-styled.g135[id="sc-dJOOoR"]{content:"dKumiZ,"}/*!sc*/
+.konpZj{padding:5px 0;}/*!sc*/
+data-styled.g136[id="sc-hVDPkQ"]{content:"konpZj,"}/*!sc*/
+.exHFPa{width:calc(100% - 40px);box-sizing:border-box;margin:0 20px;padding:5px 10px 5px 20px;border:0;border-bottom:1px solid #e1e1e1;font-family:Roboto,sans-serif;font-weight:bold;font-size:13px;color:#333333;background-color:transparent;outline:none;}/*!sc*/
+data-styled.g137[id="sc-kRquRf"]{content:"exHFPa,"}/*!sc*/
+.ghCQVp{position:absolute;left:20px;height:1.8em;width:0.9em;}/*!sc*/
+.ghCQVp path{fill:#333333;}/*!sc*/
+data-styled.g138[id="sc-dNJMoi"]{content:"ghCQVp,"}/*!sc*/
+</style>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+</head>
+
+<body>
+  
+      <div id="redoc"><div class="sc-kXNbxj buduLu redoc-wrap"><div class="sc-dQluUV dYKZdB menu-content" style="top:0px;height:calc(100vh - 0px)"><div role="search" class="sc-hVDPkQ konpZj"><svg class="sc-dNJMoi ghCQVp search-icon" version="1.1" viewBox="0 0 1000 1000" x="0px" xmlns="http://www.w3.org/2000/svg" y="0px"><path d="M968.2,849.4L667.3,549c83.9-136.5,66.7-317.4-51.7-435.6C477.1-25,252.5-25,113.9,113.4c-138.5,138.3-138.5,362.6,0,501C219.2,730.1,413.2,743,547.6,666.5l301.9,301.4c43.6,43.6,76.9,14.9,104.2-12.4C981,928.3,1011.8,893,968.2,849.4z M524.5,522c-88.9,88.7-233,88.7-321.8,0c-88.9-88.7-88.9-232.6,0-321.3c88.9-88.7,233-88.7,321.8,0C613.4,289.4,613.4,433.3,524.5,522z"></path></svg><input placeholder="Search..." aria-label="Search" type="text" class="sc-kRquRf exHFPa search-input" value=""/></div><div class="sc-eeWQrC fQPNEB scrollbar-container undefined"><ul role="menu" class="sc-kTgNvW iDUoBi"><li tabindex="0" depth="2" data-item-id="/paths/~1nodes/get" role="menuitem" class="sc-buGIZP dPFZel"><label class="sc-dXLCDc kzYPJk -depth2"><span type="get" class="sc-irjSKf grbqCX operation-type get">get</span><span tabindex="0" width="calc(100% - 38px)" class="sc-fOHhFR kXFfzE">/nodes</span></label></li><li tabindex="0" depth="2" data-item-id="/paths/~1map/get" role="menuitem" class="sc-buGIZP dPFZel"><label class="sc-dXLCDc kzYPJk -depth2"><span type="get" class="sc-irjSKf grbqCX operation-type get">get</span><span tabindex="0" width="calc(100% - 38px)" class="sc-fOHhFR kXFfzE">/map</span></label></li><li tabindex="0" depth="2" data-item-id="/paths/~1code/get" role="menuitem" class="sc-buGIZP dPFZel"><label class="sc-dXLCDc kzYPJk -depth2"><span type="get" class="sc-irjSKf grbqCX operation-type get">get</span><span tabindex="0" width="calc(100% - 38px)" class="sc-fOHhFR kXFfzE">/code</span></label></li><li tabindex="0" depth="2" data-item-id="/paths/~1shortest_path/get" role="menuitem" class="sc-buGIZP dPFZel"><label class="sc-dXLCDc kzYPJk -depth2"><span type="get" class="sc-irjSKf grbqCX operation-type get">get</span><span tabindex="0" width="calc(100% - 38px)" class="sc-fOHhFR kXFfzE">/shortest_path</span></label></li><li tabindex="0" depth="2" data-item-id="/paths/~1upload/post" role="menuitem" class="sc-buGIZP dPFZel"><label class="sc-dXLCDc kzYPJk -depth2"><span type="post" class="sc-irjSKf grbqCX operation-type post">post</span><span tabindex="0" width="calc(100% - 38px)" class="sc-fOHhFR kXFfzE">/upload</span></label></li><li tabindex="0" depth="2" data-item-id="/paths/~1status~1{requestId}/get" role="menuitem" class="sc-buGIZP dPFZel"><label class="sc-dXLCDc kzYPJk -depth2"><span type="get" class="sc-irjSKf grbqCX operation-type get">get</span><span tabindex="0" width="calc(100% - 38px)" class="sc-fOHhFR kXFfzE">/status/{requestId}</span></label></li></ul><div class="sc-kMKgPS jFSsqK"><a target="_blank" rel="noopener noreferrer" href="https://redocly.com/redoc/">API docs by Redocly</a></div></div></div><div class="sc-icavQU hXMdUD"><div class="sc-dzsMmF cRcNbY"><svg class="" style="transform:translate(2px, -4px) rotate(180deg);transition:transform 0.2s ease" viewBox="0 0 926.23699 573.74994" version="1.1" x="0px" y="0px" width="15" height="15"><g transform="translate(904.92214,-879.1482)"><path d="
+          m -673.67664,1221.6502 -231.2455,-231.24803 55.6165,
+          -55.627 c 30.5891,-30.59485 56.1806,-55.627 56.8701,-55.627 0.6894,
+          0 79.8637,78.60862 175.9427,174.68583 l 174.6892,174.6858 174.6892,
+          -174.6858 c 96.079,-96.07721 175.253196,-174.68583 175.942696,
+          -174.68583 0.6895,0 26.281,25.03215 56.8701,
+          55.627 l 55.6165,55.627 -231.245496,231.24803 c -127.185,127.1864
+          -231.5279,231.248 -231.873,231.248 -0.3451,0 -104.688,
+          -104.0616 -231.873,-231.248 z
+        " fill="currentColor"></path></g></svg><svg class="" style="transform:translate(2px, 4px);transition:transform 0.2s ease" viewBox="0 0 926.23699 573.74994" version="1.1" x="0px" y="0px" width="15" height="15"><g transform="translate(904.92214,-879.1482)"><path d="
+          m -673.67664,1221.6502 -231.2455,-231.24803 55.6165,
+          -55.627 c 30.5891,-30.59485 56.1806,-55.627 56.8701,-55.627 0.6894,
+          0 79.8637,78.60862 175.9427,174.68583 l 174.6892,174.6858 174.6892,
+          -174.6858 c 96.079,-96.07721 175.253196,-174.68583 175.942696,
+          -174.68583 0.6895,0 26.281,25.03215 56.8701,
+          55.627 l 55.6165,55.627 -231.245496,231.24803 c -127.185,127.1864
+          -231.5279,231.248 -231.873,231.248 -0.3451,0 -104.688,
+          -104.0616 -231.873,-231.248 z
+        " fill="currentColor"></path></g></svg></div></div><div class="sc-dUgsUm eLZvZP api-content"><div class="sc-dOfePm kZEgJl"><div class="sc-kFkjun gyiXze"><div class="sc-glJfXD leUrRG api-info"><h1 class="sc-ihGilW sc-kdGFeD cKUApr iENrAO">Repo2Graph API<!-- --> <span>(<!-- -->1.0.0<!-- -->)</span></h1><p>Download OpenAPI specification<!-- -->:</p><div class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"></div><div data-role="redoc-summary" html="" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"></div><div data-role="redoc-description" html="&lt;p&gt;API for navigating code repository graph data&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"><p>API for navigating code repository graph data</p>
+</div></div></div></div><div id="/paths/~1nodes/get" data-section-id="/paths/~1nodes/get" class="sc-dOfePm eCkzqu"><div class="sc-kFkjun gyiXze"><div class="sc-glJfXD leUrRG"><h2 class="sc-jRLeyu kRxete"><a class="sc-jXuTBK jnKjlt" href="#/paths/~1nodes/get" aria-label="/paths/~1nodes/get"></a>/nodes<!-- --> </h2><div class="sc-bvlCfQ jpSYGt"><div html="&lt;p&gt;Get nodes by type&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"><p>Get nodes by type</p>
+</div></div><div class="sc-jrEFQG gXJBLn"><div class="sc-iwmfpJ hRGLdi"><h5 class="sc-cOPLXt sc-irCjQH cCiGzA iCkPsO">Authorizations:</h5><svg class="sc-cXrvCr iMgWAW" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></div><div class="sc-jwoBpI eerDod"><span class="sc-jlUQNq hcQhyb"><span class="sc-ilSuNr jPkEgw"><i>ApiKeyAuth</i></span></span></div></div><div><h5 class="sc-cOPLXt cCiGzA">query<!-- --> Parameters</h5><table class="sc-eagvWJ fahMGi"><tbody><tr class=""><td kind="field" title="node_type" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">node_type</span><div class="sc-cbFRR sc-hMWYck hQswnt cngCif">required</div></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Enum<!-- -->:</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Page&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Function&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Class&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Trait&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Datamodel&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Request&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Endpoint&quot;</span> </div> <div><div html="&lt;p&gt;Type of node to retrieve&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Type of node to retrieve</p>
+</div></div></div></td></tr><tr class="last "><td kind="field" title="concise" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">concise</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">boolean</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Default:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">false</span></div> <div><div html="&lt;p&gt;Only include name and file in returned data&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Only include name and file in returned data</p>
+</div></div></div></td></tr></tbody></table></div><div><h3 class="sc-fRzchz ePsDFX">Responses</h3><div><button class="sc-jZkJda owcub"><svg class="sc-cXrvCr jSKTTR" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg><strong class="sc-dNrSaK eSFldv">200<!-- --> </strong><div html="&lt;p&gt;List of nodes&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>List of nodes</p>
+</div></button></div><div><button class="sc-jZkJda imrKRb" disabled=""><strong class="sc-dNrSaK eSFldv">500<!-- --> </strong><div html="&lt;p&gt;Internal Server Error&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Internal Server Error</p>
+</div></button></div></div></div><div class="sc-jgmqJh sc-gIIpAQ egscYh brdjDi"><div class="sc-dTdpwD ePBxvF"><button class="sc-ligLZB bgPLGr"><span type="get" class="sc-eeA-dwE hMeoaw http-verb get">get</span><span class="sc-ieSqsC ioopTP">/nodes</span><svg class="sc-cXrvCr dOdtJx" style="margin-right:-25px" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></button><div aria-hidden="true" class="sc-dMGIQz kCxvuD"><div class="sc-hYvJMy sxQGy"><div html="&lt;p&gt;Local development server&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Local development server</p>
+</div><div tabindex="0" role="button"><div class="sc-lbKftx iPVodL"><span>http://localhost:3000</span>/nodes</div></div></div></div></div><div><h3 class="sc-jOTjWM dhJZBt"> <!-- -->Response samples<!-- --> </h3><div class="sc-bwSFLc gTnidh" data-rttabs="true"><ul class="react-tabs__tab-list" role="tablist"><li class="tab-success react-tabs__tab--selected" role="tab" id="tab:R174q:0" aria-selected="true" aria-disabled="false" aria-controls="panel:R174q:0" tabindex="0" data-rttab="true">200</li></ul><div class="react-tabs__tab-panel react-tabs__tab-panel--selected" role="tabpanel" id="panel:R174q:0" aria-labelledby="tab:R174q:0"><div><div class="sc-brVvGI bVwklo"><span class="sc-fKfBHT gEDIwZ">Content type</span><div class="sc-buNqiq cnTPdi">application/json</div></div><div class="sc-eTAtz eQHTDF"><div class="sc-fowSIr gzsuAn"><div class="sc-ljIkKL jwxgAi"><button><div class="sc-fcNxSY kochun">Copy</div></button><button> Expand all </button><button> Collapse all </button></div><div class="sc-dZnbom ewwVxe sc-gozoIq hnBcqa"><div class="redoc-json"><code><button class="collapser" aria-label="collapse"></button><span class="token punctuation">[</span><span class="ellipsis"></span><ul class="array collapsible"><li><div class="hoverable "><button class="collapser" aria-label="collapse"></button><span class="token punctuation">{</span><span class="ellipsis"></span><ul class="obj collapsible"><li><div class="hoverable collapsed"><span class="property token string">"name"</span>: <span class="token string">&quot;string&quot;</span><span class="token punctuation">,</span></div></li><li><div class="hoverable collapsed"><span class="property token string">"file"</span>: <span class="token string">&quot;string&quot;</span><span class="token punctuation">,</span></div></li><li><div class="hoverable collapsed"><span class="property token string">"ref_id"</span>: <span class="token string">&quot;string&quot;</span></div></li></ul><span class="token punctuation">}</span></div></li></ul><span class="token punctuation">]</span></code></div></div></div></div></div></div></div></div></div></div></div><div id="/paths/~1map/get" data-section-id="/paths/~1map/get" class="sc-dOfePm eCkzqu"><div class="sc-kFkjun gyiXze"><div class="sc-glJfXD leUrRG"><h2 class="sc-jRLeyu kRxete"><a class="sc-jXuTBK jnKjlt" href="#/paths/~1map/get" aria-label="/paths/~1map/get"></a>/map<!-- --> </h2><div class="sc-bvlCfQ jpSYGt"><div html="&lt;p&gt;Get a visual tree representation of code relationships&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"><p>Get a visual tree representation of code relationships</p>
+</div></div><div class="sc-jrEFQG gXJBLn"><div class="sc-iwmfpJ hRGLdi"><h5 class="sc-cOPLXt sc-irCjQH cCiGzA iCkPsO">Authorizations:</h5><svg class="sc-cXrvCr iMgWAW" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></div><div class="sc-jwoBpI eerDod"><span class="sc-jlUQNq hcQhyb"><span class="sc-ilSuNr jPkEgw"><i>ApiKeyAuth</i></span></span></div></div><div><h5 class="sc-cOPLXt cCiGzA">query<!-- --> Parameters</h5><table class="sc-eagvWJ fahMGi"><tbody><tr class=""><td kind="field" title="node_type" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">node_type</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Enum<!-- -->:</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Page&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Function&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Class&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Trait&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Datamodel&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Request&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Endpoint&quot;</span> </div> <div><div html="&lt;p&gt;Type of node to start from&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Type of node to start from</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="name" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">name</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div> <div><span class="sc-cbFRR hQswnt"> <!-- -->Example:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">name=LeaderboardPage</span></div><div><div html="&lt;p&gt;Name of the node to start from&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Name of the node to start from</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="ref_id" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">ref_id</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div> <div><div html="&lt;p&gt;Reference ID of the node to start from (alternative to node_type+name)&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Reference ID of the node to start from (alternative to node_type+name)</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="tests" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">tests</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">boolean</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Default:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">true</span></div> <div><div html="&lt;p&gt;Include test files&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Include test files</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="depth" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">depth</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">integer</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Default:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">7</span></div> <div><div html="&lt;p&gt;Maximum depth of relationships to traverse&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Maximum depth of relationships to traverse</p>
+</div></div></div></td></tr><tr class="last "><td kind="field" title="direction" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">direction</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Default:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;down&quot;</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Enum<!-- -->:</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;up&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;down&quot;</span> </div> <div><div html="&lt;p&gt;Direction to traverse relationships&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Direction to traverse relationships</p>
+</div></div></div></td></tr></tbody></table></div><div><h3 class="sc-fRzchz ePsDFX">Responses</h3><div><button class="sc-jZkJda owcub"><svg class="sc-cXrvCr jSKTTR" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg><strong class="sc-dNrSaK eSFldv">200<!-- --> </strong><div html="&lt;p&gt;HTML representation of the code map&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>HTML representation of the code map</p>
+</div></button></div><div><button class="sc-jZkJda imrKRb" disabled=""><strong class="sc-dNrSaK eSFldv">500<!-- --> </strong><div html="&lt;p&gt;Internal Server Error&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Internal Server Error</p>
+</div></button></div></div></div><div class="sc-jgmqJh sc-gIIpAQ egscYh brdjDi"><div class="sc-dTdpwD ePBxvF"><button class="sc-ligLZB bgPLGr"><span type="get" class="sc-eeA-dwE hMeoaw http-verb get">get</span><span class="sc-ieSqsC ioopTP">/map</span><svg class="sc-cXrvCr dOdtJx" style="margin-right:-25px" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></button><div aria-hidden="true" class="sc-dMGIQz kCxvuD"><div class="sc-hYvJMy sxQGy"><div html="&lt;p&gt;Local development server&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Local development server</p>
+</div><div tabindex="0" role="button"><div class="sc-lbKftx iPVodL"><span>http://localhost:3000</span>/map</div></div></div></div></div></div></div></div><div id="/paths/~1code/get" data-section-id="/paths/~1code/get" class="sc-dOfePm eCkzqu"><div class="sc-kFkjun gyiXze"><div class="sc-glJfXD leUrRG"><h2 class="sc-jRLeyu kRxete"><a class="sc-jXuTBK jnKjlt" href="#/paths/~1code/get" aria-label="/paths/~1code/get"></a>/code<!-- --> </h2><div class="sc-bvlCfQ jpSYGt"><div html="&lt;p&gt;Get code snippets for a node and its relationships&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"><p>Get code snippets for a node and its relationships</p>
+</div></div><div class="sc-jrEFQG gXJBLn"><div class="sc-iwmfpJ hRGLdi"><h5 class="sc-cOPLXt sc-irCjQH cCiGzA iCkPsO">Authorizations:</h5><svg class="sc-cXrvCr iMgWAW" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></div><div class="sc-jwoBpI eerDod"><span class="sc-jlUQNq hcQhyb"><span class="sc-ilSuNr jPkEgw"><i>ApiKeyAuth</i></span></span></div></div><div><h5 class="sc-cOPLXt cCiGzA">query<!-- --> Parameters</h5><table class="sc-eagvWJ fahMGi"><tbody><tr class=""><td kind="field" title="node_type" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">node_type</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Enum<!-- -->:</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Page&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Function&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Class&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Trait&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Datamodel&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Request&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;Endpoint&quot;</span> </div> <div><div html="&lt;p&gt;Type of node to start from&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Type of node to start from</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="name" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">name</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div> <div><span class="sc-cbFRR hQswnt"> <!-- -->Example:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">name=TicketPage</span></div><div><div html="&lt;p&gt;Name of the node to start from&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Name of the node to start from</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="ref_id" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">ref_id</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div> <div><div html="&lt;p&gt;Reference ID of the node to start from (alternative to node_type+name)&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Reference ID of the node to start from (alternative to node_type+name)</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="tests" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">tests</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">boolean</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Default:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">true</span></div> <div><div html="&lt;p&gt;Include test files&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Include test files</p>
+</div></div></div></td></tr><tr class=""><td kind="field" title="depth" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">depth</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">integer</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Default:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">7</span></div> <div><div html="&lt;p&gt;Maximum depth of relationships to traverse&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Maximum depth of relationships to traverse</p>
+</div></div></div></td></tr><tr class="last "><td kind="field" title="direction" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">direction</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Default:<!-- --> </span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;down&quot;</span></div><div><span class="sc-cbFRR hQswnt"> <!-- -->Enum<!-- -->:</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;up&quot;</span> <span class="sc-cbFRR sc-chKWNQ hQswnt iZKBpI">&quot;down&quot;</span> </div> <div><div html="&lt;p&gt;Direction to traverse relationships&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Direction to traverse relationships</p>
+</div></div></div></td></tr></tbody></table></div><div><h3 class="sc-fRzchz ePsDFX">Responses</h3><div><button class="sc-jZkJda owcub"><svg class="sc-cXrvCr jSKTTR" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg><strong class="sc-dNrSaK eSFldv">200<!-- --> </strong><div html="&lt;p&gt;HTML representation of the code snippets&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>HTML representation of the code snippets</p>
+</div></button></div><div><button class="sc-jZkJda imrKRb" disabled=""><strong class="sc-dNrSaK eSFldv">500<!-- --> </strong><div html="&lt;p&gt;Internal Server Error&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Internal Server Error</p>
+</div></button></div></div></div><div class="sc-jgmqJh sc-gIIpAQ egscYh brdjDi"><div class="sc-dTdpwD ePBxvF"><button class="sc-ligLZB bgPLGr"><span type="get" class="sc-eeA-dwE hMeoaw http-verb get">get</span><span class="sc-ieSqsC ioopTP">/code</span><svg class="sc-cXrvCr dOdtJx" style="margin-right:-25px" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></button><div aria-hidden="true" class="sc-dMGIQz kCxvuD"><div class="sc-hYvJMy sxQGy"><div html="&lt;p&gt;Local development server&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Local development server</p>
+</div><div tabindex="0" role="button"><div class="sc-lbKftx iPVodL"><span>http://localhost:3000</span>/code</div></div></div></div></div></div></div></div><div id="/paths/~1shortest_path/get" data-section-id="/paths/~1shortest_path/get" class="sc-dOfePm eCkzqu"><div class="sc-kFkjun gyiXze"><div class="sc-glJfXD leUrRG"><h2 class="sc-jRLeyu kRxete"><a class="sc-jXuTBK jnKjlt" href="#/paths/~1shortest_path/get" aria-label="/paths/~1shortest_path/get"></a>/shortest_path<!-- --> </h2><div class="sc-bvlCfQ jpSYGt"><div html="&lt;p&gt;Find the shortest path between two nodes&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"><p>Find the shortest path between two nodes</p>
+</div></div><div class="sc-jrEFQG gXJBLn"><div class="sc-iwmfpJ hRGLdi"><h5 class="sc-cOPLXt sc-irCjQH cCiGzA iCkPsO">Authorizations:</h5><svg class="sc-cXrvCr iMgWAW" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></div><div class="sc-jwoBpI eerDod"><span class="sc-jlUQNq hcQhyb"><span class="sc-ilSuNr jPkEgw"><i>ApiKeyAuth</i></span></span></div></div><div><h5 class="sc-cOPLXt cCiGzA">query<!-- --> Parameters</h5><table class="sc-eagvWJ fahMGi"><tbody><tr class=""><td kind="field" title="start_node_key" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">start_node_key</span><div class="sc-cbFRR sc-hMWYck hQswnt cngCif">required</div></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div> <div><div html="&lt;p&gt;Key of the starting node&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Key of the starting node</p>
+</div></div></div></td></tr><tr class="last "><td kind="field" title="end_node_key" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">end_node_key</span><div class="sc-cbFRR sc-hMWYck hQswnt cngCif">required</div></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div> <div><div html="&lt;p&gt;Key of the ending node&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Key of the ending node</p>
+</div></div></div></td></tr></tbody></table></div><div><h3 class="sc-fRzchz ePsDFX">Responses</h3><div><button class="sc-jZkJda owcub"><svg class="sc-cXrvCr jSKTTR" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg><strong class="sc-dNrSaK eSFldv">200<!-- --> </strong><div html="&lt;p&gt;HTML representation of the code snippets along the path&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>HTML representation of the code snippets along the path</p>
+</div></button></div><div><button class="sc-jZkJda imrKRb" disabled=""><strong class="sc-dNrSaK eSFldv">500<!-- --> </strong><div html="&lt;p&gt;Internal Server Error&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Internal Server Error</p>
+</div></button></div></div></div><div class="sc-jgmqJh sc-gIIpAQ egscYh brdjDi"><div class="sc-dTdpwD ePBxvF"><button class="sc-ligLZB bgPLGr"><span type="get" class="sc-eeA-dwE hMeoaw http-verb get">get</span><span class="sc-ieSqsC ioopTP">/shortest_path</span><svg class="sc-cXrvCr dOdtJx" style="margin-right:-25px" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></button><div aria-hidden="true" class="sc-dMGIQz kCxvuD"><div class="sc-hYvJMy sxQGy"><div html="&lt;p&gt;Local development server&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Local development server</p>
+</div><div tabindex="0" role="button"><div class="sc-lbKftx iPVodL"><span>http://localhost:3000</span>/shortest_path</div></div></div></div></div></div></div></div><div id="/paths/~1upload/post" data-section-id="/paths/~1upload/post" class="sc-dOfePm eCkzqu"><div class="sc-kFkjun gyiXze"><div class="sc-glJfXD leUrRG"><h2 class="sc-jRLeyu kRxete"><a class="sc-jXuTBK jnKjlt" href="#/paths/~1upload/post" aria-label="/paths/~1upload/post"></a>/upload<!-- --> </h2><div class="sc-bvlCfQ jpSYGt"><div html="&lt;p&gt;Upload files for processing&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"><p>Upload files for processing</p>
+</div></div><div class="sc-jrEFQG gXJBLn"><div class="sc-iwmfpJ hRGLdi"><h5 class="sc-cOPLXt sc-irCjQH cCiGzA iCkPsO">Authorizations:</h5><svg class="sc-cXrvCr iMgWAW" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></div><div class="sc-jwoBpI eerDod"><span class="sc-jlUQNq hcQhyb"><span class="sc-ilSuNr jPkEgw"><i>ApiKeyAuth</i></span></span></div></div><h5 class="sc-cOPLXt cCiGzA">Request Body schema: <span class="sc-dSrrqH bFzZBc">multipart/form-data</span></h5><div html="" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"></div><table class="sc-eagvWJ fahMGi"><tbody><tr class="last "><td kind="field" title="files" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">files</span></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL">Array of </span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">strings</span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU"> <!-- -->&lt;<!-- -->binary<!-- -->&gt;<!-- --> </span><span class="sc-cbFRR sc-cQSRAa sc-jZAjew hQswnt fowkLL fTWpQj">[ items<span class="sc-cbFRR sc-hglcZD hQswnt kmboKU"> &lt;<!-- -->binary<!-- --> &gt;</span> ]</span></div> <div><div html="" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"></div></div></div></td></tr></tbody></table><div><h3 class="sc-fRzchz ePsDFX">Responses</h3><div><button class="sc-jZkJda owcub"><svg class="sc-cXrvCr jSKTTR" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg><strong class="sc-dNrSaK eSFldv">200<!-- --> </strong><div html="&lt;p&gt;Upload status&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Upload status</p>
+</div></button></div><div><button class="sc-jZkJda imrKRb" disabled=""><strong class="sc-dNrSaK eSFldv">500<!-- --> </strong><div html="&lt;p&gt;Internal Server Error&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Internal Server Error</p>
+</div></button></div></div></div><div class="sc-jgmqJh sc-gIIpAQ egscYh brdjDi"><div class="sc-dTdpwD ePBxvF"><button class="sc-ligLZB bgPLGr"><span type="post" class="sc-eeA-dwE kXyRAC http-verb post">post</span><span class="sc-ieSqsC ioopTP">/upload</span><svg class="sc-cXrvCr dOdtJx" style="margin-right:-25px" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></button><div aria-hidden="true" class="sc-dMGIQz kCxvuD"><div class="sc-hYvJMy sxQGy"><div html="&lt;p&gt;Local development server&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Local development server</p>
+</div><div tabindex="0" role="button"><div class="sc-lbKftx iPVodL"><span>http://localhost:3000</span>/upload</div></div></div></div></div><div><h3 class="sc-jOTjWM dhJZBt"> <!-- -->Response samples<!-- --> </h3><div class="sc-bwSFLc gTnidh" data-rttabs="true"><ul class="react-tabs__tab-list" role="tablist"><li class="tab-success react-tabs__tab--selected" role="tab" id="tab:R176q:0" aria-selected="true" aria-disabled="false" aria-controls="panel:R176q:0" tabindex="0" data-rttab="true">200</li></ul><div class="react-tabs__tab-panel react-tabs__tab-panel--selected" role="tabpanel" id="panel:R176q:0" aria-labelledby="tab:R176q:0"><div><div class="sc-brVvGI bVwklo"><span class="sc-fKfBHT gEDIwZ">Content type</span><div class="sc-buNqiq cnTPdi">application/json</div></div><div class="sc-eTAtz eQHTDF"><div class="sc-fowSIr gzsuAn"><div class="sc-ljIkKL jwxgAi"><button><div class="sc-fcNxSY kochun">Copy</div></button></div><div class="sc-dZnbom ewwVxe sc-gozoIq hnBcqa"><div class="redoc-json"><code><button class="collapser" aria-label="collapse"></button><span class="token punctuation">{</span><span class="ellipsis"></span><ul class="obj collapsible"><li><div class="hoverable "><span class="property token string">"requestId"</span>: <span class="token string">&quot;string&quot;</span><span class="token punctuation">,</span></div></li><li><div class="hoverable "><span class="property token string">"status"</span>: <span class="token string">&quot;string&quot;</span></div></li></ul><span class="token punctuation">}</span></code></div></div></div></div></div></div></div></div></div></div></div><div id="/paths/~1status~1{requestId}/get" data-section-id="/paths/~1status~1{requestId}/get" class="sc-dOfePm eCkzqu"><div class="sc-kFkjun gyiXze"><div class="sc-glJfXD leUrRG"><h2 class="sc-jRLeyu kRxete"><a class="sc-jXuTBK jnKjlt" href="#/paths/~1status~1{requestId}/get" aria-label="/paths/~1status~1{requestId}/get"></a>/status/{requestId}<!-- --> </h2><div class="sc-bvlCfQ jpSYGt"><div html="&lt;p&gt;Check the status of an upload request&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe kiTOLP"><p>Check the status of an upload request</p>
+</div></div><div class="sc-jrEFQG gXJBLn"><div class="sc-iwmfpJ hRGLdi"><h5 class="sc-cOPLXt sc-irCjQH cCiGzA iCkPsO">Authorizations:</h5><svg class="sc-cXrvCr iMgWAW" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></div><div class="sc-jwoBpI eerDod"><span class="sc-jlUQNq hcQhyb"><span class="sc-ilSuNr jPkEgw"><i>ApiKeyAuth</i></span></span></div></div><div><h5 class="sc-cOPLXt cCiGzA">path<!-- --> Parameters</h5><table class="sc-eagvWJ fahMGi"><tbody><tr class="last "><td kind="field" title="requestId" class="sc-lnQFQe sc-dUwGTt rDKIb dRrKge"><span class="sc-gKcHA-D ibYoJt"></span><span class="property-name">requestId</span><div class="sc-cbFRR sc-hMWYck hQswnt cngCif">required</div></td><td class="sc-eUzcTs fjmjSR"><div><div><span class="sc-cbFRR sc-cQSRAa hQswnt fowkLL"></span><span class="sc-cbFRR sc-hglcZD hQswnt kmboKU">string</span></div> <div><div html="&lt;p&gt;ID of the upload request&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>ID of the upload request</p>
+</div></div></div></td></tr></tbody></table></div><div><h3 class="sc-fRzchz ePsDFX">Responses</h3><div><button class="sc-jZkJda owcub"><svg class="sc-cXrvCr jSKTTR" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg><strong class="sc-dNrSaK eSFldv">200<!-- --> </strong><div html="&lt;p&gt;Status of the upload request&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Status of the upload request</p>
+</div></button></div><div><button class="sc-jZkJda imrKRb" disabled=""><strong class="sc-dNrSaK eSFldv">500<!-- --> </strong><div html="&lt;p&gt;Internal Server Error&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG sc-ecLbSZ ewwVxe jZPdSZ dcgeal"><p>Internal Server Error</p>
+</div></button></div></div></div><div class="sc-jgmqJh sc-gIIpAQ egscYh brdjDi"><div class="sc-dTdpwD ePBxvF"><button class="sc-ligLZB bgPLGr"><span type="get" class="sc-eeA-dwE hMeoaw http-verb get">get</span><span class="sc-ieSqsC ioopTP">/status/{requestId}</span><svg class="sc-cXrvCr dOdtJx" style="margin-right:-25px" version="1.1" viewBox="0 0 24 24" x="0" xmlns="http://www.w3.org/2000/svg" y="0" aria-hidden="true"><polygon points="17.3 8.3 12 13.6 6.7 8.3 5.3 9.7 12 16.4 18.7 9.7 "></polygon></svg></button><div aria-hidden="true" class="sc-dMGIQz kCxvuD"><div class="sc-hYvJMy sxQGy"><div html="&lt;p&gt;Local development server&lt;/p&gt;
+" class="sc-dZnbom sc-eStNqG ewwVxe gxENBN"><p>Local development server</p>
+</div><div tabindex="0" role="button"><div class="sc-lbKftx iPVodL"><span>http://localhost:3000</span>/status/{requestId}</div></div></div></div></div><div><h3 class="sc-jOTjWM dhJZBt"> <!-- -->Response samples<!-- --> </h3><div class="sc-bwSFLc gTnidh" data-rttabs="true"><ul class="react-tabs__tab-list" role="tablist"><li class="tab-success react-tabs__tab--selected" role="tab" id="tab:R177a:0" aria-selected="true" aria-disabled="false" aria-controls="panel:R177a:0" tabindex="0" data-rttab="true">200</li></ul><div class="react-tabs__tab-panel react-tabs__tab-panel--selected" role="tabpanel" id="panel:R177a:0" aria-labelledby="tab:R177a:0"><div><div class="sc-brVvGI bVwklo"><span class="sc-fKfBHT gEDIwZ">Content type</span><div class="sc-buNqiq cnTPdi">application/json</div></div><div class="sc-eTAtz eQHTDF"><div class="sc-fowSIr gzsuAn"><div class="sc-ljIkKL jwxgAi"><button><div class="sc-fcNxSY kochun">Copy</div></button></div><div class="sc-dZnbom ewwVxe sc-gozoIq hnBcqa"><div class="redoc-json"><code><button class="collapser" aria-label="collapse"></button><span class="token punctuation">{</span><span class="ellipsis"></span><ul class="obj collapsible"><li><div class="hoverable "><span class="property token string">"requestId"</span>: <span class="token string">&quot;string&quot;</span><span class="token punctuation">,</span></div></li><li><div class="hoverable "><span class="property token string">"status"</span>: <span class="token string">&quot;string&quot;</span><span class="token punctuation">,</span></div></li><li><div class="hoverable "><span class="property token string">"progress"</span>: <span class="token number">0</span><span class="token punctuation">,</span></div></li><li><div class="hoverable "><span class="property token string">"message"</span>: <span class="token string">&quot;string&quot;</span></div></li></ul><span class="token punctuation">}</span></code></div></div></div></div></div></div></div></div></div></div></div></div><div class="sc-dJOOoR dKumiZ"></div></div></div>
+      <script>
+      const __redoc_state = {"menu":{"activeItemIdx":-1},"spec":{"data":{"openapi":"3.0.0","info":{"title":"Repo2Graph API","description":"API for navigating code repository graph data","version":"1.0.0"},"servers":[{"url":"http://localhost:3000","description":"Local development server"}],"paths":{"/nodes":{"get":{"summary":"/nodes","description":"Get nodes by type","parameters":[{"name":"node_type","in":"query","required":true,"description":"Type of node to retrieve","schema":{"type":"string","enum":["Page","Function","Class","Trait","Datamodel","Request","Endpoint"]}},{"name":"concise","in":"query","required":false,"description":"Only include name and file in returned data","schema":{"type":"boolean","default":false}}],"responses":{"200":{"description":"List of nodes","content":{"application/json":{"schema":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"file":{"type":"string"},"ref_id":{"type":"string"}}}}}}},"500":{"description":"Internal Server Error"}},"security":[{"ApiKeyAuth":[]}]}},"/map":{"get":{"summary":"/map","description":"Get a visual tree representation of code relationships","parameters":[{"name":"node_type","in":"query","required":false,"description":"Type of node to start from","schema":{"type":"string","enum":["Page","Function","Class","Trait","Datamodel","Request","Endpoint"]}},{"name":"name","in":"query","required":false,"description":"Name of the node to start from","schema":{"type":"string","example":"LeaderboardPage"}},{"name":"ref_id","in":"query","required":false,"description":"Reference ID of the node to start from (alternative to node_type+name)","schema":{"type":"string"}},{"name":"tests","in":"query","required":false,"description":"Include test files","schema":{"type":"boolean","default":true}},{"name":"depth","in":"query","required":false,"description":"Maximum depth of relationships to traverse","schema":{"type":"integer","default":7}},{"name":"direction","in":"query","required":false,"description":"Direction to traverse relationships","schema":{"type":"string","enum":["up","down"],"default":"down"}}],"responses":{"200":{"description":"HTML representation of the code map","content":{"text/html":{"schema":{"type":"string"}}}},"500":{"description":"Internal Server Error"}},"security":[{"ApiKeyAuth":[]}]}},"/code":{"get":{"summary":"/code","description":"Get code snippets for a node and its relationships","parameters":[{"name":"node_type","in":"query","required":false,"description":"Type of node to start from","schema":{"type":"string","enum":["Page","Function","Class","Trait","Datamodel","Request","Endpoint"]}},{"name":"name","in":"query","required":false,"description":"Name of the node to start from","schema":{"type":"string","example":"TicketPage"}},{"name":"ref_id","in":"query","required":false,"description":"Reference ID of the node to start from (alternative to node_type+name)","schema":{"type":"string"}},{"name":"tests","in":"query","required":false,"description":"Include test files","schema":{"type":"boolean","default":true}},{"name":"depth","in":"query","required":false,"description":"Maximum depth of relationships to traverse","schema":{"type":"integer","default":7}},{"name":"direction","in":"query","required":false,"description":"Direction to traverse relationships","schema":{"type":"string","enum":["up","down"],"default":"down"}}],"responses":{"200":{"description":"HTML representation of the code snippets","content":{"text/html":{"schema":{"type":"string"}}}},"500":{"description":"Internal Server Error"}},"security":[{"ApiKeyAuth":[]}]}},"/shortest_path":{"get":{"summary":"/shortest_path","description":"Find the shortest path between two nodes","parameters":[{"name":"start_node_key","in":"query","required":true,"description":"Key of the starting node","schema":{"type":"string"}},{"name":"end_node_key","in":"query","required":true,"description":"Key of the ending node","schema":{"type":"string"}}],"responses":{"200":{"description":"HTML representation of the code snippets along the path","content":{"text/html":{"schema":{"type":"string"}}}},"500":{"description":"Internal Server Error"}},"security":[{"ApiKeyAuth":[]}]}},"/upload":{"post":{"summary":"/upload","description":"Upload files for processing","requestBody":{"content":{"multipart/form-data":{"schema":{"type":"object","properties":{"files":{"type":"array","items":{"type":"string","format":"binary"}}}}}}},"responses":{"200":{"description":"Upload status","content":{"application/json":{"schema":{"type":"object","properties":{"requestId":{"type":"string"},"status":{"type":"string"}}}}}},"500":{"description":"Internal Server Error"}},"security":[{"ApiKeyAuth":[]}]}},"/status/{requestId}":{"get":{"summary":"/status/{requestId}","description":"Check the status of an upload request","parameters":[{"name":"requestId","in":"path","required":true,"description":"ID of the upload request","schema":{"type":"string"}}],"responses":{"200":{"description":"Status of the upload request","content":{"application/json":{"schema":{"type":"object","properties":{"requestId":{"type":"string"},"status":{"type":"string"},"progress":{"type":"number"},"message":{"type":"string"}}}}}},"500":{"description":"Internal Server Error"}},"security":[{"ApiKeyAuth":[]}]}}},"components":{"securitySchemes":{"ApiKeyAuth":{"type":"apiKey","in":"header","name":"x-api-token"}}}}},"searchIndex":{"store":["/paths/~1nodes/get","/paths/~1map/get","/paths/~1code/get","/paths/~1shortest_path/get","/paths/~1upload/post","/paths/~1status~1{requestId}/get"],"index":{"version":"2.3.9","fields":["title","description"],"fieldVectors":[["title/0",[0,0.442]],["description/0",[0,0.685,1,1.842]],["title/1",[2,1.03]],["description/1",[2,0.952,3,1.424,4,1.424,5,1.424,6,0.641,7,0.952]],["title/2",[6,0.693]],["description/2",[0,0.442,6,0.953,7,1.03,8,1.54]],["title/3",[9,1.03]],["description/3",[0,0.38,9,0.885,10,1.324,11,1.324,12,1.324,13,1.324,14,1.324]],["title/4",[15,0.693]],["description/4",[15,1.01,16,1.678,17,1.678]],["title/5",[18,1.03]],["description/5",[15,0.693,18,1.03,19,1.54,20,1.54,21,1.54]]],"invertedIndex":[["between",{"_index":13,"title":{},"description":{"3":{}}}],["check",{"_index":19,"title":{},"description":{"5":{}}}],["code",{"_index":6,"title":{"2":{}},"description":{"1":{},"2":{}}}],["file",{"_index":16,"title":{},"description":{"4":{}}}],["find",{"_index":10,"title":{},"description":{"3":{}}}],["map",{"_index":2,"title":{"1":{}},"description":{"1":{}}}],["node",{"_index":0,"title":{"0":{}},"description":{"0":{},"2":{},"3":{}}}],["path",{"_index":12,"title":{},"description":{"3":{}}}],["process",{"_index":17,"title":{},"description":{"4":{}}}],["relationship",{"_index":7,"title":{},"description":{"1":{},"2":{}}}],["represent",{"_index":5,"title":{},"description":{"1":{}}}],["request",{"_index":21,"title":{},"description":{"5":{}}}],["shortest",{"_index":11,"title":{},"description":{"3":{}}}],["shortest_path",{"_index":9,"title":{"3":{}},"description":{"3":{}}}],["snippet",{"_index":8,"title":{},"description":{"2":{}}}],["statu",{"_index":20,"title":{},"description":{"5":{}}}],["status/{requestid",{"_index":18,"title":{"5":{}},"description":{"5":{}}}],["tree",{"_index":4,"title":{},"description":{"1":{}}}],["two",{"_index":14,"title":{},"description":{"3":{}}}],["type",{"_index":1,"title":{},"description":{"0":{}}}],["upload",{"_index":15,"title":{"4":{}},"description":{"4":{},"5":{}}}],["visual",{"_index":3,"title":{},"description":{"1":{}}}]],"pipeline":[]}},"options":{}};
+
+      var container = document.getElementById('redoc');
+      Redoc.hydrate(__redoc_state, container);
+
+      </script>
+</body>
+
+</html>
