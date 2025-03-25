@@ -13,11 +13,12 @@ export function rightLabel(node: Neo4jNode): string {
 
 export function toReturnNode(node: Neo4jNode): ReturnNode {
   const properties = node.properties;
+  const ref_id = properties.ref_id || "";
   delete properties.ref_id;
   delete properties.text_embeddings;
   return {
     node_type: rightLabel(node) as NodeType,
-    ref_id: node.properties.ref_id || "",
+    ref_id,
     properties,
   };
 }
@@ -38,8 +39,12 @@ export function getNodeLabel(node: any, tokenizer?: TikTokenizer) {
   const props = node.properties;
   let name = props.name;
   if (tokenizer) {
-    const tokens = tokenizer.encode(props.body, []);
-    name = `${name} (${tokens.length})`;
+    if (props.body) {
+      const tokens = tokenizer.encode(props.body, []);
+      name = `${name} (${tokens.length})`;
+    } else {
+      name = `${name} (0)`;
+    }
   }
   if (props.verb) {
     return `${label}: ${props.verb} ${name}`;

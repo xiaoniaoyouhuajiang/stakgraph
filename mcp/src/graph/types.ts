@@ -6,6 +6,7 @@ export interface Node {
 export interface Neo4jNode {
   properties: NodeData;
   labels: string[];
+  ref_id?: string;
   score?: number;
 }
 
