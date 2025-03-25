@@ -98,23 +98,49 @@ impl Repo {
         })
     }
     pub async fn new_clone_multi_detect(
-        url: &str,
+        urls: &str,
         username: Option<String>,
         pat: Option<String>,
         files_filter: Vec<String>,
         revs: Vec<String>,
     ) -> Result<Repos> {
-        let gurl = GitUrl::parse(url)?;
-        let root = format!("/tmp/{}", gurl.fullname);
-        println!("Cloning to {:?}...", &root);
-        fs::remove_dir_all(&root).ok();
-        clone_repo(url, &root, username, pat).await?;
-        // if let Some(new_files) = check_revs(&root, revs) {
-        //     info!("new files: {:?}", new_files);
-        //     files_filter = new_files;
-        // }
-        let repos = Self::new_multi_detect(&root, Some(url.into()), files_filter, revs).await?;
-        Ok(repos)
+        let urls = urls
+            .split(',')
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        // Validate revs count - it should be empty or a multiple of urls count
+        if !revs.is_empty() && revs.len() % urls.len() != 0 {
+            return Err(anyhow::anyhow!(
+                "Number of revisions ({}) must be a multiple of the number of repositories ({})",
+                revs.len(),
+                urls.len()
+            ));
+        }
+        // Calculate how many revs per repo
+        let revs_per_repo = if revs.is_empty() {
+            0
+        } else {
+            revs.len() / urls.len()
+        };
+        let mut repos: Vec<Repo> = Vec::new();
+        for (i, url) in urls.iter().enumerate() {
+            let gurl = GitUrl::parse(url)?;
+            let root = format!("/tmp/{}", gurl.fullname);
+            println!("Cloning to {:?}...", &root);
+            fs::remove_dir_all(&root).ok();
+            clone_repo(url, &root, username.clone(), pat.clone()).await?;
+            // Extract the revs for this specific repository
+            let repo_revs = if revs_per_repo > 0 {
+                revs[i * revs_per_repo..(i + 1) * revs_per_repo].to_vec()
+            } else {
+                Vec::new()
+            };
+            let detected =
+                Self::new_multi_detect(&root, Some(url.clone()), files_filter.clone(), repo_revs)
+                    .await?;
+            repos.extend(detected.0);
+        }
+        Ok(Repos(repos))
     }
     pub async fn new_multi_detect(
         root: &str,
