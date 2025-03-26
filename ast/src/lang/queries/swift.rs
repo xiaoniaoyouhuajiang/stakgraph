@@ -1,4 +1,3 @@
-
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
@@ -13,24 +12,15 @@ impl Swift {
 }
 
 impl Stack for Swift {
-    fn q(&self, q: &str, nt: &NodeType) -> Query {
-        if matches!(nt, NodeType::Library) {
-            Query::new(&tree_sitter_swift::LANGUAGE.into(), q).unwrap()
-        } else {
-            Query::new(&self.0, q).unwrap()
-        }
+    fn q(&self, q: &str, _nt: &NodeType) -> Query {
+        Query::new(&self.0, q).unwrap()
     }
-
-    fn parse(&self, code: &str, nt: &NodeType) -> Result<Tree> {
+    fn parse(&self, code: &str, _nt: &NodeType) -> Result<Tree> {
         let mut parser = Parser::new();
-        if matches!(nt, NodeType::Library) {
-            parser.set_language(&tree_sitter_swift::LANGUAGE.into())?;
-        } else {
-            parser.set_language(&self.0)?;
-        }
+
+        parser.set_language(&self.0)?;
         Ok(parser.parse(code, None).context("failed to parse")?)
     }
-
 
     fn imports_query(&self) -> Option<String> {
         Some(format!(
@@ -42,8 +32,6 @@ impl Stack for Swift {
         ))
     }
 
-
-
     fn class_definition_query(&self) -> String {
         format!(
             r#"
@@ -54,29 +42,25 @@ impl Stack for Swift {
         )
     }
 
-
     fn function_definition_query(&self) -> String {
-    format!(
-        r#"
+        format!(
+            r#"
         (function_declaration
             (simple_identifier) @{FUNCTION_NAME}
         ) @{FUNCTION_DEFINITION}
         "#
-    )
-}
-
-
+        )
+    }
 
     fn function_call_query(&self) -> String {
         format!(
             r#"
             (call_expression
-                 (simple_identifier) @method_name @{ARGUMENTS}
-            ) @FUNCTION_CALL
+                 (simple_identifier) @{ARGUMENTS}
+            ) @{FUNCTION_CALL}
             "#
         )
-        }
-
+    }
 
     fn find_function_parent(
         &self,
@@ -89,7 +73,6 @@ impl Stack for Swift {
     ) -> Result<Option<Operand>> {
         let mut parent = node.parent();
         while parent.is_some() {
-
             if parent.unwrap().kind().to_string() == "class_declaration" {
                 // found it!
                 break;
@@ -98,7 +81,7 @@ impl Stack for Swift {
         }
         let parent_of = match parent {
             Some(p) => {
-                let query = self.q("(type_identifier) @class_name", &NodeType::Class);
+                let query = self.q("(type_identifier) @class-name", &NodeType::Class);
                 match query_to_ident(query, p, code)? {
                     Some(parent_name) => Some(Operand {
                         source: NodeKeys::new(&parent_name, file),
@@ -112,21 +95,33 @@ impl Stack for Swift {
         Ok(parent_of)
     }
 
-
-    fn endpoint_finders(&self) -> Vec<String> {
-        vec![
-            format!(
-                r#"
-                (statements
-                (call_expression
-                    (simple_identifier) @{REQUEST_CALL}
-                )) @{ROUTE}
-                "#
-            ),
-        ]
+    fn request_finder(&self) -> Option<String> {
+        Some(format!(
+            r#"
+        (call_expression
+            (simple_identifier) @{REQUEST_CALL} (#match? @{REQUEST_CALL} "^createRequest$")
+           
+        ) @{ROUTE}
+        "#
+        ))
     }
+    fn add_endpoint_verb(&self, inst: &mut NodeData, _call: &Option<String>) {
+        if inst.meta.get("verb").is_none() {
+            if inst.body.contains("method: \"GET\"") || inst.body.contains("bodyParams: nil") {
+                inst.add_verb("GET");
+            } else if inst.body.contains("method: \"POST\"") {
+                inst.add_verb("POST");
+            } else if inst.body.contains("method: \"PUT\"") {
+                inst.add_verb("PUT");
+            } else if inst.body.contains("method: \"DELETE\"") {
+                inst.add_verb("DELETE");
+            }
 
-
+            if inst.meta.get("verb").is_none() {
+                inst.add_verb("GET"); // Default
+            }
+        }
+    }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
@@ -137,8 +132,6 @@ impl Stack for Swift {
             "#
         ))
     }
-
-
 
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(

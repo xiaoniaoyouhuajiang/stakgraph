@@ -1,4 +1,3 @@
-
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
@@ -13,21 +12,14 @@ impl Kotlin {
 }
 
 impl Stack for Kotlin {
-    fn q(&self, q: &str, nt: &NodeType) -> Query {
-        if matches!(nt, NodeType::Library) {
-            Query::new(&tree_sitter_kotlin_sg::LANGUAGE.into(), q).unwrap()
-        } else {
-            Query::new(&self.0, q).unwrap()
-        }
+    fn q(&self, q: &str, _nt: &NodeType) -> Query {
+        Query::new(&self.0, q).unwrap()
     }
 
-    fn parse(&self, code: &str, nt: &NodeType) -> Result<Tree> {
+    fn parse(&self, code: &str, _nt: &NodeType) -> Result<Tree> {
         let mut parser = Parser::new();
-        if matches!(nt, NodeType::Library) {
-            parser.set_language(&tree_sitter_kotlin_sg::LANGUAGE.into())?;
-        } else {
-            parser.set_language(&self.0)?;
-        }
+        parser.set_language(&self.0)?;
+
         Ok(parser.parse(code, None).context("failed to parse")?)
     }
 
@@ -41,19 +33,26 @@ impl Stack for Kotlin {
             "#
         ))
     }
-
-
     fn imports_query(&self) -> Option<String> {
         Some(format!(
-            "(identifier) @{IMPORTS}"
+            r#"
+                (package_header
+                    (identifier) @{IMPORTS}
+                )
+                (import_header
+                    (identifier) @{IMPORTS}
+                )
+            "#
         ))
     }
 
     fn class_definition_query(&self) -> String {
         format!(
-            "(class_declaration
-                (type_identifier) @{CLASS_NAME}
-            ) @{CLASS_DEFINITION}"
+            r#"
+        (class_body
+                (simple_identifier) @{CLASS_NAME}
+        ) @{CLASS_DEFINITION}
+        "#
         )
     }
 
@@ -86,8 +85,8 @@ impl Stack for Kotlin {
     }
 
     fn function_call_query(&self) -> String {
-    format!(
-        r#"
+        format!(
+            r#"
         (call_expression
             (identifier) @method_name
                 (value_arguments
@@ -130,9 +129,8 @@ impl Stack for Kotlin {
             body: (block) @BODY
         )
         "#
-    )
+        )
     }
-
 
     fn find_function_parent(
         &self,
@@ -163,27 +161,26 @@ impl Stack for Kotlin {
         Ok(parent_of)
     }
 
-
     fn endpoint_finders(&self) -> Vec<String> {
-        vec![
-            format!(
-                r#"(function_declaration
-                    (simple_identifier) @method_name
-                    (#match? @method_name "set|get|post|put|delete")
+        vec![format!(
+            r#"(function_declaration
+                    (simple_identifier) @{REQUEST_CALL}
+                    (#match? @{REQUEST_CALL} "set|get|post|put|delete")
                 )"#
-            ),
-        ]
+        )]
     }
-
 
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
-            "(class_declaration
-                (type_identifier) @{STRUCT_NAME}
+            "(class_body
+	            (property_declaration
+		            (variable_declaration
+			            (simple_identifier) @{STRUCT_NAME}
+                    )
+                )
             ) @{STRUCT}"
         ))
     }
-
 
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(

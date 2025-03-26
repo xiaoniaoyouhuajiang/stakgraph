@@ -29,7 +29,7 @@ async fn run_server_tests() {
 
 #[test(tokio::test)]
 async fn run_client_tests() {
-    let implemented_clients = ["react"];
+    let implemented_clients = ["kotlin"];
     for server in implemented_clients.iter() {
         let repo = Some(server.to_string());
         let language = Lang::from_language(Language::from_str(server).unwrap());

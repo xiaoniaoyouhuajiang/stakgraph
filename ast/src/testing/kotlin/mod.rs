@@ -16,8 +16,8 @@ async fn test_kotlin() {
 
     let graph = repo.build_graph().await.unwrap();
 
-    assert_eq!(graph.nodes.len(), 132);
-    assert_eq!(graph.edges.len(), 131);
+    assert_eq!(graph.nodes.len(), 134);
+    assert_eq!(graph.edges.len(), 133);
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -61,9 +61,14 @@ async fn test_kotlin() {
         .iter()
         .filter(|n| matches!(n, Node::Class(_)))
         .collect::<Vec<_>>();
-    assert_eq!(classes.len(), 6);
+    assert_eq!(classes.len(), 7);
 
     classes.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
+
+    //TODO: Remove debug print
+    for c in &classes {
+        println!("Classes{:?}\n\n", c);
+    }
 
     let example_class = classes[1].into_data();
     assert_eq!(example_class.name, "ExampleInstrumentedTest");
@@ -78,6 +83,14 @@ async fn test_kotlin() {
         .filter(|n| matches!(n, Node::Function(_)))
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 0);
+
+    let data_models = graph
+        .nodes
+        .iter()
+        .filter(|n| matches!(n, Node::DataModel(_)))
+        .collect::<Vec<_>>();
+    println!("{:?}", data_models);
+    assert_eq!(data_models.len(), 1);
 
     // Example assertion for a specific function
 
