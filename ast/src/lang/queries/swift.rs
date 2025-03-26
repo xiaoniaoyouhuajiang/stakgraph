@@ -100,7 +100,6 @@ impl Stack for Swift {
             r#"
         (call_expression
             (simple_identifier) @{REQUEST_CALL} (#match? @{REQUEST_CALL} "^createRequest$")
-           
         ) @{ROUTE}
         "#
         ))
@@ -121,30 +120,52 @@ impl Stack for Swift {
                 inst.add_verb("GET"); // Default
             }
         }
+        if inst.name.is_empty() {
+            let url_start = inst.body.find("url:");
+            if let Some(start_pos) = url_start {
+                if let Some(quote_start) = inst.body[start_pos..].find("\"") {
+                    let start_idx = start_pos + quote_start + 1;
+                    if let Some(quote_end) = inst.body[start_idx..].find("\"") {
+                        let url_section = &inst.body[start_idx..start_idx + quote_end];
+                        if let Some(path_start) = url_section.rfind("/") {
+                            let path = &url_section[path_start..];
+                            if !path.is_empty() {
+                                inst.name = path.to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
-            (statements
             (class_declaration
-                name: (type_identifier) @{STRUCT_NAME}
-            )) @{STRUCT}
+                  ;;[(attribute
+                   ;; type: (type_identifier) @attr (#match? @attr "^objc$")
+                    ;;name: [(identifier) @{STRUCT_NAME}]
+                ;;)]
+                
+                (type_identifier) @{STRUCT_NAME} (#eq? @{STRUCT_NAME} "Person")
+                
+            ) @{STRUCT}
             "#
         ))
     }
 
-    fn data_model_within_query(&self) -> Option<String> {
-        Some(format!(
-            r#"
-            [
-                    (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-                (call_expression
-                     (simple_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-                )
-            ]
-            "#
-        ))
-    }
+    // fn data_model_within_query(&self) -> Option<String> {
+    //     Some(format!(
+    //         r#"
+    //         [
+    //                 (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+    //             (call_expression
+    //                  (simple_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+    //             )
+    //         ]
+    //         "#
+    //     ))
+    // }
 
     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
         func_name.starts_with("test")
