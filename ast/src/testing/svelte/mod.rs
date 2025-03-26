@@ -20,8 +20,18 @@ async fn test_svelte() {
 
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 37);
-    assert_eq!(graph.edges.len(), 36);
+    debug!("Logging all nodes:");
+  for node in &graph.nodes {
+      debug!("Node: {:?}", node);
+  }
+
+  // Log all edges
+  debug!("Logging all edges:");
+  for edge in &graph.edges {
+      debug!("Edge: {:?}", edge);
+  }
+    assert_eq!(graph.nodes.len(), 12);
+    assert_eq!(graph.edges.len(), 11);
 
     let languages = graph
         .nodes
@@ -56,19 +66,19 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::Class(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(classes.len(), 6);
+    assert_eq!(classes.len(), 0);
 
-    let class = classes[0].into_data();
-    assert_eq!(class.name, "<script>");
 
     let functions = graph
         .nodes
         .iter()
         .filter(|n| matches!(n, Node::Function(_)))
         .collect::<Vec<_>>();
-    assert_eq!(functions.len(), 22);
+    assert_eq!(functions.len(), 3);
     let func = functions[0].into_data();
-    assert_eq!(func.name, "");
+    assert_eq!(func.body, "{handleFileUpload}");
+
+
     let data_models = graph
         .nodes
         .iter()
@@ -85,5 +95,5 @@ async fn test_svelte() {
     let request = totalRequests[0].into_data();
     assert_eq!(request.name, "/Svelte");
 
-    assert_eq!(totalRequests.len(), 37, "wrong endpoint count");
+    assert_eq!(totalRequests.len(), 12, "wrong endpoint count");
 }

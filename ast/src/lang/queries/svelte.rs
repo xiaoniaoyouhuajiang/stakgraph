@@ -47,22 +47,28 @@ impl Stack for Svelte {
     fn class_definition_query(&self) -> String {
         format!(
             r#"
-            (script_element
-         (_) @{CLASS_NAME})
-            "#
+            (
+                (attribute
+                    (attribute_name) @attr_name
+                    (attribute_value) @attr_value)
+                )
+                "#
         )
     }
 
 
     fn function_definition_query(&self) -> String {
-    format!(
-        r#"
-        (expression
-             (_) @{ARGUMENTS}
-        ) @{FUNCTION_DEFINITION}
-        "#
-    )
-}
+        format!(
+            r#"
+            (
+                attribute
+                (expression
+                    (_) @args
+                ) @{FUNCTION_DEFINITION}
+            )
+            "#
+        )
+    }
 
 
 
@@ -70,7 +76,7 @@ impl Stack for Svelte {
         format!(
             r#"
             (expression
-                 (_) @{ARGUMENTS}
+                (_) @args
             ) @FUNCTION_CALL
             "#
         )
@@ -116,10 +122,16 @@ impl Stack for Svelte {
         vec![
             format!(
                 r#"
-                (expression
+                (script_element
                     (_) @{ENDPOINT}
+                    (_) @args
                     (#match? @endpoint "axios")
-                ) @{ROUTE}
+                ) @{ENDPOINT}
+                (script_element
+                    (_) @{ENDPOINT}
+                    (_) @args
+                    (#match? @endpoint "GET|POST|SET|PUT|DELETE")
+                ) @{ENDPOINT}
                 "#
             ),
         ]
@@ -130,9 +142,10 @@ impl Stack for Svelte {
         Some(format!(
             r#"
             (expression
-            (_
-                (_) @{STRUCT_NAME}
-            )) @{STRUCT}
+                (_
+                    (_) @{STRUCT_NAME}
+                )
+            ) @{STRUCT}
             "#
         ))
     }
