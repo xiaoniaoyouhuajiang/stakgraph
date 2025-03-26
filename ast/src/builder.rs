@@ -288,7 +288,7 @@ impl Repo {
 
         self.lang.lang().clean_graph(&mut graph);
 
-        // FIXME: filter by revs???
+        // filter by revs
         graph = filter_by_revs(&self.root.to_str().unwrap(), self.revs.clone(), graph);
 
         // prefix the "file" of each node and edge with the root

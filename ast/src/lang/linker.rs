@@ -8,7 +8,7 @@ use tracing::info;
 pub fn link_e2e_tests(graph: &mut Graph) -> Result<()> {
     // First collect functions and tests in a single pass
     let mut e2e_tests = Vec::new();
-    let mut typescript_functions = Vec::new();
+    let mut frontend_functions = Vec::new();
 
     for node in &graph.nodes {
         match node {
@@ -21,9 +21,9 @@ pub fn link_e2e_tests(graph: &mut Graph) -> Result<()> {
             }
             Node::Function(f) => {
                 if let Ok(lang) = infer_lang(f) {
-                    if lang == Language::Typescript {
+                    if lang.is_frontend() {
                         if let Ok(test_ids) = extract_test_ids(&f.body, &lang) {
-                            typescript_functions.push((f, test_ids));
+                            frontend_functions.push((f, test_ids));
                         }
                     }
                 }
@@ -35,7 +35,7 @@ pub fn link_e2e_tests(graph: &mut Graph) -> Result<()> {
     // Create edges
     let mut i = 0;
     for (t, test_ids) in &e2e_tests {
-        for (f, frontend_test_ids) in &typescript_functions {
+        for (f, frontend_test_ids) in &frontend_functions {
             for ftestid in frontend_test_ids {
                 if test_ids.contains(ftestid) {
                     graph.edges.push(Edge::linked_e2e_test_call(t, f));

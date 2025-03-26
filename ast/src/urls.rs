@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use ast::utils::{logger, print_json};
-use ast::{self, repo::Repo, repo::Repos};
+use ast::{self, repo::Repo};
 use std::env;
 
 /*
 
-export REPO_URLS="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
+export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
 export OUTPUT_FORMAT=jsonl
 cargo run --bin urls
 
@@ -15,8 +15,7 @@ cargo run --bin urls
 async fn main() -> Result<()> {
     logger();
 
-    let repo_urls = env::var("REPO_URLS").context("no REPO_URLS")?;
-    let repo_urls: Vec<String> = repo_urls.split(',').map(|s| s.to_string()).collect();
+    let repo_urls = env::var("REPO_URL").context("no REPO_URL")?;
     let username = env_not_empty("USERNAME");
     let pat = env_not_empty("PAT");
     let rev = env_not_empty("REV");
@@ -24,23 +23,15 @@ async fn main() -> Result<()> {
         .map(|r| r.split(',').map(|s| s.to_string()).collect())
         .unwrap_or_default();
 
-    let mut repo_list = Vec::new();
-    for repo_url in repo_urls {
-        let repos = Repo::new_clone_multi_detect(
-            &repo_url,
-            username.clone(),
-            pat.clone(),
-            Vec::new(),
-            revs.clone(),
-        )
-        .await?;
-        // could be multiple repos in 1
-        for r in repos.0 {
-            repo_list.push(r);
-        }
-    }
+    let repos = Repo::new_clone_multi_detect(
+        &repo_urls,
+        username.clone(),
+        pat.clone(),
+        Vec::new(),
+        revs.clone(),
+    )
+    .await?;
 
-    let repos = Repos(repo_list);
     let graph = repos.build_graphs().await?;
     print_json(&graph, "urls")?;
 

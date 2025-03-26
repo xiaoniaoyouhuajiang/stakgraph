@@ -29,6 +29,12 @@ pub const PROGRAMMING_LANGUAGES: [Language; 9] = [
 ];
 
 impl Language {
+    pub fn is_frontend(&self) -> bool {
+        matches!(
+            self,
+            Self::Typescript | Self::React | Self::Kotlin | Self::Swift
+        )
+    }
     pub fn pkg_file(&self) -> &'static str {
         match self {
             Self::Rust => "Cargo.toml",
