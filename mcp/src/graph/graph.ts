@@ -143,8 +143,6 @@ export async function get_feature_code(req: Request, res: Response) {
   }
 }
 
-const DEFAULT_DIRECTION = "down";
-
 interface MapParams {
   node_type: string;
   name: string;
@@ -165,13 +163,17 @@ function mapParams(req: Request): MapParams {
   const direction = req.query.direction as Direction;
   const tests = !(req.query.tests === "false" || req.query.tests === "0");
   const depth = parseInt(req.query.depth as string) || DEFAULT_DEPTH;
+  let default_direction = "down";
+  if (node_type === "Datamodel") {
+    default_direction = "up";
+  }
   return {
     node_type: node_type || "",
     name: name || "",
     ref_id: ref_id || "",
     tests,
     depth,
-    direction: direction || DEFAULT_DIRECTION,
+    direction: direction || default_direction,
   };
 }
 
