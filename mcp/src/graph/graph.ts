@@ -194,7 +194,8 @@ async function get_record_from_query(fn_name: string, req: Request) {
 export async function get_map(req: Request, res: Response) {
   try {
     const record = await get_record_from_query("get_map", req);
-    const tree = await buildTree2(record);
+    const { direction } = mapParams(req);
+    const tree = await buildTree2(record, direction);
     const text = archy(tree);
     res.send(`<pre>${text}</pre>`);
   } catch (error) {

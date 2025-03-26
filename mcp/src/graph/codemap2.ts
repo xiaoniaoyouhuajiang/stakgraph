@@ -10,7 +10,10 @@ interface TreeNode {
 // list the edge types which are "parents" that we want shown as "children" in the tree
 const REVERSE_RELATIONSHIPS = ["OPERAND"];
 
-export async function buildTree(record: Record): Promise<TreeNode> {
+export async function buildTree(
+  record: Record,
+  direction: string = "down"
+): Promise<TreeNode> {
   if (!record) {
     throw new Error("failed to get record");
   }
@@ -42,18 +45,36 @@ export async function buildTree(record: Record): Promise<TreeNode> {
     const sourceId = rel.source.toString();
     const targetId = rel.target.toString();
 
-    // Handle relationship directionality based on type
-    if (REVERSE_RELATIONSHIPS.includes(rel.type)) {
-      if (!childRelationships.has(targetId)) {
-        childRelationships.set(targetId, new Set<string>());
+    // Determine which is parent and which is child based on direction and relationship type
+    let parentId, childId;
+
+    if (direction === "up") {
+      // When direction is "up", generally treat target as parent and source as child
+      // EXCEPT for relationships in REVERSE_RELATIONSHIPS
+      if (REVERSE_RELATIONSHIPS.includes(rel.type)) {
+        parentId = sourceId;
+        childId = targetId;
+      } else {
+        parentId = targetId;
+        childId = sourceId;
       }
-      childRelationships.get(targetId)!.add(sourceId);
     } else {
-      if (!childRelationships.has(sourceId)) {
-        childRelationships.set(sourceId, new Set<string>());
+      // direction is "down"
+      // When direction is "down", generally treat source as parent and target as child
+      // EXCEPT for relationships in REVERSE_RELATIONSHIPS
+      if (REVERSE_RELATIONSHIPS.includes(rel.type)) {
+        parentId = targetId;
+        childId = sourceId;
+      } else {
+        parentId = sourceId;
+        childId = targetId;
       }
-      childRelationships.get(sourceId)!.add(targetId);
     }
+
+    if (!childRelationships.has(parentId)) {
+      childRelationships.set(parentId, new Set<string>());
+    }
+    childRelationships.get(parentId)!.add(childId);
   }
 
   // Create TreeNodes for all Neo4j nodes

@@ -71,10 +71,11 @@ class Db {
     depth: number,
     direction: Direction
   ) {
-    let label_filter = "";
+    const disclude: NodeType[] = ["File", "Directory", "Repository"];
     if (include_tests === false) {
-      label_filter = this.skip_string(["Test", "E2etest"]);
+      disclude.push("Test", "E2etest");
     }
+    const label_filter = this.skip_string(disclude);
     const session = this.driver.session();
     try {
       return await session.run(Q.SUBTREE_QUERY, {
