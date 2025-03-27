@@ -138,34 +138,35 @@ impl Stack for Swift {
             }
         }
     }
+
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
-            (class_declaration
-                  ;;[(attribute
-                   ;; type: (type_identifier) @attr (#match? @attr "^objc$")
-                    ;;name: [(identifier) @{STRUCT_NAME}]
-                ;;)]
-                
-                (type_identifier) @{STRUCT_NAME} (#eq? @{STRUCT_NAME} "Person")
-                
-            ) @{STRUCT}
-            "#
+        (class_declaration
+            (type_identifier) @{STRUCT_NAME}
+            (_)*
+        ) @{STRUCT}
+        "#
         ))
     }
 
-    // fn data_model_within_query(&self) -> Option<String> {
-    //     Some(format!(
-    //         r#"
-    //         [
-    //                 (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-    //             (call_expression
-    //                  (simple_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-    //             )
-    //         ]
-    //         "#
-    //     ))
-    // }
+    fn data_model_path_filter(&self) -> Option<String> {
+        Some("CoreData".to_string())
+    }
+
+    fn data_model_within_query(&self) -> Option<String> {
+        Some(format!(
+            r#"[
+                (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+
+                (call_expression
+                     (simple_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+                )
+
+            ]@{STRUCT}
+            "#
+        ))
+    }
 
     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
         func_name.starts_with("test")

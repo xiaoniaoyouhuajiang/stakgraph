@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node, NodeType};
+use crate::lang::graph::Node;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -16,7 +16,7 @@ async fn test_swift() {
 
     let graph = repo.build_graph().await.unwrap();
     assert_eq!(graph.nodes.len(), 55);
-    assert_eq!(graph.edges.len(), 80);
+    assert_eq!(graph.edges.len(), 81);
 
     let languages = graph
         .nodes
@@ -55,11 +55,6 @@ async fn test_swift() {
 
     classes.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
 
-    for c in &classes {
-        let c = c.into_data();
-        println!("{:?}\n", c);
-    }
-
     let class = classes[0].into_data();
     assert_eq!(class.name, "API");
 
@@ -82,10 +77,6 @@ async fn test_swift() {
         .filter(|n| matches!(n, Node::DataModel(_)))
         .collect::<Vec<_>>();
 
-    for d in &data_models {
-        let d = d.into_data();
-        println!("{:?}\n", d);
-    }
     assert_eq!(data_models.len(), 1);
 
     let mut total_requests = graph
@@ -96,11 +87,7 @@ async fn test_swift() {
     let request = total_requests[0].into_data();
 
     total_requests.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
-    //TODO: REMOVE THIS
-    for r in &total_requests {
-        let r = r.into_data();
-        println!("{:?}\n", r);
-    }
+
     assert_eq!(request.name, "/people");
 
     assert_eq!(total_requests.len(), 2, "wrong endpoint count");
