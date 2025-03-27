@@ -177,7 +177,7 @@ impl Language {
         match self {
             Self::Rust => Vec::new(),
             Self::Go => Vec::new(),
-            Self::Typescript | Self::React => Vec::new(),
+            Self::Typescript | Self::React => vec!["npm install --force"],
             Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
