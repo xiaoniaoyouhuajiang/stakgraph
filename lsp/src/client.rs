@@ -11,8 +11,7 @@ use lsp_types::notification::{
     DidChangeWatchedFiles, LogMessage, Progress, PublishDiagnostics, ShowMessage,
 };
 use lsp_types::request::{
-    GotoDeclarationParams, GotoImplementationParams, GotoImplementationResponse,
-    WorkDoneProgressCreate,
+    GotoImplementationParams, GotoImplementationResponse, WorkDoneProgressCreate,
 };
 use lsp_types::Position as LspPosition;
 use lsp_types::*;
@@ -197,7 +196,7 @@ fn start(
 
         router
             .notification::<PublishDiagnostics>(|_, _| ControlFlow::Continue(()))
-            .notification::<DidChangeWatchedFiles>(|this, c| {
+            .notification::<DidChangeWatchedFiles>(|_this, c| {
                 info!("===> DidChangeWatchedFiles: {:?}", c);
                 ControlFlow::Continue(())
             })

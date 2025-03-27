@@ -1,5 +1,6 @@
-use tree_sitter::{Language, Parser, Query, Tree};
+use tree_sitter::Language;
 
+#[allow(dead_code)]
 pub struct Bash(Language);
 
 impl Bash {
