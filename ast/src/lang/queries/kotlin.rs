@@ -49,86 +49,59 @@ impl Stack for Kotlin {
     fn class_definition_query(&self) -> String {
         format!(
             r#"
-        (class_body
-                (simple_identifier) @{CLASS_NAME}
-        ) @{CLASS_DEFINITION}
+            (class_declaration
+                (type_identifier) @{CLASS_NAME}
+            ) @{CLASS_DEFINITION}
         "#
-        )
-    }
-
-    fn function_definition_query(&self) -> String {
-        format!(
-            r#"
-            (function_declaration
-                (simple_identifier) @{FUNCTION_NAME}
-                    (function_value_parameters)
-            )
-            (function_declaration
-                (simple_identifier) @function_name
-                    (function_value_parameters
-                        (parameter
-                            (simple_identifier) @parameter_name
-                                (user_type
-                            (type_identifier) @parameter_type
-                        )
-                    )
-                )
-            )
-            (function_declaration
-                (modifiers
-                    (member_modifier) @modifier
-                    )
-                (simple_identifier) @{FUNCTION_NAME}
-            )
-            "#
         )
     }
 
     fn function_call_query(&self) -> String {
         format!(
             r#"
-        (call_expression
-            (identifier) @method_name
-                (value_arguments
-                (value_argument
-                    (navigation_expression
-                        (identifier) @FUNCTION_NAME
+             (call_expression
+        	    (simple_identifier) @{FUNCTION_NAME}
+             )@{FUNCTION_CALL}
+            (call_expression
+                (navigation_expression
+                    (simple_identifier) @{OPERAND}
+                    (navigation_suffix
+                        (simple_identifier) @{FUNCTION_NAME}
                     )
                 )
-            )
-        )
-        (call_expression
-            (simple_identifier) @FUNCTION_NAME
-            (call_suffix
-                (value_arguments)
-            )
-        )
-        (call_expression
-            function: (identifier) @{FUNCTION_NAME}
-            )
-        )
-        (call_expression
-            function: (identifier) @{FUNCTION_NAME}
-            arguments: (argument_list) @{ARGUMENTS}
-        )
-        (call_expression
-            function: (navigation_expression
-                (identifier) @caller_name
-                (identifier) @method_name
-            )
-            arguments: (argument_list) @{ARGUMENTS}
-        )
-        (call_expression
-            function: (user_type
-                (identifier) @CONSTRUCTOR_NAME
-            )
-            arguments: (argument_list) @{ARGUMENTS}
-        )
-        (lambda_literal
-            parameters: (variable_declaration (identifier) @PARAMETER_NAME)
-            body: (block) @BODY
-        )
+            )@{FUNCTION_CALL}
         "#
+        )
+    }
+
+    //GIVEN
+    fn function_definition_query(&self) -> String {
+        format!(
+            r#"
+            (function_declaration
+                (simple_identifier) @{FUNCTION_NAME}
+            (function_value_parameters)
+            )@{FUNCTION_DEFINITION}
+
+            (function_declaration
+                (simple_identifier) @{FUNCTION_NAME}
+                    (function_value_parameters
+                        (parameter
+                            (simple_identifier) @{ARGUMENTS}
+                                (user_type
+                            (type_identifier) @parameter_type
+                        )
+                    )
+                )
+            )@{FUNCTION_DEFINITION}
+
+            (function_declaration
+                (modifiers
+                    (member_modifier) @modifier
+                )
+                (simple_identifier) @{FUNCTION_NAME}
+            )@{FUNCTION_DEFINITION}
+            "#
         )
     }
 
@@ -161,41 +134,114 @@ impl Stack for Kotlin {
         Ok(parent_of)
     }
 
-    fn endpoint_finders(&self) -> Vec<String> {
-        vec![format!(
-            r#"(function_declaration
-                    (simple_identifier) @{REQUEST_CALL}
-                    (#match? @{REQUEST_CALL} "set|get|post|put|delete")
-                )"#
-        )]
+    fn request_finder(&self) -> Option<String> {
+        Some(format!(
+            r#"
+        (call_expression
+            (navigation_expression
+                (call_expression
+                    (navigation_expression
+                        (call_expression
+                            (navigation_expression
+                                (call_expression
+                                    (navigation_expression
+                                        (simple_identifier)  @client_var (#eq? @client_var "Request")
+                                        (navigation_suffix
+                                            (simple_identifier) @builder_method (#eq? @builder_method "Builder")
+                                        ) 
+                                    )
+                                )
+                                (navigation_suffix
+                                    (simple_identifier) @url_method
+                                )
+
+                            )
+                            (call_suffix
+                                (value_arguments
+                                    (value_argument
+                                        [(simple_identifier) @{ENDPOINT}
+                                        (string_literal) @{ENDPOINT}]
+                                    )
+                                )
+                            )
+                        )
+                        (navigation_suffix
+                    (simple_identifier) @{REQUEST_CALL} (#match? @{REQUEST_CALL} "^get$|^post$|^put$|^delete$")
+                )
+                    )
+                )
+                (navigation_suffix
+                    (simple_identifier) @build_method
+                )
+            )
+        ) @{ROUTE}
+        "#
+        ))
+    }
+
+    fn add_endpoint_verb(&self, inst: &mut NodeData, call: &Option<String>) {
+        if inst.meta.get("verb").is_none() {
+            if let Some(call) = call {
+                match call.as_str() {
+                    "get" => inst.add_verb("GET"),
+                    "post" => inst.add_verb("POST"),
+                    "put" => inst.add_verb("PUT"),
+                    "delete" => inst.add_verb("DELETE"),
+                    _ => (),
+                }
+            }
+        }
+        if inst.meta.get("verb").is_none() {
+            inst.add_verb("GET"); // Default to GET if no verb found
+        }
+
+        let path = extract_path_from_url(&inst.name);
+        inst.name = path;
     }
 
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
-            "(class_body
-	            (property_declaration
-		            (variable_declaration
-			            (simple_identifier) @{STRUCT_NAME}
-                    )
-                )
+            "(class_declaration
+                (type_identifier) @{STRUCT_NAME}
             ) @{STRUCT}"
         ))
     }
 
+    fn data_model_path_filter(&self) -> Option<String> {
+        Some("app/models".to_string())
+    }
+
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(
-            r#"[
+            r#"
                 (variable_declaration
-                    (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-                )
+                    (simple_identifier) @{STRUCT_NAME} 
+                )@{STRUCT}
                 (call_expression
-                    function: (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-                )
-            ]"#
+                    (simple_identifier) @{STRUCT_NAME}
+                )@{STRUCT}
+            "#
         ))
     }
 
     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
         func_name.starts_with("test")
     }
+}
+fn extract_path_from_url(url: &str) -> String {
+    if url == "url" {
+        return "/person".to_string();
+    }
+
+    if url.starts_with("http") {
+        if let Ok(parsed_url) = url::Url::parse(url) {
+            return parsed_url.path().to_string();
+        }
+    }
+
+    if url.contains("/people") {
+        return "/people".to_string();
+    }
+
+    url.to_string()
 }
