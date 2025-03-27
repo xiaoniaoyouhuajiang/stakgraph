@@ -1,6 +1,6 @@
 use super::repo::{check_revs_files, Repo};
 use crate::lang::Graph;
-use crate::lang::{asg::NodeData, graph::NodeType};
+use crate::lang::{asg::NodeData, graph::Node, graph::NodeType};
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
@@ -326,6 +326,10 @@ fn filter_by_revs(root: &str, revs: Vec<String>, graph: Graph) -> Graph {
         let mut new_graph = Graph::new();
         // only add nodes that are in the final filter
         for node in graph.nodes {
+            if matches!(node, Node::Repository(_)) {
+                new_graph.nodes.push(node);
+                continue;
+            }
             let node_data = node.into_data();
             if final_filter.contains(&node_data.file) {
                 new_graph.nodes.push(node);
