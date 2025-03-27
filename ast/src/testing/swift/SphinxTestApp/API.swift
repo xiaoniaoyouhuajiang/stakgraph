@@ -60,10 +60,10 @@ class API {
         callback: @escaping GetPeopleListCallback
     ) {
         
-        let url = "\(API.host)/people"
+        //let url = "\(API.host)/people"
         
         guard let request = createRequest(
-            url,
+            url: "\(API.host)/people",
             bodyParams: nil,
             method: "GET"
         ) else {
@@ -88,7 +88,7 @@ class API {
         routeHint: String,
         callback: @escaping CreatePeopleProfile
     ) {
-        let url = "\(API.host)/person"
+       // let url = "\(API.host)/person"
         
         let params: [String: AnyObject] = [
             "owner_pubkey": publicKey as AnyObject,
@@ -98,7 +98,7 @@ class API {
         ]
         
         guard let request = createRequest(
-            url,
+            url: "\(API.host)/person",
             bodyParams: params as NSDictionary,
             method: "POST"
         ) else {

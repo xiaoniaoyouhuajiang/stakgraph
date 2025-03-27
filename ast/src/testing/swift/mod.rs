@@ -1,9 +1,7 @@
-use crate::lang::graph::{EdgeType, Node, NodeType};
+use crate::lang::graph::Node;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
-use tracing::{debug, error, info};
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[test(tokio::test)]
 async fn test_swift() {
@@ -17,8 +15,8 @@ async fn test_swift() {
     .unwrap();
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 54);
-    assert_eq!(graph.edges.len(), 79);
+    assert_eq!(graph.nodes.len(), 55);
+    assert_eq!(graph.edges.len(), 81);
 
     let languages = graph
         .nodes
@@ -37,7 +35,7 @@ async fn test_swift() {
         .filter(|n| matches!(n, Node::File(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(files.len(), 9, "wrong file count");
+    assert_eq!(files.len(), 8, "wrong file count");
 
     let imports = graph
         .nodes
@@ -47,7 +45,7 @@ async fn test_swift() {
 
     assert_eq!(imports.len(), 7, "wrong import count");
 
-    let classes = graph
+    let mut classes = graph
         .nodes
         .iter()
         .filter(|n| matches!(n, Node::Class(_)))
@@ -55,17 +53,23 @@ async fn test_swift() {
 
     assert_eq!(classes.len(), 7);
 
-    let class = classes[0].into_data();
-    assert_eq!(class.name, "ViewController");
+    classes.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
 
-    let functions = graph
+    let class = classes[0].into_data();
+    assert_eq!(class.name, "API");
+
+    let mut functions = graph
         .nodes
         .iter()
         .filter(|n| matches!(n, Node::Function(_)))
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 26);
+
+    functions.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
+
     let func = functions[0].into_data();
-    assert_eq!(func.name, "viewDidLoad");
+
+    assert_eq!(func.name, "application");
 
     let data_models = graph
         .nodes
@@ -75,13 +79,16 @@ async fn test_swift() {
 
     assert_eq!(data_models.len(), 1);
 
-    let totalRequests = graph
+    let mut total_requests = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Request))
+        .filter(|n| matches!(n, Node::Request(_)))
         .collect::<Vec<_>>();
-    let request = totalRequests[0].into_data();
-    assert_eq!(request.name, "/Swift");
+    let request = total_requests[0].into_data();
 
-    assert_eq!(totalRequests.len(), 54, "wrong endpoint count");
+    total_requests.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
+
+    assert_eq!(request.name, "/people");
+
+    assert_eq!(total_requests.len(), 2, "wrong endpoint count");
 }
