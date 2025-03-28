@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/person")
 public class PersonController {
     private final PersonRepository repository;
 
@@ -15,14 +14,14 @@ public class PersonController {
         this.repository = repository;
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/person/{id}")
     public ResponseEntity<Person> getPerson(@PathVariable Long id) {
         Optional<Person> person = getPersonById(id);
         return person.map(ResponseEntity::ok)
                      .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping
+    @PostMapping("/person")
     public Person createPerson(@RequestBody Person person) {
         return newPerson(person);
     }
