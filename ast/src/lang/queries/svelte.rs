@@ -47,10 +47,8 @@ impl Stack for Svelte {
     fn class_definition_query(&self) -> String {
         format!(
             r#"
-            (
-                (attribute
-                    (attribute_name) @attr_name
-                    (attribute_value) @attr_value)
+                (script_element
+                    (_) @{CLASS_NAME}
                 )
                 "#
         )
@@ -124,12 +122,9 @@ impl Stack for Svelte {
                 r#"
                 (script_element
                     (_) @{ENDPOINT}
-                    (_) @args
-                    (#match? @endpoint "axios")
                 ) @{ENDPOINT}
                 (script_element
                     (_) @{ENDPOINT}
-                    (_) @args
                     (#match? @endpoint "GET|POST|SET|PUT|DELETE")
                 ) @{ENDPOINT}
                 "#

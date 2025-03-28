@@ -30,8 +30,8 @@ async fn test_svelte() {
   for edge in &graph.edges {
       debug!("Edge: {:?}", edge);
   }
-    assert_eq!(graph.nodes.len(), 12);
-    assert_eq!(graph.edges.len(), 11);
+    assert_eq!(graph.nodes.len(), 23);
+    assert_eq!(graph.edges.len(), 22);
 
     let languages = graph
         .nodes
@@ -50,7 +50,7 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::File(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(files.len(), 4, "wrong file count");
+    assert_eq!(files.len(), 7, "wrong file count");
 
     let imports = graph
         .nodes
@@ -58,7 +58,7 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::Import(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(imports.len(), 2, "wrong import count");
+    assert_eq!(imports.len(), 1, "wrong import count");
 
     let classes = graph
         .nodes
@@ -66,7 +66,9 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::Class(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(classes.len(), 0);
+    assert_eq!(classes.len(), 3);
+    let class = classes[0].into_data();
+    assert_eq!(class.body, "");
 
 
     let functions = graph
@@ -74,9 +76,9 @@ async fn test_svelte() {
         .iter()
         .filter(|n| matches!(n, Node::Function(_)))
         .collect::<Vec<_>>();
-    assert_eq!(functions.len(), 3);
+    assert_eq!(functions.len(), 6);
     let func = functions[0].into_data();
-    assert_eq!(func.body, "{handleFileUpload}");
+    assert_eq!(func.body, "{addPerson}");
 
 
     let data_models = graph
@@ -95,5 +97,5 @@ async fn test_svelte() {
     let request = totalRequests[0].into_data();
     assert_eq!(request.name, "/Svelte");
 
-    assert_eq!(totalRequests.len(), 12, "wrong endpoint count");
+    assert_eq!(totalRequests.len(), 23, "wrong endpoint count");
 }

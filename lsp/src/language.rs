@@ -61,7 +61,7 @@ impl Language {
             Self::Swift => vec!["swift", "xcodeproj", "xcworkspace"],
             Self::Bash => vec!["sh"],
             Self::Toml => vec!["toml"],
-            Self::Svelte => vec!["svelte"],
+            Self::Svelte => vec!["svelte", "ts", "js"],
         }
     }
 
