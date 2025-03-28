@@ -1004,7 +1004,7 @@ pub fn exact_endpoint_edge_finder(
     endpoint
 }
 
-fn func_target_files_finder(
+fn _func_target_files_finder(
     func_name: &str,
     operand: &Option<String>,
     graph: &Graph,
@@ -1065,7 +1065,7 @@ fn find_only_one_function_file(func_name: &str, graph: &Graph) -> Option<String>
     None
 }
 
-fn find_function_files(func_name: &str, graph: &Graph) -> Vec<String> {
+fn _find_function_files(func_name: &str, graph: &Graph) -> Vec<String> {
     let mut target_files = Vec::new();
     for node in graph.nodes.iter() {
         match node {

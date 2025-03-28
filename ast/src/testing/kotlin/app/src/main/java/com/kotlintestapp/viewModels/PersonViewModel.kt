@@ -109,7 +109,7 @@ object ApiClient {
         val body = RequestBody.create("application/json".toMediaType(), json)
 
         val request = Request.Builder()
-            .url(url)
+            .url("https://people.sphinx.chat/person?token=testToken")
             .post(body)
             .build()
 

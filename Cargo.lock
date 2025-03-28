@@ -138,6 +138,7 @@ dependencies = [
  "tree-sitter-swift",
  "tree-sitter-toml-ng",
  "tree-sitter-typescript",
+ "url",
  "walkdir",
 ]
 

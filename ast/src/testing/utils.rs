@@ -2,6 +2,7 @@ use std::fmt;
 use std::io::Error;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum TestStatus {
     Success,
     Failure,
@@ -17,7 +18,7 @@ pub struct TestResult {
 }
 
 impl TestResult {
-    pub fn success(test_name: &str, message: &str) -> Self {
+    pub fn _success(test_name: &str, message: &str) -> Self {
         Self {
             status: TestStatus::Success,
             message: message.to_string(),
@@ -35,7 +36,7 @@ impl TestResult {
         }
     }
 
-    pub fn skipped(test_name: &str, message: &str) -> Self {
+    pub fn _skipped(test_name: &str, message: &str) -> Self {
         Self {
             status: TestStatus::Skipped,
             message: message.to_string(),

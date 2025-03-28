@@ -2,10 +2,11 @@ use crate::lang::graph::{Graph, Node};
 use crate::lang::Lang;
 use crate::repo::Repo;
 use anyhow::Context;
+use lsp::Language as LspLanguage;
 use std::collections::HashMap;
 use std::result::Result;
 use tracing::info;
-
+use tree_sitter::Language;
 pub struct FrontendTester {
     graph: Graph,
     lang: Lang,
@@ -17,6 +18,7 @@ pub struct FrontendArtefact<'a> {
     pub request: Vec<(&'a str, &'a str)>,
     pub pages: Vec<&'a str>,
     pub data_model: &'a str,
+    pub contains_pages_and_components: Vec<&'a LspLanguage>,
 }
 
 impl FrontendArtefact<'_> {
@@ -26,6 +28,7 @@ impl FrontendArtefact<'_> {
             request: vec![("GET", "/people"), ("POST", "/person")],
             pages: vec!["/new-person", "/people"],
             data_model: "Person",
+            contains_pages_and_components: vec![&LspLanguage::React],
         }
     }
 }
@@ -65,8 +68,13 @@ impl FrontendTester {
         self.test_language()?;
         self.test_package_file()?;
         self.test_data_model(artefact.data_model)?;
-        self.test_components(artefact.components)?;
-        self.test_pages(artefact.pages)?;
+        if artefact
+            .contains_pages_and_components
+            .contains(&&self.lang.kind)
+        {
+            self.test_components(artefact.components)?;
+            self.test_pages(artefact.pages)?;
+        }
         self.test_requests(artefact.request)?;
 
         Ok(())
