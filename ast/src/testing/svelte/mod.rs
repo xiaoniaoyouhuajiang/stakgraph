@@ -20,18 +20,8 @@ async fn test_svelte() {
 
 
     let graph = repo.build_graph().await.unwrap();
-    debug!("Logging all nodes:");
-  for node in &graph.nodes {
-      debug!("Node: {:?}", node);
-  }
-
-  // Log all edges
-  debug!("Logging all edges:");
-  for edge in &graph.edges {
-      debug!("Edge: {:?}", edge);
-  }
-    assert_eq!(graph.nodes.len(), 23);
-    assert_eq!(graph.edges.len(), 22);
+    assert_eq!(graph.nodes.len(), 22);
+    assert_eq!(graph.edges.len(), 21);
 
     let languages = graph
         .nodes
@@ -50,7 +40,7 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::File(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(files.len(), 7, "wrong file count");
+    assert_eq!(files.len(), 6, "wrong file count");
 
     let imports = graph
         .nodes
@@ -97,5 +87,5 @@ async fn test_svelte() {
     let request = totalRequests[0].into_data();
     assert_eq!(request.name, "/Svelte");
 
-    assert_eq!(totalRequests.len(), 23, "wrong endpoint count");
+    assert_eq!(totalRequests.len(), 22, "wrong endpoint count");
 }

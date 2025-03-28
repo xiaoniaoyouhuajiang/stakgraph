@@ -1,14 +1,14 @@
 <script>
   import { onMount } from 'svelte';
 
-  // All reactive variables declared at top level
+
   let people = [];
   let name = '';
   let email = '';
   let isLoading = false;
   let error = null;
-  let formError = null;  // Added this
-  let formSuccess = false;  // Added this
+  let formError = null;
+  let formSuccess = false;
 
   onMount(async () => {
     await fetchPeople();
@@ -31,12 +31,12 @@
 
   async function addPerson() {
     if (!name) {
-      formError = 'Name is required';  // Changed from error to formError
+      formError = 'Name is required';
       return;
     }
 
     isLoading = true;
-    formError = null;  // Changed from error to formError
+    formError = null;
     formSuccess = false;
 
     try {
@@ -51,10 +51,10 @@
       // Clear form
       name = '';
       email = '';
-      formSuccess = true;  // Changed from success to formSuccess
-      await fetchPeople(); // Refresh list
+      formSuccess = true;
+      await fetchPeople();
     } catch (err) {
-      formError = err.message;  // Changed from error to formError
+      formError = err.message;
     } finally {
       isLoading = false;
     }
