@@ -36,7 +36,7 @@ impl Stack for Svelte {
     fn imports_query(&self) -> Option<String> {
     Some(format!(
         r#"
-        (script_element
+        (document
             (_) @{IMPORTS}
         )
         "#
@@ -136,9 +136,9 @@ impl Stack for Svelte {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
-            (expression
+            (document
                 (_
-                    (_) @{STRUCT_NAME}
+                    (_) + @{STRUCT_NAME}
                 )
             ) @{STRUCT}
             "#

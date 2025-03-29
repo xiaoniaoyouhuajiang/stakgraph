@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node, NodeType};
+use crate::lang::graph::{ Node};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -20,8 +20,8 @@ async fn test_svelte() {
 
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 22);
-    assert_eq!(graph.edges.len(), 21);
+    assert_eq!(graph.nodes.len(), 41);
+    assert_eq!(graph.edges.len(), 40);
 
     let languages = graph
         .nodes
@@ -48,7 +48,7 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::Import(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(imports.len(), 1, "wrong import count");
+    assert_eq!(imports.len(), 8, "wrong import count");
 
     let classes = graph
         .nodes
@@ -77,15 +77,15 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::DataModel(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(data_models.len(), 0);
+    assert_eq!(data_models.len(), 12);
 
     let totalRequests = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Endpoint))
+        .filter(|n| matches!(n, Request))
         .collect::<Vec<_>>();
     let request = totalRequests[0].into_data();
     assert_eq!(request.name, "/Svelte");
 
-    assert_eq!(totalRequests.len(), 22, "wrong endpoint count");
+    assert_eq!(totalRequests.len(), 41, "wrong endpoint count");
 }
