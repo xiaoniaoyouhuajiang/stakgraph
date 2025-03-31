@@ -11,6 +11,8 @@ cargo run --bin urls
 
 export REPO_URL="https://github.com/stakwork/demo-repo.git"
 
+export REPO_URL="https://github.com/stakwork/sphinx-tribes-frontend.git"
+
 */
 
 #[tokio::main]
@@ -42,6 +44,15 @@ async fn main() -> Result<()> {
     println!("{}", name);
 
     let graph = repos.build_graphs().await?;
+
+    if std::env::var("OUTPUT_FORMAT")
+        .unwrap_or_else(|_| "json".to_string())
+        .as_str()
+        == "jsonl"
+    {
+        println!("writing to ast/examples/{}-nodes.jsonl", name);
+    }
+
     print_json(&graph, name)?;
 
     Ok(())

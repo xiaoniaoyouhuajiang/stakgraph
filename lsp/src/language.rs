@@ -61,6 +61,14 @@ impl Language {
         }
     }
 
+    // React overrides Typescript if detected
+    pub fn overrides(&self) -> Vec<Language> {
+        match self {
+            Self::React => vec![Self::Typescript],
+            _ => Vec::new(),
+        }
+    }
+
     pub fn skip_dirs(&self) -> Vec<&'static str> {
         match self {
             Self::Rust => vec!["target", ".git"],

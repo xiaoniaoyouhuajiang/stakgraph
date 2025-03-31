@@ -129,7 +129,7 @@ impl Lang {
         code: &str,
         file: &str,
         lsp_tx: &Option<CmdSender>,
-    ) -> Result<Vec<(NodeData, Option<Edge>)>> {
+    ) -> Result<Vec<(NodeData, Vec<Edge>)>> {
         if let Some(qo) = self.lang.page_query() {
             let qo = self.q(&qo, &NodeType::Page);
             Ok(self.collect_pages(&qo, code, file, lsp_tx)?)
