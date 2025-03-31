@@ -10,7 +10,7 @@ const SYSTEM_PROMPT = "You are an expert Nodejs dev named Claude";
 
 const PROMPT = `Can you write a yaml swagger doc named repo2graph for those 6 endpoints?
 
-node_type examples should include Page,Function,Class,Trait,Datamodel,Request,Endpoint
+node_type examples should include Page,Function,Class,Trait,Datamodel,Request,Endpoint,Test,E2etest
 
 name examples can be like LeaderboardPage, TicketPage, etc.
 
@@ -22,14 +22,14 @@ Return ONLY the yaml swagger doc, nothing else! No backticks, no code blocks, no
 `;
 
 const anthropic = new Anthropic({
-  apiKey: process.env["ANTHROPIC_API_KEY"], // This is the default and can be omitted
+  apiKey: process.env["ANTHROPIC_API_KEY"],
 });
 
 async function go() {
   try {
     console.log("get prompt");
     const indexFile = fs.readFileSync(`src/index.ts`, "utf-8");
-    const serverFile = fs.readFileSync(`src/graph/graph.ts`, "utf-8");
+    const serverFile = fs.readFileSync(`src/graph/routes.ts`, "utf-8");
     let prompt = "Here is my index.ts file:\n\n" + indexFile + "\n\n";
     prompt += "Here is my server file:\n\n" + serverFile + "\n\n";
     prompt += PROMPT;

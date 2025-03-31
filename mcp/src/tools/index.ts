@@ -1,5 +1,5 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StackgraphTool, runStackgraphTool } from "./stackgraph.js";
+import * as sg from "./fulltext.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   CallToolRequestSchema,
@@ -9,7 +9,7 @@ import express from "express";
 
 const server = new Server(
   {
-    name: StackgraphTool.name,
+    name: "Stakgraph",
     version: "0.1.0",
   },
   {
@@ -29,15 +29,16 @@ export interface Tool {
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: [StackgraphTool],
+    tools: [sg.FulltextSearchTool],
   };
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   switch (name) {
-    case StackgraphTool.name: {
-      return await runStackgraphTool(args);
+    case sg.FulltextSearchTool.name: {
+      const fa = sg.FulltextSearchSchema.parse(args);
+      return await sg.fulltextSearch(fa);
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

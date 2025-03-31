@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from "express";
 import { mcp_routes } from "./tools/index.js";
 import fileUpload from "express-fileupload";
-import * as r from "./graph/graph.js";
+import * as r from "./graph/routes.js";
 import * as uploads from "./graph/uploads.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -32,7 +32,7 @@ app.post("/upload", uploads.upload_files);
 app.get("/status/:requestId", uploads.check_status);
 
 // Claude: don't document these endpoints:
-app.get("/shortest_path_ref_id", r.get_shortest_path_ref_id);
+app.get("/shortest_path_ref_id", r.get_shortest_path);
 app.get("/pages", r.get_pages);
 app.get("/pages/links", r.get_pages_links);
 app.get("/feature_map", r.get_feature_map);
