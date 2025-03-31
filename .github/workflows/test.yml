@@ -1,0 +1,40 @@
+name: Stakgraph Test
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  run-test:
+    runs-on: ubuntu-latest
+    name: Run Test on Stakgraph
+    steps:
+      - name: Checkout from Github
+        uses: actions/checkout@v4
+
+      - name: Run Env Command
+        run: |
+          export REPO_URL="https://github.com/stakwork/demo-repo.git"
+          export LSP_SKIP_POST_CLONE=1
+          OUTPUT_FORMAT=jsonl cargo run --bin urls
+
+      - name: Run command LS
+        run: ls
+
+      - name: Run Neo4j
+        working-directory: ./mcp
+        run: docker compose -f neo4j.yaml up -d
+      
+      - name: Wait for Neo4j
+        run: sleep 10
+      
+      - name: Start Node Server
+        working-directory: ./mcp
+        run: yarn run dev
+      
+      - name: Upload data
+        run: |
+          curl -X POST \
+          -F "nodes=@./ast/examples/demo-repo-nodes.jsonl" \
+          -F "edges=@./ast/examples/demo-repo-edges.jsonl" \
+          http://localhost:3000/upload
