@@ -360,7 +360,7 @@ impl Lang {
                 }
             }
         }
-        // println!("<<< endpoint >>> {:?}", inst.name);
+        // println!("<<< endpoint >>> {:?}", endp.name);
         Ok(vec![(endp, handler)])
     }
     pub fn format_data_model(

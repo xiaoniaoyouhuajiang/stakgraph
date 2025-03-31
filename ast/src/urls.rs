@@ -9,6 +9,8 @@ export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.co
 export OUTPUT_FORMAT=jsonl
 cargo run --bin urls
 
+export REPO_URL="https://github.com/stakwork/demo-repo.git"
+
 */
 
 #[tokio::main]
@@ -32,8 +34,15 @@ async fn main() -> Result<()> {
     )
     .await?;
 
+    let name = repo_urls
+        .split('/')
+        .last()
+        .unwrap()
+        .trim_end_matches(".git");
+    println!("{}", name);
+
     let graph = repos.build_graphs().await?;
-    print_json(&graph, "urls")?;
+    print_json(&graph, name)?;
 
     Ok(())
 }
