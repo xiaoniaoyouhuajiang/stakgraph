@@ -31,16 +31,18 @@ export interface Tool {
   inputSchema: Json;
 }
 
+function getTools(): Tool[] {
+  return [
+    fulltext_search.FulltextSearchTool,
+    get_nodes.GetNodesTool,
+    get_map.GetMapTool,
+    get_code.GetCodeTool,
+    shortest_path.ShortestPathTool,
+  ];
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      fulltext_search.FulltextSearchTool,
-      get_nodes.GetNodesTool,
-      get_map.GetMapTool,
-      get_code.GetCodeTool,
-      shortest_path.ShortestPathTool,
-    ],
-  };
+  return { tools: getTools() };
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -83,5 +85,9 @@ export function mcp_routes(app: express.Express) {
     if (transport) {
       transport.handlePostMessage(req, res);
     }
+  });
+
+  app.get("/tools", (_, res) => {
+    res.send(getTools());
   });
 }
