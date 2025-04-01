@@ -25,7 +25,7 @@ export function toNode(node: Neo4jNode, concise: boolean): any {
   return concise ? nameFileOnly(node) : toReturnNode(node);
 }
 
-interface MapParams {
+export interface MapParams {
   node_type: string;
   name: string;
   ref_id: string;

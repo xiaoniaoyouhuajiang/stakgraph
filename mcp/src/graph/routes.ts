@@ -95,20 +95,6 @@ function mapParams(req: Request): MapParams {
   };
 }
 
-async function get_record_from_query(fn_name: string, req: Request) {
-  const { node_type, name, tests, depth, direction, ref_id } = mapParams(req);
-  console.log("=>", fn_name, node_type, name, tests, depth, direction);
-  const r = await db.get_subtree(
-    node_type,
-    name,
-    ref_id,
-    tests,
-    depth,
-    direction
-  );
-  return r.records[0];
-}
-
 export async function get_map(req: Request, res: Response) {
   try {
     const html = await G.get_map(mapParams(req));
@@ -127,17 +113,6 @@ export async function get_code(req: Request, res: Response) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");
   }
-}
-
-function toSnippets(path: any) {
-  let r = "";
-  for (const segment of path.segments) {
-    const snip = formatNode(segment.start);
-    r += snip;
-  }
-  const snip = formatNode(path.end);
-  r += snip;
-  return r;
 }
 
 export async function get_shortest_path(req: Request, res: Response) {
