@@ -30,6 +30,10 @@ jobs:
       
       - name: Start Node Server
         working-directory: ./mcp
+        run: yarn install
+      
+      - name: Start Node Server
+        working-directory: ./mcp
         run: yarn run dev
       
       - name: Upload data
