@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from "express";
+import express, { Request, Response } from "express";
 import { mcp_routes } from "./tools/index.js";
 import fileUpload from "express-fileupload";
 import * as r from "./graph/routes.js";
@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function swagger(req: Request, res: Response) {
+export function swagger(_: Request, res: Response) {
   res.sendFile(path.join(__dirname, "../redoc-static.html"));
 }
 
@@ -19,6 +19,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
 
 app.get("/", swagger);
+
+mcp_routes(app);
 
 app.use(r.authMiddleware);
 
@@ -38,8 +40,6 @@ app.get("/pages/links", r.get_pages_links);
 app.get("/feature_map", r.get_feature_map);
 app.get("/feature_code", r.get_feature_code);
 app.get("/components/links", r.get_components_links);
-
-mcp_routes(app);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
