@@ -37,3 +37,6 @@ __pycache__
 # Others
 .vscode
 .qodo
+
+#fastembed-js
+local_cache

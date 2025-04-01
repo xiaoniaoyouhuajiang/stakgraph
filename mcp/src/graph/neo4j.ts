@@ -4,7 +4,11 @@ import readline from "readline";
 import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
-import { DIMENSIONS, vectorizeQuery } from "../vector/index.js";
+import {
+  DIMENSIONS,
+  vectorizeCodeDocument,
+  vectorizeQuery,
+} from "../vector/index.js";
 import { v4 as uuidv4 } from "uuid";
 
 export type Direction = "up" | "down";
@@ -143,12 +147,16 @@ class Db {
     const session = this.driver.session();
     try {
       console.log("Processing nodes...", node_file);
-      await process_file(session, node_file, (data) =>
-        construct_merge_node_query(data)
+      await process_file(
+        session,
+        node_file,
+        async (data) => await construct_merge_node_query(data)
       );
       console.log("Processing edges...", edge_file);
-      await process_file(session, edge_file, (data) =>
-        construct_merge_edge_query(data)
+      await process_file(
+        session,
+        edge_file,
+        async (data) => await construct_merge_edge_query(data)
       );
       console.log("Processing complete!");
     } catch (error) {
@@ -291,29 +299,42 @@ interface MergeQuery {
 }
 
 // Function to construct node merge query
-export function construct_merge_node_query(node: Node): MergeQuery {
+async function construct_merge_node_query(node: Node): Promise<MergeQuery> {
   const { node_type, node_data } = node;
-  const node_key = create_node_key(node_data);
+  const node_key = create_node_key(node);
   const query = `
       MERGE (node:${node_type}:${Data_Bank} {node_key: $node_key})
       ON CREATE SET node += $properties
       ON MATCH SET node += $properties
       RETURN node
     `;
+  const properties: { [k: string]: any } = {
+    ...node_data,
+    node_key,
+    ref_id: uuidv4(),
+  };
+  try {
+    const embeddings = await vectorizeCodeDocument(node_data.body || "");
+    properties.embeddings = embeddings;
+  } catch (error) {
+    console.error("Error vectorizing code document:", error);
+  }
   return {
     query,
     parameters: {
       node_key,
-      properties: { ...node_data, node_key, ref_id: uuidv4() },
+      properties,
     },
   };
 }
 
 // Function to construct edge merge query
-function construct_merge_edge_query(edge_data: Edge): MergeQuery {
+async function construct_merge_edge_query(
+  edge_data: Edge
+): Promise<MergeQuery> {
   const { edge, source, target } = edge_data;
-  const source_key = create_node_key(source.node_data);
-  const target_key = create_node_key(target.node_data);
+  const source_key = create_node_key(source);
+  const target_key = create_node_key(target);
   const query = `
       MATCH (source:${source.node_type} {node_key: $source_key})
       MATCH (target:${target.node_type} {node_key: $target_key})
@@ -334,7 +355,7 @@ const BATCH_SIZE = 256;
 async function process_file(
   session: Session,
   file_path: string,
-  process_fn: (data: any) => any
+  process_fn: (data: any) => Promise<MergeQuery>
 ) {
   const file_interface = readline.createInterface({
     input: fs.createReadStream(file_path),
@@ -346,7 +367,7 @@ async function process_file(
     try {
       const data = JSON.parse(line);
       // console.log(data);
-      const query_data = process_fn(data);
+      const query_data = await process_fn(data);
       // console.log(query_data);
       batch.push(query_data);
 
@@ -366,7 +387,7 @@ async function process_file(
   }
 }
 
-async function execute_batch(session: Session, batch: any[]) {
+async function execute_batch(session: Session, batch: MergeQuery[]) {
   const tx = session.beginTransaction();
   try {
     for (const { query, parameters } of batch) {

@@ -1,6 +1,6 @@
 use anyhow::Result;
+use ast::utils::print_json;
 use ast::{self};
-use ast::utils::{logger, print_json};
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
     let language = "Python";

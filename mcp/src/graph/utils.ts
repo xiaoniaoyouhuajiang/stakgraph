@@ -1,4 +1,4 @@
-import { NodeData, Neo4jNode, ReturnNode, NodeType } from "./types.js";
+import { Node, Neo4jNode, ReturnNode, NodeType } from "./types.js";
 import { TikTokenizer } from "@microsoft/tiktokenizer";
 import { Data_Bank } from "./neo4j.js";
 
@@ -15,6 +15,7 @@ export function toReturnNode(node: Neo4jNode): ReturnNode {
   const ref_id = properties.ref_id || "";
   delete properties.ref_id;
   delete properties.text_embeddings;
+  delete properties.embeddings;
   return {
     node_type: rightLabel(node) as NodeType,
     ref_id,
@@ -71,9 +72,10 @@ export function formatNode(node: Neo4jNode): string {
   return "";
 }
 
-export function create_node_key(node_data: NodeData) {
-  const { name, file, verb } = node_data;
-  const parts = [name, file];
+export function create_node_key(node: Node) {
+  const { node_type, node_data } = node;
+  const { name, file, start, verb } = node_data;
+  const parts = [node_type, name, file, (start || 0).toString()];
   if (verb) parts.push(verb);
   const sanitized_parts = parts.map((part) => {
     return part
