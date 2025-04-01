@@ -106,6 +106,7 @@ jobs:
       
       - name: Test API Response
         run: |
+          sleep 30
           RESPONSE=$(curl -s "http://localhost:3000/map?name=App&node_type=Function")
           echo "Response: $RESPONSE"
           
