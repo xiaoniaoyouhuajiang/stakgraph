@@ -13,7 +13,7 @@ pub enum Language {
     Ruby,
     Kotlin,
     Swift,
-    Svelte,
+    Java,
 }
 
 pub const PROGRAMMING_LANGUAGES: [Language; 9] = [
@@ -25,7 +25,7 @@ pub const PROGRAMMING_LANGUAGES: [Language; 9] = [
     Language::Ruby,
     Language::Kotlin,
     Language::Swift,
-    Language::Svelte,
+    Language::Java,
 ];
 
 impl Language {
@@ -44,9 +44,9 @@ impl Language {
             Self::Ruby => "Gemfile",
             Self::Kotlin => "build.gradle.kts",
             Self::Swift => "Podfile",
+            Self::Java => "pom.xml",
             Self::Bash => "",
             Self::Toml => "",
-            Self::Svelte => "package.json",
         }
     }
 
@@ -59,9 +59,17 @@ impl Language {
             Self::Ruby => vec!["rb"],
             Self::Kotlin => vec!["kt", "kts"],
             Self::Swift => vec!["swift", "xcodeproj", "xcworkspace"],
+            Self::Java => vec!["java", "gradle", "gradlew"],
             Self::Bash => vec!["sh"],
             Self::Toml => vec!["toml"],
-            Self::Svelte => vec!["svelte", "ts", "js"],
+        }
+    }
+
+    // React overrides Typescript if detected
+    pub fn overrides(&self) -> Vec<Language> {
+        match self {
+            Self::React => vec![Self::Typescript],
+            _ => Vec::new(),
         }
     }
 
@@ -74,16 +82,15 @@ impl Language {
             Self::Ruby => vec!["migrate", "tmp", ".git"],
             Self::Kotlin => vec![".gradle", ".idea", "build", ".git"],
             Self::Swift => vec![".git", "Pods"],
+            Self::Java => vec![".gradle", ".idea", "build", ".git"],
             Self::Bash => vec![".git"],
             Self::Toml => vec![".git"],
-            Self::Svelte => vec![".git"],
         }
     }
 
     pub fn skip_file_ends(&self) -> Vec<&'static str> {
         match self {
             Self::Typescript | Self::React => vec![".min.js"],
-            Self::Svelte => vec![".config.js", ".config.ts"],
             _ => Vec::new(),
         }
     }
@@ -97,9 +104,9 @@ impl Language {
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
             Self::Swift => Vec::new(),
+            Self::Java => Vec::new(),
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
-            Self::Svelte => Vec::new(),
         }
     }
 
@@ -112,9 +119,9 @@ impl Language {
             Self::Ruby => false,
             Self::Kotlin => true,
             Self::Swift => true,
+            Self::Java => true,
             Self::Bash => false,
             Self::Toml => false,
-            Self::Svelte => false,
         }
     }
 
@@ -127,9 +134,9 @@ impl Language {
             Self::Ruby => "ruby-lsp",
             Self::Kotlin => "kotlin-language-server",
             Self::Swift => "sourcekit-lsp",
+            Self::Java => "jdtls",
             Self::Bash => "",
             Self::Toml => "",
-            Self::Svelte =>"",
         }
         .to_string()
     }
@@ -143,9 +150,9 @@ impl Language {
             Self::Ruby => "--version",
             Self::Kotlin => "--version",
             Self::Swift => "--version",
+            Self::Java => "--version",
             Self::Bash => "",
             Self::Toml => "",
-            Self::Svelte => "--version",
         }
         .to_string()
     }
@@ -159,9 +166,9 @@ impl Language {
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
             Self::Swift => Vec::new(),
+            Self::Java => Vec::new(),
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
-            Self::Svelte => Vec::new(),
         }
     }
 
@@ -175,9 +182,9 @@ impl Language {
             Self::Ruby => "ruby",
             Self::Kotlin => "kotlin",
             Self::Swift => "swift",
+            Self::Java => "java",
             Self::Bash => "bash",
             Self::Toml => "toml",
-            Self::Svelte => "svelte",
         }
         .to_string()
     }
@@ -194,9 +201,9 @@ impl Language {
             Self::Ruby => Vec::new(),
             Self::Kotlin => Vec::new(),
             Self::Swift => Vec::new(),
+            Self::Java => Vec::new(),
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
-            Self::Svelte => Vec::new(),
         }
     }
 
@@ -245,8 +252,8 @@ impl FromStr for Language {
             "Kotlin" => Ok(Language::Kotlin),
             "swift" => Ok(Language::Swift),
             "Swift" => Ok(Language::Swift),
-            "svelte" => Ok(Language::Svelte),
-            "Svelte" => Ok(Language::Svelte),
+            "java" => Ok(Language::Java),
+            "Java" => Ok(Language::Java),
             _ => Err(anyhow::anyhow!("unsupported language")),
         }
     }

@@ -35,6 +35,7 @@ export type NodeType =
   | "File"
   | "Import"
   | "Class"
+  | "Trait"
   | "Library"
   | "Instance"
   | "Function"
@@ -66,4 +67,18 @@ export interface Edge {
   edge: EdgeTypeInterface;
   source: Node;
   target: Node;
+}
+
+export function relevant_node_types(): NodeType[] {
+  return [
+    "Page",
+    "Function",
+    "Class",
+    "Trait",
+    "Datamodel",
+    "Request",
+    "Endpoint",
+    "Test",
+    "E2etest",
+  ];
 }
