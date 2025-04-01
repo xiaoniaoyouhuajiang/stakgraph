@@ -106,7 +106,7 @@ jobs:
       
       - name: Test API Response
         run: |
-          RESPONSE=$(curl -s -X POST "http://localhost:3000/map?name=App&node_type=Function")
+          RESPONSE=$(curl -s -X GET "http://localhost:3000/map?name=App&node_type=Function")
           echo "Response: $RESPONSE"
           
           EXPECTED='<pre>Function: App (85)'
