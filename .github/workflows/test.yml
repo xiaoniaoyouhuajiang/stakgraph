@@ -19,8 +19,10 @@ jobs:
       - name: Give Permission
         working-directory: ./mcp
         run: |
+          mkdir -p ./.neo4j/plugins
           sudo chown -R 1000:1000 ./.neo4j/plugins
           sudo chmod -R 777 ./.neo4j/plugins  
+          sudo chmod -R 777 ./conf
 
 
       - name: Run Neo4j
