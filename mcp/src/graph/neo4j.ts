@@ -5,7 +5,11 @@ import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
 import { DIMENSIONS, vectorizeQuery } from "../vector/index.js";
-import { Direction } from "./graph.js";
+import { v4 as uuidv4 } from "uuid";
+
+export type Direction = "up" | "down";
+
+export const Data_Bank = "Data_Bank";
 
 class Db {
   private driver: Driver;
@@ -207,33 +211,9 @@ class Db {
     }
   }
 
-  index_node_type_string(types: NodeType[]) {
-    return types.join("|");
-  }
-
-  index_node_types() {
-    return this.index_node_type_string([
-      "Repository",
-      "Directory",
-      "File",
-      "Import",
-      "Class",
-      "Trait",
-      "Library",
-      "Function",
-      "Test",
-      "E2etest",
-      "Endpoint",
-      "Request",
-      "Datamodel",
-      "Page",
-    ]);
-  }
-
   async createFulltextIndex(): Promise<void> {
     const indexName = Q.BODY_INDEX;
     const session = this.driver.session();
-    const node_types = this.index_node_types();
     try {
       // First check if the index already exists
       const indexResult = await session.run(
@@ -244,7 +224,7 @@ class Db {
       if (!exists) {
         console.log("Creating fulltext index...");
         await session.run(
-          `CREATE FULLTEXT INDEX ${indexName} FOR (f:${node_types})
+          `CREATE FULLTEXT INDEX ${indexName} FOR (f:${Data_Bank})
           ON EACH [f.body]
           OPTIONS {
             indexConfig: {
@@ -265,11 +245,9 @@ class Db {
     }
   }
 
-  // FIXME: this is not working. Does not accept multiple node types.
   async createVectorIndex(): Promise<void> {
     const indexName = Q.VECTOR_INDEX;
     const session = this.driver.session();
-    const node_types = this.index_node_types();
     try {
       // First check if the index already exists
       const indexResult = await session.run(
@@ -280,7 +258,7 @@ class Db {
       if (!exists) {
         console.log("Creating vector index...");
         await session.run(
-          `CREATE VECTOR INDEX ${indexName} FOR (n:${node_types})
+          `CREATE VECTOR INDEX ${indexName} FOR (n:${Data_Bank})
            ON n.embeddings
            OPTIONS {
              indexConfig: {
@@ -305,7 +283,7 @@ class Db {
 export const db = new Db();
 
 db.createFulltextIndex();
-// db.createVectorIndex();
+db.createVectorIndex();
 
 interface MergeQuery {
   query: string;
@@ -317,7 +295,7 @@ export function construct_merge_node_query(node: Node): MergeQuery {
   const { node_type, node_data } = node;
   const node_key = create_node_key(node_data);
   const query = `
-      MERGE (node:${node_type} {node_key: $node_key})
+      MERGE (node:${node_type}:${Data_Bank} {node_key: $node_key})
       ON CREATE SET node += $properties
       ON MATCH SET node += $properties
       RETURN node
@@ -326,7 +304,7 @@ export function construct_merge_node_query(node: Node): MergeQuery {
     query,
     parameters: {
       node_key,
-      properties: { ...node_data, node_key },
+      properties: { ...node_data, node_key, ref_id: uuidv4() },
     },
   };
 }

@@ -34,6 +34,10 @@ curl -X POST \
  -F "edges=@./ast/examples/demo-repo-edges.jsonl" \
  http://localhost:3000/upload
 
+### demo repo test endpoints
+
+http://localhost:3000/map?node_type=Function&name=NewPerson
+
 ### set up in cursor
 
 Cursor Settings -> Features -> MCP Servers -> Add New

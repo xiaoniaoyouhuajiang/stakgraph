@@ -1,12 +1,11 @@
 import { NodeData, Neo4jNode, ReturnNode, NodeType } from "./types.js";
 import { TikTokenizer } from "@microsoft/tiktokenizer";
-
-const DATA_BANK_LABELS = ["Data_Bank"];
+import { Data_Bank } from "./neo4j.js";
 
 export function rightLabel(node: Neo4jNode): string {
   let label = node.labels[0];
-  if (DATA_BANK_LABELS.includes(label)) {
-    label = node.labels[1];
+  if (label === Data_Bank) {
+    label = node.labels[1] || "";
   }
   return label;
 }

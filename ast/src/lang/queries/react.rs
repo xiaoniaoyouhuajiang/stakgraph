@@ -308,10 +308,13 @@ impl Stack for ReactTs {
             (_) @{PAGE_PATHS}
         )
         attribute: (jsx_attribute
-            (property_identifier) @component-attr (#eq? @component-attr "component")
-            (jsx_expression
-                (identifier) @{PAGE_COMPONENT}
-            )
+            (property_identifier) @component-attr (#match? @component-attr "^component$|^element$")
+            (jsx_expression [
+                (identifier) @page-component
+                (jsx_self_closing_element
+                    (identifier) @page-component
+                )
+            ])
         )?
     )
     (jsx_element

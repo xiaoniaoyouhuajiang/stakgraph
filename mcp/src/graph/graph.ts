@@ -1,4 +1,4 @@
-import { db } from "./neo4j.js";
+import { db, Direction, Data_Bank } from "./neo4j.js";
 import archy from "archy";
 import { buildTree } from "./codemap.js";
 import { extractNodesFromRecord } from "./codebody.js";
@@ -7,7 +7,7 @@ import { nameFileOnly, toReturnNode, formatNode } from "./utils.js";
 
 export type SearchMethod = "vector" | "fulltext";
 
-export type Direction = "up" | "down";
+export { Data_Bank, Direction };
 
 export async function get_nodes(node_type: NodeType, concise: boolean) {
   const result = await db.nodes_by_type(node_type);
