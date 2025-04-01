@@ -95,7 +95,7 @@ impl Stack for Python {
         (attribute object: (identifier) @{OPERAND}
             attribute: (identifier) @{FUNCTION_NAME}
         )
-    ] @{FUNCTION_NAME}
+    ]
 ) @{FUNCTION_CALL}"
         )
     }
@@ -125,7 +125,7 @@ impl Stack for Python {
     (decorator
         (call
             function: (attribute
-                object: (_) 
+                object: (_)
                 attribute: (identifier) @route_func (#eq? @route_func "route")
             )
             arguments: (argument_list
@@ -134,7 +134,7 @@ impl Stack for Python {
                 (keyword_argument
                     name: (identifier) @method_kw (#eq? @method_kw "methods")
                     value: (list
-                        (string) @{ENDPOINT_VERB} 
+                        (string) @{ENDPOINT_VERB}
                     )
                 )?
             )
