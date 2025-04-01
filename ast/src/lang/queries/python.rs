@@ -91,7 +91,7 @@ impl Stack for Python {
         format!(
             "(call
     function: [
-        (identifier)
+        (identifier) @{FUNCTION_NAME}
         (attribute object: (identifier) @{OPERAND}
             attribute: (identifier) @{FUNCTION_NAME}
         )
