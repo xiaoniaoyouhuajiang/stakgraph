@@ -16,6 +16,11 @@ jobs:
       - name: Checkout from Github
         uses: actions/checkout@v4
       
+
+      - name: Run Neo4j
+        working-directory: ./mcp
+        run: docker compose -f neo4j.yaml up -d
+      
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -58,10 +63,6 @@ jobs:
           export REPO_URL="https://github.com/stakwork/demo-repo.git"
           export LSP_SKIP_POST_CLONE=1
           OUTPUT_FORMAT=jsonl cargo run --bin urls
-          
-      - name: Run Neo4j
-        working-directory: ./mcp
-        run: docker compose -f neo4j.yaml up -d
       
       - name: Wait for Neo4j to be Ready
         run: |
@@ -72,6 +73,9 @@ jobs:
             sleep 10
           done'
           echo "Neo4j is healthy!"
+      
+      - name: Neo4j logs
+        run: docker logs neo4j.sphinx 
       
       - name: Start Node Server
         working-directory: ./mcp
