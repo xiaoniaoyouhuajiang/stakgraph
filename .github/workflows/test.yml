@@ -103,3 +103,18 @@ jobs:
           -F "nodes=@./ast/examples/demo-repo-nodes.jsonl" \
           -F "edges=@./ast/examples/demo-repo-edges.jsonl" \
           http://localhost:3000/upload
+      
+      - name: Test API Response
+        run: |
+          RESPONSE=$(curl -s -X POST "http://localhost:3000/map?name=App&node_type=Function")
+          echo "Response: $RESPONSE"
+          
+          EXPECTED='<pre>Function: App (85)'
+          
+          if echo "$RESPONSE" | grep -q "$EXPECTED"; then
+            echo "Test passed: Response contains expected output."
+          else
+            echo "Test failed: Response does not contain expected output."
+            exit 1
+          fi
+        
