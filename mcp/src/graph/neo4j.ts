@@ -4,8 +4,8 @@ import readline from "readline";
 import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
-
-export type Direction = "up" | "down";
+import { DIMENSIONS, vectorizeQuery } from "../vector/index.js";
+import { Direction } from "./graph.js";
 
 class Db {
   private driver: Driver;
@@ -179,19 +179,46 @@ class Db {
     }
   }
 
+  async vectorSearch(
+    query: string,
+    limit: number,
+    node_types: NodeType[],
+    similarityThreshold: number = 0.7
+  ): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    const embeddings = await vectorizeQuery(query);
+    try {
+      const result = await session.run(Q.VECTOR_SEARCH_QUERY, {
+        embeddings,
+        limit,
+        node_types,
+        similarityThreshold,
+      });
+      return result.records.map((record) => {
+        const node = record.get("node");
+        return {
+          properties: node.properties,
+          labels: node.labels,
+          score: record.get("similarity"),
+        };
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
   index_node_type_string(types: NodeType[]) {
     return types.join("|");
   }
 
-  async createFulltextIndex(): Promise<void> {
-    const indexName = Q.BODY_INDEX;
-    const session = this.driver.session();
-    const node_types = this.index_node_type_string([
+  index_node_types() {
+    return this.index_node_type_string([
       "Repository",
       "Directory",
       "File",
       "Import",
       "Class",
+      "Trait",
       "Library",
       "Function",
       "Test",
@@ -201,6 +228,12 @@ class Db {
       "Datamodel",
       "Page",
     ]);
+  }
+
+  async createFulltextIndex(): Promise<void> {
+    const indexName = Q.BODY_INDEX;
+    const session = this.driver.session();
+    const node_types = this.index_node_types();
     try {
       // First check if the index already exists
       const indexResult = await session.run(
@@ -231,11 +264,48 @@ class Db {
       await session.close();
     }
   }
+
+  // FIXME: this is not working. Does not accept multiple node types.
+  async createVectorIndex(): Promise<void> {
+    const indexName = Q.VECTOR_INDEX;
+    const session = this.driver.session();
+    const node_types = this.index_node_types();
+    try {
+      // First check if the index already exists
+      const indexResult = await session.run(
+        `SHOW INDEXES WHERE name = $indexName`,
+        { indexName }
+      );
+      const exists = indexResult.records.length > 0;
+      if (!exists) {
+        console.log("Creating vector index...");
+        await session.run(
+          `CREATE VECTOR INDEX ${indexName} FOR (n:${node_types})
+           ON n.embeddings
+           OPTIONS {
+             indexConfig: {
+               \`vector.dimensions\`: ${DIMENSIONS}, // Adjust to match your embedding dimensions
+               \`vector.similarity_function\`: 'cosine'
+             }
+           }`
+        );
+        console.log("Vector index created successfully");
+      } else {
+        console.log("Vector index already exists, skipping creation");
+      }
+    } catch (error) {
+      console.error("Error creating vector index:", error);
+      throw error;
+    } finally {
+      await session.close();
+    }
+  }
 }
 
 export const db = new Db();
 
 db.createFulltextIndex();
+// db.createVectorIndex();
 
 interface MergeQuery {
   query: string;

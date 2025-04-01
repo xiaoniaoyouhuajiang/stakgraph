@@ -1,16 +1,29 @@
 import { FlagEmbedding, EmbeddingModel } from "fastembed";
 import { chunkCode, weightedPooling } from "./utils.js";
 
-export async function vectorizeCodeDocument(codeString: string) {
+export const DIMENSIONS = 384;
+export const MODEL = EmbeddingModel.BGESmallENV15;
+
+export async function vectorizeQuery(query: string): Promise<number[]> {
   const flagEmbedding = await FlagEmbedding.init({
-    model: EmbeddingModel.BGESmallENV15,
+    model: MODEL,
+    maxLength: 512,
+  });
+  return await flagEmbedding.queryEmbed(query);
+}
+
+export async function vectorizeCodeDocument(
+  codeString: string
+): Promise<number[]> {
+  const flagEmbedding = await FlagEmbedding.init({
+    model: MODEL,
     maxLength: 512,
   });
 
   // For smaller documents, use directly
   if (codeString.length < 400) {
     const embedding = await flagEmbedding.queryEmbed(codeString);
-    return embedding[0]; // Ensure we return a single vector
+    return embedding; // Ensure we return a single vector
   }
 
   // Use overlapping chunks for better context capture

@@ -78,6 +78,14 @@ paths:
           schema:
             type: string
             example: "Page,Function,Class"
+        # - name: method
+        #   in: query
+        #   required: false
+        #   description: Search method to use
+        #   schema:
+        #     type: string
+        #     enum: [vector, fulltext]
+        #     default: fulltext
   /map:
     get:
       summary: /map

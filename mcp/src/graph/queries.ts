@@ -32,6 +32,8 @@ RETURN f as component
 
 export const BODY_INDEX = "bodyIndex";
 
+export const VECTOR_INDEX = "vectorIndex";
+
 export const SEARCH_QUERY = `
 CALL db.index.fulltext.queryNodes('${BODY_INDEX}', $query) YIELD node, score
 RETURN node, score
@@ -47,6 +49,21 @@ WHERE
     WHEN $node_types IS NULL OR size($node_types) = 0 THEN true
     ELSE ANY(label IN labels(node) WHERE label IN $node_types)
   END
+RETURN node, score
+ORDER BY score DESC
+LIMIT toInteger($limit)
+`;
+
+export const VECTOR_SEARCH_QUERY = `
+MATCH (node)
+WHERE
+  CASE
+    WHEN $node_types IS NULL OR size($node_types) = 0 THEN true
+    ELSE ANY(label IN labels(node) WHERE label IN $node_types)
+  END
+  AND node.embeddings IS NOT NULL
+WITH node, gds.similarity.cosine(node.embeddings, $embeddings) AS score
+WHERE score >= $similarityThreshold
 RETURN node, score
 ORDER BY score DESC
 LIMIT toInteger($limit)

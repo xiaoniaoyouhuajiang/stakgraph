@@ -2,17 +2,15 @@ import { z } from "zod";
 import { Tool } from "./index.js";
 import { parseSchema } from "./utils.js";
 import * as G from "../graph/graph.js";
-import { Direction } from "../graph/neo4j.js";
-import { MapParams } from "../graph/graph.js";
 
-export function toMapParams(args: z.infer<typeof GetMapSchema>): MapParams {
+export function toMapParams(args: z.infer<typeof GetMapSchema>): G.MapParams {
   return {
     node_type: args.node_type || "",
     name: args.name || "",
     ref_id: args.ref_id || "",
     tests: args.tests ?? false,
     depth: args.depth ?? 10,
-    direction: (args.direction || "down") as Direction,
+    direction: (args.direction || "down") as G.Direction,
   };
 }
 

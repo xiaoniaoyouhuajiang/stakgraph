@@ -7,67 +7,79 @@ interface TreeNode {
   nodes: TreeNode[];
 }
 
-export async function buildTree(record: Record): Promise<TreeNode> {
+// list the edge types which are "parents" that we want shown as "children" in the tree
+const REVERSE_RELATIONSHIPS = ["OPERAND"];
+
+export async function buildTree(
+  record: Record,
+  direction: string = "down"
+): Promise<TreeNode> {
+  if (!record) {
+    throw new Error("failed to get record");
+  }
+
   const tokenizer = await createByModelName("gpt-4");
 
   // Extract data from the record
-  const startFunction = record.get("function");
-  const paths = record.get("paths");
+  const startNode = record.get("startNode");
+  const allNodes = record.get("allNodes");
+  const relationships = record.get("relationships");
 
-  // Create maps to store nodes and relationships
+  // Create maps to store nodes
   const nodeMap = new Map<string, any>(); // Neo4j node by ID
   const treeNodeMap = new Map<string, TreeNode>(); // TreeNode by ID
   const childRelationships = new Map<string, Set<string>>(); // parent -> Set of children
 
+  // Add all nodes to the nodeMap
+  for (const node of allNodes) {
+    const nodeId = node.identity.toString();
+    nodeMap.set(nodeId, node);
+  }
+
   // Add the root node
-  const rootId = startFunction.identity.toString();
-  nodeMap.set(rootId, startFunction);
+  const rootId = startNode.identity.toString();
+  nodeMap.set(rootId, startNode);
 
-  // Process each path
-  for (let i = 0; i < paths.length; i++) {
-    const path = paths[i];
-    if (!path) continue;
+  // Process relationships
+  for (const rel of relationships) {
+    const sourceId = rel.source.toString();
+    const targetId = rel.target.toString();
 
-    // Process path segments
-    if (path.segments && path.segments.length > 0) {
-      // Collect nodes first
-      const nodesInPath = new Set<string>();
+    // Determine which is parent and which is child based on direction and relationship type
+    let parentId, childId;
 
-      for (let j = 0; j < path.segments.length; j++) {
-        const segment = path.segments[j];
-
-        // Add start and end nodes to the nodeMap
-        if (segment.start) {
-          const startId = segment.start.identity.toString();
-          nodeMap.set(startId, segment.start);
-          nodesInPath.add(startId);
-        }
-
-        if (segment.end) {
-          const endId = segment.end.identity.toString();
-          nodeMap.set(endId, segment.end);
-          nodesInPath.add(endId);
-        }
-
-        // Process the relationship (one-way, parent to child)
-        if (segment.relationship) {
-          const startId = segment.start.identity.toString();
-          const endId = segment.end.identity.toString();
-
-          // Add relationship (from start to end)
-          if (!childRelationships.has(startId)) {
-            childRelationships.set(startId, new Set<string>());
-          }
-          childRelationships.get(startId)!.add(endId);
-        }
+    if (direction === "up") {
+      // When direction is "up", generally treat target as parent and source as child
+      // EXCEPT for relationships in REVERSE_RELATIONSHIPS
+      if (REVERSE_RELATIONSHIPS.includes(rel.type)) {
+        parentId = sourceId;
+        childId = targetId;
+      } else {
+        parentId = targetId;
+        childId = sourceId;
+      }
+    } else {
+      // direction is "down"
+      // When direction is "down", generally treat source as parent and target as child
+      // EXCEPT for relationships in REVERSE_RELATIONSHIPS
+      if (REVERSE_RELATIONSHIPS.includes(rel.type)) {
+        parentId = targetId;
+        childId = sourceId;
+      } else {
+        parentId = sourceId;
+        childId = targetId;
       }
     }
+
+    if (!childRelationships.has(parentId)) {
+      childRelationships.set(parentId, new Set<string>());
+    }
+    childRelationships.get(parentId)!.add(childId);
   }
 
   // Create TreeNodes for all Neo4j nodes
   for (const [id, node] of nodeMap.entries()) {
     const label = getNodeLabel(node, tokenizer);
-
     treeNodeMap.set(id, {
       label,
       nodes: [],

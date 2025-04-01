@@ -1,135 +1,92 @@
-import { getNodeLabel } from "./utils.js";
+import { formatNode } from "./utils.js";
 import { Neo4jNode } from "./types.js";
 
-// Helper function to format node
-export function formatNode(node: Neo4jNode): string {
-  if (node && node.properties) {
-    // Regular format for other nodes
-    return [
-      `<snippet>`,
-      `name: ${getNodeLabel(node)}`,
-      `file: ${node.properties.file || "Not specified"}`,
-      `start: ${node.properties.start || "N/A"}, end: ${
-        node.properties.end || "N/A"
-      }`,
-      node.properties.body ? "```\n" + node.properties.body + "\n```" : "",
-      "</snippet>",
-      "", // Empty line for spacing
-    ].join("\n");
-  }
-  return "";
-}
-
-export function code_body(
+export function extractNodesFromRecord(
   record: any,
-  extra_nodes: Neo4jNode[],
-  include_tests: boolean = false
+  extra_nodes: Neo4jNode[] = []
 ): string {
   try {
-    // Get the starting function and all paths
-    const startFunction = record.get("function");
-    const paths = record.get("paths") || [];
+    if (!record) {
+      return "";
+    }
 
-    console.log("Total paths received:", paths.length);
+    const allNodes = new Map<string, Neo4jNode>();
 
-    // Set to store unique nodes
-    const uniqueNodes = new Map<string, Neo4jNode>();
-
-    // Helper function to generate a unique key for each node
-    const getNodeKey = (node: Neo4jNode): string => {
-      return `${node.properties.file || ""}:${node.properties.name || ""}:${
-        node.properties.start || ""
-      }`;
+    // Helper function that properly identifies and adds only valid nodes
+    const addNode = (item: any) => {
+      try {
+        // Skip if not a node object
+        if (!item || typeof item !== "object") {
+          return;
+        }
+        // Skip relationships - they have type but not labels
+        if (item.type && !item.labels) {
+          return;
+        }
+        // Must have properties and file property to be a valid node for our purposes
+        if (!item.properties || !item.properties.file) {
+          return;
+        }
+        const key = `${item.properties.file}:${item.properties.name || ""}:${
+          item.properties.start || "0"
+        }`;
+        allNodes.set(key, item);
+      } catch (e) {
+        // Silent error handling
+      }
     };
 
-    // Add the starting function to the unique nodes
-    if (startFunction) {
-      uniqueNodes.set(getNodeKey(startFunction), startFunction);
-    }
-
-    // First, process any direct nodes in the paths array
-    for (const path of paths) {
-      // Check if this is a direct node object with labels and properties
-      if (path && path.labels && path.properties) {
-        console.log(`Found direct node with labels: ${path.labels.join(", ")}`);
-        uniqueNodes.set(getNodeKey(path), path);
-        continue; // Skip to next item
-      }
-
-      try {
-        // For regular Path objects from Neo4j
-        if (path.start && path.end) {
-          // This handles paths created with apoc.path.create for Import nodes
-          uniqueNodes.set(getNodeKey(path.start), path.start);
-          uniqueNodes.set(getNodeKey(path.end), path.end);
-
-          // If the path has segments, process those too
-          if (path.segments && Array.isArray(path.segments)) {
-            path.segments.forEach((segment: any) => {
-              uniqueNodes.set(getNodeKey(segment.start), segment.start);
-              uniqueNodes.set(getNodeKey(segment.end), segment.end);
-            });
-          }
-        }
-        // If path has nodes method (Neo4j specific)
-        else if (typeof path.nodes === "function") {
-          const nodes = path.nodes();
-          nodes.forEach((node: Neo4jNode) => {
-            if (node) uniqueNodes.set(getNodeKey(node), node);
-          });
-        }
-        // If path is an array
-        else if (Array.isArray(path)) {
-          path.forEach((node) => {
-            if (node) uniqueNodes.set(getNodeKey(node), node);
-          });
-        }
-        // If path has forEach method
-        else if (typeof path.forEach === "function") {
-          path.forEach((item: any) => {
-            if (item.start) uniqueNodes.set(getNodeKey(item.start), item.start);
-            if (item.end) uniqueNodes.set(getNodeKey(item.end), item.end);
-          });
-        }
-      } catch (err) {
-        console.warn("Error processing path:", err);
-      }
-    }
-
-    // Convert the Map values to an array
-    let nodes = Array.from(uniqueNodes.values());
-    nodes.push(...extra_nodes);
-
-    // Filter out test nodes if include_tests is false (as in your original code)
-    if (!include_tests) {
-      nodes = nodes.filter((node) => {
-        const labels = node.labels || [];
-        return !labels.includes("Test") && !labels.includes("E2etest");
+    // Process allNodes from the updated query
+    if (record.has("allNodes")) {
+      const nodes = record.get("allNodes");
+      nodes.forEach((node: any, index: number) => {
+        addNode(node);
       });
     }
 
-    // Sort nodes by file path alphabetically, then by start position
-    nodes.sort((a, b) => {
-      // First compare file paths
-      const fileA = (a?.properties?.file || "").toLowerCase();
-      const fileB = (b?.properties?.file || "").toLowerCase();
-      if (fileA !== fileB) {
-        return fileA.localeCompare(fileB);
+    // Process imports collection
+    if (record.has("imports")) {
+      const imports = record.get("imports");
+      imports.forEach((importNode: any, index: number) => {
+        addNode(importNode);
+      });
+    }
+
+    // Add any extra nodes
+    if (extra_nodes && extra_nodes.length > 0) {
+      extra_nodes.forEach((node, index) => {
+        addNode(node);
+      });
+    }
+
+    // Convert to array and sort
+    const nodeArray = Array.from(allNodes.values());
+
+    // Sort the nodes by file and start position
+    const sortedNodes = nodeArray.sort((a, b) => {
+      try {
+        // Safely get file names with default empty string
+        const fileA = (a.properties.file || "").toLowerCase();
+        const fileB = (b.properties.file || "").toLowerCase();
+        // Sort by filename first
+        if (fileA !== fileB) return fileA.localeCompare(fileB);
+        // Then by start position
+        const startA = Number(a.properties.start?.toString() || 0);
+        const startB = Number(b.properties.start?.toString() || 0);
+        return startA - startB;
+      } catch (e) {
+        return 0;
       }
-      // If files are the same, compare start positions
-      const startA = Number(a.properties.start?.toString() || 0);
-      const startB = Number(b.properties.start?.toString() || 0);
-      return startA - startB;
     });
 
-    const output = nodes.map(formatNode);
+    // Format the nodes
+    const formattedNodes = sortedNodes
+      .map(formatNode)
+      .filter((text) => text.trim() !== "");
 
-    console.log("=> code_body:", output.length, "nodes");
-
-    // Filter out empty strings and join with newlines
-    return output.filter((line) => line.trim() !== "").join("\n");
+    // Return the formatted nodes as a single string
+    return formattedNodes.join("\n");
   } catch (error) {
-    console.error("Error in code_body:", error);
-    throw error;
+    return "";
   }
 }

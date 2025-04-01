@@ -1,10 +1,13 @@
-import { db, Direction } from "./neo4j.js";
+import { db } from "./neo4j.js";
 import archy from "archy";
-import { buildTree } from "./codemap2.js";
-import { formatNode } from "./codebody.js";
-import { extractNodesFromRecord } from "./codebody2.js";
+import { buildTree } from "./codemap.js";
+import { extractNodesFromRecord } from "./codebody.js";
 import { Neo4jNode, NodeType } from "./types.js";
-import { nameFileOnly, toReturnNode } from "./utils.js";
+import { nameFileOnly, toReturnNode, formatNode } from "./utils.js";
+
+export type SearchMethod = "vector" | "fulltext";
+
+export type Direction = "up" | "down";
 
 export async function get_nodes(node_type: NodeType, concise: boolean) {
   const result = await db.nodes_by_type(node_type);
@@ -15,10 +18,16 @@ export async function search(
   query: string,
   limit: number,
   node_types: NodeType[],
-  concise: boolean
+  concise: boolean,
+  method: SearchMethod = "fulltext"
 ) {
-  const result = await db.search(query, limit, node_types);
-  return result.map((f) => toNode(f, concise));
+  if (method === "vector") {
+    const result = await db.vectorSearch(query, limit, node_types);
+    return result.map((f) => toNode(f, concise));
+  } else {
+    const result = await db.search(query, limit, node_types);
+    return result.map((f) => toNode(f, concise));
+  }
 }
 
 export function toNode(node: Neo4jNode, concise: boolean): any {
