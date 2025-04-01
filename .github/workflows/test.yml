@@ -27,12 +27,6 @@ jobs:
         run: |
           echo "$HOME/go/bin" >> $GITHUB_PATH
           gopls version
-
-      - name: Run Env Command
-        run: |
-          export REPO_URL="https://github.com/stakwork/demo-repo.git"
-          export LSP_SKIP_POST_CLONE=1
-          OUTPUT_FORMAT=jsonl cargo run --bin urls
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,7 +40,7 @@ jobs:
         run: |
           npm install -g typescript typescript-language-server
           echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
-          
+
       - name: Verify TypeScript Installation
         run: |
           tsc --version
@@ -54,6 +48,12 @@ jobs:
 
       - name: Run command LS
         run: ls
+
+      - name: Run Env Command
+        run: |
+          export REPO_URL="https://github.com/stakwork/demo-repo.git"
+          export LSP_SKIP_POST_CLONE=1
+          OUTPUT_FORMAT=jsonl cargo run --bin urls
 
       - name: Run Neo4j
         working-directory: ./mcp
