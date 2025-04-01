@@ -57,7 +57,7 @@ jobs:
 
       - name: Run Neo4j
         working-directory: ./mcp
-        run: docker compose -f neo4j.yaml up -d
+        run: docker compose -f neo4j.yaml up -d && docker compose -f neo4k.yaml wait neo4j
       
       - name: Wait for Neo4j
         run: sleep 10
