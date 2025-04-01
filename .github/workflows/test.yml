@@ -16,6 +16,12 @@ jobs:
       - name: Checkout from Github
         uses: actions/checkout@v4
       
+      - name: Give Permission
+        working-directory: ./mcp
+        run: |
+          sudo chown -R 1000:1000 ./.neo4j/plugins
+          sudo chmod -R 777 ./.neo4j/plugins  
+
 
       - name: Run Neo4j
         working-directory: ./mcp
