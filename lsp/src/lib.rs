@@ -149,7 +149,7 @@ pub fn spawn_analyzer(
 
     let _task = tokio::spawn(async move {
         if let Err(e) = spawn_inner(&lang, &root_dir, cmd_rx).await {
-            error!("spawn LSP error: {:?}", e);
+            error!("spawn LSP error: {:?}, {:?}", e, root_dir);
         }
     });
 
@@ -173,7 +173,7 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
     }
     let child = child_config
         .spawn()
-        .map_err(|e| anyhow!("spawn error: {:?}", e))?;
+        .map_err(|e| anyhow!("spawn error: {:?}, {:#?}", e, child_config))?;
     info!("child process started");
     let stdout = child.stdout.context("no stdout")?;
     let stdin = child.stdin.context("no stdin")?;
