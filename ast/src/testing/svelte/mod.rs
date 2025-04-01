@@ -20,8 +20,8 @@ async fn test_svelte() {
 
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 52);
-    assert_eq!(graph.edges.len(), 51);
+    assert_eq!(graph.nodes.len(), 47);
+    assert_eq!(graph.edges.len(), 46);
 
     let languages = graph
         .nodes
@@ -60,7 +60,6 @@ async fn test_svelte() {
     let class = classes[0].into_data();
     assert_eq!(class.body, "");
 
-
     let functions = graph
         .nodes
         .iter()
@@ -68,7 +67,7 @@ async fn test_svelte() {
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 6);
     let func = functions[0].into_data();
-    assert_eq!(func.body, "{addPerson}");
+    assert_eq!(func.name, "addPerson");
 
 
     let data_models = graph
@@ -85,7 +84,7 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::Request(_)))
         .collect::<Vec<_>>();
     let request = totalRequests[0].into_data();
-    assert_eq!(request.name, "{addPerson}");
+    assert_eq!(request.name, "fetchPeople");
 
-    assert_eq!(totalRequests.len(), 6, "wrong request count");
+    assert_eq!(totalRequests.len(), 1, "wrong request count");
 }

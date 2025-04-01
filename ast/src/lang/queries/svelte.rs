@@ -61,7 +61,7 @@ impl Stack for Svelte {
             (
                 attribute
                 (expression
-                    (_) @args
+                    (_) @{FUNCTION_NAME}
                 ) @{FUNCTION_DEFINITION}
             )
             "#
@@ -122,7 +122,8 @@ impl Stack for Svelte {
             r#"
             (_
                 (_) @{ENDPOINT}
-            ) @{ENDPOINT}
+                (#match? @{ENDPOINT} "fetch|get|post|put|delete")
+            ) @{REQUEST_CALL}
             "#
         ))
     }
