@@ -116,20 +116,15 @@ impl Stack for Svelte {
     }
 
 
-    fn endpoint_finders(&self) -> Vec<String> {
-        vec![
-            format!(
-                r#"
-                (script_element
-                    (_) @{ENDPOINT}
-                ) @{ENDPOINT}
-                (script_element
-                    (_) @{ENDPOINT}
-                    (#match? @endpoint "GET|POST|SET|PUT|DELETE")
-                ) @{ENDPOINT}
-                "#
-            ),
-        ]
+
+    fn request_finder(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (_
+                (_) @{ENDPOINT}
+            ) @{ENDPOINT}
+            "#
+        ))
     }
 
 

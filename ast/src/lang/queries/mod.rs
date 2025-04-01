@@ -248,6 +248,7 @@ pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {
         LspLanguage::Java => tree_sitter_java::LANGUAGE.into(),
         LspLanguage::Typescript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         LspLanguage::React => tree_sitter_typescript::LANGUAGE_TSX.into(),
+        LspLanguage::Svelte => tree_sitter_svelte_ng::LANGUAGE.into(),
         // _ => tree_sitter_bash::LANGUAGE.into(),
     }
 }
