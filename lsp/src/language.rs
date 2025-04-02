@@ -60,7 +60,6 @@ impl Language {
         match self {
             Self::Rust => vec!["rs"],
             Self::Go => vec!["go"],
-            Self::Typescript | Self::React => vec!["jsx", "tsx", "ts", "js"],
             Self::Python => vec!["py", "ipynb"],
             Self::Ruby => vec!["rb"],
             Self::Kotlin => vec!["kt", "kts"],
@@ -68,7 +67,10 @@ impl Language {
             Self::Java => vec!["java", "gradle", "gradlew"],
             Self::Bash => vec!["sh"],
             Self::Toml => vec!["toml"],
-            Self::Svelte => vec!["svelte", "jsx", "tsx", "ts", "js"],
+            // how to separate ts and js?
+            Self::Typescript => vec!["ts", "js"],
+            Self::React => vec!["jsx", "tsx", "ts", "js"],
+            Self::Svelte => vec!["svelte", "ts", "js"],
             Self::Angular => vec!["ts", "js"],
         }
     }
@@ -76,8 +78,9 @@ impl Language {
     // React overrides Typescript if detected
     pub fn overrides(&self) -> Vec<Language> {
         match self {
-            Self::React => vec![Self::Typescript],
+            Self::React => vec![Self::Typescript, Self::Svelte, Self::Angular],
             Self::Svelte => vec![Self::Typescript],
+            Self::Angular => vec![Self::Typescript],
             _ => Vec::new(),
         }
     }
@@ -95,7 +98,7 @@ impl Language {
             Self::Bash => vec![".git"],
             Self::Toml => vec![".git"],
             Self::Svelte => vec![".git", " node_modules"],
-            Self::Angular => vec![".git"," node_modules"],
+            Self::Angular => vec![".git", " node_modules"],
         }
     }
 

@@ -13,6 +13,8 @@ export REPO_URL="https://github.com/stakwork/demo-repo.git"
 
 export REPO_URL="https://github.com/stakwork/sphinx-tribes-frontend.git"
 
+export REPO_URL="https://github.com/stakwork/sphinx-tribes.git"
+
 */
 
 #[tokio::main]
