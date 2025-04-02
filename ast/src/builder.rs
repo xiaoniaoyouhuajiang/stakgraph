@@ -4,6 +4,7 @@ use crate::lang::{asg::NodeData, graph::Node, graph::NodeType};
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use tokio::fs;
 use tracing::{debug, info};
@@ -33,7 +34,12 @@ impl Repo {
 
         debug!("collecting dirs...");
         let dirs = self.collect_dirs()?;
-        let files = self.collect()?;
+        let files_1 = self.collect()?;
+        let files: Vec<PathBuf> = files_1
+            .into_iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
 
         let mut dirs_not_empty = Vec::new();
         for d in &dirs {

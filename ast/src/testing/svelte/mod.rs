@@ -15,8 +15,8 @@ async fn test_svelte() {
     .unwrap();
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 47);
-    assert_eq!(graph.edges.len(), 46);
+    assert_eq!(graph.nodes.len(), 43);
+    assert_eq!(graph.edges.len(), 42);
 
     let languages = graph
         .nodes
@@ -43,7 +43,7 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::Import(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(imports.len(), 9, "wrong import count");
+    assert_eq!(imports.len(), 7, "wrong import count");
 
     let classes = graph
         .nodes
@@ -70,7 +70,7 @@ async fn test_svelte() {
         .filter(|n| matches!(n, Node::DataModel(_)))
         .collect::<Vec<_>>();
 
-    assert_eq!(data_models.len(), 15);
+    assert_eq!(data_models.len(), 13);
 
     let total_requests = graph
         .nodes

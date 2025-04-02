@@ -16,8 +16,8 @@ async fn test_kotlin() {
 
     let graph = repo.build_graph().await.unwrap();
 
-    assert_eq!(graph.nodes.len(), 178);
-    assert_eq!(graph.edges.len(), 181);
+    assert_eq!(graph.nodes.len(), 134);
+    assert_eq!(graph.edges.len(), 137);
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -47,7 +47,7 @@ async fn test_kotlin() {
         .iter()
         .filter(|n| matches!(n, Node::Library(_)))
         .collect::<Vec<_>>();
-    assert_eq!(imports.len(), 88);
+    assert_eq!(imports.len(), 44);
 
     let imports = graph
         .nodes

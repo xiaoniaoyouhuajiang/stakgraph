@@ -4,13 +4,13 @@ use std::env;
 use std::str::FromStr;
 use test_log::test;
 
+pub mod angular;
 pub mod go;
 pub mod kotlin;
 pub mod python;
 pub mod react;
-pub mod swift;
 pub mod svelte;
-pub mod angular;
+pub mod swift;
 pub mod test_backend;
 pub mod test_frontend;
 pub mod utils;

@@ -14,9 +14,8 @@ async fn test_angular() {
     )
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
-    assert!(graph.nodes.len() == 155);
-    assert!(graph.edges.len() == 156);
-
+    assert!(graph.nodes.len() == 77);
+    assert!(graph.edges.len() == 78);
 
     let l = graph
         .nodes
@@ -57,7 +56,6 @@ async fn test_angular() {
     let models = models[0].into_data();
     assert_eq!(models.name, "Person");
 
-
     let functions = graph
         .nodes
         .iter()
@@ -67,7 +65,6 @@ async fn test_angular() {
     let functions = functions[0].into_data();
     assert_eq!(functions.name, "constructor");
 
-
     let reqs = graph
         .nodes
         .iter()
@@ -75,7 +72,7 @@ async fn test_angular() {
         .collect::<Vec<_>>();
     assert_eq!(reqs.len(), 8);
     let reqs = reqs[0].into_data();
-    assert_eq!(reqs.name, "this.peopleService.addPerson");
+    assert_eq!(reqs.name, "this.people.push");
 
     let calls_edges = graph
         .edges
