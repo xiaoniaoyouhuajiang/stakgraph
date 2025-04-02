@@ -14,6 +14,7 @@ pub mod swift;
 pub mod toml;
 pub mod typescript;
 pub mod svelte;
+pub mod angular;
 
 use crate::lang::asg::Operand;
 use crate::lang::graph::{Edge, Graph};
@@ -249,6 +250,7 @@ pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {
         LspLanguage::Typescript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         LspLanguage::React => tree_sitter_typescript::LANGUAGE_TSX.into(),
         LspLanguage::Svelte => tree_sitter_svelte_ng::LANGUAGE.into(),
+        LspLanguage::Angular => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         // _ => tree_sitter_bash::LANGUAGE.into(),
     }
 }

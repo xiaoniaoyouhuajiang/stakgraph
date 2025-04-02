@@ -1,0 +1,14 @@
+<div>
+  <h2>Add New Person</h2>
+  <form (ngSubmit)="addPerson()">
+    <label for="name">Name:</label>
+    <input id="name" [(ngModel)]="name" name="name" required />
+
+    <label for="age">Age:</label>
+    <input id="age" [(ngModel)]="age" name="age" type="number" required />
+
+    <button type="submit">Add Person</button>
+  </form>
+
+  <button (click)="router.navigate(['/'])">See People</button>
+</div>

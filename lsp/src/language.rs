@@ -15,9 +15,10 @@ pub enum Language {
     Swift,
     Java,
     Svelte,
+    Angular,
 }
 
-pub const PROGRAMMING_LANGUAGES: [Language; 10] = [
+pub const PROGRAMMING_LANGUAGES: [Language; 11] = [
     Language::Rust,
     Language::Go,
     Language::Typescript,
@@ -28,6 +29,7 @@ pub const PROGRAMMING_LANGUAGES: [Language; 10] = [
     Language::Swift,
     Language::Java,
     Language::Svelte,
+    Language::Angular,
 ];
 
 impl Language {
@@ -50,6 +52,7 @@ impl Language {
             Self::Bash => "",
             Self::Toml => "",
             Self::Svelte => "package.json",
+            Self::Angular => "package.json",
         }
     }
 
@@ -66,6 +69,7 @@ impl Language {
             Self::Bash => vec!["sh"],
             Self::Toml => vec!["toml"],
             Self::Svelte => vec!["svelte", "jsx", "tsx", "ts", "js"],
+            Self::Angular => vec!["ts", "js"],
         }
     }
 
@@ -91,6 +95,7 @@ impl Language {
             Self::Bash => vec![".git"],
             Self::Toml => vec![".git"],
             Self::Svelte => vec![".git", " node_modules"],
+            Self::Angular => vec![".git"," node_modules"],
         }
     }
 
@@ -98,6 +103,7 @@ impl Language {
         match self {
             Self::Typescript | Self::React => vec![".min.js"],
             Self::Svelte => vec![".config.ts", ".config.ts"],
+            Self::Angular => vec!["spec.ts"],
             _ => Vec::new(),
         }
     }
@@ -115,6 +121,7 @@ impl Language {
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
             Self::Svelte => Vec::new(),
+            Self::Angular => Vec::new(),
         }
     }
 
@@ -131,6 +138,7 @@ impl Language {
             Self::Bash => false,
             Self::Toml => false,
             Self::Svelte => false,
+            Self::Angular => false,
         }
     }
 
@@ -147,6 +155,7 @@ impl Language {
             Self::Bash => "",
             Self::Toml => "",
             Self::Svelte => "svelte-language-server",
+            Self::Angular => "angular-language-server",
         }
         .to_string()
     }
@@ -164,6 +173,7 @@ impl Language {
             Self::Bash => "",
             Self::Toml => "",
             Self::Svelte => "--version",
+            Self::Angular => "--version",
         }
         .to_string()
     }
@@ -181,6 +191,7 @@ impl Language {
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
             Self::Svelte => Vec::new(),
+            Self::Angular => Vec::new(),
         }
     }
 
@@ -198,6 +209,7 @@ impl Language {
             Self::Bash => "bash",
             Self::Toml => "toml",
             Self::Svelte => "svelte",
+            Self::Angular => "angular",
         }
         .to_string()
     }
@@ -218,6 +230,7 @@ impl Language {
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
             Self::Svelte => Vec::new(),
+            Self::Angular => Vec::new(),
         }
     }
 
@@ -270,6 +283,8 @@ impl FromStr for Language {
             "Java" => Ok(Language::Java),
             "svelte" => Ok(Language::Svelte),
             "Svelte" => Ok(Language::Svelte),
+            "angular" => Ok(Language::Angular),
+            "Angular" => Ok(Language::Angular),
             _ => Err(anyhow::anyhow!("unsupported language")),
         }
     }
