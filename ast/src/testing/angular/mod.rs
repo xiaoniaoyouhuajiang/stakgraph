@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node, NodeType};
+use crate::lang::graph::{EdgeType, Node};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -26,12 +26,6 @@ async fn test_angular() {
     let l = l[0].into_data();
     assert_eq!(l.name, "angular");
     assert_eq!(l.file, "src/testing/angular/");
-
-    let files = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n, Node::File(_)))
-        .collect::<Vec<_>>();
 
     let imports = graph
         .nodes
