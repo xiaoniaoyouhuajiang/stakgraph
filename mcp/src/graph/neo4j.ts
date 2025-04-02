@@ -370,7 +370,7 @@ async function process_file(
   }
 }
 
-async function execute_batch(session: Session, batch: any[]) {
+async function execute_batch(session: Session, batch: MergeQuery[]) {
   const tx = session.beginTransaction();
   try {
     for (const { query, parameters } of batch) {
