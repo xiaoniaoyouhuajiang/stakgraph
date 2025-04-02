@@ -1,9 +1,5 @@
 version: "3.8"
 
-volumes:
-  elasticdata:
-    driver: local
-
 services:
   neo4j:
     image: sphinxlightning/sphinx-neo4j:latest

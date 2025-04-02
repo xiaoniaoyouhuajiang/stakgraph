@@ -15,6 +15,13 @@ export type Direction = "up" | "down";
 
 export const Data_Bank = Q.Data_Bank;
 
+const delay_start = parseInt(process.env.DELAY_START || "0") || 0;
+
+setTimeout(() => {
+  db.createFulltextIndex();
+  db.createVectorIndex();
+}, delay_start);
+
 class Db {
   private driver: Driver;
 
@@ -285,15 +292,7 @@ class Db {
   }
 }
 
-interface EmbeddingNode {
-  node_key: string;
-  body: string;
-}
-
 export const db = new Db();
-
-db.createFulltextIndex();
-db.createVectorIndex();
 
 interface MergeQuery {
   query: string;
