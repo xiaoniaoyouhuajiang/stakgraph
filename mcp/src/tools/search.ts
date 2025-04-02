@@ -4,11 +4,18 @@ import { parseSchema } from "./utils.js";
 import { relevant_node_types, NodeType } from "../graph/types.js";
 import * as G from "../graph/graph.js";
 
-export const FulltextSearchSchema = z.object({
+export const SearchSchema = z.object({
   query: z
     .string()
     .min(1, "Query is required.")
     .describe("Search query to match against snippet names and content."),
+  method: z
+    .enum(["fulltext", "vector"])
+    .optional()
+    .default("fulltext")
+    .describe(
+      "Search method. Fulltext search for exact matches, vector for semantic similarity."
+    ),
   concise: z
     .boolean()
     .optional()
@@ -22,21 +29,20 @@ export const FulltextSearchSchema = z.object({
   limit: z.number().optional().describe("Limit the number of results."),
 });
 
-export const FulltextSearchTool: Tool = {
-  name: "fulltext_search",
+export const SearchTool: Tool = {
+  name: "search",
   description: "Search for exact matches.",
-  inputSchema: parseSchema(FulltextSearchSchema),
+  inputSchema: parseSchema(SearchSchema),
 };
 
-export async function fulltextSearch(
-  args: z.infer<typeof FulltextSearchSchema>
-) {
+export async function search(args: z.infer<typeof SearchSchema>) {
   console.log("=> Running fulltext search tool with args:", args);
   const result = await G.search(
     args.query,
     args.limit ?? 25,
     (args.node_types as NodeType[]) ?? [],
-    args.concise ?? false
+    args.concise ?? false,
+    args.method ?? "fulltext"
   );
   return {
     content: [

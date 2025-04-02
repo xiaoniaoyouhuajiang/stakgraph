@@ -4,8 +4,8 @@ import { parseSchema } from "./utils.js";
 import * as G from "../graph/graph.js";
 
 export const ShortestPathSchema = z.object({
-  start_node_key: z.string().optional().describe("Key/name of the start node."),
-  end_node_key: z.string().optional().describe("Key/name of the end node."),
+  start_node_key: z.string().optional().describe("node_key of the start node."),
+  end_node_key: z.string().optional().describe("node_key of the end node."),
   start_ref_id: z
     .string()
     .optional()

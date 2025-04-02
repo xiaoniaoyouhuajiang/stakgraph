@@ -8,7 +8,7 @@ export const GetNodesSchema = z.object({
   node_type: z
     .enum(relevant_node_types() as [string, ...string[]])
     .optional()
-    .describe("Type of node to retrieve (e.g. 'function', 'class', etc)."),
+    .describe("Type of node to retrieve (e.g. 'Function', 'Class', etc)."),
   concise: z
     .boolean()
     .optional()

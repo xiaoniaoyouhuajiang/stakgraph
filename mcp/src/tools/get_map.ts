@@ -20,7 +20,9 @@ export const GetMapSchema = z.object({
   ref_id: z
     .string()
     .optional()
-    .describe("Reference ID of the node (if known)."),
+    .describe(
+      "Reference ID of the node (either ref_id or node_type+name must be provided)."
+    ),
   tests: z
     .boolean()
     .optional()

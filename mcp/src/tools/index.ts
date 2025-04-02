@@ -1,5 +1,5 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import * as fulltext_search from "./fulltext_search.js";
+import * as search from "./search.js";
 import * as get_nodes from "./get_nodes.js";
 import * as get_map from "./get_map.js";
 import * as get_code from "./get_code.js";
@@ -33,7 +33,7 @@ export interface Tool {
 
 function getTools(): Tool[] {
   return [
-    fulltext_search.FulltextSearchTool,
+    search.SearchTool,
     get_nodes.GetNodesTool,
     get_map.GetMapTool,
     get_code.GetCodeTool,
@@ -48,9 +48,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   switch (name) {
-    case fulltext_search.FulltextSearchTool.name: {
-      const fa = fulltext_search.FulltextSearchSchema.parse(args);
-      return await fulltext_search.fulltextSearch(fa);
+    case search.SearchTool.name: {
+      const fa = search.SearchSchema.parse(args);
+      return await search.search(fa);
     }
     case get_nodes.GetNodesTool.name: {
       const fa = get_nodes.GetNodesSchema.parse(args);
