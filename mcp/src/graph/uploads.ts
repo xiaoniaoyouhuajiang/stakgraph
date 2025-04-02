@@ -69,6 +69,7 @@ export async function check_status(req: Request, res: Response) {
 
 async function processFiles(requestId: string, node_file: any, edge_file: any) {
   jobStatus.set(requestId, { status: "processing" });
-  await db.init_graph(node_file, edge_file);
+  await db.build_graph_from_files(node_file, edge_file);
+  await db.embed_data_bank_bodies();
   jobStatus.set(requestId, { status: "completed" });
 }

@@ -1,3 +1,14 @@
+export const Data_Bank = "Data_Bank";
+
+export const DATA_BANK_QUERY = `MATCH (n:${Data_Bank}) RETURN n`;
+
+export const DATA_BANK_BODIES_QUERY = `MATCH (n:${Data_Bank}) RETURN n.node_key as node_key, n.body as body`;
+
+export const UPDATE_EMBEDDINGS_QUERY = `
+MATCH (n:${Data_Bank} {node_key: $node_key})
+SET n.embeddings = $embeddings
+`;
+
 export const PKGS_QUERY = `
 MATCH (file:File)
 WHERE file.name ENDS WITH 'Cargo.toml'
@@ -5,7 +16,7 @@ WHERE file.name ENDS WITH 'Cargo.toml'
    OR file.name ENDS WITH 'package.json'
    OR file.name ENDS WITH 'requirements.txt'
    OR file.name ENDS WITH 'Gemfile'
-RETURN file
+RETURN DISTINCT file
 `;
 
 export const LIST_QUERY = `
