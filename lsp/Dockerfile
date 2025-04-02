@@ -1,22 +1,3 @@
-
-# Use rust as the build environment
-FROM rust:1.84.0 as builder
-
-# Create app directory
-WORKDIR /app
-
-# Copy the srcs and Cargo.tomls
-COPY ast/src ast/src
-COPY ast/Cargo.toml ast/Cargo.toml
-COPY lsp/src lsp/src
-COPY lsp/Cargo.toml lsp/Cargo.toml
-COPY stackgraph/src stackgraph/src
-COPY stackgraph/Cargo.toml stackgraph/Cargo.toml
-
-# Build the release version of your application
-RUN cargo build --release --manifest-path stackgraph/Cargo.toml
-
-# debian final image
 FROM debian:bookworm
 
 # deps
@@ -50,7 +31,3 @@ RUN gem install ruby-lsp
 RUN curl -LO "https://github.com/rust-lang/rust-analyzer/releases/download/2025-01-20/rust-analyzer-x86_64-unknown-linux-gnu.gz"
 RUN gzip -cd rust-analyzer-x86_64-unknown-linux-gnu.gz > /bin/rust-analyzer
 RUN chmod +x /bin/rust-analyzer
-
-COPY --from=builder /app/stackgraph/target/release/stackgraph /root
-
-CMD ["/root/stackgraph"]

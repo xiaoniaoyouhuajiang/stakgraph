@@ -1,0 +1,24 @@
+
+# Use rust as the build environment
+FROM rust:1.84.0 AS builder
+
+# Create app directory
+WORKDIR /app
+
+# Copy the srcs and Cargo.tomls
+COPY ast/src ast/src
+COPY ast/Cargo.toml ast/Cargo.toml
+COPY lsp/src lsp/src
+COPY lsp/Cargo.toml lsp/Cargo.toml
+COPY skill/src skill/src
+COPY skill/Cargo.toml skill/Cargo.toml
+
+# Build the release version of your application
+RUN cargo build --release --manifest-path skill/Cargo.toml
+
+# lsp final image
+FROM sphinxlightning/stakgraph-lsp:latest
+
+COPY --from=builder /app/skill/target/release/stakgraph-skill /root
+
+CMD ["/root/stakgraph-skill"]
