@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  mcp:
+    # image: sphinxlightning/repo2graph:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp
+    ports:
+      - 7776:7776
+    environment:
+      - PORT=7776
+      - NEO4J_HOST=neo4j
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=testtest
+      - DELAY_START=10
+    platform: linux/amd64
+
+  neo4j:
+    image: sphinxlightning/sphinx-neo4j:latest
+    container_name: neo4j
+    volumes:
+      - ./.neo4j/data:/data:rw
+      - ./.neo4j/logs:/logs:rw
+      - ./.neo4j/plugins:/plugins:rw
+      - ./.neo4j/tmp/import:/import
+      - ./conf:/conf/
+    ports:
+      - 7474:7474
+      - 7687:7687
+    environment:
+      - NEO4J_AUTH=neo4j/testtest
+    command: >
+      /bin/bash -c "
+      cp -R /var/lib/neo4j/plugins/* /plugins &&
+      /startup/docker-entrypoint.sh neo4j
+      "
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/var/lib/neo4j/bin/cypher-shell",
+          "-u",
+          "neo4j",
+          "-p",
+          "testtest",
+          "MATCH (n) RETURN n LIMIT 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 20
