@@ -73,6 +73,7 @@ impl Language {
     pub fn overrides(&self) -> Vec<Language> {
         match self {
             Self::React => vec![Self::Typescript],
+            Self::Svelte => vec![Self::Typescript],
             _ => Vec::new(),
         }
     }
@@ -89,14 +90,14 @@ impl Language {
             Self::Java => vec![".gradle", ".idea", "build", ".git"],
             Self::Bash => vec![".git"],
             Self::Toml => vec![".git"],
-            Self::Svelte => vec![".git"," node_modules"],
+            Self::Svelte => vec![".git", " node_modules"],
         }
     }
 
     pub fn skip_file_ends(&self) -> Vec<&'static str> {
         match self {
             Self::Typescript | Self::React => vec![".min.js"],
-            Self:: Svelte => vec![".config.ts", ".config.ts"],
+            Self::Svelte => vec![".config.ts", ".config.ts"],
             _ => Vec::new(),
         }
     }
@@ -179,7 +180,6 @@ impl Language {
             Self::Java => Vec::new(),
             Self::Bash => Vec::new(),
             Self::Toml => Vec::new(),
-            Self::Java => Vec::new(),
             Self::Svelte => Vec::new(),
         }
     }

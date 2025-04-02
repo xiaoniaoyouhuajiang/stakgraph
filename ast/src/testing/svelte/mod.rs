@@ -1,10 +1,7 @@
-use crate::lang::graph::{ Node};
+use crate::lang::graph::Node;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
-use tracing::{debug, error, info};
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
-
 
 #[test(tokio::test)]
 async fn test_svelte() {
@@ -16,8 +13,6 @@ async fn test_svelte() {
         Vec::new(),
     )
     .unwrap();
-
-
 
     let graph = repo.build_graph().await.unwrap();
     assert_eq!(graph.nodes.len(), 47);
@@ -69,7 +64,6 @@ async fn test_svelte() {
     let func = functions[0].into_data();
     assert_eq!(func.name, "addPerson");
 
-
     let data_models = graph
         .nodes
         .iter()
@@ -78,13 +72,13 @@ async fn test_svelte() {
 
     assert_eq!(data_models.len(), 15);
 
-    let totalRequests = graph
+    let total_requests = graph
         .nodes
         .iter()
         .filter(|n| matches!(n, Node::Request(_)))
         .collect::<Vec<_>>();
-    let request = totalRequests[0].into_data();
+    let request = total_requests[0].into_data();
     assert_eq!(request.name, "fetchPeople");
 
-    assert_eq!(totalRequests.len(), 1, "wrong request count");
+    assert_eq!(total_requests.len(), 1, "wrong request count");
 }
