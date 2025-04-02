@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export type Direction = "up" | "down";
 
-export const Data_Bank = "Data_Bank";
+export const Data_Bank = Q.Data_Bank;
 
 class Db {
   private driver: Driver;
@@ -124,26 +124,28 @@ class Db {
     }
   }
 
-  async get_pages() {
+  async embed_data_bank_bodies() {
     const session = this.driver.session();
     try {
-      return await session.run(Q.PAGES_QUERY);
-    } finally {
-      await session.close();
-    }
-  }
-
-  async get_components() {
-    const session = this.driver.session();
-    try {
-      return await session.run(Q.COMPONENTS_QUERY);
+      const result = await session.run(Q.DATA_BANK_BODIES_QUERY);
+      const data_bank = result.records.map((record) => ({
+        node_key: record.get("node_key"),
+        body: record.get("body"),
+      }));
+      for (const node of data_bank) {
+        const embeddings = await vectorizeCodeDocument(node.body);
+        await session.run(Q.UPDATE_EMBEDDINGS_QUERY, {
+          node_key: node.node_key,
+          embeddings,
+        });
+      }
     } finally {
       await session.close();
     }
   }
 
   // Main function to process both nodes and edges
-  async init_graph(node_file: string, edge_file: string) {
+  async build_graph_from_files(node_file: string, edge_file: string) {
     const session = this.driver.session();
     try {
       console.log("Processing nodes...", node_file);
@@ -154,7 +156,7 @@ class Db {
       await process_file(session, edge_file, (data) =>
         construct_merge_edge_query(data)
       );
-      console.log("Processing complete!");
+      console.log("Added nodes to graph!");
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -207,7 +209,7 @@ class Db {
         return {
           properties: node.properties,
           labels: node.labels,
-          score: record.get("similarity"),
+          score: record.get("score"),
         };
       });
     } finally {
@@ -234,8 +236,7 @@ class Db {
             indexConfig: {
               \`fulltext.analyzer\`: 'english'
             }
-          }
-        `
+          }`
         );
         console.log("Fulltext index created successfully");
       } else {
@@ -282,6 +283,11 @@ class Db {
       await session.close();
     }
   }
+}
+
+interface EmbeddingNode {
+  node_key: string;
+  body: string;
 }
 
 export const db = new Db();
