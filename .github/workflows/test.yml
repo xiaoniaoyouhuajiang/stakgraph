@@ -135,19 +135,16 @@ jobs:
       - name: Compare Response with Expected Output
         working-directory: ./mcp
         run: |
-          ACTUAL_FILE="./testing/actual-fulltext-search.json"
-          EXPECTED_FILE="./testing/fulltext-search-response.json"
+          ACTUAL_FULLTEXT_FILE="./testing/actual-fulltext-search.json"
+          EXPECTED_FULLTEXT_FILE="./testing/fulltext-search-response.json"
 
-          SORTED_ACTUAL="/tmp/sorted_actual.json"
-          SORTED_EXPECTED="/tmp/sorted_expected.json"
+          SORTED_ACTUAL_FULLTEXT="/tmp/sorted_actual_fulltext.json"
+          SORTED_EXPECTED_FULLTEXT="/tmp/sorted_expected_fulltext.json"
 
-          jq --sort-keys . "$ACTUAL_FILE" > "$SORTED_ACTUAL"
-          jq --sort-keys . "$EXPECTED_FILE" > "$SORTED_EXPECTED"
+          jq --sort-keys . "$ACTUAL_FULLTEXT_FILE" > "$SORTED_ACTUAL_FULLTEXT"
+          jq --sort-keys . "$EXPECTED_FULLTEXT_FILE" > "$SORTED_EXPECTED_FULLTEXT"
 
-          cat /tmp/sorted_actual.json
-          cat /tmp/sorted_expected.json
-
-          if diff -q "$SORTED_EXPECTED" "$SORTED_ACTUAL"; then
+          if diff -q "$SORTED_EXPECTED_FULLTEXT" "$SORTED_ACTUAL_FULLTEXT"; then
             echo "Response matches expected output ✅"
           else
             echo "Response does NOT match expected output ❌"
