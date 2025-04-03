@@ -79,7 +79,7 @@ impl Stack for Svelte {
         code: &str,
         file: &str,
         func_name: &str,
-        _callback: &dyn Fn(&str) -> Option<Node>,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
         _parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         let mut parent = node.parent();

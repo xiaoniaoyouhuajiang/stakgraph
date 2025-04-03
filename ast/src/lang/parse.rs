@@ -515,7 +515,7 @@ impl Lang {
                                     NodeType::Function,
                                     &func,
                                     NodeType::DataModel,
-                                    &dmr.node_data,
+                                    &dmr,
                                 ));
                             }
                             None => (),
@@ -537,13 +537,13 @@ impl Lang {
                                     {
                                         log_cmd(format!(
                                             "*******RETURN_TYPE found target for {:?} {} {}!!!",
-                                            name, &t.node_data.file, &t.node_data.name
+                                            name, &t.file, &t.name
                                         ));
                                         return_types.push(Edge::contains(
                                             NodeType::Function,
                                             &func,
                                             NodeType::DataModel,
-                                            &t.node_data,
+                                            &t,
                                         ));
                                     }
                                 }

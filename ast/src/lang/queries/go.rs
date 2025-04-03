@@ -180,7 +180,7 @@ impl Stack for Go {
         _code: &str,
         file: &str,
         func_name: &str,
-        find_class: &dyn Fn(&str) -> Option<Node>,
+        find_class: &dyn Fn(&str) -> Option<NodeData>,
         parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         if parent_type.is_none() {
@@ -190,7 +190,7 @@ impl Stack for Go {
         let nodedata = find_class(parent_type);
         Ok(match nodedata {
             Some(class) => Some(Operand {
-                source: NodeKeys::new(&class.node_data.name, &class.node_data.file),
+                source: NodeKeys::new(&class.name, &class.file),
                 target: NodeKeys::new(func_name, file),
             }),
             None => None,
@@ -200,7 +200,7 @@ impl Stack for Go {
         &self,
         pos: Position,
         nd: &NodeData,
-        find_trait: &dyn Fn(u32, &str) -> Option<Node>,
+        find_trait: &dyn Fn(u32, &str) -> Option<NodeData>,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Edge>> {
         if let Some(lsp) = lsp_tx {
@@ -208,7 +208,7 @@ impl Stack for Go {
             if let LspRes::GotoImplementations(Some(imp)) = res {
                 let tr = find_trait(imp.line, &imp.file.display().to_string());
                 if let Some(tr) = tr {
-                    let edge = Edge::trait_operand(&tr.node_data, &nd);
+                    let edge = Edge::trait_operand(&tr, &nd);
                     return Ok(Some(edge));
                 }
             }
