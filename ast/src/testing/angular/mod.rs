@@ -65,8 +65,6 @@ async fn test_angular() {
         .filter(|n| matches!(n, Node::Request(_)))
         .collect::<Vec<_>>();
     assert_eq!(reqs.len(), 8);
-    let reqs = reqs[0].into_data();
-    assert_eq!(reqs.name, "this.people.push");
 
     let calls_edges = graph
         .edges

@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
 use streaming_iterator::StreamingIterator;
 use tracing::debug;
@@ -420,7 +420,7 @@ impl Lang {
         while let Some(m) = matches.next() {
             let ff = self.format_test(&m, code, file, &q)?;
             // FIXME trait operand here as well?
-            res.push((ff, None, vec![], vec![], vec![], None, vec![]));
+            res.push((ff, None, vec![], vec![], None, vec![]));
         }
         Ok(res)
     }
@@ -434,7 +434,6 @@ impl Lang {
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Function>> {
         let mut func = NodeData::in_file(file);
-        let mut args = Vec::new();
         let mut parent = None;
         let mut parent_type = None;
         let mut requests_within = Vec::new();
@@ -515,18 +514,7 @@ impl Lang {
                     }
                 }
             } else if o == ARGUMENTS {
-                let args_node = node;
-                for i in 0..args_node.named_child_count() {
-                    let arg_node = args_node.named_child(i).context("no arg node")?;
-                    if arg_node.kind() == IDENTIFIER {
-                        let arg_name = arg_node.utf8_text(code.as_bytes())?;
-                        args.push(Arg::new(arg_name, file, None));
-                    } else {
-                        if let Some(arg_ident) = self.get_identifier_for_node(arg_node, code)? {
-                            args.push(Arg::new(&arg_ident, file, None));
-                        }
-                    }
-                }
+                // skipping args
             } else if o == RETURN_TYPES {
                 if let Some(lsp) = lsp_tx {
                     for (name, pos) in self.find_type_identifiers(node, code, file)? {
@@ -566,7 +554,6 @@ impl Lang {
         Ok(Some((
             func,
             parent,
-            args,
             requests_within,
             models,
             trait_operand,
@@ -786,7 +773,7 @@ impl Lang {
         if fc.target.is_empty() {
             return Ok(None);
         }
-        Ok(Some((fc, Vec::new(), external_func)))
+        Ok(Some((fc, external_func)))
     }
     pub fn collect_integration_test_calls<'a>(
         &self,

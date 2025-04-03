@@ -16,7 +16,6 @@ pub enum NodeType {
     Directory,
     File,
     Import,
-    Module,
     Library,
     Class,
     Trait,
@@ -25,7 +24,6 @@ pub enum NodeType {
     Test,
     #[serde(rename = "E2etest")]
     E2eTest,
-    Arg,
     Endpoint,
     Request,
     #[serde(rename = "Datamodel")]
@@ -60,8 +58,6 @@ pub enum Node {
     Request(NodeData),
     #[serde(rename = "Datamodel")]
     DataModel(NodeData),
-    Arg(Arg),
-    Module(Module),
     Feature(NodeData),
     Page(NodeData),
 }
@@ -290,7 +286,7 @@ impl Graph {
     pub fn add_functions(&mut self, functions: Vec<Function>) {
         for f in functions {
             // HERE return_types
-            let (node, method_of, args, reqs, dms, trait_operand, return_types) = f;
+            let (node, method_of, reqs, dms, trait_operand, return_types) = f;
             if let Some(ff) = self.file_data(&node.file) {
                 let edge = Edge::contains(NodeType::File, &ff, NodeType::Function, &node);
                 self.edges.push(edge);
@@ -301,11 +297,6 @@ impl Graph {
             }
             if let Some(to) = trait_operand {
                 self.edges.push(to.into());
-            }
-            for a in args {
-                let n = node.clone();
-                self.nodes.push(Node::Arg(a.clone()));
-                self.edges.push(ArgOf::new(&n, &a).into());
             }
             for rt in return_types {
                 self.edges.push(rt);
@@ -354,7 +345,7 @@ impl Graph {
         (funcs, tests, int_tests): (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>),
     ) {
         // add lib funcs first
-        for (fc, _, ext_func) in funcs {
+        for (fc, ext_func) in funcs {
             if let Some(ext_nd) = ext_func {
                 self.edges.push(Edge::uses(fc.source, &ext_nd));
                 // don't add if it's already in the graph
@@ -365,7 +356,7 @@ impl Graph {
                 self.edges.push(fc.into())
             }
         }
-        for (tc, _, ext_func) in tests {
+        for (tc, ext_func) in tests {
             if let Some(ext_nd) = ext_func {
                 self.edges.push(Edge::uses(tc.source, &ext_nd));
                 // don't add if it's already in the graph
@@ -880,15 +871,7 @@ impl From<Operand> for Edge {
         )
     }
 }
-impl From<ArgOf> for Edge {
-    fn from(m: ArgOf) -> Self {
-        Edge::new(
-            EdgeType::ArgOf,
-            NodeRef::from(m.source, NodeType::Function),
-            NodeRef::from(m.target, NodeType::Arg),
-        )
-    }
-}
+
 impl From<Calls> for Edge {
     fn from(m: Calls) -> Self {
         Edge::new(
@@ -923,8 +906,6 @@ impl Node {
             Node::Library(l) => l.clone(),
             Node::E2eTest(t) => t.clone(),
             Node::Trait(t) => t.clone(),
-            Node::Module(_m) => Default::default(),
-            Node::Arg(_a) => Default::default(),
         }
     }
     pub fn to_node_type(&self) -> NodeType {
@@ -941,13 +922,11 @@ impl Node {
             Node::DataModel(_) => NodeType::DataModel,
             Node::Feature(_) => NodeType::Feature,
             Node::Page(_) => NodeType::Page,
-            Node::Arg(_) => NodeType::Arg,
             Node::Library(_) => NodeType::Library,
             Node::E2eTest(_) => NodeType::E2eTest,
             Node::Language(_) => NodeType::Language,
             Node::Directory(_) => NodeType::Directory,
             Node::Import(_) => NodeType::Import,
-            Node::Module(_) => NodeType::Module,
         }
     }
 
@@ -970,8 +949,6 @@ impl Node {
             Node::E2eTest(t) => form(root, t),
             Node::Test(t) => form(root, t),
             Node::Function(f) => form(root, f),
-            Node::Module(_m) => (),
-            Node::Arg(a) => a.file = format!("{}/{}", root, a.file),
         }
     }
 }

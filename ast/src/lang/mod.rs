@@ -28,18 +28,17 @@ impl fmt::Display for Lang {
     }
 }
 
-// function, operand, args, requests within, data models within, trait operand, return types
+// function, operand, requests within, data models within, trait operand, return types
 pub type Function = (
     NodeData,
     Option<Operand>,
-    Vec<Arg>,
     Vec<NodeData>,
     Vec<Edge>,
     Option<Edge>,
     Vec<Edge>,
 );
 // Calls, args, external function (from library or std)
-pub type FunctionCall = (Calls, Vec<Arg>, Option<NodeData>);
+pub type FunctionCall = (Calls, Option<NodeData>);
 
 impl Lang {
     pub fn new_python() -> Self {

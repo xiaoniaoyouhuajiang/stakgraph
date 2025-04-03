@@ -149,41 +149,6 @@ impl NodeData {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct Arg {
-    pub name: String,
-    pub file: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<String>,
-}
-
-impl Arg {
-    pub fn new(name: &str, file: &str, r#type: Option<&str>) -> Self {
-        Self {
-            name: name.to_string(),
-            file: file.to_string(),
-            r#type: r#type.map(|s| s.to_string()),
-            value: None,
-        }
-    }
-    pub fn _new_value(name: &str, file: &str, value: Option<&str>) -> Self {
-        Self {
-            name: name.to_string(),
-            file: file.to_string(),
-            r#type: None,
-            value: value.map(|s| s.to_string()),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Module {
-    pub name: String,
-    pub path: String,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Operand {
     pub source: NodeKeys,
@@ -199,21 +164,6 @@ pub struct Calls {
     pub operand: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ArgOf {
-    pub source: NodeKeys,
-    pub target: NodeKeys,
-}
-
-impl ArgOf {
-    pub fn new(source: &NodeData, target: &Arg) -> Self {
-        Self {
-            source: NodeKeys::new(&source.name, &source.file),
-            target: NodeKeys::new(&target.name, &target.file),
-        }
-    }
-}
-
 impl FromStr for NodeType {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -224,7 +174,6 @@ impl FromStr for NodeType {
             "Function" => Ok(NodeType::Function),
             "Test" => Ok(NodeType::Test),
             "E2etest" => Ok(NodeType::E2eTest),
-            "Arg" => Ok(NodeType::Arg),
             "File" => Ok(NodeType::File),
             "Repository" => Ok(NodeType::Repository),
             "Endpoint" => Ok(NodeType::Endpoint),
@@ -247,12 +196,10 @@ impl ToString for NodeType {
             NodeType::Class => "Class".to_string(),
             NodeType::Trait => "Trait".to_string(),
             NodeType::Import => "Import".to_string(),
-            NodeType::Module => "Module".to_string(),
             NodeType::Instance => "Instance".to_string(),
             NodeType::Function => "Function".to_string(),
             NodeType::Test => "Test".to_string(),
             NodeType::E2eTest => "E2etest".to_string(),
-            NodeType::Arg => "Arg".to_string(),
             NodeType::Endpoint => "Endpoint".to_string(),
             NodeType::Request => "Request".to_string(),
             NodeType::DataModel => "Datamodel".to_string(),
