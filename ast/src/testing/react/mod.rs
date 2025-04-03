@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node};
+use crate::lang::graph::{EdgeType, NodeType};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -27,7 +27,7 @@ async fn test_react_typescript() {
     let l = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Language(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Language))
         .collect::<Vec<_>>();
     assert_eq!(l.len(), 1);
     let l = l[0].into_data();
@@ -37,7 +37,7 @@ async fn test_react_typescript() {
     let pkg_file = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::File(_)) && n.into_data().name == "package.json")
+        .filter(|n| matches!(n.node_type, NodeType::File) && n.into_data().name == "package.json")
         .collect::<Vec<_>>();
     assert_eq!(pkg_file.len(), 1);
     let pkg_file = pkg_file[0].into_data();
@@ -46,14 +46,14 @@ async fn test_react_typescript() {
     let imports = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Import(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Import))
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 4);
 
     let mut functions = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Function(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Function))
         .collect::<Vec<_>>();
 
     functions.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
@@ -77,7 +77,9 @@ async fn test_react_typescript() {
     let styled_components = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Function(_)) && n.into_data().name == "SubmitButton")
+        .filter(|n| {
+            matches!(n.node_type, NodeType::Function) && n.into_data().name == "SubmitButton"
+        })
         .collect::<Vec<_>>();
 
     assert_eq!(styled_components.len(), 1);
@@ -92,7 +94,7 @@ async fn test_react_typescript() {
     let requests = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Request(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Request))
         .collect::<Vec<_>>();
     assert_eq!(requests.len(), 3);
 
@@ -106,7 +108,7 @@ async fn test_react_typescript() {
     let page_node = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Page(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Page))
         .collect::<Vec<_>>();
     assert_eq!(page_node.len(), 2);
 

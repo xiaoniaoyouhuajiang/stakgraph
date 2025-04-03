@@ -1,4 +1,4 @@
-use crate::lang::graph::{Graph, Node};
+use crate::lang::graph::{Graph, Node, NodeType};
 use crate::lang::Lang;
 use crate::repo::Repo;
 use anyhow::Context;
@@ -104,7 +104,7 @@ impl FrontendTester {
             .graph
             .nodes
             .iter()
-            .filter(|node| matches!(node, Node::File(_)))
+            .filter(|node| matches!(node.node_type, NodeType::File))
             .collect::<Vec<_>>();
 
         let package_files: Vec<_> = file_nodes
@@ -145,7 +145,7 @@ impl FrontendTester {
     fn test_components(&self, expected_components: Vec<&str>) -> Result<(), anyhow::Error> {
         self.verify_nodes(
             expected_components,
-            |node| matches!(node, Node::Function(_)),
+            |node| matches!(node.node_type, NodeType::Function),
             |component, name| component.contains(name),
             "component",
         )
@@ -154,7 +154,7 @@ impl FrontendTester {
     fn test_pages(&self, expected_pages: Vec<&str>) -> Result<(), anyhow::Error> {
         self.verify_nodes(
             expected_pages,
-            |node| matches!(node, Node::Page(_)),
+            |node| matches!(node.node_type, NodeType::Page),
             |page, name| page.contains(name),
             "page",
         )
@@ -165,7 +165,7 @@ impl FrontendTester {
             .graph
             .nodes
             .iter()
-            .filter(|node| matches!(node, Node::Request(_)))
+            .filter(|node| matches!(node.node_type, NodeType::Request))
             .collect::<Vec<_>>();
 
         let mut found_requests: HashMap<(String, String), bool> = expected_requests

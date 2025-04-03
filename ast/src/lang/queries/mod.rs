@@ -18,7 +18,7 @@ pub mod typescript;
 
 use crate::lang::asg::Operand;
 use crate::lang::graph::{Edge, Graph};
-use crate::lang::{Function, Node, NodeData, NodeType};
+use crate::lang::{Function, NodeData, NodeType};
 use anyhow::Result;
 use lsp::Language as LspLanguage;
 use lsp::{CmdSender, Position};
@@ -280,14 +280,14 @@ pub fn filter_out_classes_without_methods(graph: &mut Graph) -> bool {
     let mut actual_class: BTreeMap<String, bool> = BTreeMap::new();
 
     for node in &graph.nodes {
-        match node {
-            Node::Function(func) => {
-                if let Some(operand) = func.meta.get("operand") {
+        match node.node_type {
+            NodeType::Function => {
+                if let Some(operand) = node.node_data.meta.get("operand") {
                     actual_class.insert(operand.to_string(), true);
                 }
             }
-            Node::Class(class_data) => {
-                assumed_class.insert(class_data.name.to_string(), false);
+            NodeType::Class => {
+                assumed_class.insert(node.node_data.name.to_string(), false);
             }
             _ => {}
         }
