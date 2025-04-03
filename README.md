@@ -6,12 +6,14 @@ A source code parser using treesitter, LSP, and neo4j. Software knowledge graphs
 
 ### parse a repo
 
-Example of parsing [sphinx-tribes](https://github.com/stakwork/sphinx-tribes) and [sphinx-tribes-frontend](https://github.com/stakwork/sphinx-tribes-frontend). Endpoints, Requests, and E2E tests are linked between the two repos.
+Example of parsing [sphinx-tribes](https://github.com/stakwork/demo-repo) and [sphinx-tribes-frontend](https://github.com/stakwork/sphinx-tribes-frontend). Endpoints, Requests, and E2E tests are linked between the two repos.
 
 ```bash
-export REPO_URLS="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
+export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
 cargo run --bin urls
 ```
+
+[ingest some data](https://github.com/stakwork/stakgraph/wiki/Ingest-some-data)
 
 ### language support
 
