@@ -65,7 +65,7 @@ impl Stack for Python {
         code: &str,
         file: &str,
         func_name: &str,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
         _parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         let mut parent = node.parent();

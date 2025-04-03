@@ -1,4 +1,4 @@
-use super::*;
+use super::{graph_trait::Graph, *};
 use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
 use streaming_iterator::StreamingIterator;
@@ -424,13 +424,13 @@ impl Lang {
         }
         Ok(res)
     }
-    fn format_function(
+    fn format_function<G: Graph>(
         &self,
         m: &QueryMatch,
         code: &str,
         file: &str,
         q: &Query,
-        graph: &ArrayGraph,
+        graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Function>> {
         let mut func = NodeData::in_file(file);
@@ -459,7 +459,12 @@ impl Lang {
                     code,
                     file,
                     &func.name,
-                    graph,
+                    &|name| {
+                        graph
+                            .find_nodes_by_name(NodeType::Class, name)
+                            .first()
+                            .cloned()
+                    },
                     parent_type.as_deref(),
                 )?;
                 if let Some(pp) = &parent {
@@ -500,7 +505,11 @@ impl Lang {
                         {
                             continue;
                         }
-                        match graph.find_by_name(NodeType::DataModel, &dm_node.name) {
+                        match graph
+                            .find_nodes_by_name(NodeType::DataModel, &dm_node.name)
+                            .first()
+                            .cloned()
+                        {
                             Some(dmr) => {
                                 models.push(Edge::contains(
                                     NodeType::Function,
@@ -523,7 +532,9 @@ impl Lang {
                             if let LspRes::GotoDefinition(Some(gt)) = res {
                                 let dfile = gt.file.display().to_string();
                                 if !self.lang.is_lib_file(&dfile) {
-                                    if let Some(t) = graph.find_data_model_at(&dfile, gt.line) {
+                                    if let Some(t) =
+                                        graph.find_node_at(NodeType::DataModel, &dfile, gt.line)
+                                    {
                                         log_cmd(format!(
                                             "*******RETURN_TYPE found target for {:?} {} {}!!!",
                                             name, &t.file, &t.name
@@ -548,7 +559,12 @@ impl Lang {
             return Ok(None);
         }
         if let Some(pos) = name_pos {
-            trait_operand = self.lang.find_trait_operand(pos, &func, graph, lsp_tx)?;
+            trait_operand = self.lang.find_trait_operand(
+                pos,
+                &func,
+                &|row, file| graph.find_nodes_in_range(NodeType::Trait, row, file),
+                lsp_tx,
+            )?;
         }
         log_cmd(format!("found function {:?}", func.name));
         Ok(Some((
