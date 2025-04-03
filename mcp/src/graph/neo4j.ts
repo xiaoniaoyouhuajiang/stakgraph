@@ -17,9 +17,13 @@ export const Data_Bank = Q.Data_Bank;
 
 const delay_start = parseInt(process.env.DELAY_START || "0") || 0;
 
-setTimeout(() => {
-  db.createFulltextIndex();
-  db.createVectorIndex();
+setTimeout(async () => {
+  try {
+    await db.createFulltextIndex();
+    await db.createVectorIndex();
+  } catch (error) {
+    console.error("Error creating indexes:", error);
+  }
 }, delay_start);
 
 class Db {
@@ -202,9 +206,10 @@ class Db {
     node_types: NodeType[],
     similarityThreshold: number = 0.7
   ): Promise<Neo4jNode[]> {
-    const session = this.driver.session();
-    const embeddings = await vectorizeQuery(query);
+    let session: Session | null = null;
     try {
+      session = this.driver.session();
+      const embeddings = await vectorizeQuery(query);
       const result = await session.run(Q.VECTOR_SEARCH_QUERY, {
         embeddings,
         limit,
@@ -219,15 +224,21 @@ class Db {
           score: record.get("score"),
         };
       });
+    } catch (error) {
+      console.error("Error vector searching:", error);
+      throw error;
     } finally {
-      await session.close();
+      if (session) {
+        await session.close();
+      }
     }
   }
 
   async createFulltextIndex(): Promise<void> {
-    const indexName = Q.BODY_INDEX;
-    const session = this.driver.session();
+    let session: Session | null = null;
     try {
+      session = this.driver.session();
+      const indexName = Q.BODY_INDEX;
       // First check if the index already exists
       const indexResult = await session.run(
         `SHOW INDEXES WHERE name = $indexName`,
@@ -253,14 +264,17 @@ class Db {
       console.error("Error creating fulltext index:", error);
       throw error;
     } finally {
-      await session.close();
+      if (session) {
+        await session.close();
+      }
     }
   }
 
   async createVectorIndex(): Promise<void> {
-    const indexName = Q.VECTOR_INDEX;
-    const session = this.driver.session();
+    let session: Session | null = null;
     try {
+      session = this.driver.session();
+      const indexName = Q.VECTOR_INDEX;
       // First check if the index already exists
       const indexResult = await session.run(
         `SHOW INDEXES WHERE name = $indexName`,
@@ -287,7 +301,9 @@ class Db {
       console.error("Error creating vector index:", error);
       throw error;
     } finally {
-      await session.close();
+      if (session) {
+        await session.close();
+      }
     }
   }
 }
