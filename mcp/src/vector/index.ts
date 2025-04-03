@@ -1,5 +1,5 @@
-import { FlagEmbedding, EmbeddingModel } from "fastembed";
 import { chunkCode, weightedPooling } from "./utils.js";
+import { EmbeddingModel, FlagEmbedding } from "./interop.js";
 
 export const DIMENSIONS = 384;
 export const MODEL = EmbeddingModel.BGESmallENV15;

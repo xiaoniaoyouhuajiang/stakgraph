@@ -1,3 +1,4 @@
+pub mod angular;
 pub mod bash;
 pub mod consts;
 pub mod erb;
@@ -10,11 +11,10 @@ mod rails_routes;
 pub mod react;
 pub mod ruby;
 pub mod rust;
+pub mod svelte;
 pub mod swift;
 pub mod toml;
 pub mod typescript;
-pub mod svelte;
-pub mod angular;
 
 use crate::lang::asg::Operand;
 use crate::lang::graph::{Edge, Graph};
@@ -23,8 +23,6 @@ use anyhow::Result;
 use lsp::Language as LspLanguage;
 use lsp::{CmdSender, Position};
 use tree_sitter::{Node as TreeNode, Query, Tree};
-
-// next: Java, PHP, Dart, C++
 
 #[derive(Default, Debug)]
 pub enum HandlerItemType {
