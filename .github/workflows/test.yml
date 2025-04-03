@@ -163,11 +163,11 @@ jobs:
           SORTED_ACTUAL_NODETYPE_FUNCTOIN_FILE="/tmp/sorted_actual_nodetype_function.json"
           SORTED_EXPECTED_NODETYPE_FUNCTOIN_FILE="/tmp/sorted_expected_nodetype_function.json"
 
-          cat /tmp/sorted_actual_nodetype_function.json
-          cat /tmp/sorted_expected_nodetype_function.json
-
           jq --sort-keys . "$ACTUAL_NODETYPE_FUNCTOIN_FILE" > "$SORTED_ACTUAL_NODETYPE_FUNCTOIN_FILE"
           jq --sort-keys . "$EXPECTED_NODETYPE_FUNCTOIN_FILE" > "$SORTED_EXPECTED_NODETYPE_FUNCTOIN_FILE"
+
+          cat /tmp/sorted_actual_nodetype_function.json
+          cat /tmp/sorted_expected_nodetype_function.json
 
           if diff -q "$SORTED_EXPECTED_NODETYPE_FUNCTOIN_FILE" "$SORTED_ACTUAL_NODETYPE_FUNCTOIN_FILE"; then
             echo "Nodetypes Response matches expected output ✅"
