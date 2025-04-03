@@ -122,13 +122,23 @@ jobs:
         run: |
           curl -s -X GET "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-fulltext-search.json
 
+      - name: Have a view
+        working-directory: ./mcp
+        run: cat ./testing/actual-fulltext-search.json
+
       - name: Compare Response with Expected Output
         working-directory: ./mcp
         run: |
-          jq --sort-keys . ./testing/actual-fulltext-search.json > sorted_actual-fulltext-search.json
-          jq --sort-keys . ./testing/fulltext-search-response.json > sorted_expected-fulltext-search.json
+          ACTUAL_FILE="./testing/actual-fulltext-search.json"
+          EXPECTED_FILE="./testing/fulltext-search-response.json"
 
-          if diff -q sorted_expected-fulltext-search.json sorted_actual-fulltext-search.json; then
+          SORTED_ACTUAL="/tmp/sorted_actual.json"
+          SORTED_EXPECTED="/tmp/sorted_expected.json"
+
+          jq --sort-keys . "$ACTUAL_FILE" > "$SORTED_ACTUAL"
+          jq --sort-keys . "$EXPECTED_FILE" > "$SORTED_EXPECTED"
+
+          if diff -q "$SORTED_EXPECTED" "$SORTED_ACTUAL"; then
             echo "Response matches expected output ✅"
           else
             echo "Response does NOT match expected output ❌"
