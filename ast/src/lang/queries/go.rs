@@ -180,7 +180,7 @@ impl Stack for Go {
         _code: &str,
         file: &str,
         func_name: &str,
-        graph: &Graph,
+        graph: &ArrayGraph,
         parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         if parent_type.is_none() {
@@ -199,7 +199,7 @@ impl Stack for Go {
         &self,
         pos: Position,
         nd: &NodeData,
-        graph: &Graph,
+        graph: &ArrayGraph,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Edge>> {
         if let Some(lsp) = lsp_tx {
@@ -270,7 +270,7 @@ impl Stack for Go {
     }
 
     // in Go a Class is really just a struct
-    fn clean_graph(&self, graph: &mut Graph) -> bool {
+    fn clean_graph(&self, graph: &mut ArrayGraph) -> bool {
         filter_out_classes_without_methods(graph)
     }
 }

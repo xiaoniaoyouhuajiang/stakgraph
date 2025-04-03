@@ -1,4 +1,3 @@
-
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
@@ -11,7 +10,6 @@ impl Svelte {
         Svelte(tree_sitter_svelte_ng::LANGUAGE.into())
     }
 }
-
 
 impl Stack for Svelte {
     fn q(&self, q: &str, nt: &NodeType) -> Query {
@@ -32,17 +30,15 @@ impl Stack for Svelte {
         Ok(parser.parse(code, None).context("failed to parse")?)
     }
 
-
     fn imports_query(&self) -> Option<String> {
-    Some(format!(
-        r#"
+        Some(format!(
+            r#"
         (document
             (_) @{IMPORTS}
         )
         "#
-    ))
-}
-
+        ))
+    }
 
     fn class_definition_query(&self) -> String {
         format!(
@@ -53,7 +49,6 @@ impl Stack for Svelte {
                 "#
         )
     }
-
 
     fn function_definition_query(&self) -> String {
         format!(
@@ -68,8 +63,6 @@ impl Stack for Svelte {
         )
     }
 
-
-
     fn function_call_query(&self) -> String {
         format!(
             r#"
@@ -78,8 +71,7 @@ impl Stack for Svelte {
             ) @FUNCTION_CALL
             "#
         )
-        }
-
+    }
 
     fn find_function_parent(
         &self,
@@ -87,12 +79,11 @@ impl Stack for Svelte {
         code: &str,
         file: &str,
         func_name: &str,
-        _graph: &Graph,
+        _graph: &ArrayGraph,
         _parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         let mut parent = node.parent();
         while parent.is_some() {
-
             if parent.unwrap().kind().to_string() == "class_declaration" {
                 // found it!
                 break;
@@ -115,8 +106,6 @@ impl Stack for Svelte {
         Ok(parent_of)
     }
 
-
-
     fn request_finder(&self) -> Option<String> {
         Some(format!(
             r#"
@@ -127,7 +116,6 @@ impl Stack for Svelte {
             "#
         ))
     }
-
 
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
@@ -140,8 +128,6 @@ impl Stack for Svelte {
             "#
         ))
     }
-
-
 
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(
