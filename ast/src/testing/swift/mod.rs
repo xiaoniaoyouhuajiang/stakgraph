@@ -1,4 +1,4 @@
-use crate::lang::graph::Node;
+use crate::lang::graph::NodeType;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -21,7 +21,7 @@ async fn test_swift() {
     let languages = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Language(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Language))
         .collect::<Vec<_>>();
     assert_eq!(languages.len(), 1);
 
@@ -32,7 +32,7 @@ async fn test_swift() {
     let files = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::File(_)))
+        .filter(|n| matches!(n.node_type, NodeType::File))
         .collect::<Vec<_>>();
 
     assert_eq!(files.len(), 8, "wrong file count");
@@ -40,7 +40,7 @@ async fn test_swift() {
     let imports = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Import(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Import))
         .collect::<Vec<_>>();
 
     assert_eq!(imports.len(), 7, "wrong import count");
@@ -48,7 +48,7 @@ async fn test_swift() {
     let mut classes = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Class(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Class))
         .collect::<Vec<_>>();
 
     assert_eq!(classes.len(), 7);
@@ -61,7 +61,7 @@ async fn test_swift() {
     let mut functions = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Function(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Function))
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 26);
 
@@ -74,7 +74,7 @@ async fn test_swift() {
     let data_models = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::DataModel(_)))
+        .filter(|n| matches!(n.node_type, NodeType::DataModel))
         .collect::<Vec<_>>();
 
     assert_eq!(data_models.len(), 1);
@@ -82,7 +82,7 @@ async fn test_swift() {
     let mut total_requests = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Request(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Request))
         .collect::<Vec<_>>();
     let request = total_requests[0].into_data();
 

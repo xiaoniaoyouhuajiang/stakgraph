@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node};
+use crate::lang::graph::{EdgeType, NodeType};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -26,7 +26,7 @@ async fn test_kotlin() {
     let language_nodes = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Language(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Language))
         .collect::<Vec<_>>();
     assert_eq!(language_nodes.len(), 1);
     let language_node = language_nodes[0].into_data();
@@ -36,7 +36,9 @@ async fn test_kotlin() {
     let build_gradle_nodes = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::File(_)) && n.into_data().name == "build.gradle.kts")
+        .filter(|n| {
+            matches!(n.node_type, NodeType::File) && n.into_data().name == "build.gradle.kts"
+        })
         .collect::<Vec<_>>();
     assert_eq!(build_gradle_nodes.len(), 2);
     let build_gradle_node = build_gradle_nodes[0].into_data();
@@ -45,21 +47,21 @@ async fn test_kotlin() {
     let imports = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Library(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Library))
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 44);
 
     let imports = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Import(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Import))
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 9);
 
     let mut classes = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Class(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Class))
         .collect::<Vec<_>>();
     assert_eq!(classes.len(), 6);
 
@@ -75,21 +77,21 @@ async fn test_kotlin() {
     let functions = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Function(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Function))
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 45);
 
     let data_models = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::DataModel(_)))
+        .filter(|n| matches!(n.node_type, NodeType::DataModel))
         .collect::<Vec<_>>();
     assert_eq!(data_models.len(), 1);
 
     let requests = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Request(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Request))
         .collect::<Vec<_>>();
 
     //FIXME: Records more than 2 requests

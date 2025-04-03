@@ -1,29 +1,29 @@
-use crate::lang::graph::{Graph, Node, NodeType};
+use crate::lang::graph::{ArrayGraph, Node, NodeType};
 use crate::lang::{CallsMeta, Edge, Language, NodeData};
 use anyhow::{Context, Result};
 use lsp::language::PROGRAMMING_LANGUAGES;
 use regex::Regex;
 use std::path::PathBuf;
 use tracing::info;
-pub fn link_e2e_tests(graph: &mut Graph) -> Result<()> {
+pub fn link_e2e_tests(graph: &mut ArrayGraph) -> Result<()> {
     // First collect functions and tests in a single pass
     let mut e2e_tests = Vec::new();
     let mut frontend_functions = Vec::new();
 
     for node in &graph.nodes {
-        match node {
-            Node::E2eTest(t) => {
-                if let Ok(lang) = infer_lang(t) {
-                    if let Ok(test_ids) = extract_test_ids(&t.body, &lang) {
-                        e2e_tests.push((t, test_ids));
+        match node.node_type {
+            NodeType::E2eTest => {
+                if let Ok(lang) = infer_lang(&node.node_data.clone()) {
+                    if let Ok(test_ids) = extract_test_ids(&node.node_data.body, &lang) {
+                        e2e_tests.push((node.node_data.clone(), test_ids));
                     }
                 }
             }
-            Node::Function(f) => {
-                if let Ok(lang) = infer_lang(f) {
+            NodeType::Function => {
+                if let Ok(lang) = infer_lang(&node.node_data.clone()) {
                     if lang.is_frontend() {
-                        if let Ok(test_ids) = extract_test_ids(&f.body, &lang) {
-                            frontend_functions.push((f, test_ids));
+                        if let Ok(test_ids) = extract_test_ids(&node.node_data.body, &lang) {
+                            frontend_functions.push((node.node_data.clone(), test_ids));
                         }
                     }
                 }
@@ -77,21 +77,21 @@ fn extract_test_ids(content: &str, lang: &Language) -> Result<Vec<String>> {
     Ok(test_ids)
 }
 
-pub fn link_api_nodes(graph: &mut Graph) -> Result<()> {
+pub fn link_api_nodes(graph: &mut ArrayGraph) -> Result<()> {
     // Collect requests and endpoints in a single pass
     let mut frontend_requests = Vec::new();
     let mut backend_endpoints = Vec::new();
 
     for node in &graph.nodes {
-        match node {
-            Node::Request(req) => {
-                if let Some(normalized_path) = normalize_frontend_path(&req.name) {
-                    frontend_requests.push((req, normalized_path));
+        match node.node_type {
+            NodeType::Request => {
+                if let Some(normalized_path) = normalize_frontend_path(&node.node_data.name) {
+                    frontend_requests.push((&node.node_data, normalized_path));
                 }
             }
-            Node::Endpoint(endpoint) => {
-                if let Some(normalized_path) = normalize_backend_path(&endpoint.name) {
-                    backend_endpoints.push((endpoint, normalized_path));
+            NodeType::Endpoint => {
+                if let Some(normalized_path) = normalize_backend_path(&node.node_data.name) {
+                    backend_endpoints.push((&node.node_data, normalized_path));
                 }
             }
             _ => {}
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_link_api_nodes() -> Result<()> {
-        let mut graph = Graph::new();
+        let mut graph = ArrayGraph::new();
 
         // Valid matching pair
         let mut req1 = NodeData::name_file("api/user/${id}", "src/components/User.tsx");
@@ -296,10 +296,10 @@ mod tests {
         endpoint2.meta.insert("verb".to_string(), "GET".to_string());
 
         // Add nodes to graph
-        graph.nodes.push(Node::Request(req1));
-        graph.nodes.push(Node::Request(req2));
-        graph.nodes.push(Node::Endpoint(endpoint1));
-        graph.nodes.push(Node::Endpoint(endpoint2));
+        graph.nodes.push(Node::new(NodeType::Request, req1));
+        graph.nodes.push(Node::new(NodeType::Request, req2));
+        graph.nodes.push(Node::new(NodeType::Endpoint, endpoint1));
+        graph.nodes.push(Node::new(NodeType::Endpoint, endpoint2));
 
         link_api_nodes(&mut graph)?;
 
