@@ -1,0 +1,854 @@
+[
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-tablename-stakworkdemorepodbgo-22",
+      "name": "TableName",
+      "start": 22,
+      "end": 24,
+      "body": "func (p *Person) TableName() string {\n\treturn \"people\"\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-newperson-stakworkdemorepodbgo-26",
+      "name": "NewPerson",
+      "start": 26,
+      "end": 28,
+      "body": "func (db database) NewPerson(p Person) error {\n\treturn db.db.Create(&p).Error\n}",
+      "operand": "database"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-createoreditperson-stakworkdemorepodbgo-31",
+      "start": 31,
+      "name": "CreateOrEditPerson",
+      "end": 36,
+      "body": "func (db database) CreateOrEditPerson(m Person) (Person, error) {\n\tif db.db.Model(&m).Where(\"id = ?\", m.ID).Updates(&m).RowsAffected == 0 {\n\t\tdb.db.Create(&m)\n\t}\n\treturn m, nil\n}",
+      "operand": "database"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-updatepersonname-stakworkdemorepodbgo-38",
+      "start": 38,
+      "name": "UpdatePersonName",
+      "end": 45,
+      "body": "func (db database) UpdatePersonName(id uint, name string) {\n\tif id == 0 {\n\t\treturn\n\t}\n\tdb.db.Model(&Person{}).Where(\"id = ?\", id).Updates(map[string]interface{}{\n\t\t\"name\": name,\n\t})\n}",
+      "operand": "database"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-getpersonbyid-stakworkdemorepodbgo-47",
+      "name": "GetPersonById",
+      "start": 47,
+      "end": 53,
+      "body": "func (db database) GetPersonById(id uint) (Person, error) {\n\tvar p Person\n\tif err := db.db.First(&p, id).Error; err != nil {\n\t\treturn Person{}, err\n\t}\n\treturn p, nil\n}",
+      "operand": "database"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-getallpeople-stakworkdemorepodbgo-55",
+      "name": "GetAllPeople",
+      "start": 55,
+      "end": 62,
+      "body": "func (db database) GetAllPeople() ([]Person, error) {\n\tvar people []Person\n\terr := db.db.Find(&people).Error\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn people, nil\n}",
+      "operand": "database"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-initdb-stakworkdemorepodbgo-64",
+      "name": "InitDB",
+      "start": 64,
+      "end": 84,
+      "body": "func InitDB() {\n\tdbURL := os.Getenv(\"DATABASE_URL\")\n\tif dbURL == \"\" {\n\t\tpanic(\"DB env vars not found\")\n\t}\n\n\tvar err error\n\n\tdb, err := gorm.Open(postgres.New(postgres.Config{\n\t\tDSN:                  dbURL,\n\t\tPreferSimpleProtocol: true,\n\t}), &gorm.Config{})\n\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\n\tDB.db = db\n\n\tdb.AutoMigrate(&Person{})\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "function-newrouter-stakworkdemoreporoutesgo-17",
+      "name": "NewRouter",
+      "start": 17,
+      "end": 41,
+      "body": "func NewRouter() *http.Server {\n\tr := initChi()\n\n\tr.Group(func(r chi.Router) {\n\t\tr.Get(\"/person/{id}\", GetPerson)\n\t\tr.Post(\"/person\", CreatePerson)\n\t\tr.Get(\"/people\", GetPeople)\n\t})\n\n\tPORT := os.Getenv(\"PORT\")\n\tif PORT == \"\" {\n\t\tPORT = \"5002\"\n\t}\n\n\tserver := &http.Server{Addr: \":\" + PORT, Handler: r}\n\n\tgo func() {\n\t\tfmt.Printf(\"Listening on port %s\\n\", PORT)\n\t\tif err := server.ListenAndServe(); err != nil {\n\t\t\tfmt.Printf(\"server err: %s\\n\", err.Error())\n\t\t}\n\t}()\n\n\treturn server\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "function-getperson-stakworkdemoreporoutesgo-43",
+      "name": "GetPerson",
+      "start": 43,
+      "end": 54,
+      "body": "func GetPerson(w http.ResponseWriter, r *http.Request) {\n\tidstr := chi.URLParam(r, \"id\")\n\tid, _ := strconv.Atoi(idstr)\n\tp, err := DB.GetPersonById(uint(id))\n\tif err != nil {\n\t\tw.WriteHeader(http.StatusInternalServerError)\n\t\tjson.NewEncoder(w).Encode(err)\n\t\treturn\n\t}\n\tw.WriteHeader(http.StatusOK)\n\tjson.NewEncoder(w).Encode(p)\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "function-createperson-stakworkdemoreporoutesgo-56",
+      "name": "CreatePerson",
+      "start": 56,
+      "end": 77,
+      "body": "func CreatePerson(w http.ResponseWriter, r *http.Request) {\n\tp := Person{}\n\tbody, err := io.ReadAll(r.Body)\n\tif err != nil {\n\t\tw.WriteHeader(http.StatusNotAcceptable)\n\t\treturn\n\t}\n\tr.Body.Close()\n\terr = json.Unmarshal(body, &p)\n\tif err != nil {\n\t\tw.WriteHeader(http.StatusNotAcceptable)\n\t\treturn\n\t}\n\terr = DB.NewPerson(p)\n\tif err != nil {\n\t\tw.WriteHeader(http.StatusInternalServerError)\n\t\tjson.NewEncoder(w).Encode(err)\n\t\treturn\n\t}\n\tw.WriteHeader(http.StatusCreated)\n\tjson.NewEncoder(w).Encode(p)\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "function-getpeople-stakworkdemoreporoutesgo-79",
+      "name": "GetPeople",
+      "start": 79,
+      "end": 90,
+      "body": "func GetPeople(w http.ResponseWriter, r *http.Request) {\n\tpeople, err := DB.GetAllPeople()\n\tif err != nil {\n\t\tw.WriteHeader(http.StatusInternalServerError)\n\t\tjson.NewEncoder(w).Encode(map[string]string{\"error\": err.Error()})\n\t\treturn\n\t}\n\n\tw.Header().Set(\"Content-Type\", \"application/json\")\n\tw.WriteHeader(http.StatusOK)\n\tjson.NewEncoder(w).Encode(people)\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "function-initchi-stakworkdemoreporoutesgo-92",
+      "name": "initChi",
+      "start": 92,
+      "end": 107,
+      "body": "func initChi() *chi.Mux {\n\tr := chi.NewRouter()\n\tr.Use(middleware.RequestID)\n\tr.Use(middleware.Logger)\n\tr.Use(middleware.Recoverer)\n\tcors := cors.New(cors.Options{\n\t\tAllowedOrigins:   []string{\"*\"},\n\t\tAllowedMethods:   []string{\"GET\", \"POST\", \"PUT\", \"DELETE\", \"OPTIONS\"},\n\t\tAllowedHeaders:   []string{\"Accept\", \"Authorization\", \"Content-Type\", \"X-CSRF-Token\", \"X-User\", \"authorization\", \"x-jwt\", \"Referer\", \"User-Agent\", \"x-session-id\"},\n\t\tAllowCredentials: true,\n\t\tMaxAge:           300,\n\t})\n\tr.Use(cors.Handler)\n\tr.Use(middleware.Timeout(60 * time.Second))\n\treturn r\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/main.go",
+      "node_key": "function-main-stakworkdemorepomaingo-14",
+      "name": "main",
+      "start": 14,
+      "end": 30,
+      "body": "func main() {\n\tfmt.Println(\"Hello, World!\")\n\tInitDB()\n\n\trouter := NewRouter()\n\n\tshutdownSignal := make(chan os.Signal, 1)\n\tsignal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)\n\t<-shutdownSignal\n\n\t// shutdown web server\n\tctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)\n\tdefer cancel()\n\tif err := router.Shutdown(ctx); err != nil {\n\t\tfmt.Printf(\"error shutting down server: %s\", err.Error())\n\t}\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/finisher_api.go",
+      "docs": "```go\nfunc (db *gorm.DB) Create(value interface{}) (tx *gorm.DB)\n```\n\n---\n\nCreate inserts value, returning the inserted data's primary key in value's id\n\n\n---\n\n[`(gorm.DB).Create` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#DB.Create)",
+      "node_key": "function-create-usersoluwatobibamidelegopkgmodgormiogormv12512finisherapigo-16",
+      "start": 16,
+      "name": "Create",
+      "end": 16,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/chainable_api.go",
+      "docs": "```go\nfunc (db *gorm.DB) Model(value interface{}) (tx *gorm.DB)\n```\n\n---\n\nModel specify the model you would like to run db operations\n\n\t// update all users's name to `hello`\n\tdb.Model(&User{}).Update(\"name\", \"hello\")\n\t// if user's primary key is non-blank, will use it as condition, then will only update that user's name to `hello`\n\tdb.Model(&user).Update(\"name\", \"hello\")\n\n\n---\n\n[`(gorm.DB).Model` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#DB.Model)",
+      "node_key": "function-model-usersoluwatobibamidelegopkgmodgormiogormv12512chainableapigo-17",
+      "start": 17,
+      "name": "Model",
+      "end": 17,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/chainable_api.go",
+      "docs": "```go\nfunc (db *gorm.DB) Where(query interface{}, args ...interface{}) (tx *gorm.DB)\n```\n\n---\n\nWhere add conditions\n\nSee the [docs](https://gorm.io/docs/query.html#Conditions) for details on the various formats that where clauses can take. By default, where clauses chain with AND.\n\n\t// Find the first user with name jinzhu\n\tdb.Where(\"name = ?\", \"jinzhu\").First(&user)\n\t// Find the first user with name jinzhu and age 20\n\tdb.Where(&User{Name: \"jinzhu\", Age: 20}).First(&user)\n\t// Find the first user with name jinzhu and age not equal to 20\n\tdb.Where(\"name = ?\", \"jinzhu\").Where(\"age <> ?\", \"20\").First(&user)\n\n\n---\n\n[`(gorm.DB).Where` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#DB.Where)",
+      "node_key": "function-where-usersoluwatobibamidelegopkgmodgormiogormv12512chainableapigo-206",
+      "start": 206,
+      "name": "Where",
+      "end": 206,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/finisher_api.go",
+      "docs": "```go\nfunc (db *gorm.DB) Updates(values interface{}) (tx *gorm.DB)\n```\n\n---\n\nUpdates updates attributes using callbacks. values must be a struct or map. Reference: [https://gorm.io/docs/update.html#Update-Changed-Fields](https://gorm.io/docs/update.html#Update-Changed-Fields)\n\n\n---\n\n[`(gorm.DB).Updates` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#DB.Updates)",
+      "node_key": "function-updates-usersoluwatobibamidelegopkgmodgormiogormv12512finisherapigo-407",
+      "start": 407,
+      "name": "Updates",
+      "end": 407,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/finisher_api.go",
+      "docs": "```go\nfunc (db *gorm.DB) First(dest interface{}, conds ...interface{}) (tx *gorm.DB)\n```\n\n---\n\nFirst finds the first record ordered by primary key, matching given conditions conds\n\n\n---\n\n[`(gorm.DB).First` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#DB.First)",
+      "node_key": "function-first-usersoluwatobibamidelegopkgmodgormiogormv12512finisherapigo-117",
+      "start": 117,
+      "name": "First",
+      "end": 117,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/finisher_api.go",
+      "docs": "```go\nfunc (db *gorm.DB) Find(dest interface{}, conds ...interface{}) (tx *gorm.DB)\n```\n\n---\n\nFind finds all records matching given conditions conds\n\n\n---\n\n[`(gorm.DB).Find` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#DB.Find)",
+      "node_key": "function-find-usersoluwatobibamidelegopkgmodgormiogormv12512finisherapigo-161",
+      "start": 161,
+      "name": "Find",
+      "end": 161,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/os/env.go",
+      "docs": "```go\nfunc os.Getenv(key string) string\n```\n\n---\n\nGetenv retrieves the value of the environment variable named by the key. It returns the value, which will be empty if the variable is not present. To distinguish between an empty value and an unset value, use \\[LookupEnv].\n\n\n---\n\n[`os.Getenv` on pkg.go.dev](https://pkg.go.dev/os#Getenv)",
+      "node_key": "function-getenv-opthomebrewcellargo1241libexecsrcosenvgo-100",
+      "start": 100,
+      "name": "Getenv",
+      "end": 100,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/builtin/builtin.go",
+      "docs": "```go\nfunc panic(v any)\n```\n\n---\n\nThe panic built-in function stops normal execution of the current goroutine. When a function F calls panic, normal execution of F stops immediately. Any functions whose execution was deferred by F are run in the usual way, and then F returns to its caller. To the caller G, the invocation of F then behaves like a call to panic, terminating G's execution and running any deferred functions. This continues until all functions in the executing goroutine have stopped, in reverse order. At that point, the program is terminated with a non-zero exit code. This termination sequence is called panicking and can be controlled by the built-in function recover.\n\nStarting in Go 1.21, calling panic with a nil interface value or an untyped nil causes a run-time error (a different panic). The GODEBUG setting panicnil=1 disables the run-time error.\n\n\n---\n\n[`panic` on pkg.go.dev](https://pkg.go.dev/builtin#panic)",
+      "node_key": "function-panic-opthomebrewcellargo1241libexecsrcbuiltinbuiltingo-278",
+      "start": 278,
+      "name": "panic",
+      "end": 278,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/gorm.go",
+      "docs": "```go\nfunc gorm.Open(dialector gorm.Dialector, opts ...gorm.Option) (db *gorm.DB, err error)\n```\n\n---\n\nOpen initialize db session based on dialector\n\n\n---\n\n[`gorm.Open` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#Open)",
+      "node_key": "function-open-usersoluwatobibamidelegopkgmodgormiogormv12512gormgo-123",
+      "start": 123,
+      "name": "Open",
+      "end": 123,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/driver/postgres@v1.5.11/postgres.go",
+      "docs": "```go\nfunc postgres.New(config postgres.Config) gorm.Dialector\n```\n\n---\n\n[`postgres.New` on pkg.go.dev](https://pkg.go.dev/gorm.io/driver/postgres@v1.5.11#New)",
+      "node_key": "function-new-usersoluwatobibamidelegopkgmodgormiodriverpostgresv1511postgresgo-41",
+      "start": 41,
+      "name": "New",
+      "end": 41,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/gorm.io/gorm@v1.25.12/migrator.go",
+      "docs": "```go\nfunc (db *gorm.DB) AutoMigrate(dst ...interface{}) error\n```\n\n---\n\nAutoMigrate run auto migration for given models\n\n\n---\n\n[`(gorm.DB).AutoMigrate` on pkg.go.dev](https://pkg.go.dev/gorm.io/gorm@v1.25.12#DB.AutoMigrate)",
+      "node_key": "function-automigrate-usersoluwatobibamidelegopkgmodgormiogormv12512migratorgo-22",
+      "start": 22,
+      "name": "AutoMigrate",
+      "end": 22,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/github.com/go-chi/chi@v1.5.5/mux.go",
+      "docs": "```go\nfunc (mx *chi.Mux) Group(fn func(r chi.Router)) chi.Router\n```\n\n---\n\nGroup creates a new inline-Mux with a fresh middleware stack. It's useful for a group of handlers along the same routing path that use an additional set of middlewares. See \\_examples/.\n\n\n---\n\n[`(chi.Mux).Group` on pkg.go.dev](https://pkg.go.dev/github.com/go-chi/chi@v1.5.5#Mux.Group)",
+      "node_key": "function-group-usersoluwatobibamidelegopkgmodgithubcomgochichiv155muxgo-250",
+      "start": 250,
+      "name": "Group",
+      "end": 250,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/github.com/go-chi/chi@v1.5.5/chi.go",
+      "docs": "```go\nfunc (chi.Router) Get(pattern string, h http.HandlerFunc)\n```\n\n---\n\n[`(chi.Router).Get` on pkg.go.dev](https://pkg.go.dev/github.com/go-chi/chi@v1.5.5#Router.Get)",
+      "node_key": "function-get-usersoluwatobibamidelegopkgmodgithubcomgochichiv155chigo-99",
+      "start": 99,
+      "name": "Get",
+      "end": 99,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/github.com/go-chi/chi@v1.5.5/chi.go",
+      "docs": "```go\nfunc (chi.Router) Post(pattern string, h http.HandlerFunc)\n```\n\n---\n\n[`(chi.Router).Post` on pkg.go.dev](https://pkg.go.dev/github.com/go-chi/chi@v1.5.5#Router.Post)",
+      "node_key": "function-post-usersoluwatobibamidelegopkgmodgithubcomgochichiv155chigo-103",
+      "start": 103,
+      "name": "Post",
+      "end": 103,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/fmt/print.go",
+      "docs": "```go\nfunc fmt.Printf(format string, a ...any) (n int, err error)\n```\n\n---\n\nPrintf formats according to a format specifier and writes to standard output. It returns the number of bytes written and any write error encountered.\n\n\n---\n\n[`fmt.Printf` on pkg.go.dev](https://pkg.go.dev/fmt#Printf)",
+      "node_key": "function-printf-opthomebrewcellargo1241libexecsrcfmtprintgo-231",
+      "start": 231,
+      "name": "Printf",
+      "end": 231,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/net/http/server.go",
+      "docs": "```go\nfunc (s *http.Server) ListenAndServe() error\n```\n\n---\n\nListenAndServe listens on the TCP network address s.Addr and then calls \\[Serve] to handle requests on incoming connections. Accepted connections are configured to enable TCP keep-alives.\n\nIf s.Addr is blank, \":http\" is used.\n\nListenAndServe always returns a non-nil error. After \\[Server.Shutdown] or \\[Server.Close], the returned error is \\[ErrServerClosed].\n\n\n---\n\n[`(http.Server).ListenAndServe` on pkg.go.dev](https://pkg.go.dev/net/http#Server.ListenAndServe)",
+      "node_key": "function-listenandserve-opthomebrewcellargo1241libexecsrcnethttpservergo-3337",
+      "start": 3337,
+      "name": "ListenAndServe",
+      "end": 3337,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/builtin/builtin.go",
+      "docs": "```go\nfunc (error).Error() string\n```",
+      "node_key": "function-error-opthomebrewcellargo1241libexecsrcbuiltinbuiltingo-308",
+      "start": 308,
+      "name": "Error",
+      "end": 308,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/github.com/go-chi/chi@v1.5.5/context.go",
+      "docs": "```go\nfunc chi.URLParam(r *http.Request, key string) string\n```\n\n---\n\nURLParam returns the url parameter from a http.Request object.\n\n\n---\n\n[`chi.URLParam` on pkg.go.dev](https://pkg.go.dev/github.com/go-chi/chi@v1.5.5#URLParam)",
+      "node_key": "function-urlparam-usersoluwatobibamidelegopkgmodgithubcomgochichiv155contextgo-9",
+      "start": 9,
+      "name": "URLParam",
+      "end": 9,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/strconv/atoi.go",
+      "docs": "```go\nfunc strconv.Atoi(s string) (int, error)\n```\n\n---\n\nAtoi is equivalent to ParseInt(s, 10, 0), converted to type int.\n\n\n---\n\n[`strconv.Atoi` on pkg.go.dev](https://pkg.go.dev/strconv#Atoi)",
+      "node_key": "function-atoi-opthomebrewcellargo1241libexecsrcstrconvatoigo-241",
+      "start": 241,
+      "name": "Atoi",
+      "end": 241,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/builtin/builtin.go",
+      "docs": "```go\ntype uint uint\n```\n\n---\n\nuint is an unsigned integer type that is at least 32 bits in size. It is a distinct type, however, and not an alias for, say, uint32.\n\n\n---\n\n[`uint` on pkg.go.dev](https://pkg.go.dev/builtin#uint)",
+      "node_key": "function-uint-opthomebrewcellargo1241libexecsrcbuiltinbuiltingo-80",
+      "start": 80,
+      "name": "uint",
+      "end": 80,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/net/http/server.go",
+      "docs": "```go\nfunc (http.ResponseWriter) WriteHeader(statusCode int)\n```\n\n---\n\nWriteHeader sends an HTTP response header with the provided status code.\n\nIf WriteHeader is not called explicitly, the first call to Write will trigger an implicit WriteHeader(http.StatusOK). Thus explicit calls to WriteHeader are mainly used to send error codes or 1xx informational responses.\n\nThe provided code must be a valid HTTP 1xx-5xx status code. Any number of 1xx headers may be written, followed by at most one 2xx-5xx header. 1xx headers are sent immediately, but 2xx-5xx headers may be buffered. Use the Flusher interface to send buffered data. The header map is cleared when 2xx-5xx headers are sent, but not with 1xx headers.\n\nThe server will automatically send a 100 (Continue) header on the first read from the request body if the request has an \"Expect: 100-continue\" header.\n\n\n---\n\n[`(http.ResponseWriter).WriteHeader` on pkg.go.dev](https://pkg.go.dev/net/http#ResponseWriter.WriteHeader)",
+      "node_key": "function-writeheader-opthomebrewcellargo1241libexecsrcnethttpservergo-159",
+      "start": 159,
+      "name": "WriteHeader",
+      "end": 159,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/encoding/json/stream.go",
+      "docs": "```go\nfunc json.NewEncoder(w io.Writer) *json.Encoder\n```\n\n---\n\nNewEncoder returns a new encoder that writes to w.\n\n\n---\n\n[`(json.Encoder).NewEncoder` on pkg.go.dev](https://pkg.go.dev/encoding/json#Encoder.NewEncoder)",
+      "node_key": "function-newencoder-opthomebrewcellargo1241libexecsrcencodingjsonstreamgo-191",
+      "start": 191,
+      "name": "NewEncoder",
+      "end": 191,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/encoding/json/stream.go",
+      "docs": "```go\nfunc (enc *json.Encoder) Encode(v any) error\n```\n\n---\n\nEncode writes the JSON encoding of v to the stream, with insignificant space characters elided, followed by a newline character.\n\nSee the documentation for \\[Marshal] for details about the conversion of Go values to JSON.\n\n\n---\n\n[`(json.Encoder).Encode` on pkg.go.dev](https://pkg.go.dev/encoding/json#Encoder.Encode)",
+      "node_key": "function-encode-opthomebrewcellargo1241libexecsrcencodingjsonstreamgo-201",
+      "start": 201,
+      "name": "Encode",
+      "end": 201,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/io/io.go",
+      "docs": "```go\nfunc io.ReadAll(r io.Reader) ([]byte, error)\n```\n\n---\n\nReadAll reads from r until an error or EOF and returns the data it read. A successful call returns err == nil, not err == EOF. Because ReadAll is defined to read from src until EOF, it does not treat an EOF from Read as an error to be reported.\n\n\n---\n\nAdded in go1.16\n\n[`io.ReadAll` on pkg.go.dev](https://pkg.go.dev/io#ReadAll)",
+      "node_key": "function-readall-opthomebrewcellargo1241libexecsrcioiogo-708",
+      "start": 708,
+      "name": "ReadAll",
+      "end": 708,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/io/io.go",
+      "docs": "```go\nfunc (io.Closer) Close() error\n```\n\n---\n\n[`(io.Closer).Close` on pkg.go.dev](https://pkg.go.dev/io#Closer.Close)",
+      "node_key": "function-close-opthomebrewcellargo1241libexecsrcioiogo-107",
+      "start": 107,
+      "name": "Close",
+      "end": 107,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/encoding/json/decode.go",
+      "docs": "```go\nfunc json.Unmarshal(data []byte, v any) error\n```\n\n---\n\nUnmarshal parses the JSON-encoded data and stores the result in the value pointed to by v. If v is nil or not a pointer, Unmarshal returns an \\[InvalidUnmarshalError].\n\nUnmarshal uses the inverse of the encodings that \\[Marshal] uses, allocating maps, slices, and pointers as necessary, with the following additional rules:\n\nTo unmarshal JSON into a pointer, Unmarshal first handles the case of the JSON being the JSON literal null. In that case, Unmarshal sets the pointer to nil. Otherwise, Unmarshal unmarshals the JSON into the value pointed at by the pointer. If the pointer is nil, Unmarshal allocates a new value for it to point to.\n\nTo unmarshal JSON into a value implementing \\[Unmarshaler], Unmarshal calls that value's \\[Unmarshaler.UnmarshalJSON] method, including when the input is a JSON null. Otherwise, if the value implements [encoding.TextUnmarshaler](https://pkg.go.dev/encoding#TextUnmarshaler) and the input is a JSON quoted string, Unmarshal calls [encoding.TextUnmarshaler.UnmarshalText](https://pkg.go.dev/encoding#TextUnmarshaler.UnmarshalText) with the unquoted form of the string.\n\nTo unmarshal JSON into a struct, Unmarshal matches incoming object keys to the keys used by \\[Marshal] (either the struct field name or its tag), preferring an exact match but also accepting a case-insensitive match. By default, object keys which don't have a corresponding struct field are ignored (see \\[Decoder.DisallowUnknownFields] for an alternative).\n\nTo unmarshal JSON into an interface value, Unmarshal stores one of these in the interface value:\n\n  - bool, for JSON booleans\n  - float64, for JSON numbers\n  - string, for JSON strings\n  - \\[]any, for JSON arrays\n  - map\\[string]any, for JSON objects\n  - nil for JSON null\n\nTo unmarshal a JSON array into a slice, Unmarshal resets the slice length to zero and then appends each element to the slice. As a special case, to unmarshal an empty JSON array into a slice, Unmarshal replaces the slice with a new empty slice.\n\nTo unmarshal a JSON array into a Go array, Unmarshal decodes JSON array elements into corresponding Go array elements. If the Go array is smaller than the JSON array, the additional JSON array elements are discarded. If the JSON array is smaller than the Go array, the additional Go array elements are set to zero values.\n\nTo unmarshal a JSON object into a map, Unmarshal first establishes a map to use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal reuses the existing map, keeping existing entries. Unmarshal then stores key-value pairs from the JSON object into the map. The map's key type must either be any string type, an integer, or implement [encoding.TextUnmarshaler](https://pkg.go.dev/encoding#TextUnmarshaler).\n\nIf the JSON-encoded data contain a syntax error, Unmarshal returns a \\[SyntaxError].\n\nIf a JSON value is not appropriate for a given target type, or if a JSON number overflows the target type, Unmarshal skips that field and completes the unmarshaling as best it can. If no more serious errors are encountered, Unmarshal returns an \\[UnmarshalTypeError] describing the earliest such error. In any case, it's not guaranteed that all the remaining fields following the problematic one will be unmarshaled into the target object.\n\nThe JSON null value unmarshals into an interface, map, pointer, or slice by setting that Go value to nil. Because null is often used in JSON to mean “not present,” unmarshaling a JSON null into any other Go type has no effect on the value and produces no error.\n\nWhen unmarshaling quoted strings, invalid UTF-8 or invalid UTF-16 surrogate pairs are not treated as an error. Instead, they are replaced by the Unicode replacement character U+FFFD.\n\n\n---\n\n[`json.Unmarshal` on pkg.go.dev](https://pkg.go.dev/encoding/json#Unmarshal)",
+      "node_key": "function-unmarshal-opthomebrewcellargo1241libexecsrcencodingjsondecodego-96",
+      "start": 96,
+      "name": "Unmarshal",
+      "end": 96,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/net/http/server.go",
+      "docs": "```go\nfunc (http.ResponseWriter) Header() http.Header\n```\n\n---\n\nHeader returns the header map that will be sent by \\[ResponseWriter.WriteHeader]. The \\[Header] map also is the mechanism with which \\[Handler] implementations can set HTTP trailers.\n\nChanging the header map after a call to \\[ResponseWriter.WriteHeader] (or \\[ResponseWriter.Write]) has no effect unless the HTTP status code was of the 1xx class or the modified headers are trailers.\n\nThere are two ways to set Trailers. The preferred way is to predeclare in the headers which trailers you will later send by setting the \"Trailer\" header to the names of the trailer keys which will come later. In this case, those keys of the Header map are treated as if they were trailers. See the example. The second way, for trailer keys not known to the \\[Handler] until after the first \\[ResponseWriter.Write], is to prefix the \\[Header] map keys with the \\[TrailerPrefix] constant value.\n\nTo suppress automatic response headers (such as \"Date\"), set their value to nil.\n\n\n---\n\n[`(http.ResponseWriter).Header` on pkg.go.dev](https://pkg.go.dev/net/http#ResponseWriter.Header)",
+      "node_key": "function-header-opthomebrewcellargo1241libexecsrcnethttpservergo-116",
+      "start": 116,
+      "name": "Header",
+      "end": 116,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/net/http/header.go",
+      "docs": "```go\nfunc (h http.Header) Set(key string, value string)\n```\n\n---\n\nSet sets the header entries associated with key to the single element value. It replaces any existing values associated with key. The key is case insensitive; it is canonicalized by \\[textproto.CanonicalMIMEHeaderKey]. To use non-canonical keys, assign to the map directly.\n\n\n---\n\n[`(http.Header).Set` on pkg.go.dev](https://pkg.go.dev/net/http#Header.Set)",
+      "node_key": "function-set-opthomebrewcellargo1241libexecsrcnethttpheadergo-38",
+      "start": 38,
+      "name": "Set",
+      "end": 38,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/github.com/go-chi/chi@v1.5.5/mux.go",
+      "docs": "```go\nfunc (mx *chi.Mux) Use(middlewares ...func(http.Handler) http.Handler)\n```\n\n---\n\nUse appends a middleware handler to the Mux middleware stack.\n\nThe middleware stack for any Mux will execute before searching for a matching route to a specific handler, which provides opportunity to respond early, change the course of the request execution, or set request-scoped values for the next http.Handler.\n\n\n---\n\n[`(chi.Mux).Use` on pkg.go.dev](https://pkg.go.dev/github.com/go-chi/chi@v1.5.5#Mux.Use)",
+      "node_key": "function-use-usersoluwatobibamidelegopkgmodgithubcomgochichiv155muxgo-96",
+      "start": 96,
+      "name": "Use",
+      "end": 96,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/github.com/rs/cors@v1.11.1/cors.go",
+      "docs": "```go\nfunc cors.New(options cors.Options) *cors.Cors\n```\n\n---\n\nNew creates a new Cors handler with the provided options.\n\n\n---\n\n[`cors.New` on pkg.go.dev](https://pkg.go.dev/github.com/rs/cors@v1.11.1#New)",
+      "node_key": "function-new-usersoluwatobibamidelegopkgmodgithubcomrscorsv1111corsgo-139",
+      "start": 139,
+      "name": "New",
+      "end": 139,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/go/pkg/mod/github.com/go-chi/chi@v1.5.5/middleware/timeout.go",
+      "docs": "```go\nfunc middleware.Timeout(timeout time.Duration) func(next http.Handler) http.Handler\n```\n\n---\n\nTimeout is a middleware that cancels ctx after a given timeout and return a 504 Gateway Timeout error to the client.\n\nIt's required that you select the ctx.Done() channel to check for the signal if the context has reached its deadline and return, otherwise the timeout signal will be just ignored.\n\nie. a route/handler may look like:\n\n\t r.Get(\"/long\", func(w http.ResponseWriter, r *http.Request) {\n\t\t ctx := r.Context()\n\t\t processTime := time.Duration(rand.Intn(4)+1) * time.Second\n\n\t\t select {\n\t\t case <-ctx.Done():\n\t\t \treturn\n\n\t\t case <-time.After(processTime):\n\t\t \t // The above channel simulates some hard work.\n\t\t }\n\n\t\t w.Write([]byte(\"done\"))\n\t })\n\n\n---\n\n[`middleware.Timeout` on pkg.go.dev](https://pkg.go.dev/github.com/go-chi/chi@v1.5.5/middleware#Timeout)",
+      "node_key": "function-timeout-usersoluwatobibamidelegopkgmodgithubcomgochichiv155middlewaretimeoutgo-32",
+      "start": 32,
+      "name": "Timeout",
+      "end": 32,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/fmt/print.go",
+      "docs": "```go\nfunc fmt.Println(a ...any) (n int, err error)\n```\n\n---\n\nPrintln formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered.\n\n\n---\n\n[`fmt.Println` on pkg.go.dev](https://pkg.go.dev/fmt#Println)",
+      "node_key": "function-println-opthomebrewcellargo1241libexecsrcfmtprintgo-312",
+      "start": 312,
+      "name": "Println",
+      "end": 312,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/builtin/builtin.go",
+      "docs": "```go\nfunc make(t Type, size ...int) Type\n```\n\n---\n\nThe make built-in function allocates and initializes an object of type slice, map, or chan (only). Like new, the first argument is a type, not a value. Unlike new, make's return type is the same as the type of its argument, not a pointer to it. The specification of the result depends on the type:\n\n  - Slice: The size specifies the length. The capacity of the slice is equal to its length. A second integer argument may be provided to specify a different capacity; it must be no smaller than the length. For example, make(\\[]int, 0, 10) allocates an underlying array of size 10 and returns a slice of length 0 and capacity 10 that is backed by this underlying array.\n  - Map: An empty map is allocated with enough space to hold the specified number of elements. The size may be omitted, in which case a small starting size is allocated.\n  - Channel: The channel's buffer is initialized with the specified buffer capacity. If zero, or the size is omitted, the channel is unbuffered.\n\n\n---\n\n[`make` on pkg.go.dev](https://pkg.go.dev/builtin#make)",
+      "node_key": "function-make-opthomebrewcellargo1241libexecsrcbuiltinbuiltingo-208",
+      "start": 208,
+      "name": "make",
+      "end": 208,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/os/signal/signal.go",
+      "docs": "```go\nfunc signal.Notify(c chan<- os.Signal, sig ...os.Signal)\n```\n\n---\n\nNotify causes package signal to relay incoming signals to c. If no signals are provided, all incoming signals will be relayed to c. Otherwise, just the provided signals will.\n\nPackage signal will not block sending to c: the caller must ensure that c has sufficient buffer space to keep up with the expected signal rate. For a channel used for notification of just one signal value, a buffer of size 1 is sufficient.\n\nIt is allowed to call Notify multiple times with the same channel: each call expands the set of signals sent to that channel. The only way to remove signals from the set is to call \\[Stop].\n\nIt is allowed to call Notify multiple times with different channels and the same signals: each channel receives copies of incoming signals independently.\n\n\n---\n\n[`signal.Notify` on pkg.go.dev](https://pkg.go.dev/os/signal#Notify)",
+      "node_key": "function-notify-opthomebrewcellargo1241libexecsrcossignalsignalgo-121",
+      "start": 121,
+      "name": "Notify",
+      "end": 121,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/context/context.go",
+      "docs": "```go\nfunc context.WithTimeout(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc)\n```\n\n---\n\nWithTimeout returns WithDeadline(parent, time.Now().Add(timeout)).\n\nCanceling this context releases resources associated with it, so code should call cancel as soon as the operations running in this \\[Context] complete:\n\n\tfunc slowOperationWithTimeout(ctx context.Context) (Result, error) {\n\t\tctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)\n\t\tdefer cancel()  // releases resources if slowOperation completes before timeout elapses\n\t\treturn slowOperation(ctx)\n\t}\n\n\n---\n\nAdded in go1.7\n\n[`context.WithTimeout` on pkg.go.dev](https://pkg.go.dev/context#WithTimeout)",
+      "node_key": "function-withtimeout-opthomebrewcellargo1241libexecsrccontextcontextgo-693",
+      "start": 693,
+      "name": "WithTimeout",
+      "end": 693,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/context/context.go",
+      "docs": "```go\nfunc context.Background() context.Context\n```\n\n---\n\nBackground returns a non-nil, empty \\[Context]. It is never canceled, has no values, and has no deadline. It is typically used by the main function, initialization, and tests, and as the top-level Context for incoming requests.\n\n\n---\n\nAdded in go1.7\n\n[`context.Background` on pkg.go.dev](https://pkg.go.dev/context#Background)",
+      "node_key": "function-background-opthomebrewcellargo1241libexecsrccontextcontextgo-214",
+      "start": 214,
+      "name": "Background",
+      "end": 214,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/opt/homebrew/Cellar/go/1.24.1/libexec/src/net/http/server.go",
+      "docs": "```go\nfunc (s *http.Server) Shutdown(ctx context.Context) error\n```\n\n---\n\nShutdown gracefully shuts down the server without interrupting any active connections. Shutdown works by first closing all open listeners, then closing all idle connections, and then waiting indefinitely for connections to return to idle and then shut down. If the provided context expires before the shutdown is complete, Shutdown returns the context's error, otherwise it returns any error returned from closing the \\[Server]'s underlying Listener(s).\n\nWhen Shutdown is called, \\[Serve], \\[ListenAndServe], and \\[ListenAndServeTLS] immediately return \\[ErrServerClosed]. Make sure the program doesn't exit and waits instead for Shutdown to return.\n\nShutdown does not attempt to close nor wait for hijacked connections such as WebSockets. The caller of Shutdown should separately notify such long-lived connections of shutdown and wait for them to close, if desired. See \\[Server.RegisterOnShutdown] for a way to register shutdown notification functions.\n\nOnce Shutdown has been called on a server, it may not be reused; future calls to methods such as Serve will return ErrServerClosed.\n\n\n---\n\nAdded in go1.8\n\n[`(http.Server).Shutdown` on pkg.go.dev](https://pkg.go.dev/net/http#Server.Shutdown)",
+      "node_key": "function-shutdown-opthomebrewcellargo1241libexecsrcnethttpservergo-3139",
+      "start": 3139,
+      "name": "Shutdown",
+      "end": 3139,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/App.tsx",
+      "node_key": "function-app-stakworkdemorepofrontendsrcapptsx-6",
+      "start": 6,
+      "name": "App",
+      "end": 20,
+      "body": "function App() {\n  return (\n    <div className=\"App\">\n      <header className=\"App-header\">\n        <h1>My React App</h1>\n      </header>\n      <Router>\n        <Routes>\n          <Route path=\"/\" element={<People />} />\n          <Route path=\"/new-person\" element={<NewPerson />} />\n        </Routes>\n      </Router>\n    </div>\n  );\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/People.tsx",
+      "node_key": "function-people-stakworkdemorepofrontendsrccomponentspeopletsx-4",
+      "start": 4,
+      "name": "People",
+      "end": 28,
+      "body": "function People() {\n  const [people, setPeople] = useState<Person[]>([]);\n\n  useEffect(() => {\n    // Fetch people data\n    fetch(`${api.host}/people`)\n      .then((response) => response.json())\n      .then((data: Person[]) => setPeople(data))\n      .catch((error) => console.error('Error fetching people:', error));\n  }, []);\n\n  return (\n    <div>\n      <h2>People List</h2>\n      <ul>\n        {people.map((person) => (\n          <li key={person.id}>\n            <h3>{person.name}</h3>\n            <p>{person.email}</p>\n          </li>\n        ))}\n      </ul>\n    </div>\n  );\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/index.tsx",
+      "node_key": "function-root-stakworkdemorepofrontendsrcindextsx-4",
+      "name": "root",
+      "start": 4,
+      "end": 4,
+      "body": "const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-formcontainer-stakworkdemorepofrontendsrccomponentsnewpersontsx-4",
+      "start": 4,
+      "name": "FormContainer",
+      "end": 11,
+      "body": "const FormContainer = styled.div`\n  max-width: 400px;\n  margin: 0 auto;\n  padding: 20px;\n  border: 1px solid #ccc;\n  border-radius: 8px;\n  background-color: #f9f9f9;\n`;"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-formtitle-stakworkdemorepofrontendsrccomponentsnewpersontsx-13",
+      "start": 13,
+      "name": "FormTitle",
+      "end": 16,
+      "body": "const FormTitle = styled.h2`\n  text-align: center;\n  color: #333;\n`;"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-formgroup-stakworkdemorepofrontendsrccomponentsnewpersontsx-18",
+      "start": 18,
+      "name": "FormGroup",
+      "end": 20,
+      "body": "const FormGroup = styled.div`\n  margin-bottom: 15px;\n`;"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-label-stakworkdemorepofrontendsrccomponentsnewpersontsx-22",
+      "start": 22,
+      "name": "Label",
+      "end": 27,
+      "body": "const Label = styled.label`\n  display: block;\n  margin-bottom: 5px;\n  font-weight: bold;\n  color: #555;\n`;"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-input-stakworkdemorepofrontendsrccomponentsnewpersontsx-29",
+      "start": 29,
+      "name": "Input",
+      "end": 35,
+      "body": "const Input = styled.input`\n  width: 100%;\n  padding: 8px;\n  border: 1px solid #ccc;\n  border-radius: 4px;\n  font-size: 16px;\n`;"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-submitbutton-stakworkdemorepofrontendsrccomponentsnewpersontsx-37",
+      "start": 37,
+      "name": "SubmitButton",
+      "end": 50,
+      "body": "const SubmitButton = styled.button`\n  width: 100%;\n  padding: 10px;\n  background-color: #28a745;\n  color: white;\n  border: none;\n  border-radius: 4px;\n  font-size: 16px;\n  cursor: pointer;\n\n  &:hover {\n    background-color: #218838;\n  }\n`;"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-newperson-stakworkdemorepofrontendsrccomponentsnewpersontsx-52",
+      "start": 52,
+      "name": "NewPerson",
+      "end": 111,
+      "body": "function NewPerson() {\n  const [name, setName] = useState('');\n  const [email, setEmail] = useState('');\n\n  const handleSubmit = async (event: React.FormEvent) => {\n    event.preventDefault();\n\n    const newPerson = {\n      name: name,\n      email: email,\n    };\n\n    try {\n      const response = await fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      });\n\n      if (!response.ok) {\n        console.error('Failed to add new person:', response.statusText);\n        return;\n      }\n\n      const data = await response.json();\n      console.log('New person added:', data);\n    } catch (error) {\n      console.error('Error adding new person:', error);\n    }\n  };\n\n  return (\n    <FormContainer>\n      <FormTitle>Add New Person</FormTitle>\n      <form onSubmit={handleSubmit}>\n        <FormGroup>\n          <Label>Name:</Label>\n          <Input\n            type=\"text\"\n            value={name}\n            onChange={(e) => setName(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <FormGroup>\n          <Label>Email:</Label>\n          <Input\n            type=\"email\"\n            value={email}\n            onChange={(e) => setEmail(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <SubmitButton type=\"submit\">Add Person</SubmitButton>\n      </form>\n    </FormContainer>\n  );\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-handlesubmit-stakworkdemorepofrontendsrccomponentsnewpersontsx-56",
+      "start": 56,
+      "name": "handleSubmit",
+      "end": 83,
+      "body": "handleSubmit = async (event: React.FormEvent) => {\n    event.preventDefault();\n\n    const newPerson = {\n      name: name,\n      email: email,\n    };\n\n    try {\n      const response = await fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      });\n\n      if (!response.ok) {\n        console.error('Failed to add new person:', response.statusText);\n        return;\n      }\n\n      const data = await response.json();\n      console.log('New person added:', data);\n    } catch (error) {\n      console.error('Error adding new person:', error);\n    }\n  }"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/.nvm/versions/node/v20.8.1/lib/node_modules/typescript/lib/lib.dom.d.ts",
+      "docs": "\n```typescript\nfunction fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>\n```\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/Window/fetch)",
+      "node_key": "function-fetch-usersoluwatobibamidelenvmversionsnodev2081libnodemodulestypescriptliblibdomdts-29328",
+      "start": 29328,
+      "name": "fetch",
+      "end": 29328,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/.nvm/versions/node/v20.8.1/lib/node_modules/typescript/lib/lib.dom.d.ts",
+      "docs": "\n```typescript\n(method) Body.json(): Promise<any>\n```\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json)",
+      "node_key": "function-json-usersoluwatobibamidelenvmversionsnodev2081libnodemodulestypescriptliblibdomdts-3545",
+      "start": 3545,
+      "name": "json",
+      "end": 3545,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/.nvm/versions/node/v20.8.1/lib/node_modules/typescript/lib/lib.dom.d.ts",
+      "docs": "\n```typescript\n(method) Console.error(...data: any[]): void\n```\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/console/error_static)",
+      "node_key": "function-error-usersoluwatobibamidelenvmversionsnodev2081libnodemodulestypescriptliblibdomdts-27794",
+      "start": 27794,
+      "name": "error",
+      "end": 27794,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/.nvm/versions/node/v20.8.1/lib/node_modules/typescript/lib/lib.dom.d.ts",
+      "docs": "\n```typescript\n(method) Document.getElementById(elementId: string): HTMLElement | null\n```\nReturns a reference to the first object with the specified value of the ID attribute.\n\n*@param* `elementId` — String that specifies the ID value.",
+      "node_key": "function-getelementbyid-usersoluwatobibamidelenvmversionsnodev2081libnodemodulestypescriptliblibdomdts-7866",
+      "start": 7866,
+      "name": "getElementById",
+      "end": 7866,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/.nvm/versions/node/v20.8.1/lib/node_modules/typescript/lib/lib.es5.d.ts",
+      "docs": "\n```typescript\n(method) JSON.stringify(value: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string (+1 overload)\n```\nConverts a JavaScript value to a JavaScript Object Notation (JSON) string.\n\n*@param* `value` — A JavaScript value, usually an object or array, to be converted.  \n\n*@param* `replacer` — A function that transforms the results.  \n\n*@param* `space` — Adds indentation, white space, and line break characters to the return-value JSON text to make it easier to read.",
+      "node_key": "function-stringify-usersoluwatobibamidelenvmversionsnodev2081libnodemodulestypescriptliblibes5dts-1168",
+      "start": 1168,
+      "name": "stringify",
+      "end": 1168,
+      "body": ""
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "file": "/Users/oluwatobibamidele/.nvm/versions/node/v20.8.1/lib/node_modules/typescript/lib/lib.dom.d.ts",
+      "docs": "\n```typescript\n(method) Console.log(...data: any[]): void\n```\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/console/log_static)",
+      "node_key": "function-log-usersoluwatobibamidelenvmversionsnodev2081libnodemodulestypescriptliblibdomdts-27804",
+      "start": 27804,
+      "name": "log",
+      "end": 27804,
+      "body": ""
+    }
+  }
+]
