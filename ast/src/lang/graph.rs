@@ -114,9 +114,9 @@ impl Graph for ArrayGraph {
             }
         })
     }
-    fn find_data_model_at(&self, file: &str, line: u32) -> Option<Node> {
+    fn find_node_at(&self, node_type: NodeType, file: &str, line: u32) -> Option<Node> {
         self.nodes.iter().find_map(|node| {
-            if node.node_type == NodeType::DataModel
+            if node.node_type == node_type
                 && node.node_data.file == file
                 && node.node_data.start == line as usize
             {
