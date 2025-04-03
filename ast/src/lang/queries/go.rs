@@ -180,16 +180,19 @@ impl Stack for Go {
         _code: &str,
         file: &str,
         func_name: &str,
-        graph: &ArrayGraph,
+        nodes: &Vec<Node>,
         parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         if parent_type.is_none() {
             return Ok(None);
         }
         let parent_type = parent_type.unwrap();
-        Ok(match graph.find_class_by(|f| f.name == parent_type) {
+        let nodedata = nodes
+            .iter()
+            .find(|n| n.node_type == NodeType::Class && n.node_data.name == parent_type);
+        Ok(match nodedata {
             Some(class) => Some(Operand {
-                source: NodeKeys::new(&class.name, &class.file),
+                source: NodeKeys::new(&class.node_data.name, &class.node_data.file),
                 target: NodeKeys::new(func_name, file),
             }),
             None => None,

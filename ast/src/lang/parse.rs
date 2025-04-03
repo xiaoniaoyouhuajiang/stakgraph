@@ -459,7 +459,7 @@ impl Lang {
                     code,
                     file,
                     &func.name,
-                    graph,
+                    &graph.nodes,
                     parent_type.as_deref(),
                 )?;
                 if let Some(pp) = &parent {
