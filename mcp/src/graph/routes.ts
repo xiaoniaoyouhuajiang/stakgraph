@@ -1,7 +1,18 @@
 import { Request, Response, NextFunction } from "express";
-import { Neo4jNode, NodeType } from "./types.js";
+import { Neo4jNode, node_type_descriptions, NodeType } from "./types.js";
 import { nameFileOnly, toReturnNode } from "./utils.js";
 import * as G from "./graph.js";
+
+export function schema(_req: Request, res: Response) {
+  const schema = node_type_descriptions();
+  const schemaArray = Object.entries(schema).map(
+    ([node_type, description]) => ({
+      node_type,
+      description,
+    })
+  );
+  res.json(schemaArray);
+}
 
 export function authMiddleware(
   req: Request,
