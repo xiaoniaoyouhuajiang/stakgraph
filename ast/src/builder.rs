@@ -1,6 +1,6 @@
 use super::repo::{check_revs_files, Repo};
 use crate::lang::Graph;
-use crate::lang::{asg::NodeData, graph::Node, graph::NodeType};
+use crate::lang::{asg::NodeData, graph::NodeType};
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
@@ -247,12 +247,12 @@ impl Repo {
         if self.lang.lang().use_data_model_within_finder() {
             info!("=> get_data_models_within...");
             for n in &graph.nodes {
-                match n {
-                    crate::lang::graph::Node::DataModel(nd) => {
-                        let edges = self.lang.lang().data_model_within_finder(nd, &graph);
-                        graph.edges.extend(edges);
-                    }
-                    _ => {}
+                if n.node_type == NodeType::DataModel {
+                    let edges = self
+                        .lang
+                        .lang()
+                        .data_model_within_finder(&n.node_data, &graph);
+                    graph.edges.extend(edges);
                 }
             }
         }
@@ -332,7 +332,7 @@ fn filter_by_revs(root: &str, revs: Vec<String>, graph: Graph) -> Graph {
         let mut new_graph = Graph::new();
         // only add nodes that are in the final filter
         for node in graph.nodes {
-            if matches!(node, Node::Repository(_)) {
+            if node.node_type == NodeType::Repository {
                 new_graph.nodes.push(node);
                 continue;
             }
