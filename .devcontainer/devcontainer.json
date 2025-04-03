@@ -1,0 +1,21 @@
+{
+  "name": "stakgraph",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "ms-vscode.cpptools",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "postCreateCommand": "cargo build",
+  "remoteUser": "root"
+}
