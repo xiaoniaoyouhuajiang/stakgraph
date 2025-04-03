@@ -180,16 +180,14 @@ impl Stack for Go {
         _code: &str,
         file: &str,
         func_name: &str,
-        nodes: &Vec<Node>,
+        find_class: &dyn Fn(&str) -> Option<Node>,
         parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         if parent_type.is_none() {
             return Ok(None);
         }
         let parent_type = parent_type.unwrap();
-        let nodedata = nodes
-            .iter()
-            .find(|n| n.node_type == NodeType::Class && n.node_data.name == parent_type);
+        let nodedata = find_class(parent_type);
         Ok(match nodedata {
             Some(class) => Some(Operand {
                 source: NodeKeys::new(&class.node_data.name, &class.node_data.file),
@@ -202,15 +200,15 @@ impl Stack for Go {
         &self,
         pos: Position,
         nd: &NodeData,
-        graph: &ArrayGraph,
+        find_trait: &dyn Fn(u32, &str) -> Option<Node>,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Edge>> {
         if let Some(lsp) = lsp_tx {
             let res = LspCmd::GotoImplementations(pos.clone()).send(&lsp)?;
             if let LspRes::GotoImplementations(Some(imp)) = res {
-                let tr = graph.find_trait_range(imp.line, &imp.file.display().to_string());
+                let tr = find_trait(imp.line, &imp.file.display().to_string());
                 if let Some(tr) = tr {
-                    let edge = Edge::trait_operand(&tr, &nd);
+                    let edge = Edge::trait_operand(&tr.node_data, &nd);
                     return Ok(Some(edge));
                 }
             }

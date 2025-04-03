@@ -119,7 +119,7 @@ pub trait Stack {
         _code: &str,
         _file: &str,
         _func_name: &str,
-        _nodes: &Vec<Node>,
+        _callback: &dyn Fn(&str) -> Option<Node>,
         _parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         Ok(None)
@@ -128,7 +128,7 @@ pub trait Stack {
         &self,
         _pos: Position,
         _nd: &NodeData,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(u32, &str) -> Option<Node>,
         _lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Edge>> {
         Ok(None)
