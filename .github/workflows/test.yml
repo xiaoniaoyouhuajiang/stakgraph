@@ -151,33 +151,25 @@ jobs:
 
       - name: Check NodeType Function
         working-directory: ./mcp
-        # run: |
-        #   curl -s -X GET "http://localhost:3000/nodes?node_type=Function" -o ./testing/actual-nodes-nodetypes-function.json
         run: |
-          ACTUAL_NODETYPE_FUNCTION_FILE="./testing/actual-nodes-nodetypes-function.json"
-
-          # Fetch API response and handle errors
-          curl -s -X GET "http://localhost:3000/nodes?node_type=Function" -o "$ACTUAL_NODETYPE_FUNCTION_FILE" || {
-            echo "Failed to fetch API response ❌"
-            exit 1
-          }
+          curl -s -X GET "http://localhost:3000/nodes?node_type=Function" -o ./testing/actual-nodes-nodetypes-function.json
 
       - name: Compare NodeType Response with Expected Output
         working-directory: ./mcp
         run: |
-          ACTUAL_NODETYPE_FUNCTOIN_FILE="./testing/actual-nodes-nodetypes-function.json"
-          EXPECTED_NODETYPE_FUNCTOIN_FILE="./testing/nodes-nodetype-function.json"
+          ACTUAL_NODETYPE_FUNCTION_FILE="./testing/actual-nodes-nodetypes-function.json"
+          EXPECTED_NODETYPE_FUNCTION_FILE="./testing/nodes-nodetype-function.json"
 
-          SORTED_ACTUAL_NODETYPE_FUNCTOIN_FILE="/tmp/sorted_actual_nodetype_function.json"
-          SORTED_EXPECTED_NODETYPE_FUNCTOIN_FILE="/tmp/sorted_expected_nodetype_function.json"
+          SORTED_ACTUAL_NODETYPE_FUNCTION_FILE="/tmp/sorted_actual_nodetype_function.json"
+          SORTED_EXPECTED_NODETYPE_FUNCTION_FILE="/tmp/sorted_expected_nodetype_function.json"
 
-          jq --sort-keys . "$ACTUAL_NODETYPE_FUNCTOIN_FILE" > "$SORTED_ACTUAL_NODETYPE_FUNCTOIN_FILE"
-          jq --sort-keys . "$EXPECTED_NODETYPE_FUNCTOIN_FILE" > "$SORTED_EXPECTED_NODETYPE_FUNCTOIN_FILE"
+          jq --sort-keys . "$ACTUAL_NODETYPE_FUNCTION_FILE" > "$SORTED_ACTUAL_NODETYPE_FUNCTION_FILE"
+          jq --sort-keys . "$EXPECTED_NODETYPE_FUNCTION_FILE" > "$SORTED_EXPECTED_NODETYPE_FUNCTION_FILE"
 
           cat /tmp/sorted_actual_nodetype_function.json
           cat /tmp/sorted_expected_nodetype_function.json
 
-          if diff -q "$SORTED_EXPECTED_NODETYPE_FUNCTOIN_FILE" "$SORTED_ACTUAL_NODETYPE_FUNCTOIN_FILE"; then
+          if diff -q "$SORTED_ACTUAL_NODETYPE_FUNCTION_FILE" "$SORTED_ACTUAL_NODETYPE_FUNCTION_FILE"; then
             echo "Nodetypes Response matches expected output ✅"
           else
             echo "Nodetypes Response does NOT match expected output ❌"
