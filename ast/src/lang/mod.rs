@@ -1,5 +1,6 @@
 pub mod asg;
 pub mod graph;
+pub mod graph_trait;
 pub mod linker;
 pub mod parse;
 pub mod queries;

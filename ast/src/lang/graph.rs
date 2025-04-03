@@ -1,4 +1,4 @@
-use super::{linker::normalize_backend_path, *};
+use super::{graph_trait::GraphTrait, linker::normalize_backend_path, *};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
@@ -89,6 +89,46 @@ impl NodeRef {
             node_type,
             node_data,
         }
+    }
+}
+
+impl GraphTrait for Graph {
+    fn find_node<F>(&self, node_type: Option<NodeType>, predicate: F) -> Option<NodeData>
+    where
+        F: Fn(&Node) -> bool,
+    {
+        self.nodes.iter().find_map(|n| {
+            if node_type.map_or(true, |nt| n.node_type == nt) {
+                let node_data = &n.node_data;
+                if predicate(node_data) {
+                    Some(node_data.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    }
+    fn find_nodes<F>(&self, node_type: Option<NodeType>, predicate: F) -> Vec<NodeData>
+    where
+        F: Fn(&Node) -> bool,
+    {
+        self.nodes
+            .iter()
+            .filter_map(|n| {
+                if node_type.map_or(true, |nt| n.node_type == nt) {
+                    let node_data = &n.node_data;
+                    if predicate(node_data) {
+                        Some(node_data.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
