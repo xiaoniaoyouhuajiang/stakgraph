@@ -93,41 +93,14 @@ impl NodeRef {
 }
 
 impl GraphTrait for Graph {
-    fn find_node<F>(&self, node_type: Option<NodeType>, predicate: F) -> Option<NodeData>
-    where
-        F: Fn(&Node) -> bool,
-    {
-        self.nodes.iter().find_map(|n| {
-            if node_type.map_or(true, |nt| n.node_type == nt) {
-                let node_data = &n.node_data;
-                if predicate(node_data) {
-                    Some(node_data.clone())
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        })
-    }
-    fn find_nodes<F>(&self, node_type: Option<NodeType>, predicate: F) -> Vec<NodeData>
+    fn find_nodes<F>(&self, node_type: NodeType, predicate: F) -> Vec<Node>
     where
         F: Fn(&Node) -> bool,
     {
         self.nodes
             .iter()
-            .filter_map(|n| {
-                if node_type.map_or(true, |nt| n.node_type == nt) {
-                    let node_data = &n.node_data;
-                    if predicate(node_data) {
-                        Some(node_data.clone())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
+            .filter(|node| node.node_type == node_type && predicate(node))
+            .cloned()
             .collect()
     }
 }
