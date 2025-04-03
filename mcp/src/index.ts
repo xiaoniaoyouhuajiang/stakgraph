@@ -31,6 +31,7 @@ app.get("/code", r.get_code);
 app.get("/shortest_path", r.get_shortest_path);
 app.post("/upload", uploads.upload_files);
 app.get("/status/:requestId", uploads.check_status);
+app.get("/schema", r.schema);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

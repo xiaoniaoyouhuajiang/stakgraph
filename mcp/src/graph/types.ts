@@ -37,16 +37,12 @@ export type NodeType =
   | "Class"
   | "Trait"
   | "Library"
-  | "Instance"
   | "Function"
   | "Test"
   | "E2etest"
   | "Endpoint"
   | "Request"
   | "Datamodel"
-  | "Arg"
-  | "Module"
-  | "Feature"
   | "Page";
 
 export type EdgeType =
@@ -81,4 +77,34 @@ export function relevant_node_types(): NodeType[] {
     "Test",
     "E2etest",
   ];
+}
+
+export function node_type_descriptions(): { [k in NodeType]: string } {
+  return {
+    Repository:
+      "A code repository that contains source files, directories, and version history.",
+    Language: "A programming language used in the repository.",
+    Directory:
+      "A folder within a repository that organizes files and subdirectories.",
+    File: "A file within a repository, containing source code, configuration, or other project-related content.",
+    Import:
+      "A section at the top of a file that contains all imported modules, libraries, or dependencies used within the file.",
+    Class:
+      "A class definition in source code, representing an object-oriented structure with attributes and methods.",
+    Trait:
+      "A trait definition in source code, representing a collection of methods that can be implemented by other classes.",
+    Library:
+      "A reusable collection of code or modules providing functionality that can be imported and used in other projects.",
+    Function:
+      "A function or method definition in source code, representing executable logic within a program, including backend logic and frontend components.",
+    Test: "A test case in source code, representing a specific scenario or condition that can be executed to verify the correctness of the code.",
+    E2etest:
+      "A end-to-end test in source code, representing a complete scenario of user interactions or system operations.",
+    Endpoint:
+      "A defined entry point for accessing functionality within an application or service, typically through an API.",
+    Request: "A request to an specific endpoint",
+    Datamodel:
+      "A structured representation of data within a system, typically defining entities, relationships, attribute types, and corresponding SQL table definitions.",
+    Page: "A webpage or route within an application, representing a specific view or section of the system. It can serve as the starting point for a codemap.",
+  };
 }
