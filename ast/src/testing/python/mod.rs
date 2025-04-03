@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node, NodeType};
+use crate::lang::graph::{EdgeType, NodeType};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -21,7 +21,7 @@ async fn test_python() {
     let languages = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Language(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Language))
         .collect::<Vec<_>>();
     assert_eq!(languages.len(), 1);
 
@@ -32,7 +32,7 @@ async fn test_python() {
     let files = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::File(_)))
+        .filter(|n| matches!(n.node_type, NodeType::File))
         .collect::<Vec<_>>();
 
     assert_eq!(files.len(), 17, "wrong file count");
@@ -40,7 +40,7 @@ async fn test_python() {
     let imports = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Import(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Import))
         .collect::<Vec<_>>();
 
     assert_eq!(imports.len(), 12, "wrong import count");
@@ -48,7 +48,7 @@ async fn test_python() {
     let classes = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Class(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Class))
         .collect::<Vec<_>>();
 
     assert_eq!(classes.len(), 3);
@@ -67,7 +67,7 @@ async fn test_python() {
     let data_models = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::DataModel(_)))
+        .filter(|n| matches!(n.node_type, NodeType::DataModel))
         .collect::<Vec<_>>();
     //Data models are zero because they are just classes in python
     assert_eq!(data_models.len(), 3);
@@ -75,7 +75,7 @@ async fn test_python() {
     let endpoints = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Endpoint(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Endpoint))
         .collect::<Vec<_>>();
 
     assert_eq!(endpoints.len(), 4, "wrong endpoint count");

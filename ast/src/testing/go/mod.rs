@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node, NodeType};
+use crate::lang::graph::{EdgeType, NodeType};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -21,7 +21,7 @@ async fn test_go() {
     let l = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Language(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Language))
         .collect::<Vec<_>>();
     assert_eq!(l.len(), 1);
     let l = l[0].into_data();
@@ -31,7 +31,7 @@ async fn test_go() {
     let files = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::File(_)))
+        .filter(|n| matches!(n.node_type, NodeType::File))
         .collect::<Vec<_>>();
     for f in files {
         println!("file: {:?}", f.into_data().name);
@@ -42,14 +42,14 @@ async fn test_go() {
     let imports = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Import(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Import))
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 3);
 
     let cls = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Class(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Class))
         .collect::<Vec<_>>();
     assert_eq!(cls.len(), 1);
     let cls = cls[0].into_data();
@@ -66,7 +66,7 @@ async fn test_go() {
     let dms = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::DataModel(_)))
+        .filter(|n| matches!(n.node_type, NodeType::DataModel))
         .collect::<Vec<_>>();
     assert_eq!(dms.len(), 2);
 
@@ -77,7 +77,7 @@ async fn test_go() {
     let ends = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Endpoint(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Endpoint))
         .collect::<Vec<_>>();
     assert_eq!(ends.len(), 2);
 

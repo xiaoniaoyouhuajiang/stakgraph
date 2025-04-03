@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, Node};
+use crate::lang::graph::{EdgeType, NodeType};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -20,7 +20,7 @@ async fn test_angular() {
     let l = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Language(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Language))
         .collect::<Vec<_>>();
     assert_eq!(l.len(), 1);
     let l = l[0].into_data();
@@ -30,21 +30,21 @@ async fn test_angular() {
     let imports = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Import(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Import))
         .collect::<Vec<_>>();
     assert_eq!(imports.len(), 10);
 
     let cls = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Class(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Class))
         .collect::<Vec<_>>();
     assert_eq!(cls.len(), 5);
 
     let models = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::DataModel(_)))
+        .filter(|n| matches!(n.node_type, NodeType::DataModel))
         .collect::<Vec<_>>();
     assert_eq!(models.len(), 1);
     let models = models[0].into_data();
@@ -53,7 +53,7 @@ async fn test_angular() {
     let functions = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Function(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Function))
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 8);
     let functions = functions[0].into_data();
@@ -62,7 +62,7 @@ async fn test_angular() {
     let reqs = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n, Node::Request(_)))
+        .filter(|n| matches!(n.node_type, NodeType::Request))
         .collect::<Vec<_>>();
     assert_eq!(reqs.len(), 8);
 

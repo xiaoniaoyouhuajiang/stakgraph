@@ -4,4 +4,6 @@ The Dockerfile in this directory builds LSP binaries for a variety of lanuages. 
 
 ### run
 
+docker run --rm -it --entrypoint "/bin/bash" debian:bookworm
+
 docker run --rm -it --entrypoint "/bin/bash" sphinxlightning/stakgraph-lsp

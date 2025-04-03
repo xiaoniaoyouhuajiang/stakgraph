@@ -1,10 +1,10 @@
-use crate::lang::graph::{EdgeType, Graph, Node};
+use crate::lang::graph::{ArrayGraph, EdgeType, Node, NodeType};
 use crate::lang::{linker::normalize_backend_path, Lang};
 use crate::repo::Repo;
 use tracing::{error, info};
 
 pub struct BackendTester {
-    graph: Graph,
+    graph: ArrayGraph,
     lang: Lang,
     repo: Option<String>,
 }
@@ -89,7 +89,7 @@ impl BackendTester {
             .graph
             .nodes
             .iter()
-            .filter(|n| matches!(n, Node::File(_)))
+            .filter(|n| matches!(n.node_type, NodeType::File))
             .collect::<Vec<_>>();
 
         let package_files: Vec<_> = file_nodes

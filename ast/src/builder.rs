@@ -1,6 +1,6 @@
 use super::repo::{check_revs_files, Repo};
-use crate::lang::Graph;
-use crate::lang::{asg::NodeData, graph::Node, graph::NodeType};
+use crate::lang::ArrayGraph;
+use crate::lang::{asg::NodeData, graph::NodeType};
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
@@ -12,8 +12,8 @@ use tracing::{debug, info};
 const MAX_FILE_SIZE: u64 = 100_000; // 100kb max file size
 
 impl Repo {
-    pub async fn build_graph(&self) -> Result<Graph> {
-        let mut graph = Graph::new();
+    pub async fn build_graph(&self) -> Result<ArrayGraph> {
+        let mut graph = ArrayGraph::new();
 
         println!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
@@ -247,12 +247,12 @@ impl Repo {
         if self.lang.lang().use_data_model_within_finder() {
             info!("=> get_data_models_within...");
             for n in &graph.nodes {
-                match n {
-                    crate::lang::graph::Node::DataModel(nd) => {
-                        let edges = self.lang.lang().data_model_within_finder(nd, &graph);
-                        graph.edges.extend(edges);
-                    }
-                    _ => {}
+                if n.node_type == NodeType::DataModel {
+                    let edges = self
+                        .lang
+                        .lang()
+                        .data_model_within_finder(&n.node_data, &graph);
+                    graph.edges.extend(edges);
                 }
             }
         }
@@ -324,15 +324,15 @@ impl Repo {
     }
 }
 
-fn filter_by_revs(root: &str, revs: Vec<String>, graph: Graph) -> Graph {
+fn filter_by_revs(root: &str, revs: Vec<String>, graph: ArrayGraph) -> ArrayGraph {
     if revs.is_empty() {
         return graph;
     }
     if let Some(final_filter) = check_revs_files(root, revs) {
-        let mut new_graph = Graph::new();
+        let mut new_graph = ArrayGraph::new();
         // only add nodes that are in the final filter
         for node in graph.nodes {
-            if matches!(node, Node::Repository(_)) {
+            if node.node_type == NodeType::Repository {
                 new_graph.nodes.push(node);
                 continue;
             }

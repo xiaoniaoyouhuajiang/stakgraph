@@ -5,7 +5,12 @@ RUN apt-get update
 RUN apt-get install -y ca-certificates openssl
 RUN apt-get install -y linux-headers-generic
 RUN apt update
-RUN apt install -y rustc sed curl npm nodejs git python3-full python3-pip
+RUN apt-get update
+RUN apt install -y sed curl
+RUN apt install -y git
+RUN apt install -y rustc
+RUN apt install -y npm nodejs
+RUN apt install -y python3-full python3-pip
 
 # python
 RUN pip install python-lsp-server --break-system-packages
