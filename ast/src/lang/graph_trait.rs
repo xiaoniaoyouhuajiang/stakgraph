@@ -1,6 +1,6 @@
 use crate::lang::{Edge, Node, NodeType};
 
-pub trait GraphTrait {
+pub trait Graph {
     fn find_nodes<F>(&self, node_type: NodeType, predicate: F) -> Vec<Node>
     where
         F: Fn(&Node) -> bool;

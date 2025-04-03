@@ -1,4 +1,4 @@
-use crate::lang::graph::{Graph, Node, NodeType};
+use crate::lang::graph::{ArrayGraph, Node, NodeType};
 use crate::lang::Lang;
 use crate::repo::Repo;
 use anyhow::Context;
@@ -8,7 +8,7 @@ use std::result::Result;
 use tracing::info;
 
 pub struct FrontendTester {
-    graph: Graph,
+    graph: ArrayGraph,
     lang: Lang,
     repo: Option<String>,
 }

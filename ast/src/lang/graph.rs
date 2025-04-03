@@ -1,9 +1,9 @@
-use super::{graph_trait::GraphTrait, linker::normalize_backend_path, *};
+use super::{graph_trait::Graph, linker::normalize_backend_path, *};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Graph {
+pub struct ArrayGraph {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
     pub errors: Vec<String>,
@@ -92,7 +92,7 @@ impl NodeRef {
     }
 }
 
-impl GraphTrait for Graph {
+impl Graph for ArrayGraph {
     fn find_nodes<F>(&self, node_type: NodeType, predicate: F) -> Vec<Node>
     where
         F: Fn(&Node) -> bool,
@@ -105,9 +105,9 @@ impl GraphTrait for Graph {
     }
 }
 
-impl Graph {
+impl ArrayGraph {
     pub fn new() -> Self {
-        Graph {
+        ArrayGraph {
             nodes: Vec::new(),
             edges: Vec::new(),
             errors: Vec::new(),
