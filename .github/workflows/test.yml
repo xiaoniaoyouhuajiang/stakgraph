@@ -169,7 +169,7 @@ jobs:
           cat /tmp/sorted_actual_nodetype_function.json
           cat /tmp/sorted_expected_nodetype_function.json
 
-          if diff -q "$SORTED_ACTUAL_NODETYPE_FUNCTION_FILE" "$SORTED_ACTUAL_NODETYPE_FUNCTION_FILE"; then
+          if diff --color=always -u "$SORTED_EXPECTED_NODETYPE_FUNCTION_FILE" "$SORTED_ACTUAL_NODETYPE_FUNCTION_FILE"; then
             echo "Nodetypes Response matches expected output ✅"
           else
             echo "Nodetypes Response does NOT match expected output ❌"
