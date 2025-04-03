@@ -1,0 +1,127 @@
+[
+  {
+    "node_type": "Page",
+    "ref_id": "1135538c-9734-4d69-a658-f54d7f16c117",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/App.tsx",
+      "node_key": "page-newperson-stakworkdemorepofrontendsrcapptsx-15",
+      "start": 15,
+      "name": "/new-person",
+      "end": 15,
+      "body": "<Route path=\"/new-person\" element={<NewPerson />} />"
+    }
+  },
+  {
+    "node_type": "Import",
+    "ref_id": "37d868bf-0f9e-4a4d-9af2-4a836b3783d6",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/App.tsx",
+      "node_key": "import-import-stakworkdemorepofrontendsrcapptsx-0",
+      "start": 0,
+      "name": "import",
+      "end": 4,
+      "body": "import React from 'react';\nimport { BrowserRouter as Router, Route, Routes } from 'react-router-dom';\nimport './App.css';\nimport People from './components/People';\nimport NewPerson from './components/NewPerson';"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "619aa126-18e5-453a-a4d7-2d0163f7bc9b",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "function-newperson-stakworkdemorepodbgo-26",
+      "name": "NewPerson",
+      "start": 26,
+      "end": 28,
+      "body": "func (db database) NewPerson(p Person) error {\n\treturn db.db.Create(&p).Error\n}",
+      "operand": "database"
+    }
+  },
+  {
+    "node_type": "File",
+    "ref_id": "66a832ee-898c-4a1c-ab14-27477e11f7ad",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/App.tsx",
+      "node_key": "file-apptsx-stakworkdemorepofrontendsrcapptsx-0",
+      "start": 0,
+      "name": "App.tsx",
+      "end": 0,
+      "body": "import React from 'react';\nimport { BrowserRouter as Router, Route, Routes } from 'react-router-dom';\nimport './App.css';\nimport People from './components/People';\nimport NewPerson from './components/NewPerson';\n\nfunction App() {\n  return (\n    <div className=\"App\">\n      <header className=\"App-header\">\n        <h1>My React App</h1>\n      </header>\n      <Router>\n        <Routes>\n          <Route path=\"/\" element={<People />} />\n          <Route path=\"/new-person\" element={<NewPerson />} />\n        </Routes>\n      </Router>\n    </div>\n  );\n}\n\nexport default App;\n",
+      "hash": "069792c94931c6362f1b64e153ff065a5defa18e790d1c04c35a6ba17944ab88"
+    }
+  },
+  {
+    "node_type": "Request",
+    "ref_id": "fef75da9-37f0-41ab-b6f6-aed710e0efa0",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "request-apihostperson-stakworkdemorepofrontendsrccomponentsnewpersontsx-65-post",
+      "verb": "POST",
+      "name": "${api.host}/person",
+      "start": 65,
+      "end": 71,
+      "body": "fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      })"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "014bfff5-403e-4ea0-ba08-2523c8d274fa",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-handlesubmit-stakworkdemorepofrontendsrccomponentsnewpersontsx-56",
+      "start": 56,
+      "name": "handleSubmit",
+      "end": 83,
+      "body": "handleSubmit = async (event: React.FormEvent) => {\n    event.preventDefault();\n\n    const newPerson = {\n      name: name,\n      email: email,\n    };\n\n    try {\n      const response = await fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      });\n\n      if (!response.ok) {\n        console.error('Failed to add new person:', response.statusText);\n        return;\n      }\n\n      const data = await response.json();\n      console.log('New person added:', data);\n    } catch (error) {\n      console.error('Error adding new person:', error);\n    }\n  }"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "100b754c-c631-4abd-8a17-2e05d10f64a9",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/App.tsx",
+      "node_key": "function-app-stakworkdemorepofrontendsrcapptsx-6",
+      "start": 6,
+      "name": "App",
+      "end": 20,
+      "body": "function App() {\n  return (\n    <div className=\"App\">\n      <header className=\"App-header\">\n        <h1>My React App</h1>\n      </header>\n      <Router>\n        <Routes>\n          <Route path=\"/\" element={<People />} />\n          <Route path=\"/new-person\" element={<NewPerson />} />\n        </Routes>\n      </Router>\n    </div>\n  );\n}"
+    }
+  },
+  {
+    "node_type": "Function",
+    "ref_id": "a3c23150-f378-448a-a7eb-e670ec9bb523",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "function-newperson-stakworkdemorepofrontendsrccomponentsnewpersontsx-52",
+      "start": 52,
+      "name": "NewPerson",
+      "end": 111,
+      "body": "function NewPerson() {\n  const [name, setName] = useState('');\n  const [email, setEmail] = useState('');\n\n  const handleSubmit = async (event: React.FormEvent) => {\n    event.preventDefault();\n\n    const newPerson = {\n      name: name,\n      email: email,\n    };\n\n    try {\n      const response = await fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      });\n\n      if (!response.ok) {\n        console.error('Failed to add new person:', response.statusText);\n        return;\n      }\n\n      const data = await response.json();\n      console.log('New person added:', data);\n    } catch (error) {\n      console.error('Error adding new person:', error);\n    }\n  };\n\n  return (\n    <FormContainer>\n      <FormTitle>Add New Person</FormTitle>\n      <form onSubmit={handleSubmit}>\n        <FormGroup>\n          <Label>Name:</Label>\n          <Input\n            type=\"text\"\n            value={name}\n            onChange={(e) => setName(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <FormGroup>\n          <Label>Email:</Label>\n          <Input\n            type=\"email\"\n            value={email}\n            onChange={(e) => setEmail(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <SubmitButton type=\"submit\">Add Person</SubmitButton>\n      </form>\n    </FormContainer>\n  );\n}"
+    }
+  },
+  {
+    "node_type": "File",
+    "ref_id": "40b6c639-f193-4fb8-89c9-7ce9024c71d0",
+    "properties": {
+      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
+      "node_key": "file-newpersontsx-stakworkdemorepofrontendsrccomponentsnewpersontsx-0",
+      "start": 0,
+      "name": "NewPerson.tsx",
+      "end": 0,
+      "body": "import { useState } from 'react';\nimport styled from 'styled-components';\nimport * as api from '../api';\n\nconst FormContainer = styled.div`\n  max-width: 400px;\n  margin: 0 auto;\n  padding: 20px;\n  border: 1px solid #ccc;\n  border-radius: 8px;\n  background-color: #f9f9f9;\n`;\n\nconst FormTitle = styled.h2`\n  text-align: center;\n  color: #333;\n`;\n\nconst FormGroup = styled.div`\n  margin-bottom: 15px;\n`;\n\nconst Label = styled.label`\n  display: block;\n  margin-bottom: 5px;\n  font-weight: bold;\n  color: #555;\n`;\n\nconst Input = styled.input`\n  width: 100%;\n  padding: 8px;\n  border: 1px solid #ccc;\n  border-radius: 4px;\n  font-size: 16px;\n`;\n\nconst SubmitButton = styled.button`\n  width: 100%;\n  padding: 10px;\n  background-color: #28a745;\n  color: white;\n  border: none;\n  border-radius: 4px;\n  font-size: 16px;\n  cursor: pointer;\n\n  &:hover {\n    background-color: #218838;\n  }\n`;\n\nfunction NewPerson() {\n  const [name, setName] = useState('');\n  const [email, setEmail] = useState('');\n\n  const handleSubmit = async (event: React.FormEvent) => {\n    event.preventDefault();\n\n    const newPerson = {\n      name: name,\n      email: email,\n    };\n\n    try {\n      const response = await fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      });\n\n      if (!response.ok) {\n        console.error('Failed to add new person:', response.statusText);\n        return;\n      }\n\n      const data = await response.json();\n      console.log('New person added:', data);\n    } catch (error) {\n      console.error('Error adding new person:', error);\n    }\n  };\n\n  return (\n    <FormContainer>\n      <FormTitle>Add New Person</FormTitle>\n      <form onSubmit={handleSubmit}>\n        <FormGroup>\n          <Label>Name:</Label>\n          <Input\n            type=\"text\"\n            value={name}\n            onChange={(e) => setName(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <FormGroup>\n          <Label>Email:</Label>\n          <Input\n            type=\"email\"\n            value={email}\n            onChange={(e) => setEmail(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <SubmitButton type=\"submit\">Add Person</SubmitButton>\n      </form>\n    </FormContainer>\n  );\n}\n\nexport default NewPerson;\n",
+      "hash": "b2a2170be0c8556850d6d40bc91b6cd678df977cce59d0a3e5d1d49961a82972"
+    }
+  },
+  {
+    "node_type": "File",
+    "ref_id": "87740ca6-f1fd-4c26-a93d-3e7506213176",
+    "properties": {
+      "file": "stakwork/demo-repo/db.go",
+      "node_key": "file-dbgo-stakworkdemorepodbgo-0",
+      "start": 0,
+      "name": "db.go",
+      "end": 0,
+      "body": "package main\n\nimport (\n\t\"os\"\n\n\t\"gorm.io/driver/postgres\"\n\t\"gorm.io/gorm\"\n)\n\ntype database struct {\n\tdb *gorm.DB\n}\n\n// DB is the object\nvar DB database\n\ntype Person struct {\n\tID    int    `json:\"id\"`\n\tName  string `json:\"name\"`\n\tEmail string `json:\"email\"`\n}\n\nfunc (p *Person) TableName() string {\n\treturn \"people\"\n}\n\nfunc (db database) NewPerson(p Person) error {\n\treturn db.db.Create(&p).Error\n}\n\n// check that update owner_pub_key does in fact throws an error\nfunc (db database) CreateOrEditPerson(m Person) (Person, error) {\n\tif db.db.Model(&m).Where(\"id = ?\", m.ID).Updates(&m).RowsAffected == 0 {\n\t\tdb.db.Create(&m)\n\t}\n\treturn m, nil\n}\n\nfunc (db database) UpdatePersonName(id uint, name string) {\n\tif id == 0 {\n\t\treturn\n\t}\n\tdb.db.Model(&Person{}).Where(\"id = ?\", id).Updates(map[string]interface{}{\n\t\t\"name\": name,\n\t})\n}\n\nfunc (db database) GetPersonById(id uint) (Person, error) {\n\tvar p Person\n\tif err := db.db.First(&p, id).Error; err != nil {\n\t\treturn Person{}, err\n\t}\n\treturn p, nil\n}\n\nfunc (db database) GetAllPeople() ([]Person, error) {\n\tvar people []Person\n\terr := db.db.Find(&people).Error\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn people, nil\n}\n\nfunc InitDB() {\n\tdbURL := os.Getenv(\"DATABASE_URL\")\n\tif dbURL == \"\" {\n\t\tpanic(\"DB env vars not found\")\n\t}\n\n\tvar err error\n\n\tdb, err := gorm.Open(postgres.New(postgres.Config{\n\t\tDSN:                  dbURL,\n\t\tPreferSimpleProtocol: true,\n\t}), &gorm.Config{})\n\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\n\tDB.db = db\n\n\tdb.AutoMigrate(&Person{})\n}\n",
+      "hash": "0977321d9e617cba3d2a9e3a3d7917e3f9a98964d5be6a84c71047be6dc3fcec"
+    }
+  }
+]
