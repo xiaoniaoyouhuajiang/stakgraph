@@ -142,6 +142,9 @@ jobs:
           jq --sort-keys . "$ACTUAL_FILE" > "$SORTED_ACTUAL"
           jq --sort-keys . "$EXPECTED_FILE" > "$SORTED_EXPECTED"
 
+          cat /tmp/sorted_actual.json
+          cat /tmp/sorted_expected.json
+
           if diff -q "$SORTED_EXPECTED" "$SORTED_ACTUAL"; then
             echo "Response matches expected output ✅"
           else
