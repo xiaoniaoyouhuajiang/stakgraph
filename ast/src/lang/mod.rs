@@ -10,6 +10,7 @@ use asg::*;
 use consts::*;
 use graph::*;
 pub use graph::{ArrayGraph, NodeType};
+pub use graph_trait::Graph;
 use lsp::{CmdSender, Language};
 use queries::*;
 use std::fmt;
