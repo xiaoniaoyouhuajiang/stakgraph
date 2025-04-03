@@ -1,6 +1,6 @@
 # stakgraph
 
-A source code parser using treesitter, LSP, and neo4j. Source code knowledge graphs for AI agents.
+A source code parser using treesitter, LSP, and neo4j. Software knowledge graphs for AI agents.
 
 ![img](./mcp/docs/sg.png)
 
