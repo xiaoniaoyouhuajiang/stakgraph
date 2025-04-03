@@ -1,7 +1,7 @@
 [
   {
     "node_type": "Page",
-    "ref_id": "1135538c-9734-4d69-a658-f54d7f16c117",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/App.tsx",
       "node_key": "page-newperson-stakworkdemorepofrontendsrcapptsx-15",
@@ -13,7 +13,7 @@
   },
   {
     "node_type": "Import",
-    "ref_id": "37d868bf-0f9e-4a4d-9af2-4a836b3783d6",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/App.tsx",
       "node_key": "import-import-stakworkdemorepofrontendsrcapptsx-0",
@@ -25,7 +25,7 @@
   },
   {
     "node_type": "Function",
-    "ref_id": "619aa126-18e5-453a-a4d7-2d0163f7bc9b",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/db.go",
       "node_key": "function-newperson-stakworkdemorepodbgo-26",
@@ -38,7 +38,7 @@
   },
   {
     "node_type": "File",
-    "ref_id": "66a832ee-898c-4a1c-ab14-27477e11f7ad",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/App.tsx",
       "node_key": "file-apptsx-stakworkdemorepofrontendsrcapptsx-0",
@@ -51,7 +51,7 @@
   },
   {
     "node_type": "Request",
-    "ref_id": "fef75da9-37f0-41ab-b6f6-aed710e0efa0",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
       "node_key": "request-apihostperson-stakworkdemorepofrontendsrccomponentsnewpersontsx-65-post",
@@ -64,7 +64,7 @@
   },
   {
     "node_type": "Function",
-    "ref_id": "014bfff5-403e-4ea0-ba08-2523c8d274fa",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
       "node_key": "function-handlesubmit-stakworkdemorepofrontendsrccomponentsnewpersontsx-56",
@@ -76,7 +76,7 @@
   },
   {
     "node_type": "Function",
-    "ref_id": "100b754c-c631-4abd-8a17-2e05d10f64a9",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/App.tsx",
       "node_key": "function-app-stakworkdemorepofrontendsrcapptsx-6",
@@ -88,7 +88,7 @@
   },
   {
     "node_type": "Function",
-    "ref_id": "a3c23150-f378-448a-a7eb-e670ec9bb523",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
       "node_key": "function-newperson-stakworkdemorepofrontendsrccomponentsnewpersontsx-52",
@@ -100,7 +100,7 @@
   },
   {
     "node_type": "File",
-    "ref_id": "40b6c639-f193-4fb8-89c9-7ce9024c71d0",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
       "node_key": "file-newpersontsx-stakworkdemorepofrontendsrccomponentsnewpersontsx-0",
@@ -113,7 +113,7 @@
   },
   {
     "node_type": "File",
-    "ref_id": "87740ca6-f1fd-4c26-a93d-3e7506213176",
+    "ref_id": "test_ref_id",
     "properties": {
       "file": "stakwork/demo-repo/db.go",
       "node_key": "file-dbgo-stakworkdemorepodbgo-0",
