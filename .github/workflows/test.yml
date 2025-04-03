@@ -143,6 +143,11 @@ jobs:
             echo "Response does NOT match expected output ❌"
             exit 1
           fi
+      - name: Response from Nodetypes
+        run: |
+          sleep 10
+          RESPONSES=$(curl -s "http://localhost:3000/nodes?node_type=Function")
+          echo "Response: $RESPONSES"
 
       - name: Check NodeType Function
         working-directory: ./mcp
