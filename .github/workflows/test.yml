@@ -15,7 +15,7 @@ jobs:
 
       - name: Checkout from Github
         uses: actions/checkout@v4
-      
+
       - name: Give Permission
         working-directory: ./mcp
         run: |
@@ -24,16 +24,15 @@ jobs:
           sudo chmod -R 777 ./.neo4j/plugins  
           sudo chmod -R 777 ./conf
 
-
       - name: Run Neo4j
         working-directory: ./mcp
         run: docker compose -f neo4j.yaml up -d
-      
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.1'
-      
+          go-version: "1.24.1"
+
       - name: Verify Go Installation
         run: go version
 
@@ -44,11 +43,11 @@ jobs:
         run: |
           echo "$HOME/go/bin" >> $GITHUB_PATH
           gopls version
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Verify Node.js Installation
         run: node -v
@@ -71,7 +70,7 @@ jobs:
           export REPO_URL="https://github.com/stakwork/demo-repo.git"
           export LSP_SKIP_POST_CLONE=1
           OUTPUT_FORMAT=jsonl cargo run --bin urls
-      
+
       - name: Wait for Neo4j to be Ready
         run: |
           echo "Waiting for Neo4j to be healthy..."
@@ -81,41 +80,93 @@ jobs:
             sleep 10
           done'
           echo "Neo4j is healthy!"
-      
+
       - name: Neo4j logs
-        run: docker logs neo4j.sphinx 
-      
+        run: docker logs neo4j.sphinx
+
       - name: Start Node Server
         working-directory: ./mcp
         run: yarn install
-      
+
       - name: Start Node Server
         working-directory: ./mcp
-        run: yarn run dev &
-      
+        run: |
+          export TEST_REF_ID=1 
+          yarn run dev &
+
       - name: Wait for the server
-        run: npx wait-on http://localhost:3000
-      
-      
+        run: npx wait-on http://localhost:3000 -t 120000
+
       - name: Upload data
         run: |
           curl -X POST \
           -F "nodes=@./ast/examples/demo-repo-nodes.jsonl" \
           -F "edges=@./ast/examples/demo-repo-edges.jsonl" \
           http://localhost:3000/upload
-      
+
       - name: Test API Response
         run: |
           sleep 10
           RESPONSE=$(curl -s "http://localhost:3000/map?name=App&node_type=Function")
           echo "Response: $RESPONSE"
-          
+
           EXPECTED='<pre>Function: App (85)'
-          
+
           if echo "$RESPONSE" | grep -q "$EXPECTED"; then
             echo "Test passed: Response contains expected output."
           else
             echo "Test failed: Response does not contain expected output."
             exit 1
           fi
-        
+
+      - name: Check Fulltext Search
+        working-directory: ./mcp
+        run: |
+          sleep 10
+          curl -s -X GET "http://localhost:3000/search?query=NewPerson&&method=fulltext" -o ./testing/actual-fulltext-search.json
+
+      - name: Compare Fulltext Search Response with Expected Output
+        working-directory: ./mcp
+        run: |
+          ACTUAL_FULLTEXT_FILE="./testing/actual-fulltext-search.json"
+          EXPECTED_FULLTEXT_FILE="./testing/fulltext-search-response.json"
+
+          SORTED_ACTUAL_FULLTEXT="/tmp/sorted_actual_fulltext.json"
+          SORTED_EXPECTED_FULLTEXT="/tmp/sorted_expected_fulltext.json"
+
+          jq --sort-keys . "$ACTUAL_FULLTEXT_FILE" > "$SORTED_ACTUAL_FULLTEXT"
+          jq --sort-keys . "$EXPECTED_FULLTEXT_FILE" > "$SORTED_EXPECTED_FULLTEXT"
+
+          if diff -q "$SORTED_EXPECTED_FULLTEXT" "$SORTED_ACTUAL_FULLTEXT"; then
+            echo "Response matches expected output ✅"
+          else
+            echo "Response does NOT match expected output ❌"
+            exit 1
+          fi
+
+      - name: Check NodeType Endpoint
+        working-directory: ./mcp
+        run: |
+          curl -s -X GET "http://localhost:3000/nodes?node_type=Endpoint" -o ./testing/actual-nodes-nodetypes-endpoint.json
+
+      - name: Compare NodeType Response with Expected Output
+        working-directory: ./mcp
+        run: |
+          ACTUAL_NODETYPE_ENDPOINT_FILE="./testing/actual-nodes-nodetypes-endpoint.json"
+          EXPECTED_NODETYPE_ENDPOINT_FILE="./testing/nodes-nodetype-endpoint.json"
+
+          SORTED_ACTUAL_NODETYPE_ENDPOINT_FILE="/tmp/sorted_actual_nodetype_endpoint.json"
+          SORTED_EXPECTED_NODETYPE_ENDPOINT_FILE="/tmp/sorted_expected_nodetype_endpoint.json"
+
+          jq --sort-keys . "$ACTUAL_NODETYPE_ENDPOINT_FILE" > "$SORTED_ACTUAL_NODETYPE_ENDPOINT_FILE"
+          jq --sort-keys . "$EXPECTED_NODETYPE_ENDPOINT_FILE" > "$SORTED_EXPECTED_NODETYPE_ENDPOINT_FILE"
+
+          if diff --color=always -u "$SORTED_EXPECTED_NODETYPE_ENDPOINT_FILE" "$SORTED_ACTUAL_NODETYPE_ENDPOINT_FILE"; then
+            echo "Nodetypes Response matches expected output ✅"
+          else
+            echo "Nodetypes Response does NOT match expected output ❌"
+            exit 1
+          fi
+
+      - name: Run rust test
+        run: cargo test
