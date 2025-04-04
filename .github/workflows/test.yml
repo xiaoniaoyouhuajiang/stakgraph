@@ -170,3 +170,22 @@ jobs:
 
       - name: Run rust test
         run: cargo test
+
+      - name: Fetch API Response
+        run: |
+          curl -s -X GET "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
+
+      - name: Compare API Response with Expected Output
+        run: |
+          EXPECTED_MAP_FILE="./testing/expected-map-response.html"
+          ACTUAL_MAP_FILE="./testing/actual-map-response.html"
+
+          sort "$EXPECTED_MAP_FILE" > /tmp/sorted_expected_map_response.html
+          sort "$ACTUAL_MAP_FILE" > /tmp/sorted_actual_map_response.html
+
+          if diff -u /tmp/sorted_expected_map_response.html /tmp/sorted_actual_map_response.html; then
+            echo "Response matches expected output ✅"
+          else
+            echo "Response does NOT match expected output ❌"
+            exit 1
+          fi
