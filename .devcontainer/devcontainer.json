@@ -1,9 +1,6 @@
 {
   "name": "stakgraph",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": ".."
-  },
+  "image": "sphinxlightning/stakgraph-lsp",
   "customizations": {
     "vscode": {
       "settings": {
@@ -16,6 +13,6 @@
       ]
     }
   },
-  "postCreateCommand": "cargo build",
+  "postCreateCommand": "apt-get update && apt-get install -y openssl pkg-config libssl-dev clang cmake && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env && rustup default 1.84.0",
   "remoteUser": "root"
 }
