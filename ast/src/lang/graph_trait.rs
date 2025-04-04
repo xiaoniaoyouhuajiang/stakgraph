@@ -15,13 +15,13 @@ pub trait Graph {
         name: &str,
         file: &str,
     ) -> Option<NodeData>;
-    fn find_node_by_name_and_file_ends_with(
+    fn find_node_by_file_ends_with(
         &self,
         node_type: NodeType,
         name: &str,
         suffix: &str,
     ) -> Option<NodeData>;
-    fn find_nodes_by_name_and_file_ends_with(
+    fn find_nodes_by_file_ends_with(
         &self,
         node_type: NodeType,
         name: &str,

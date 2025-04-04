@@ -351,18 +351,10 @@ impl Lang {
                 return Ok(self.lang().handler_finder(
                     endp,
                     &|handler, suffix| {
-                        graph.find_node_by_name_and_file_ends_with(
-                            NodeType::Function,
-                            handler,
-                            suffix,
-                        )
+                        graph.find_node_by_file_ends_with(NodeType::Function, handler, suffix)
                     },
                     &|handler, suffix| {
-                        graph.find_nodes_by_name_and_file_ends_with(
-                            NodeType::Function,
-                            handler,
-                            suffix,
-                        )
+                        graph.find_nodes_by_file_ends_with(NodeType::Function, handler, suffix)
                     },
                     params,
                 ));
@@ -393,14 +385,14 @@ impl Lang {
                         return Ok(self.lang().handler_finder(
                             endp,
                             &|handler, suffix| {
-                                graph.find_node_by_name_and_file_ends_with(
+                                graph.find_node_by_file_ends_with(
                                     NodeType::Function,
                                     handler,
                                     suffix,
                                 )
                             },
                             &|handler, suffix| {
-                                graph.find_nodes_by_name_and_file_ends_with(
+                                graph.find_nodes_by_file_ends_with(
                                     NodeType::Function,
                                     handler,
                                     suffix,

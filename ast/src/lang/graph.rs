@@ -143,7 +143,7 @@ impl Graph for ArrayGraph {
             }
         })
     }
-    fn find_node_by_name_and_file_ends_with(
+    fn find_node_by_file_ends_with(
         &self,
         node_type: NodeType,
         name: &str,
@@ -160,7 +160,7 @@ impl Graph for ArrayGraph {
             }
         })
     }
-    fn find_nodes_by_name_and_file_ends_with(
+    fn find_nodes_by_file_ends_with(
         &self,
         node_type: NodeType,
         name: &str,
