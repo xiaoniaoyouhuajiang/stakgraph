@@ -14,8 +14,14 @@
 
 export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
 export OUTPUT_FORMAT=jsonl
+export OUTPUT_NAME=tribes
 cargo run --bin urls
 
 ### load data into neo4j (in this dir)
 
 docker-compose -f neo4j.yaml up -d
+
+curl -X POST \
+ -F "nodes=@./ast/examples/tribes-nodes.jsonl" \
+ -F "edges=@./ast/examples/tribes-edges.jsonl" \
+ http://localhost:3000/upload

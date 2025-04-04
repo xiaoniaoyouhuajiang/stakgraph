@@ -1,12 +1,26 @@
 export const Data_Bank = "Data_Bank";
 
+export const KEY_INDEX_QUERY = `CREATE INDEX data_bank_node_key_index IF NOT EXISTS FOR (n:${Data_Bank}) ON (n.node_key)`;
+
 export const DATA_BANK_QUERY = `MATCH (n:${Data_Bank}) RETURN n`;
 
-export const DATA_BANK_BODIES_QUERY = `MATCH (n:${Data_Bank}) RETURN n.node_key as node_key, n.body as body`;
+export const DATA_BANK_BODIES_QUERY = `
+  MATCH (n:${Data_Bank})
+  WHERE n.embeddings IS NULL
+    AND (($do_files = true) OR NOT n:File)
+  RETURN n.node_key as node_key, n.body as body
+  SKIP toInteger($skip) LIMIT toInteger($limit)
+`;
 
 export const UPDATE_EMBEDDINGS_QUERY = `
 MATCH (n:${Data_Bank} {node_key: $node_key})
 SET n.embeddings = $embeddings
+`;
+
+export const BULK_UPDATE_EMBEDDINGS_QUERY = `
+UNWIND $batch as item
+MATCH (n:${Data_Bank} {node_key: item.node_key})
+SET n.embeddings = item.embeddings
 `;
 
 export const PKGS_QUERY = `

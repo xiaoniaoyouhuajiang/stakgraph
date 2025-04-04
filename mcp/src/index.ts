@@ -24,6 +24,7 @@ mcp_routes(app);
 
 app.use(r.authMiddleware);
 
+app.get("/schema", r.schema);
 app.get("/nodes", r.get_nodes);
 app.get("/search", r.search);
 app.get("/map", r.get_map);
@@ -31,7 +32,7 @@ app.get("/code", r.get_code);
 app.get("/shortest_path", r.get_shortest_path);
 app.post("/upload", uploads.upload_files);
 app.get("/status/:requestId", uploads.check_status);
-app.get("/schema", r.schema);
+app.get("/embed_code", uploads.embed_code);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
