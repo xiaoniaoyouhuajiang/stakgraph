@@ -95,7 +95,7 @@ jobs:
           yarn run dev &
 
       - name: Wait for the server
-        run: npx wait-on http://localhost:3000
+        run: npx wait-on http://localhost:3000 -t 120000
 
       - name: Upload data
         run: |
