@@ -1,0 +1,22 @@
+name: Stakgraph Rust Test
+on:
+  #   pull_request:
+  #     branches:
+  #       - main
+  push:
+    branches: ["**"]
+
+jobs:
+  run-test:
+    runs-on: ubuntu-latest
+    name: Run Rust Test on Stakgraph
+    steps:
+      - name: Enable docker.host.internal for Ubuntu
+        run: |
+          pwd && sudo bash -c 'echo "172.17.0.1 host.docker.internal" >> /etc/hosts'
+
+      - name: Checkout from Github
+        uses: actions/checkout@v4
+
+      - name: Run rust test
+        run: cargo test
