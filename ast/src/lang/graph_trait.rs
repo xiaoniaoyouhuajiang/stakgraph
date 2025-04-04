@@ -21,6 +21,12 @@ pub trait Graph {
         name: &str,
         suffix: &str,
     ) -> Option<NodeData>;
+    fn find_nodes_by_name_and_file_ends_with(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        suffix: &str,
+    ) -> Vec<NodeData>;
     // this method is used only in ruby (so far)
 
     fn find_source_edge_by_name_and_file(

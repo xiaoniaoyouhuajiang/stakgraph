@@ -160,6 +160,22 @@ impl Graph for ArrayGraph {
             }
         })
     }
+    fn find_nodes_by_name_and_file_ends_with(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        suffix: &str,
+    ) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|node| {
+                node.node_type == node_type
+                    && node.node_data.name == name
+                    && node.node_data.file.ends_with(suffix)
+            })
+            .map(|node| node.node_data.clone())
+            .collect()
+    }
     fn find_source_edge_by_name_and_file(
         &self,
         edge_type: EdgeType,

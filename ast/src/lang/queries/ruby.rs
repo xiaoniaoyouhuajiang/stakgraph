@@ -201,6 +201,7 @@ impl Stack for Ruby {
         &self,
         endpoint: NodeData,
         find_handler: &dyn Fn(&str, &str) -> Option<NodeData>,
+        find_handlers: &dyn Fn(&str, &str) -> Vec<NodeData>,
         params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if endpoint.meta.get("handler").is_none() {
@@ -263,9 +264,15 @@ impl Stack for Ruby {
                 None => ror_actions,
             };
             // resources :request_center
-
-            for action in actions {
-                if let Some(nd) = find_handler(&action, &CONTROLLER_FILE_SUFFIX) {
+            let controllers = find_handlers(&handler_string, CONTROLLER_FILE_SUFFIX);
+            debug!(
+                "ror endpoint controllers for {}: {:?}",
+                handler_string,
+                controllers.len()
+            );
+            for nd in controllers {
+                debug!("checking controller: {}", nd.name);
+                if actions.contains(&nd.name) {
                     debug!("===> found action: {}", nd.name);
                     let mut endp_ = endpoint.clone();
                     endp_.add_action(&nd.name);

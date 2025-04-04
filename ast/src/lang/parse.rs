@@ -357,6 +357,13 @@ impl Lang {
                             suffix,
                         )
                     },
+                    &|handler, suffix| {
+                        graph.find_nodes_by_name_and_file_ends_with(
+                            NodeType::Function,
+                            handler,
+                            suffix,
+                        )
+                    },
                     params,
                 ));
             } else {
@@ -387,6 +394,13 @@ impl Lang {
                             endp,
                             &|handler, suffix| {
                                 graph.find_node_by_name_and_file_ends_with(
+                                    NodeType::Function,
+                                    handler,
+                                    suffix,
+                                )
+                            },
+                            &|handler, suffix| {
+                                graph.find_nodes_by_name_and_file_ends_with(
                                     NodeType::Function,
                                     handler,
                                     suffix,
