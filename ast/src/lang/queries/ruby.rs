@@ -201,12 +201,12 @@ impl Stack for Ruby {
         &self,
         endpoint: NodeData,
         find_handler: &dyn Fn(&str, &str) -> Option<NodeData>,
-        get_verified_handler: &dyn Fn(&str, &str) -> Option<NodeData>,
         params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if endpoint.meta.get("handler").is_none() {
             return Vec::new();
         }
+        const CONTROLLER_FILE_SUFFIX: &str = "_controller.rb";
         let handler_string = endpoint.meta.get("handler").unwrap();
         // tracing::info!("handler_finder: {} {:?}", handler_string, params);
         let mut explicit_path = false;
@@ -214,7 +214,8 @@ impl Stack for Ruby {
         let mut inter = Vec::new();
         // let mut targets = Vec::new();
         if let Some(item) = &params.item {
-            if let Some(nd) = get_verified_handler(&item.name, &handler_string) {
+            debug!("===> found item: {}", item.name);
+            if let Some(nd) = find_handler(&item.name, &CONTROLLER_FILE_SUFFIX) {
                 inter.push((endpoint, nd));
             }
         } else if handler_string.contains("#") {
@@ -226,7 +227,7 @@ impl Stack for Ruby {
             let controller = arr[0];
             let name = arr[1];
             // debug!("controller: {}, name: {}", controller, name);
-            if let Some(nd) = get_verified_handler(name, controller) {
+            if let Some(nd) = find_handler(name, &CONTROLLER_FILE_SUFFIX) {
                 inter.push((endpoint, nd));
                 explicit_path = true;
             }
@@ -264,7 +265,7 @@ impl Stack for Ruby {
             // resources :request_center
 
             for action in actions {
-                if let Some(nd) = get_verified_handler(&action, handler_string) {
+                if let Some(nd) = find_handler(&action, &CONTROLLER_FILE_SUFFIX) {
                     debug!("===> found action: {}", nd.name);
                     let mut endp_ = endpoint.clone();
                     endp_.add_action(&nd.name);

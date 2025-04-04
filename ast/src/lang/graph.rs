@@ -138,16 +138,16 @@ impl Graph for ArrayGraph {
             }
         })
     }
-    fn find_node_in_controller(
+    fn find_node_by_name_and_file_ends_with(
         &self,
         node_type: NodeType,
         name: &str,
-        controller: &str,
+        suffix: &str,
     ) -> Option<NodeData> {
         self.nodes.iter().find_map(|node| {
             if node.node_type == node_type
                 && node.node_data.name == name
-                && node.node_data.file.contains(controller)
+                && node.node_data.file.ends_with(suffix)
             {
                 Some(node.node_data.clone())
             } else {

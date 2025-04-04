@@ -350,9 +350,12 @@ impl Lang {
                 // find handler manually (not LSP)
                 return Ok(self.lang().handler_finder(
                     endp,
-                    &|handler, file| graph.find_exact_node(NodeType::Function, handler, file),
-                    &|handler, file| {
-                        graph.find_node_in_controller(NodeType::Function, handler, file)
+                    &|handler, suffix| {
+                        graph.find_node_by_name_and_file_ends_with(
+                            NodeType::Function,
+                            handler,
+                            suffix,
+                        )
                     },
                     params,
                 ));
@@ -382,11 +385,12 @@ impl Lang {
                         // FALLBACK to find?
                         return Ok(self.lang().handler_finder(
                             endp,
-                            &|handler, file| {
-                                graph.find_exact_node(NodeType::Function, handler, file)
-                            },
-                            &|handler, file| {
-                                graph.find_node_in_controller(NodeType::Function, handler, file)
+                            &|handler, suffix| {
+                                graph.find_node_by_name_and_file_ends_with(
+                                    NodeType::Function,
+                                    handler,
+                                    suffix,
+                                )
                             },
                             params,
                         ));

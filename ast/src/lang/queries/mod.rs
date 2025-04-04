@@ -189,11 +189,11 @@ pub trait Stack {
         &self,
         endpoint: NodeData,
         callback: &dyn Fn(&str, &str) -> Option<NodeData>,
-        _special_callback: &dyn Fn(&str, &str) -> Option<NodeData>,
         _handler_params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if let Some(handler) = endpoint.meta.get("handler") {
             if let Some(nd) = callback(handler, &endpoint.file) {
+                //make sure you pass the suffix of the file
                 let edge = Edge::handler(&endpoint, &nd);
                 return vec![(endpoint, Some(edge))];
             }
