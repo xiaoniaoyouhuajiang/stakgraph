@@ -1,4 +1,4 @@
-name: Stakgraph Test
+name: Stakgraph E2E Test
 on:
   pull_request:
     branches:
@@ -7,7 +7,7 @@ on:
 jobs:
   run-test:
     runs-on: ubuntu-latest
-    name: Run Test on Stakgraph
+    name: Run e2e tests
     steps:
       - name: Enable docker.host.internal for Ubuntu
         run: |

@@ -1,4 +1,4 @@
-name: Stakgraph Rust Test
+name: Stakgraph Unit Test
 on:
   pull_request:
     branches:
@@ -7,7 +7,7 @@ on:
 jobs:
   run-test:
     runs-on: ubuntu-latest
-    name: Run Rust Test on Stakgraph
+    name: Run unit tests
     steps:
       - name: Enable docker.host.internal for Ubuntu
         run: |
