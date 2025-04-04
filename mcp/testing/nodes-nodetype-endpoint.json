@@ -1,0 +1,44 @@
+[
+  {
+    "node_type": "Endpoint",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "handler": "GetPerson",
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "endpoint-personid-stakworkdemoreporoutesgo-21-get",
+      "name": "/person/{id}",
+      "verb": "GET",
+      "start": 21,
+      "end": 21,
+      "body": "r.Get(\"/person/{id}\", GetPerson)"
+    }
+  },
+  {
+    "node_type": "Endpoint",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "handler": "CreatePerson",
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "endpoint-person-stakworkdemoreporoutesgo-22-post",
+      "start": 22,
+      "verb": "POST",
+      "name": "/person",
+      "end": 22,
+      "body": "r.Post(\"/person\", CreatePerson)"
+    }
+  },
+  {
+    "node_type": "Endpoint",
+    "ref_id": "test_ref_id",
+    "properties": {
+      "handler": "GetPeople",
+      "file": "stakwork/demo-repo/routes.go",
+      "node_key": "endpoint-people-stakworkdemoreporoutesgo-23-get",
+      "verb": "GET",
+      "name": "/people",
+      "start": 23,
+      "end": 23,
+      "body": "r.Get(\"/people\", GetPeople)"
+    }
+  }
+]
