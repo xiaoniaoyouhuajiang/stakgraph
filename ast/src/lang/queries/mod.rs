@@ -189,7 +189,7 @@ pub trait Stack {
         &self,
         endpoint: NodeData,
         callback: &dyn Fn(&str, &str) -> Option<NodeData>,
-        _special_callback: &dyn Fn(&str, &str) -> Vec<NodeData>,
+        _special_callback: &dyn Fn(&str) -> Vec<NodeData>,
         _handler_params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if let Some(handler) = endpoint.meta.get("handler") {
