@@ -200,8 +200,8 @@ impl Stack for Ruby {
     fn handler_finder(
         &self,
         endpoint: NodeData,
-        find_handler: &dyn Fn(&str, &str) -> Option<NodeData>,
-        find_handlers: &dyn Fn(&str) -> Vec<NodeData>,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
         params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if endpoint.meta.get("handler").is_none() {
@@ -216,7 +216,7 @@ impl Stack for Ruby {
         // let mut targets = Vec::new();
         if let Some(item) = &params.item {
             debug!("===> found item: {}", item.name);
-            if let Some(nd) = find_handler(
+            if let Some(nd) = find_fn(
                 &item.name,
                 format!("{}{}", &handler_string, &CONTROLLER_FILE_SUFFIX).as_str(),
             ) {
@@ -231,7 +231,7 @@ impl Stack for Ruby {
             let controller = arr[0];
             let name = arr[1];
             // debug!("controller: {}, name: {}", controller, name);
-            if let Some(nd) = find_handler(
+            if let Some(nd) = find_fn(
                 name,
                 format!("{}{}", &controller, &CONTROLLER_FILE_SUFFIX).as_str(),
             ) {
@@ -271,7 +271,7 @@ impl Stack for Ruby {
             };
             // resources :request_center
             let controllers =
-                find_handlers(format!("{}{}", &handler_string, CONTROLLER_FILE_SUFFIX).as_str());
+                find_fns_in(format!("{}{}", &handler_string, CONTROLLER_FILE_SUFFIX).as_str());
             debug!(
                 "ror endpoint controllers for {}: {:?}",
                 handler_string,
