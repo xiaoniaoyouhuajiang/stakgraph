@@ -126,7 +126,12 @@ impl Graph for ArrayGraph {
             }
         })
     }
-    fn find_exact_node(&self, node_type: NodeType, name: &str, file: &str) -> Option<NodeData> {
+    fn find_node_by_name_in_file(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        file: &str,
+    ) -> Option<NodeData> {
         self.nodes.iter().find_map(|node| {
             if node.node_type == node_type
                 && node.node_data.name == name
@@ -154,6 +159,21 @@ impl Graph for ArrayGraph {
                 None
             }
         })
+    }
+    fn find_source_edge_by_name_and_file(
+        &self,
+        edge_type: EdgeType,
+        target_name: &str,
+        target_file: &str,
+    ) -> Option<NodeKeys> {
+        self.edges
+            .iter()
+            .find(|edge| {
+                edge.edge == edge_type
+                    && edge.target.node_data.name == target_name
+                    && edge.target.node_data.file == target_file
+            })
+            .map(|edge| edge.source.node_data.clone())
     }
 }
 

@@ -117,19 +117,19 @@ impl Lang {
     pub fn get_libs(&self, code: &str, file: &str) -> Result<Vec<NodeData>> {
         if let Some(qo) = self.lang.lib_query() {
             let qo = self.q(&qo, &NodeType::Library);
-            Ok(self.collect(&qo, code, file, NodeType::Library)?)
+            Ok(self.collect::<ArrayGraph>(&qo, code, file, NodeType::Library)?)
         } else {
             Ok(Vec::new())
         }
     }
     pub fn get_classes(&self, code: &str, file: &str) -> Result<Vec<NodeData>> {
         let qo = self.q(&self.lang.class_definition_query(), &NodeType::Class);
-        Ok(self.collect(&qo, code, file, NodeType::Class)?)
+        Ok(self.collect::<ArrayGraph>(&qo, code, file, NodeType::Class)?)
     }
     pub fn get_traits(&self, code: &str, file: &str) -> Result<Vec<NodeData>> {
         if let Some(qo) = self.lang.trait_query() {
             let qo = self.q(&qo, &NodeType::Trait);
-            Ok(self.collect(&qo, code, file, NodeType::Trait)?)
+            Ok(self.collect::<ArrayGraph>(&qo, code, file, NodeType::Trait)?)
         } else {
             Ok(Vec::new())
         }
@@ -137,7 +137,7 @@ impl Lang {
     pub fn get_imports(&self, code: &str, file: &str) -> Result<Vec<NodeData>> {
         if let Some(qo) = self.lang.imports_query() {
             let qo = self.q(&qo, &NodeType::Import);
-            Ok(self.collect(&qo, code, file, NodeType::Import)?)
+            Ok(self.collect::<ArrayGraph>(&qo, code, file, NodeType::Import)?)
         } else {
             Ok(Vec::new())
         }
@@ -202,7 +202,7 @@ impl Lang {
         fmtr: NodeType,
     ) -> Result<Vec<NodeData>> {
         if let Some(qo) = q {
-            let insts = self.collect(&self.q(&qo, &fmtr), code, file, fmtr)?;
+            let insts = self.collect::<ArrayGraph>(&self.q(&qo, &fmtr), code, file, fmtr)?;
             Ok(insts)
         } else {
             Ok(Vec::new())

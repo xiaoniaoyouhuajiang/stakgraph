@@ -364,10 +364,10 @@ impl Stack for Ruby {
     fn integration_test_edge_finder(
         &self,
         nd: &NodeData,
-        graph: &ArrayGraph,
+        find_class: &dyn Fn(&str) -> Option<NodeData>,
         tt: NodeType,
     ) -> Option<Edge> {
-        let cla = graph.find_class_by(|clnd| clnd.name == nd.name);
+        let cla = find_class(&nd.name);
         if let Some(cl) = cla {
             let meta = CallsMeta {
                 call_start: nd.start,

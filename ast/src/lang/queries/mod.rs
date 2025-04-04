@@ -209,7 +209,7 @@ pub trait Stack {
     fn integration_test_edge_finder(
         &self,
         _nd: &NodeData,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
         _tt: NodeType,
     ) -> Option<Edge> {
         None
