@@ -200,12 +200,14 @@ impl Stack for Ruby {
     fn handler_finder(
         &self,
         endpoint: NodeData,
-        graph: &ArrayGraph,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
         params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if endpoint.meta.get("handler").is_none() {
             return Vec::new();
         }
+        const CONTROLLER_FILE_SUFFIX: &str = "_controller.rb";
         let handler_string = endpoint.meta.get("handler").unwrap();
         // tracing::info!("handler_finder: {} {:?}", handler_string, params);
         let mut explicit_path = false;
@@ -213,9 +215,11 @@ impl Stack for Ruby {
         let mut inter = Vec::new();
         // let mut targets = Vec::new();
         if let Some(item) = &params.item {
-            if let Some(nd) = graph.find_func_by(|nd: &NodeData| {
-                is_controller(nd, handler_string) && nd.name == item.name
-            }) {
+            debug!("===> found item: {}", item.name);
+            if let Some(nd) = find_fn(
+                &item.name,
+                format!("{}{}", &handler_string, &CONTROLLER_FILE_SUFFIX).as_str(),
+            ) {
                 inter.push((endpoint, nd));
             }
         } else if handler_string.contains("#") {
@@ -227,9 +231,10 @@ impl Stack for Ruby {
             let controller = arr[0];
             let name = arr[1];
             // debug!("controller: {}, name: {}", controller, name);
-            if let Some(nd) =
-                graph.find_func_by(|nd: &NodeData| nd.name == name && is_controller(nd, controller))
-            {
+            if let Some(nd) = find_fn(
+                name,
+                format!("{}{}", &controller, &CONTROLLER_FILE_SUFFIX).as_str(),
+            ) {
                 inter.push((endpoint, nd));
                 explicit_path = true;
             }
@@ -266,7 +271,7 @@ impl Stack for Ruby {
             };
             // resources :request_center
             let controllers =
-                graph.find_funcs_by(|nd: &NodeData| is_controller(nd, handler_string));
+                find_fns_in(format!("{}{}", &handler_string, CONTROLLER_FILE_SUFFIX).as_str());
             debug!(
                 "ror endpoint controllers for {}: {:?}",
                 handler_string,
@@ -307,7 +312,7 @@ impl Stack for Ruby {
         node: TreeNode,
         code: &str,
         _file: &str,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
     ) -> Result<Vec<HandlerItem>> {
         let mut parents = Vec::new();
         let mut parent = node.parent();
@@ -373,10 +378,10 @@ impl Stack for Ruby {
     fn integration_test_edge_finder(
         &self,
         nd: &NodeData,
-        graph: &ArrayGraph,
+        find_class: &dyn Fn(&str) -> Option<NodeData>,
         tt: NodeType,
     ) -> Option<Edge> {
-        let cla = graph.find_class_by(|clnd| clnd.name == nd.name);
+        let cla = find_class(&nd.name);
         if let Some(cl) = cla {
             let meta = CallsMeta {
                 call_start: nd.start,

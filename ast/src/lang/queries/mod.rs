@@ -145,7 +145,7 @@ pub trait Stack {
         _node: TreeNode,
         _code: &str,
         _file: &str,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
     ) -> Result<Vec<HandlerItem>> {
         Ok(Vec::new())
     }
@@ -188,11 +188,13 @@ pub trait Stack {
     fn handler_finder(
         &self,
         endpoint: NodeData,
-        graph: &ArrayGraph,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        _find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
         _handler_params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if let Some(handler) = endpoint.meta.get("handler") {
-            if let Some(nd) = graph.find_exact_func(handler, &endpoint.file) {
+            if let Some(nd) = find_fn(handler, &endpoint.file) {
+                //make sure you pass the suffix of the file
                 let edge = Edge::handler(&endpoint, &nd);
                 return vec![(endpoint, Some(edge))];
             }
@@ -208,7 +210,7 @@ pub trait Stack {
     fn integration_test_edge_finder(
         &self,
         _nd: &NodeData,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
         _tt: NodeType,
     ) -> Option<Edge> {
         None

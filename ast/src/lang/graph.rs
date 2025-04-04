@@ -126,6 +126,62 @@ impl Graph for ArrayGraph {
             }
         })
     }
+    fn find_node_by_name_in_file(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        file: &str,
+    ) -> Option<NodeData> {
+        self.nodes.iter().find_map(|node| {
+            if node.node_type == node_type
+                && node.node_data.name == name
+                && node.node_data.file == file
+            {
+                Some(node.node_data.clone())
+            } else {
+                None
+            }
+        })
+    }
+    fn find_node_by_name_and_file_end_with(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        suffix: &str,
+    ) -> Option<NodeData> {
+        self.nodes.iter().find_map(|node| {
+            if node.node_type == node_type
+                && node.node_data.name == name
+                && node.node_data.file.ends_with(suffix)
+            {
+                Some(node.node_data.clone())
+            } else {
+                None
+            }
+        })
+    }
+    fn find_nodes_by_file_ends_with(&self, node_type: NodeType, file: &str) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|node| node.node_type == node_type && node.node_data.file.ends_with(file))
+            .map(|node| node.node_data.clone())
+            .collect()
+    }
+    fn find_source_edge_by_name_and_file(
+        &self,
+        edge_type: EdgeType,
+        target_name: &str,
+        target_file: &str,
+    ) -> Option<NodeKeys> {
+        self.edges
+            .iter()
+            .find(|edge| {
+                edge.edge == edge_type
+                    && edge.target.node_data.name == target_name
+                    && edge.target.node_data.file == target_file
+            })
+            .map(|edge| edge.source.node_data.clone())
+    }
 }
 
 impl ArrayGraph {

@@ -6,7 +6,7 @@ use tracing::debug;
 use tree_sitter::{Node as TreeNode, QueryMatch};
 
 impl Lang {
-    pub fn collect(
+    pub fn collect<G: Graph>(
         &self,
         q: &Query,
         code: &str,
@@ -26,7 +26,7 @@ impl Lang {
                 NodeType::Trait => vec![self.format_trait(&m, code, file, q)?],
                 // req and endpoint are the same format in the query templates
                 NodeType::Endpoint | NodeType::Request => self
-                    .format_endpoint(&m, code, file, q, None, &None)?
+                    .format_endpoint::<G>(&m, code, file, q, None, &None)?
                     .into_iter()
                     .map(|(nd, _e)| nd)
                     .collect(),
@@ -244,11 +244,11 @@ impl Lang {
         })?;
         Ok(inst)
     }
-    pub fn collect_endpoints(
+    pub fn collect_endpoints<G: Graph>(
         &self,
         code: &str,
         file: &str,
-        graph: Option<&ArrayGraph>,
+        graph: Option<&G>,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<(NodeData, Option<Edge>)>> {
         if self.lang().endpoint_finders().is_empty() {
@@ -268,13 +268,13 @@ impl Lang {
         Ok(res)
     }
     // endpoint, handlers
-    pub fn format_endpoint(
+    pub fn format_endpoint<G: Graph>(
         &self,
         m: &QueryMatch,
         code: &str,
         file: &str,
         q: &Query,
-        graph: Option<&ArrayGraph>,
+        graph: Option<&G>,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<(NodeData, Option<Edge>)>> {
         // println!("FORMAT ENDPOINT");
@@ -309,7 +309,13 @@ impl Lang {
                 handler_position = Some(Position::new(file, p.row as u32, p.column as u32)?);
                 if let Some(graph) = graph {
                     // collect parents
-                    params.parents = self.lang.find_endpoint_parents(node, code, file, graph)?;
+                    params.parents =
+                        self.lang.find_endpoint_parents(node, code, file, &|name| {
+                            graph
+                                .find_nodes_by_name(NodeType::Function, name)
+                                .first()
+                                .cloned()
+                        })?;
                 }
             } else if o == HANDLER_ACTIONS_ARRAY {
                 // [:destroy, :index]
@@ -342,7 +348,18 @@ impl Lang {
         if let Some(graph) = graph {
             if self.lang().use_handler_finder() {
                 // find handler manually (not LSP)
-                return Ok(self.lang().handler_finder(endp, graph, params));
+                return Ok(self.lang().handler_finder(
+                    endp,
+                    &|handler, suffix| {
+                        graph.find_node_by_name_and_file_end_with(
+                            NodeType::Function,
+                            handler,
+                            suffix,
+                        )
+                    },
+                    &|file| graph.find_nodes_by_file_ends_with(NodeType::Function, file),
+                    params,
+                ));
             } else {
                 // here find the handler using LSP!
                 if let Some(handler_name) = endp.meta.get("handler") {
@@ -352,9 +369,11 @@ impl Lang {
                             let res = LspCmd::GotoDefinition(pos.clone()).send(&lsp)?;
                             if let LspRes::GotoDefinition(Some(gt)) = res {
                                 let target_file = gt.file.display().to_string();
-                                if let Some(_t_file) =
-                                    func_file_finder(&handler_name, &target_file, graph)
-                                {
+                                if let Some(_t_file) = graph.find_node_by_name_in_file(
+                                    NodeType::Function,
+                                    &handler_name,
+                                    &target_file,
+                                ) {
                                     log_cmd(format!("HANDLER def, in graph: {:?}", handler_name));
                                 } else {
                                     log_cmd(format!("HANDLER def, not found: {:?}", handler_name));
@@ -365,7 +384,18 @@ impl Lang {
                         }
                     } else {
                         // FALLBACK to find?
-                        return Ok(self.lang().handler_finder(endp, graph, params));
+                        return Ok(self.lang().handler_finder(
+                            endp,
+                            &|handler, suffix| {
+                                graph.find_node_by_name_and_file_end_with(
+                                    NodeType::Function,
+                                    handler,
+                                    suffix,
+                                )
+                            },
+                            &|file| graph.find_nodes_by_file_ends_with(NodeType::Function, file),
+                            params,
+                        ));
                     }
                 }
             }
@@ -393,12 +423,12 @@ impl Lang {
         })?;
         Ok(inst)
     }
-    pub fn collect_functions(
+    pub fn collect_functions<G: Graph>(
         &self,
         q: &Query,
         code: &str,
         file: &str,
-        graph: &ArrayGraph,
+        graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<Function>> {
         let tree = self.lang.parse(&code, &NodeType::Function)?;
@@ -476,7 +506,7 @@ impl Lang {
                     let qqq = self.q(&rq, &NodeType::Request);
                     let mut matches = cursor.matches(&qqq, node, code.as_bytes());
                     while let Some(m) = matches.next() {
-                        let reqs = self.format_endpoint(
+                        let reqs = self.format_endpoint::<G>(
                             &m,
                             code,
                             file,
@@ -656,14 +686,14 @@ impl Lang {
         }
         Ok(())
     }
-    pub fn collect_calls_in_function<'a>(
+    pub fn collect_calls_in_function<'a, G: Graph>(
         &self,
         q: &Query,
         code: &str,
         file: &str,
         caller_node: TreeNode<'a>,
         caller_name: &str,
-        graph: &ArrayGraph,
+        graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<FunctionCall>> {
         trace!("collect_calls_in_function");
@@ -679,14 +709,14 @@ impl Lang {
         }
         Ok(res)
     }
-    fn format_function_call<'a, 'b>(
+    fn format_function_call<'a, 'b, G: Graph>(
         &self,
         m: &QueryMatch<'a, 'b>,
         code: &str,
         file: &str,
         q: &Query,
         caller_name: &str,
-        graph: &ArrayGraph,
+        graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<FunctionCall>> {
         let mut fc = Calls::default();
@@ -705,7 +735,11 @@ impl Lang {
                     }
                     if let LspRes::GotoDefinition(Some(gt)) = res {
                         let target_file = gt.file.display().to_string();
-                        if let Some(t) = exact_func_finder(&called, &target_file, graph) {
+                        if let Some(t) = graph.find_node_by_name_in_file(
+                            NodeType::Function,
+                            &called,
+                            &target_file,
+                        ) {
                             log_cmd(format!(
                                 "==> ! found target for {:?} {}!!!",
                                 called, &t.file
@@ -747,14 +781,16 @@ impl Lang {
                                     if let LspRes::GotoImplementations(Some(gt2)) = res {
                                         log_cmd(format!("==> ? impls {} {:?}", called, gt2));
                                         let target_file = gt2.file.display().to_string();
-                                        if let Some(t_file) =
-                                            func_file_finder(&called, &target_file, graph)
-                                        {
+                                        if let Some(t_file) = graph.find_node_by_name_in_file(
+                                            NodeType::Function,
+                                            &called,
+                                            &target_file,
+                                        ) {
                                             log_cmd(format!(
-                                                "==> ! found target for impl {:?} {}!!!",
+                                                "==> ! found target for impl {:?} {:?}!!!",
                                                 called, &t_file
                                             ));
-                                            fc.target = NodeKeys::new(&called, &t_file);
+                                            fc.target = NodeKeys::new(&called, &t_file.file);
                                         }
                                     }
                                 }
@@ -791,13 +827,13 @@ impl Lang {
         }
         Ok(Some((fc, external_func)))
     }
-    pub fn collect_integration_test_calls<'a>(
+    pub fn collect_integration_test_calls<'a, G: Graph>(
         &self,
         code: &str,
         file: &str,
         caller_node: TreeNode<'a>,
         caller_name: &str,
-        graph: &ArrayGraph,
+        graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<Edge>> {
         if self.lang.integration_test_query().is_none() {
@@ -823,11 +859,11 @@ impl Lang {
         }
         Ok(res)
     }
-    pub fn collect_integration_tests(
+    pub fn collect_integration_tests<G: Graph>(
         &self,
         code: &str,
         file: &str,
-        graph: &ArrayGraph,
+        graph: &G,
     ) -> Result<Vec<(NodeData, NodeType, Option<Edge>)>> {
         if self.lang.integration_test_query().is_none() {
             return Ok(Vec::new());
@@ -842,9 +878,16 @@ impl Lang {
         let mut res = Vec::new();
         while let Some(m) = matches.next() {
             let (nd, tt) = self.format_integration_test(&m, code, file, &q)?;
-            let test_edge_opt = self
-                .lang
-                .integration_test_edge_finder(&nd, &graph, tt.clone());
+            let test_edge_opt = self.lang.integration_test_edge_finder(
+                &nd,
+                &|name| {
+                    graph
+                        .find_nodes_by_name(NodeType::Class, name)
+                        .first()
+                        .cloned()
+                },
+                tt.clone(),
+            );
             res.push((nd, tt, test_edge_opt));
         }
         Ok(res)
@@ -881,14 +924,14 @@ impl Lang {
         }
         Ok((nd, tt))
     }
-    fn format_integration_test_call<'a, 'b>(
+    fn format_integration_test_call<'a, 'b, G: Graph>(
         &self,
         m: &QueryMatch<'a, 'b>,
         code: &str,
         file: &str,
         q: &Query,
         caller_name: &str,
-        graph: &ArrayGraph,
+        graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Edge>> {
         trace!("format_integration_test");
@@ -929,9 +972,11 @@ impl Lang {
         let res = LspCmd::GotoDefinition(pos).send(&lsp_tx)?;
         if let LspRes::GotoDefinition(Some(gt)) = res {
             let target_file = gt.file.display().to_string();
-            if let Some(t_file) = func_file_finder(&handler_name, &target_file, graph) {
+            if let Some(t_file) =
+                graph.find_node_by_name_in_file(NodeType::Function, &handler_name, &target_file)
+            {
                 log_cmd(format!(
-                    "==> {} ! found integration test target for {:?} {}!!!",
+                    "==> {} ! found integration test target for {:?} {:?}!!!",
                     caller_name, handler_name, &t_file
                 ));
             } else {
@@ -947,7 +992,12 @@ impl Lang {
         if fc.target.is_empty() {
             return Ok(None);
         }
-        let endpoint = exact_endpoint_edge_finder(&fc.target.name, &fc.target.file, graph);
+        let endpoint = graph.find_source_edge_by_name_and_file(
+            EdgeType::Handler,
+            &fc.target.name,
+            &fc.target.file,
+        );
+
         if endpoint.is_none() {
             return Ok(None);
         }
@@ -966,55 +1016,10 @@ impl Lang {
     }
 }
 
-pub fn exact_func_finder(func_name: &str, file: &str, graph: &ArrayGraph) -> Option<NodeData> {
-    let mut target_file = None;
-    for node in graph.nodes.iter() {
-        if node.node_type == NodeType::Function {
-            if node.node_data.name == func_name && node.node_data.file == file {
-                target_file = Some(node.node_data.clone());
-                break;
-            }
-        }
-    }
-    target_file
-}
-pub fn func_file_finder(func_name: &str, file: &str, graph: &ArrayGraph) -> Option<String> {
-    let mut target_file = None;
-    // println!("finder {:?} {:?}", func_name, file);
-    for node in graph.nodes.iter() {
-        if node.node_type == NodeType::Function {
-            if node.node_data.name == func_name && node.node_data.file == file {
-                // println!("LSP found {:?}", f.name);
-                target_file = Some(node.node_data.file.clone());
-                break;
-            }
-        }
-    }
-    target_file
-}
-pub fn exact_endpoint_edge_finder(
-    handler_name: &str,
-    handler_file: &str,
-    graph: &ArrayGraph,
-) -> Option<NodeKeys> {
-    let mut endpoint = None;
-    for edge in graph.edges.iter() {
-        if matches!(edge.edge, EdgeType::Handler) {
-            if edge.target.node_data.name == handler_name
-                && edge.target.node_data.file == handler_file
-            {
-                endpoint = Some(edge.source.node_data.clone());
-                break;
-            }
-        }
-    }
-    endpoint
-}
-
-fn _func_target_files_finder(
+fn _func_target_files_finder<G: Graph>(
     func_name: &str,
     operand: &Option<String>,
-    graph: &ArrayGraph,
+    graph: &G,
 ) -> Option<String> {
     log_cmd(format!("func_target_file_finder {:?}", func_name));
     let mut tf = None;
@@ -1028,10 +1033,10 @@ fn _func_target_files_finder(
     tf
 }
 
-fn func_target_file_finder(
+fn func_target_file_finder<G: Graph>(
     func_name: &str,
     operand: &Option<String>,
-    graph: &ArrayGraph,
+    graph: &G,
 ) -> Option<String> {
     log_cmd(format!("func_target_file_finder {:?}", func_name));
     let mut tf = None;
@@ -1046,14 +1051,13 @@ fn func_target_file_finder(
 }
 
 // FIXME: prefer funcitons in the same file?? Instead of skipping if there are 2
-fn find_only_one_function_file(func_name: &str, graph: &ArrayGraph) -> Option<String> {
+fn find_only_one_function_file<G: Graph>(func_name: &str, graph: &G) -> Option<String> {
     let mut target_files = Vec::new();
-    for node in graph.nodes.iter() {
-        if node.node_type == NodeType::Function {
-            // NOT empty functions (interfaces)
-            if node.node_data.name == func_name && !node.node_data.body.is_empty() {
-                target_files.push(node.node_data.file.clone());
-            }
+    let nodes = graph.find_nodes_by_name(NodeType::Function, func_name);
+    for node in nodes {
+        // NOT empty functions (interfaces)
+        if !node.body.is_empty() {
+            target_files.push(node.file.clone());
         }
     }
     if target_files.len() == 1 {
@@ -1069,43 +1073,37 @@ fn find_only_one_function_file(func_name: &str, graph: &ArrayGraph) -> Option<St
     None
 }
 
-fn _find_function_files(func_name: &str, graph: &ArrayGraph) -> Vec<String> {
+fn _find_function_files<G: Graph>(func_name: &str, graph: &G) -> Vec<String> {
     let mut target_files = Vec::new();
-    for node in graph.nodes.iter() {
-        if node.node_type == NodeType::Function {
-            if node.node_data.name == func_name && !node.node_data.body.is_empty() {
-                target_files.push(node.node_data.file.clone());
-            }
+    let function_nodes = graph.find_nodes_by_name(NodeType::Function, func_name);
+    for node in function_nodes {
+        if !node.body.is_empty() {
+            target_files.push(node.file.clone());
         }
     }
     target_files
 }
 
-fn find_function_with_operand(
+fn find_function_with_operand<G: Graph>(
     operand: &str,
     func_name: &str,
-    graph: &ArrayGraph,
+    graph: &G,
 ) -> Option<String> {
     let mut target_file = None;
     let mut instance = None;
-    for node in graph.nodes.iter() {
-        if node.node_type == NodeType::Instance {
-            if node.node_data.name == operand {
-                instance = Some(node.node_data.clone());
-                break;
-            }
-        }
+
+    let operand_nodes = graph.find_nodes_by_name(NodeType::Instance, operand);
+    for node in operand_nodes {
+        instance = Some(node.clone());
+        break;
     }
     if let Some(i) = instance {
         if let Some(dt) = &i.data_type {
-            for node in graph.nodes.iter() {
-                if node.node_type == NodeType::Function {
-                    if node.node_data.meta.get("operand") == Some(dt)
-                        && node.node_data.name == func_name
-                    {
-                        target_file = Some(node.node_data.file.clone());
-                        break;
-                    }
+            let function_nodes = graph.find_nodes_by_name(NodeType::Function, func_name);
+            for node in function_nodes {
+                if node.meta.get("operand") == Some(dt) {
+                    target_file = Some(node.file.clone());
+                    break;
                 }
             }
         }
@@ -1113,16 +1111,14 @@ fn find_function_with_operand(
     target_file
 }
 
-fn _pick_target_file_from_graph(target_name: &str, graph: &ArrayGraph) -> Option<String> {
+fn _pick_target_file_from_graph<G: Graph>(target_name: &str, graph: &G) -> Option<String> {
     let mut target_file = None;
-    for node in graph.nodes.iter() {
-        if node.node_type == NodeType::Function {
-            if node.node_data.name == target_name {
-                target_file = Some(node.node_data.file.clone());
-                break;
-            }
-        }
+    let function_nodes = graph.find_nodes_by_name(NodeType::Function, target_name);
+    for node in function_nodes {
+        target_file = Some(node.file.clone());
+        break;
     }
+
     target_file
 }
 
