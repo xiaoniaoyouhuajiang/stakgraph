@@ -2,7 +2,7 @@ import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
 import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
-import { create_node_key } from "./utils.js";
+import { create_node_key, rightLabel } from "./utils.js";
 import * as Q from "./queries.js";
 import {
   DIMENSIONS,
@@ -21,6 +21,7 @@ setTimeout(async () => {
   try {
     await db.createFulltextIndex();
     await db.createVectorIndex();
+    await db.createKeyIndex();
   } catch (error) {
     console.error("Error creating indexes:", error);
   }
@@ -135,7 +136,7 @@ class Db {
     }
   }
 
-  async embed_data_bank_bodies() {
+  async embed_all_data_bank_bodies() {
     const session = this.driver.session();
     try {
       const result = await session.run(Q.DATA_BANK_BODIES_QUERY);
@@ -153,6 +154,78 @@ class Db {
     } finally {
       await session.close();
     }
+  }
+
+  async embed_data_bank_bodies(do_files: boolean) {
+    let embed_batch_size = 32; // Adjust based on your memory constraints
+    let skip = 0;
+    let batchIndex = 0;
+    let hasMoreNodes = true;
+    console.log("Starting embedding process for data bank bodies");
+    while (hasMoreNodes) {
+      console.log(`Processing batch #${batchIndex + 1}`);
+      const startTime = Date.now();
+      const session = this.driver.session();
+      try {
+        // Fetch a batch of nodes
+        const result = await session.run(Q.DATA_BANK_BODIES_QUERY, {
+          skip: skip,
+          limit: embed_batch_size,
+          do_files,
+        });
+        const nodes = result.records.map((record) => ({
+          node_key: record.get("node_key"),
+          body: record.get("body"),
+        }));
+        // If we got fewer nodes than batch size, we're on the last batch
+        hasMoreNodes = nodes.length === embed_batch_size;
+        // Process this batch
+        if (nodes.length > 0) {
+          console.log(`Batch #${batchIndex + 1}: Starting embeddings`);
+          const updateSession = this.driver.session();
+          try {
+            // Create a batch array to hold all node updates
+            const updateBatch = [];
+            // Process each node and prepare the batch
+            for (const node of nodes) {
+              console.log("embedding", node.node_key);
+              const embeddings = await vectorizeCodeDocument(node.body);
+              updateBatch.push({
+                node_key: node.node_key,
+                embeddings: embeddings,
+              });
+            }
+            // Perform bulk update with a single query
+            await updateSession.run(Q.BULK_UPDATE_EMBEDDINGS_QUERY, {
+              batch: updateBatch,
+            });
+            console.log(`Batch #${batchIndex + 1}: Updated embeddings`);
+          } catch (error) {
+            console.error(
+              `Batch #${batchIndex + 1}: Error updating embeddings:`,
+              error
+            );
+          } finally {
+            await updateSession.close();
+          }
+        }
+        // Prepare for next batch
+        skip += embed_batch_size;
+        batchIndex++;
+        const duration = (Date.now() - startTime) / 1000;
+        console.log(
+          `Batch #${batchIndex} completed in ${duration.toFixed(2)} seconds`
+        );
+      } catch (error) {
+        console.error(`Batch #${batchIndex + 1}: Error fetching nodes:`, error);
+        hasMoreNodes = false; // Stop on error
+      } finally {
+        await session.close();
+      }
+    }
+    console.log(
+      `Embedding process completed. Processed ${batchIndex} batches (${skip} nodes).`
+    );
   }
 
   // Main function to process both nodes and edges
@@ -300,6 +373,18 @@ class Db {
     } catch (error) {
       console.error("Error creating vector index:", error);
       throw error;
+    } finally {
+      if (session) {
+        await session.close();
+      }
+    }
+  }
+
+  async createKeyIndex(): Promise<void> {
+    let session: Session | null = null;
+    try {
+      session = this.driver.session();
+      await session.run(Q.KEY_INDEX_QUERY);
     } finally {
       if (session) {
         await session.close();

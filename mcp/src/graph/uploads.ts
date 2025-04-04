@@ -70,6 +70,13 @@ export async function check_status(req: Request, res: Response) {
 async function processFiles(requestId: string, node_file: any, edge_file: any) {
   jobStatus.set(requestId, { status: "processing" });
   await db.build_graph_from_files(node_file, edge_file);
-  await db.embed_data_bank_bodies();
+  console.log("Graph built and code embedded");
   jobStatus.set(requestId, { status: "completed" });
+}
+
+export async function embed_code(req: Request, res: Response) {
+  const files = req.query.files as string;
+  const do_files = files === "true" || files === "1";
+  await db.embed_data_bank_bodies(do_files);
+  res.json({ status: "completed" });
 }

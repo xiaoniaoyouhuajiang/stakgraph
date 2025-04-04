@@ -30,8 +30,10 @@ async function go() {
     console.log("get prompt");
     const indexFile = fs.readFileSync(`src/index.ts`, "utf-8");
     const serverFile = fs.readFileSync(`src/graph/routes.ts`, "utf-8");
+    const typesFile = fs.readFileSync(`src/graph/types.ts`, "utf-8");
     let prompt = "Here is my index.ts file:\n\n" + indexFile + "\n\n";
-    prompt += "Here is my server file:\n\n" + serverFile + "\n\n";
+    prompt += "Here is my server.ts file:\n\n" + serverFile + "\n\n";
+    prompt += "Here is my types.ts file:\n\n" + typesFile + "\n\n";
     prompt += PROMPT;
     console.log("call claude");
     const res = await callClaude(prompt);
