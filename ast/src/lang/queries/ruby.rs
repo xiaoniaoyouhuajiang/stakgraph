@@ -200,7 +200,8 @@ impl Stack for Ruby {
     fn handler_finder(
         &self,
         endpoint: NodeData,
-        graph: &ArrayGraph,
+        find_handler: &dyn Fn(&str, &str) -> Option<NodeData>,
+        get_verified_handler: &dyn Fn(&str, &str) -> Option<NodeData>,
         params: HandlerParams,
     ) -> Vec<(NodeData, Option<Edge>)> {
         if endpoint.meta.get("handler").is_none() {
@@ -213,9 +214,7 @@ impl Stack for Ruby {
         let mut inter = Vec::new();
         // let mut targets = Vec::new();
         if let Some(item) = &params.item {
-            if let Some(nd) = graph.find_func_by(|nd: &NodeData| {
-                is_controller(nd, handler_string) && nd.name == item.name
-            }) {
+            if let Some(nd) = get_verified_handler(&item.name, &handler_string) {
                 inter.push((endpoint, nd));
             }
         } else if handler_string.contains("#") {
@@ -227,9 +226,7 @@ impl Stack for Ruby {
             let controller = arr[0];
             let name = arr[1];
             // debug!("controller: {}, name: {}", controller, name);
-            if let Some(nd) =
-                graph.find_func_by(|nd: &NodeData| nd.name == name && is_controller(nd, controller))
-            {
+            if let Some(nd) = get_verified_handler(name, controller) {
                 inter.push((endpoint, nd));
                 explicit_path = true;
             }
@@ -265,16 +262,9 @@ impl Stack for Ruby {
                 None => ror_actions,
             };
             // resources :request_center
-            let controllers =
-                graph.find_funcs_by(|nd: &NodeData| is_controller(nd, handler_string));
-            debug!(
-                "ror endpoint controllers for {}: {:?}",
-                handler_string,
-                controllers.len()
-            );
-            for nd in controllers {
-                debug!("checking controller: {}", nd.name);
-                if actions.contains(&nd.name) {
+
+            for action in actions {
+                if let Some(nd) = get_verified_handler(&action, handler_string) {
                     debug!("===> found action: {}", nd.name);
                     let mut endp_ = endpoint.clone();
                     endp_.add_action(&nd.name);
@@ -307,7 +297,7 @@ impl Stack for Ruby {
         node: TreeNode,
         code: &str,
         _file: &str,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
     ) -> Result<Vec<HandlerItem>> {
         let mut parents = Vec::new();
         let mut parent = node.parent();

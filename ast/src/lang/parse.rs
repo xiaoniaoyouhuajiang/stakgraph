@@ -26,7 +26,7 @@ impl Lang {
                 NodeType::Trait => vec![self.format_trait(&m, code, file, q)?],
                 // req and endpoint are the same format in the query templates
                 NodeType::Endpoint | NodeType::Request => self
-                    .format_endpoint(&m, code, file, q, None, &None)?
+                    .format_endpoint::<ArrayGraph>(&m, code, file, q, None, &None)?
                     .into_iter()
                     .map(|(nd, _e)| nd)
                     .collect(),
@@ -268,13 +268,13 @@ impl Lang {
         Ok(res)
     }
     // endpoint, handlers
-    pub fn format_endpoint(
+    pub fn format_endpoint<G: Graph>(
         &self,
         m: &QueryMatch,
         code: &str,
         file: &str,
         q: &Query,
-        graph: Option<&ArrayGraph>,
+        graph: Option<&G>,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<(NodeData, Option<Edge>)>> {
         // println!("FORMAT ENDPOINT");
@@ -309,7 +309,13 @@ impl Lang {
                 handler_position = Some(Position::new(file, p.row as u32, p.column as u32)?);
                 if let Some(graph) = graph {
                     // collect parents
-                    params.parents = self.lang.find_endpoint_parents(node, code, file, graph)?;
+                    params.parents =
+                        self.lang.find_endpoint_parents(node, code, file, &|name| {
+                            graph
+                                .find_nodes_by_name(NodeType::Function, name)
+                                .first()
+                                .cloned()
+                        })?;
                 }
             } else if o == HANDLER_ACTIONS_ARRAY {
                 // [:destroy, :index]
@@ -342,7 +348,14 @@ impl Lang {
         if let Some(graph) = graph {
             if self.lang().use_handler_finder() {
                 // find handler manually (not LSP)
-                return Ok(self.lang().handler_finder(endp, graph, params));
+                return Ok(self.lang().handler_finder(
+                    endp,
+                    &|handler, file| graph.find_exact_node(NodeType::Function, handler, file),
+                    &|handler, file| {
+                        graph.find_node_in_controller(NodeType::Function, handler, file)
+                    },
+                    params,
+                ));
             } else {
                 // here find the handler using LSP!
                 if let Some(handler_name) = endp.meta.get("handler") {
@@ -352,9 +365,11 @@ impl Lang {
                             let res = LspCmd::GotoDefinition(pos.clone()).send(&lsp)?;
                             if let LspRes::GotoDefinition(Some(gt)) = res {
                                 let target_file = gt.file.display().to_string();
-                                if let Some(_t_file) =
-                                    func_file_finder(&handler_name, &target_file, graph)
-                                {
+                                if let Some(_t_file) = graph.find_exact_node(
+                                    NodeType::Function,
+                                    &handler_name,
+                                    &target_file,
+                                ) {
                                     log_cmd(format!("HANDLER def, in graph: {:?}", handler_name));
                                 } else {
                                     log_cmd(format!("HANDLER def, not found: {:?}", handler_name));
@@ -365,7 +380,16 @@ impl Lang {
                         }
                     } else {
                         // FALLBACK to find?
-                        return Ok(self.lang().handler_finder(endp, graph, params));
+                        return Ok(self.lang().handler_finder(
+                            endp,
+                            &|handler, file| {
+                                graph.find_exact_node(NodeType::Function, handler, file)
+                            },
+                            &|handler, file| {
+                                graph.find_node_in_controller(NodeType::Function, handler, file)
+                            },
+                            params,
+                        ));
                     }
                 }
             }
@@ -476,7 +500,7 @@ impl Lang {
                     let qqq = self.q(&rq, &NodeType::Request);
                     let mut matches = cursor.matches(&qqq, node, code.as_bytes());
                     while let Some(m) = matches.next() {
-                        let reqs = self.format_endpoint(
+                        let reqs = self.format_endpoint::<G>(
                             &m,
                             code,
                             file,

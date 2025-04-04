@@ -126,6 +126,35 @@ impl Graph for ArrayGraph {
             }
         })
     }
+    fn find_exact_node(&self, node_type: NodeType, name: &str, file: &str) -> Option<NodeData> {
+        self.nodes.iter().find_map(|node| {
+            if node.node_type == node_type
+                && node.node_data.name == name
+                && node.node_data.file == file
+            {
+                Some(node.node_data.clone())
+            } else {
+                None
+            }
+        })
+    }
+    fn find_node_in_controller(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        controller: &str,
+    ) -> Option<NodeData> {
+        self.nodes.iter().find_map(|node| {
+            if node.node_type == node_type
+                && node.node_data.name == name
+                && node.node_data.file.contains(controller)
+            {
+                Some(node.node_data.clone())
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl ArrayGraph {
