@@ -216,7 +216,10 @@ impl Stack for Ruby {
         // let mut targets = Vec::new();
         if let Some(item) = &params.item {
             debug!("===> found item: {}", item.name);
-            if let Some(nd) = find_handler(&item.name, &CONTROLLER_FILE_SUFFIX) {
+            if let Some(nd) = find_handler(
+                &item.name,
+                format!("{}{}", &handler_string, &CONTROLLER_FILE_SUFFIX).as_str(),
+            ) {
                 inter.push((endpoint, nd));
             }
         } else if handler_string.contains("#") {
@@ -228,7 +231,10 @@ impl Stack for Ruby {
             let controller = arr[0];
             let name = arr[1];
             // debug!("controller: {}, name: {}", controller, name);
-            if let Some(nd) = find_handler(name, &CONTROLLER_FILE_SUFFIX) {
+            if let Some(nd) = find_handler(
+                name,
+                format!("{}{}", &controller, &CONTROLLER_FILE_SUFFIX).as_str(),
+            ) {
                 inter.push((endpoint, nd));
                 explicit_path = true;
             }
