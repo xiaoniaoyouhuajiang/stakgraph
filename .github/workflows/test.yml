@@ -179,7 +179,7 @@ jobs:
       - name: Compare API Response with Expected Output
         working-directory: ./mcp
         run: |
-          EXPECTED_MAP_FILE="./testing/expected-map-response.html"
+          EXPECTED_MAP_FILE="./testing/map-response.html"
           ACTUAL_MAP_FILE="./testing/actual-map-response.html"
 
           sort "$EXPECTED_MAP_FILE" > /tmp/sorted_expected_map_response.html
