@@ -93,15 +93,38 @@ impl NodeRef {
 }
 
 impl Graph for ArrayGraph {
-    fn find_nodes<F>(&self, node_type: NodeType, predicate: F) -> Vec<Node>
-    where
-        F: Fn(&Node) -> bool,
-    {
+    fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         self.nodes
             .iter()
-            .filter(|node| node.node_type == node_type && predicate(node))
-            .cloned()
+            .filter(|node| node.node_type == node_type && node.node_data.name == name)
+            .map(|node| node.node_data.clone())
             .collect()
+    }
+
+    fn find_nodes_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
+        self.nodes.iter().find_map(|node| {
+            if node.node_type == node_type
+                && node.node_data.file == file
+                && node.node_data.start as u32 <= row
+                && node.node_data.end as u32 >= row
+            {
+                Some(node.node_data.clone())
+            } else {
+                None
+            }
+        })
+    }
+    fn find_node_at(&self, node_type: NodeType, file: &str, line: u32) -> Option<NodeData> {
+        self.nodes.iter().find_map(|node| {
+            if node.node_type == node_type
+                && node.node_data.file == file
+                && node.node_data.start == line as usize
+            {
+                Some(node.node_data.clone())
+            } else {
+                None
+            }
+        })
     }
 }
 

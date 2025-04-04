@@ -119,7 +119,7 @@ pub trait Stack {
         _code: &str,
         _file: &str,
         _func_name: &str,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(&str) -> Option<NodeData>,
         _parent_type: Option<&str>,
     ) -> Result<Option<Operand>> {
         Ok(None)
@@ -128,7 +128,7 @@ pub trait Stack {
         &self,
         _pos: Position,
         _nd: &NodeData,
-        _graph: &ArrayGraph,
+        _callback: &dyn Fn(u32, &str) -> Option<NodeData>,
         _lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Edge>> {
         Ok(None)
@@ -275,6 +275,8 @@ impl HandlerItem {
 }
 
 use std::collections::BTreeMap;
+
+use super::graph::Node;
 pub fn filter_out_classes_without_methods(graph: &mut ArrayGraph) -> bool {
     let mut assumed_class: BTreeMap<String, bool> = BTreeMap::new();
     let mut actual_class: BTreeMap<String, bool> = BTreeMap::new();

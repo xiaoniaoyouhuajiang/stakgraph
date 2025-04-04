@@ -7,6 +7,7 @@ use std::env;
 
 export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
 export OUTPUT_FORMAT=jsonl
+export OUTPUT_NAME=tribes
 cargo run --bin urls
 
 export REPO_URL="https://github.com/stakwork/demo-repo.git"
@@ -38,11 +39,14 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    let name = repo_urls
-        .split('/')
-        .last()
-        .unwrap()
-        .trim_end_matches(".git");
+    let name = env::var("OUTPUT_NAME").unwrap_or_else(|_| {
+        repo_urls
+            .split('/')
+            .last()
+            .unwrap()
+            .trim_end_matches(".git")
+            .to_string()
+    });
     println!("{}", name);
 
     let graph = repos.build_graphs().await?;
@@ -52,10 +56,10 @@ async fn main() -> Result<()> {
         .as_str()
         == "jsonl"
     {
-        println!("writing to ast/examples/{}-nodes.jsonl", name);
+        println!("writing to ast/examples/{}-nodes.jsonl", &name);
     }
 
-    print_json(&graph, name)?;
+    print_json(&graph, &name)?;
 
     Ok(())
 }
