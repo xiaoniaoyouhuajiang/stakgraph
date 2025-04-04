@@ -1,0 +1,18 @@
+{
+  "name": "stakgraph",
+  "image": "sphinxlightning/stakgraph-lsp",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "ms-vscode.cpptools",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "postCreateCommand": "apt-get update && apt-get install -y openssl pkg-config libssl-dev clang cmake && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env && rustup default 1.84.0",
+  "remoteUser": "root"
+}

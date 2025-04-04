@@ -44,7 +44,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 sha256 = "1.5.0"
 serde-jsonlines = "0.7.0"
 regex = "1.11.1"
-test-log = "0.2.17"
+test-log = "0.*"
 inflection-rs = "0.2.0"
 url = "2.5.4"
 
