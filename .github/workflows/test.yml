@@ -167,3 +167,6 @@ jobs:
             echo "Nodetypes Response does NOT match expected output ❌"
             exit 1
           fi
+
+      - name: Run rust test
+        run: cargo test
