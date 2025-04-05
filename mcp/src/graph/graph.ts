@@ -14,6 +14,11 @@ export async function get_nodes(node_type: NodeType, concise: boolean) {
   return result.map((f) => toNode(f, concise));
 }
 
+export async function get_files(prefix: string, limit: number) {
+  const result = await db.files(prefix, limit);
+  return result.map((f) => toNode(f, true));
+}
+
 export async function search(
   query: string,
   limit: number,

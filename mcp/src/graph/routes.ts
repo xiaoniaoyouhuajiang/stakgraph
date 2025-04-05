@@ -44,6 +44,18 @@ export async function get_nodes(req: Request, res: Response) {
   }
 }
 
+export async function get_files(req: Request, res: Response) {
+  try {
+    const prefix = req.query.prefix as string;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const result = await G.get_files(prefix, limit);
+    res.json(result);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
 export async function search(req: Request, res: Response) {
   try {
     const query = req.query.query as string;
