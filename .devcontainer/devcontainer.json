@@ -1,6 +1,6 @@
 {
   "name": "stakgraph",
-  "image": "turiz/stakgraph-lsp",
+  "image": "sphinxlightning/stakgraph-lsp",
   "customizations": {
     "vscode": {
       "settings": {
