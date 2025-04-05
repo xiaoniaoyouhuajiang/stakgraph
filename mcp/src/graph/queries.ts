@@ -40,6 +40,22 @@ WHERE any(label IN labels(f) WHERE label = nodeLabel)
 RETURN f
 `;
 
+export const FILES_QUERY = `
+MATCH path = (d:Directory)-[:CONTAINS*0..]->(node)
+WHERE (node:Directory OR node:File)
+AND (
+  $prefix IS NULL
+  OR $prefix = ''
+  OR d.file STARTS WITH $prefix
+)
+RETURN path
+LIMIT toInteger($limit)
+`;
+
+export const REPOSITORIES_QUERY = `
+MATCH (r:Repository) RETURN r
+`;
+
 export const PAGES_QUERY = `
 MATCH (page:Page)
 RETURN DISTINCT page

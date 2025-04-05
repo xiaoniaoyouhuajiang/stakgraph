@@ -2,7 +2,7 @@ import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
 import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
-import { create_node_key, rightLabel } from "./utils.js";
+import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
 import {
   DIMENSIONS,
@@ -53,6 +53,16 @@ class Db {
     try {
       const r = await session.run(Q.LIST_QUERY, { node_label: label });
       return r.records.map((record) => record.get("f"));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async files(prefix: string, limit: number): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const r = await session.run(Q.FILES_QUERY, { prefix, limit });
+      return r.records.map((record) => record.get("path"));
     } finally {
       await session.close();
     }
