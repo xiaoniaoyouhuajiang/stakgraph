@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
     });
     println!("{}", name);
 
-    let graph = repos.build_graphs::<ArrayGraph>().await?;
+    let graph = repos.build_graphs().await?;
 
     if std::env::var("OUTPUT_FORMAT")
         .unwrap_or_else(|_| "json".to_string())

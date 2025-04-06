@@ -119,7 +119,7 @@ async fn start_inner() -> Result<Response> {
         None => {
             let repos =
                 Repo::new_clone_multi_detect(&repo_url, username, pat, files_filter, revs).await?;
-            repos.build_graphs::<ArrayGraph>().await?
+            repos.build_graphs().await?
         }
     };
 

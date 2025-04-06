@@ -355,7 +355,6 @@ impl Repo {
         }
 
         // try again on the endpoints to add data models, if manual
-        //TODO: handle this in graph trait
         if self.lang.lang().use_data_model_within_finder() {
             info!("=> get_data_models_within...");
             graph.get_data_models_within(&self.lang);
