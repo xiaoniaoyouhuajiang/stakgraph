@@ -522,12 +522,12 @@ impl Lang {
                 // data models
                 if self.lang.use_data_model_within_finder() {
                     // do this later actually
-                    // models = self
-                    //     .lang
-                    //     .data_model_within_finder(&func.name, file, &|file| {
-                    //         graph.find_nodes_by_file_ends_with(NodeType::DataModel, file)
-                    //     });
+                    // models = self.lang.data_model_within_finder(
+                    //     &func,
+                    //     graph,
+                    // );
                 } else if let Some(dmq) = self.lang.data_model_within_query() {
+                    println!("===>>> Data Model within Query\n\n");
                     let mut cursor = QueryCursor::new();
                     let qqq = self.q(&dmq, &NodeType::DataModel);
                     let mut matches = cursor.matches(&qqq, node, code.as_bytes());

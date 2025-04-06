@@ -175,13 +175,11 @@ impl Stack for Ruby {
     ) -> Vec<Edge> {
         // file: app/controllers/api/advisor_groups_controller.rb
         let mut models = Vec::new();
-        let singular_name = data_model.name.to_lowercase();
-        let plural_name = inflection::pluralize(&singular_name);
 
-        println!("{:?}", &data_model);
+        println!("{}{}", &data_model.name, CONTROLLER_FILE_SUFFIX);
 
         let funcs = find_fns_in(format!("{}{}", &data_model.name, CONTROLLER_FILE_SUFFIX).as_str());
-        println!("{} funcs: {:?}", plural_name, funcs);
+
         for func in funcs {
             models.push(Edge::contains(
                 NodeType::Function,
@@ -473,6 +471,6 @@ fn trim_array_string(s: &str) -> String {
         .to_string()
 }
 
-fn is_controller(nd: &NodeData, controller: &str) -> bool {
-    nd.file.ends_with(&format!("{}_controller.rb", controller))
-}
+// fn is_controller(nd: &NodeData, controller: &str) -> bool {
+//     nd.file.ends_with(&format!("{}_controller.rb", controller))
+// }

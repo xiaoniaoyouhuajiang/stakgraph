@@ -129,17 +129,6 @@ impl Graph for ArrayGraph {
                 new_graph.edges.push(edge.clone());
             }
         }
-        //TODO: handler linker
-        // info!("linking e2e tests");
-        // linker::link_e2e_tests(&mut graph)?;
-        // info!("linking api nodes");
-        // linker::link_api_nodes(&mut graph)?;
-
-        println!(
-            "Final Graph: {} nodes and {} edges",
-            &self.nodes.len(),
-            &self.edges.len()
-        );
 
         new_graph
     }
@@ -519,10 +508,9 @@ impl Graph for ArrayGraph {
             .filter(|n| n.node_type == NodeType::DataModel)
             .map(|n| n.node_data.clone())
             .collect();
-
         for data_model in data_model_nodes {
             let edges = lang.lang().data_model_within_finder(&data_model, &|file| {
-                self.find_nodes_by_file_ends_with(NodeType::DataModel, file)
+                self.find_nodes_by_file_ends_with(NodeType::Function, file)
             });
 
             self.edges.extend(edges);

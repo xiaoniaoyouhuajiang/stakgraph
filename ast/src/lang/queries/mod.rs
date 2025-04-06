@@ -283,5 +283,3 @@ impl HandlerItem {
         }
     }
 }
-
-use std::collections::BTreeMap;
