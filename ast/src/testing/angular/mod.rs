@@ -16,7 +16,7 @@ async fn test_angular() {
     .unwrap();
     let graph = repo.build_graph::<ArrayGraph>().await.unwrap();
     assert!(graph.nodes.len() == 77);
-    assert!(graph.edges.len() == 78);
+    assert!(graph.edges.len() == 76);
 
     let l = graph
         .nodes

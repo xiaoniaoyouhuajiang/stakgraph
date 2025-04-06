@@ -17,7 +17,7 @@ async fn test_python() {
 
     let graph = repo.build_graph::<ArrayGraph>().await.unwrap();
     assert_eq!(graph.nodes.len(), 60);
-    assert_eq!(graph.edges.len(), 79);
+    assert_eq!(graph.edges.len(), 75);
 
     let languages = graph
         .nodes

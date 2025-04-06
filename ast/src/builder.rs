@@ -116,6 +116,10 @@ impl Repo {
                 // file already exists
                 continue;
             }
+            //Do not add pkg files here they will be added later
+            if path.ends_with(self.lang.kind.pkg_file()) {
+                continue;
+            }
             let file_data = self.prepare_file_data(&path, &code);
 
             let (parent_type, parent_file) = if path.contains('/') {

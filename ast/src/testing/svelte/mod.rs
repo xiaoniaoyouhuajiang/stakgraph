@@ -17,7 +17,7 @@ async fn test_svelte() {
 
     let graph = repo.build_graph::<ArrayGraph>().await.unwrap();
     assert_eq!(graph.nodes.len(), 43);
-    assert_eq!(graph.edges.len(), 42);
+    assert_eq!(graph.edges.len(), 39);
 
     let languages = graph
         .nodes

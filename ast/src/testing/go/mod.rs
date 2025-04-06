@@ -16,8 +16,8 @@ async fn test_go() {
     .unwrap();
     let graph = repo.build_graph::<ArrayGraph>().await.unwrap();
     // println!("graph: {:?}", graph);
-    assert!(graph.nodes.len() == 30);
-    assert!(graph.edges.len() == 48);
+    assert!(graph.nodes.len() == 31);
+    assert!(graph.edges.len() == 47);
 
     let l = graph
         .nodes
@@ -52,7 +52,7 @@ async fn test_go() {
         .iter()
         .filter(|n| matches!(n.node_type, NodeType::Class))
         .collect::<Vec<_>>();
-    assert_eq!(cls.len(), 1);
+    assert_eq!(cls.len(), 2);
     let cls = cls[0].into_data();
     assert_eq!(cls.name, "database");
     assert_eq!(cls.file, "src/testing/go/db.go");
