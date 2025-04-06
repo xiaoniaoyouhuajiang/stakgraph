@@ -17,7 +17,7 @@ async fn test_kotlin() {
     let graph = repo.build_graph().await.unwrap();
 
     assert_eq!(graph.nodes.len(), 134);
-    assert_eq!(graph.edges.len(), 131);
+    assert_eq!(graph.edges.len(), 137);
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")

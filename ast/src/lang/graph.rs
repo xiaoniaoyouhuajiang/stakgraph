@@ -273,13 +273,14 @@ impl Graph for ArrayGraph {
         for inst in instances {
             if let Some(of) = &inst.data_type {
                 if let Some(cl) = self.find_nodes_by_name(NodeType::Class, &of).first() {
-                    if let Some(ff) = self.file_data(&inst.file) {
-                        let edge = Edge::contains(NodeType::File, &ff, NodeType::Instance, &inst);
-                        self.edges.push(edge);
-                    }
+                    self.add_node_with_parent(
+                        NodeType::Instance,
+                        inst.clone(),
+                        NodeType::File,
+                        &inst.file,
+                    );
                     let of_edge = Edge::of(&inst, &cl);
                     self.edges.push(of_edge);
-                    self.nodes.push(Node::new(NodeType::Instance, inst));
                 }
             }
         }

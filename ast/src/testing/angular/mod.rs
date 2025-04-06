@@ -15,7 +15,7 @@ async fn test_angular() {
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
     assert!(graph.nodes.len() == 77);
-    assert!(graph.edges.len() == 76);
+    assert!(graph.edges.len() == 78);
 
     let l = graph
         .nodes

@@ -16,7 +16,7 @@ async fn test_swift() {
 
     let graph = repo.build_graph().await.unwrap();
     assert_eq!(graph.nodes.len(), 55);
-    assert_eq!(graph.edges.len(), 79);
+    assert_eq!(graph.edges.len(), 81);
 
     let languages = graph
         .nodes
