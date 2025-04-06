@@ -1,5 +1,4 @@
 use crate::lang::graph::NodeType;
-use crate::lang::ArrayGraph;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -15,7 +14,7 @@ async fn test_svelte() {
     )
     .unwrap();
 
-    let graph = repo.build_graph::<ArrayGraph>().await.unwrap();
+    let graph = repo.build_graph().await.unwrap();
     assert_eq!(graph.nodes.len(), 43);
     assert_eq!(graph.edges.len(), 39);
 

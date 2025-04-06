@@ -1,5 +1,4 @@
 use crate::lang::graph::{EdgeType, NodeType};
-use crate::lang::ArrayGraph;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -15,7 +14,7 @@ async fn test_react_typescript() {
     )
     .unwrap();
 
-    let graph = repo.build_graph::<ArrayGraph>().await.unwrap();
+    let graph = repo.build_graph().await.unwrap();
 
     assert!(graph.nodes.len() == 50);
     assert!(graph.edges.len() == 57);

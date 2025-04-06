@@ -1,5 +1,4 @@
 use crate::lang::graph::{EdgeType, NodeType};
-use crate::lang::ArrayGraph;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -14,9 +13,9 @@ async fn test_go() {
         Vec::new(),
     )
     .unwrap();
-    let graph = repo.build_graph::<ArrayGraph>().await.unwrap();
+    let graph = repo.build_graph().await.unwrap();
     // println!("graph: {:?}", graph);
-    assert!(graph.nodes.len() == 31);
+    assert!(graph.nodes.len() == 30);
     assert!(graph.edges.len() == 47);
 
     let l = graph
@@ -52,7 +51,7 @@ async fn test_go() {
         .iter()
         .filter(|n| matches!(n.node_type, NodeType::Class))
         .collect::<Vec<_>>();
-    assert_eq!(cls.len(), 2);
+    assert_eq!(cls.len(), 1);
     let cls = cls[0].into_data();
     assert_eq!(cls.name, "database");
     assert_eq!(cls.file, "src/testing/go/db.go");

@@ -238,10 +238,7 @@ pub trait Stack {
     ) -> Option<Edge> {
         None
     }
-
-    fn clean_graph(&mut self, _callback: &dyn Fn(NodeType, NodeType, &str)) -> bool {
-        false
-    }
+    fn clean_graph(&self, _callback: &mut dyn FnMut(NodeType, NodeType, &str)) {}
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {

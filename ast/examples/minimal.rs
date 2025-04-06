@@ -1,5 +1,4 @@
 use anyhow::Result;
-use ast::lang::graph::ArrayGraph;
 use ast::utils::logger;
 use ast::{self, lang::Lang, repo::Repo};
 use std::str::FromStr;
@@ -18,7 +17,7 @@ async fn main() -> Result<()> {
     let lang = Lang::from_str(&language)?;
     let repo = Repo::new("ast/examples/minimal", lang, true, files_filter, Vec::new())?;
     println!("building graph...");
-    let graph = repo.build_graph::<ArrayGraph>().await?;
+    let graph = repo.build_graph().await?;
     let pretty = serde_json::to_string_pretty(&graph)?;
     let final_path = format!("ast/examples/minimal/{}.json", language);
     std::fs::write(final_path, pretty)?;

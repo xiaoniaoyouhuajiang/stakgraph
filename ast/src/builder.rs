@@ -1,5 +1,6 @@
 use super::repo::{check_revs_files, Repo};
 use crate::lang::graph_trait::Graph;
+use crate::lang::ArrayGraph;
 use crate::lang::{asg::NodeData, graph::NodeType};
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
@@ -12,8 +13,8 @@ use tracing::{debug, info};
 const MAX_FILE_SIZE: u64 = 100_000; // 100kb max file size
 
 impl Repo {
-    pub async fn build_graph<G: Graph>(&self) -> Result<G> {
-        let mut graph = G::new();
+    pub async fn build_graph(&self) -> Result<ArrayGraph> {
+        let mut graph = ArrayGraph::new();
 
         println!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
@@ -164,7 +165,7 @@ impl Repo {
 
             //graph.add_file(pkg_file, code);
 
-            let libs = self.lang.get_libs::<G>(&code, &pkg_file)?;
+            let libs = self.lang.get_libs::<ArrayGraph>(&code, &pkg_file)?;
             i += libs.len();
 
             for lib in libs {
@@ -177,7 +178,7 @@ impl Repo {
         i = 0;
         info!("=> get_imports...");
         for (filename, code) in &filez {
-            let imports = self.lang.get_imports::<G>(&code, &filename)?;
+            let imports = self.lang.get_imports::<ArrayGraph>(&code, &filename)?;
             // imports are concatenated into one section
             let import_section = combine_imports(imports);
             if !import_section.is_empty() {
@@ -198,7 +199,7 @@ impl Repo {
         i = 0;
         info!("=> get_classes...");
         for (filename, code) in &filez {
-            let classes = self.lang.get_classes::<G>(&code, &filename)?;
+            let classes = self.lang.get_classes::<ArrayGraph>(&code, &filename)?;
             i += classes.len();
 
             for class in classes {
@@ -220,7 +221,7 @@ impl Repo {
             let q = self.lang.lang().instance_definition_query();
             let instances =
                 self.lang
-                    .get_query_opt::<G>(q, &code, &filename, NodeType::Instance)?;
+                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::Instance)?;
 
             graph.add_instances(instances);
         }
@@ -228,7 +229,7 @@ impl Repo {
         i = 0;
         info!("=> get_traits...");
         for (filename, code) in &filez {
-            let traits = self.lang.get_traits::<G>(&code, &filename)?;
+            let traits = self.lang.get_traits::<ArrayGraph>(&code, &filename)?;
             i += traits.len();
 
             for tr in traits {
@@ -247,9 +248,9 @@ impl Repo {
                 }
             }
             let q = self.lang.lang().data_model_query();
-            let structs = self
-                .lang
-                .get_query_opt::<G>(q, &code, &filename, NodeType::DataModel)?;
+            let structs =
+                self.lang
+                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::DataModel)?;
             i += structs.len();
 
             for st in &structs {
@@ -354,7 +355,7 @@ impl Repo {
             let q = self.lang.lang().endpoint_group_find();
             let endpoint_groups =
                 self.lang
-                    .get_query_opt::<G>(q, &code, &filename, NodeType::Endpoint)?;
+                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::Endpoint)?;
             let _ = graph.process_endpoint_groups(endpoint_groups, &self.lang);
         }
 
@@ -400,12 +401,12 @@ impl Repo {
             info!("=> got {} function calls", i);
         }
 
-        //TODO: fix graph cleaning
-        // self.lang
-        //     .lang()
-        //     .clean_graph(&mut |parent_type, child_type, child_meta_key| {
-        //         graph.filter_out_nodes_without_children(parent_type, child_type, child_meta_key)
-        //     });
+        //Clean graph by filtering out classes without methods
+        self.lang
+            .lang()
+            .clean_graph(&mut |parent_type, child_type, child_meta_key| {
+                graph.filter_out_nodes_without_children(parent_type, child_type, child_meta_key);
+            });
 
         // filter by revs
         graph = filter_by_revs(&self.root.to_str().unwrap(), self.revs.clone(), graph);

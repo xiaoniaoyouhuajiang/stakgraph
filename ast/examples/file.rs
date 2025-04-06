@@ -1,5 +1,4 @@
 use anyhow::Result;
-use ast::lang::graph::ArrayGraph;
 use ast::utils::logger;
 use ast::Lang;
 use ast::{self, repo::Repo};
@@ -34,7 +33,7 @@ async fn main() -> Result<()> {
         files_filter,
         Vec::new(),
     )?;
-    let graph = repo.build_graph::<ArrayGraph>().await?;
+    let graph = repo.build_graph().await?;
     println!(
         "Final Graph => {} nodes and {} edges",
         graph.nodes.len(),
