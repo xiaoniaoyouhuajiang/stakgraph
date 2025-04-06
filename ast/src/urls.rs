@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use ast::lang::ArrayGraph;
 use ast::utils::{logger, print_json};
 use ast::{self, repo::Repo};
 use std::env;
