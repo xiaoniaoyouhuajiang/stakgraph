@@ -15,8 +15,8 @@ async fn test_ruby() {
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
 
-    assert!(graph.nodes.len() == 54);
-    assert!(graph.edges.len() == 78);
+    assert!(graph.nodes.len() == 55);
+    assert!(graph.edges.len() == 79);
 
     let lang = graph
         .nodes
