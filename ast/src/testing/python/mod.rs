@@ -15,8 +15,8 @@ async fn test_python() {
     .unwrap();
 
     let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 59);
-    assert_eq!(graph.edges.len(), 78);
+    assert_eq!(graph.nodes.len(), 60);
+    assert_eq!(graph.edges.len(), 79);
 
     let languages = graph
         .nodes
