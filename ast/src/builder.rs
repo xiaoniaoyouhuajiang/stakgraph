@@ -14,7 +14,10 @@ const MAX_FILE_SIZE: u64 = 100_000; // 100kb max file size
 
 impl Repo {
     pub async fn build_graph(&self) -> Result<ArrayGraph> {
-        let mut graph = ArrayGraph::new();
+        self.build_graph_inner().await
+    }
+    pub async fn build_graph_inner<G: Graph>(&self) -> Result<G> {
+        let mut graph = G::new();
 
         println!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
@@ -169,7 +172,7 @@ impl Repo {
 
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
 
-            let libs = self.lang.get_libs::<ArrayGraph>(&code, &pkg_file)?;
+            let libs = self.lang.get_libs::<G>(&code, &pkg_file)?;
             i += libs.len();
 
             for lib in libs {
@@ -181,7 +184,7 @@ impl Repo {
         i = 0;
         info!("=> get_imports...");
         for (filename, code) in &filez {
-            let imports = self.lang.get_imports::<ArrayGraph>(&code, &filename)?;
+            let imports = self.lang.get_imports::<G>(&code, &filename)?;
 
             let import_section = combine_imports(imports);
             if !import_section.is_empty() {
@@ -201,7 +204,7 @@ impl Repo {
         i = 0;
         info!("=> get_classes...");
         for (filename, code) in &filez {
-            let classes = self.lang.get_classes::<ArrayGraph>(&code, &filename)?;
+            let classes = self.lang.get_classes::<G>(&code, &filename)?;
             i += classes.len();
 
             for class in classes {
@@ -222,7 +225,7 @@ impl Repo {
             let q = self.lang.lang().instance_definition_query();
             let instances =
                 self.lang
-                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::Instance)?;
+                    .get_query_opt::<G>(q, &code, &filename, NodeType::Instance)?;
 
             graph.add_instances(instances);
         }
@@ -230,7 +233,7 @@ impl Repo {
         i = 0;
         info!("=> get_traits...");
         for (filename, code) in &filez {
-            let traits = self.lang.get_traits::<ArrayGraph>(&code, &filename)?;
+            let traits = self.lang.get_traits::<G>(&code, &filename)?;
             i += traits.len();
 
             for tr in traits {
@@ -248,9 +251,9 @@ impl Repo {
                 }
             }
             let q = self.lang.lang().data_model_query();
-            let structs =
-                self.lang
-                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::DataModel)?;
+            let structs = self
+                .lang
+                .get_query_opt::<G>(q, &code, &filename, NodeType::DataModel)?;
             i += structs.len();
 
             for st in &structs {
@@ -353,7 +356,7 @@ impl Repo {
             let q = self.lang.lang().endpoint_group_find();
             let endpoint_groups =
                 self.lang
-                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::Endpoint)?;
+                    .get_query_opt::<G>(q, &code, &filename, NodeType::Endpoint)?;
             let _ = graph.process_endpoint_groups(endpoint_groups, &self.lang);
         }
 
