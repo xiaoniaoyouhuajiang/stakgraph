@@ -52,6 +52,10 @@ RETURN path
 LIMIT toInteger($limit)
 `;
 
+export const FILE_QUERY = `
+MATCH (n:File) WHERE n.name ENDS WITH $file_name return n
+`;
+
 export const REPOSITORIES_QUERY = `
 MATCH (r:Repository) RETURN r
 `;
