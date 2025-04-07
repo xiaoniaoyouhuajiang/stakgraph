@@ -15,9 +15,8 @@ async fn test_kotlin() {
     .unwrap();
 
     let graph = repo.build_graph().await.unwrap();
-
-    assert_eq!(graph.nodes.len(), 134);
-    assert_eq!(graph.edges.len(), 137);
+    assert_eq!(graph.nodes.len(), 145);
+    assert_eq!(graph.edges.len(), 148);
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -38,7 +37,7 @@ async fn test_kotlin() {
         .iter()
         .filter(|n| matches!(n.node_type, NodeType::File) && n.node_data.name == "build.gradle.kts")
         .collect::<Vec<_>>();
-    assert_eq!(build_gradle_nodes.len(), 1);
+    assert_eq!(build_gradle_nodes.len(), 2);
     let build_gradle_node = build_gradle_nodes[0].into_data();
     assert_eq!(build_gradle_node.name, "build.gradle.kts");
 

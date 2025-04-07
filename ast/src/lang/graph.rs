@@ -184,19 +184,18 @@ impl Graph for ArrayGraph {
         parent_type: NodeType,
         parent_file: &str,
     ) {
-        if let Some(parent) = self
+        let _edge = if let Some(parent) = self
             .nodes
             .iter()
             .find(|n| n.node_type == parent_type && n.node_data.file == parent_file)
             .map(|n| n.node_data.clone())
         {
             let edge = Edge::contains(parent_type, &parent, node_type.clone(), &node_data);
-
-            self.nodes.push(Node::new(node_type, node_data.clone()));
+            self.nodes.push(Node::new(node_type, node_data));
             self.edges.push(edge.clone());
         } else {
             self.nodes.push(Node::new(node_type, node_data));
-        }
+        };
     }
     // NOTE does this need to be per lang on the trait?
     fn process_endpoint_groups(&mut self, eg: Vec<NodeData>, lang: &Lang) -> Result<()> {

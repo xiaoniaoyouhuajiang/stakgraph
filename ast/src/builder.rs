@@ -43,7 +43,7 @@ impl Repo {
             file: "".to_string(),
             ..Default::default()
         };
-        graph.add_node_with_parent(NodeType::Language, lang_data, NodeType::Repository, "");
+        graph.add_node_with_parent(NodeType::Language, lang_data, NodeType::Repository, "main");
         // graph.add_language(self.lang.kind.to_string());
 
         debug!("collecting dirs...");
@@ -78,26 +78,47 @@ impl Repo {
 
         let mut i = dirs_not_empty.len();
         info!("adding {} dirs... {:?}", i, dirs_not_empty);
+        let mut processed_dirs = HashSet::new();
+
         for dir in &dirs_not_empty {
-            let dir = dir.display().to_string();
-            let mut dir_data = NodeData::in_file(&dir);
-            dir_data.name = dir.clone();
+            let dir_path = dir.display().to_string();
+            let segments: Vec<&str> = dir_path.split('/').collect();
 
-            let parent_file = if dir.contains('/') {
-                let mut paths: Vec<&str> = dir.split('/').collect();
-                paths.pop();
-                paths.join("/")
-            } else {
-                "main".to_string()
-            };
+            // Process each path segment to create full directory hierarchy
+            let mut current_path = String::new();
+            for (idx, segment) in segments.iter().enumerate() {
+                // Build current path
+                if idx > 0 {
+                    current_path.push('/');
+                }
+                current_path.push_str(segment);
 
-            graph.add_node_with_parent(
-                NodeType::Directory,
-                dir_data,
-                NodeType::Directory,
-                &parent_file,
-            );
-            // graph.add_dir(dir);
+                // Skip if already processed
+                if processed_dirs.contains(&current_path) {
+                    continue;
+                }
+
+                // Create directory data
+                let mut dir_data = NodeData::in_file(&current_path);
+                dir_data.name = segment.to_string();
+
+                // Determine parent
+                let (parent_type, parent_file) = if idx == 0 {
+                    (NodeType::Repository, "main".to_string())
+                } else {
+                    let parent = segments[..idx].join("/");
+                    (NodeType::Directory, parent)
+                };
+
+                // Add directory and mark as processed
+                graph.add_node_with_parent(
+                    NodeType::Directory,
+                    dir_data,
+                    parent_type,
+                    &parent_file,
+                );
+                processed_dirs.insert(current_path.clone());
+            }
         }
 
         info!("parsing {} files...", files.len());
@@ -434,8 +455,8 @@ impl Repo {
     fn prepare_file_data(&self, path: &str, code: &str) -> NodeData {
         let mut file_data = NodeData::in_file(path);
         let filename = path.split('/').last().unwrap_or(path);
-        println!("File name {}", &filename);
         file_data.name = filename.to_string();
+        //file_data.file = path.to_string();
         let skip_file_content = std::env::var("DEV_SKIP_FILE_CONTENT").is_ok();
         if !skip_file_content {
             file_data.body = code.to_string();
