@@ -10,7 +10,16 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_03_12_084756) do
+ActiveRecord::Schema[8.0].define(version: 2025_04_07_222218) do
+  create_table "articles", force: :cascade do |t|
+    t.string "title"
+    t.text "body"
+    t.integer "person_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["person_id"], name: "index_articles_on_person_id"
+  end
+
   create_table "people", force: :cascade do |t|
     t.string "name"
     t.string "email"
@@ -18,4 +27,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_03_12_084756) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_people_on_email", unique: true
   end
+
+  add_foreign_key "articles", "people"
 end

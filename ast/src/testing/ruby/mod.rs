@@ -15,8 +15,8 @@ async fn test_ruby() {
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
 
-    assert!(graph.nodes.len() == 48);
-    assert!(graph.edges.len() == 70);
+    assert!(graph.nodes.len() == 54);
+    assert!(graph.edges.len() == 78);
 
     let lang = graph
         .nodes
@@ -43,7 +43,7 @@ async fn test_ruby() {
         .filter(|n| matches!(n.node_type, NodeType::Endpoint))
         .collect::<Vec<_>>();
     println!("My endpoints:{:#?}", endpoints);
-    assert_eq!(endpoints.len(), 5);
+    assert_eq!(endpoints.len(), 6);
 
     let endpoint = endpoints[0].into_data();
     assert_eq!(endpoint.name, "person/:id");
@@ -70,10 +70,15 @@ async fn test_ruby() {
     assert_eq!(endpoint.file, "src/testing/ruby/config/routes.rb");
     assert_eq!(endpoint.meta.get("verb").unwrap(), "POST");
 
+    let endpoint = endpoints[5].into_data();
+    assert_eq!(endpoint.name, "/countries/:country_id/process");
+    assert_eq!(endpoint.file, "src/testing/ruby/config/routes.rb");
+    assert_eq!(endpoint.meta.get("verb").unwrap(), "POST");
+
     let edges = graph
         .edges
         .iter()
         .filter(|e| matches!(e.edge, EdgeType::Handler))
         .collect::<Vec<_>>();
-    assert_eq!(edges.len(), 5);
+    assert_eq!(edges.len(), 6);
 }

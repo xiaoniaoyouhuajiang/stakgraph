@@ -12,5 +12,8 @@ Rails.application.routes.draw do
       post 'articles'
     end
   end
+  resources :countries do
+    post :process
+  end
 
 end
