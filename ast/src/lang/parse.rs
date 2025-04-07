@@ -522,7 +522,10 @@ impl Lang {
                 // data models
                 if self.lang.use_data_model_within_finder() {
                     // do this later actually
-                    // models = self.lang.data_model_within_finder(&func.name, file, graph);
+                    // models = self.lang.data_model_within_finder(
+                    //     &func,
+                    //     graph,
+                    // );
                 } else if let Some(dmq) = self.lang.data_model_within_query() {
                     let mut cursor = QueryCursor::new();
                     let qqq = self.q(&dmq, &NodeType::DataModel);

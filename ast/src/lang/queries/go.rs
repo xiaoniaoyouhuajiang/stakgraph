@@ -269,10 +269,8 @@ impl Stack for Go {
 )"#
         ))
     }
-
-    // in Go a Class is really just a struct
-    fn clean_graph(&self, graph: &mut ArrayGraph) -> bool {
-        filter_out_classes_without_methods(graph)
+    fn clean_graph(&self, callback: &mut dyn FnMut(NodeType, NodeType, &str)) {
+        callback(NodeType::Class, NodeType::Function, "operand");
     }
 }
 

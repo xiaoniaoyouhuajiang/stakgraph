@@ -1,4 +1,5 @@
 use super::repo::{check_revs_files, Repo};
+use crate::lang::graph_trait::Graph;
 use crate::lang::ArrayGraph;
 use crate::lang::{asg::NodeData, graph::NodeType};
 use anyhow::{Ok, Result};
@@ -17,7 +18,7 @@ impl Repo {
 
         println!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
-        println!("Commit hash: {:?}", commit_hash);
+        println!("Commit(commit_hash): {:?}", commit_hash);
 
         let (org, repo_name) = if !self.url.is_empty() {
             let gurl = GitUrl::parse(&self.url)?;
@@ -26,11 +27,24 @@ impl Repo {
             ("".to_string(), format!("{:?}", self.lang.kind))
         };
         debug!("add repository...");
-        graph.add_repository(&self.url, &org, &repo_name, &commit_hash);
-        // sleep(1).await;
+        let mut repo_data = NodeData {
+            name: format!("{}/{}", org, repo_name),
+            file: format!("main"),
+            hash: Some(commit_hash.to_string()),
+            ..Default::default()
+        };
+        repo_data.add_source_link(&self.url);
+        graph.add_node_with_parent(NodeType::Repository, repo_data, NodeType::Repository, "");
+        // graph.add_repo(format!("{}/{}", org, repo_name), commit_hash.to_string());
 
         debug!("add language...");
-        graph.add_language(&self.lang.kind.to_string());
+        let lang_data = NodeData {
+            name: self.lang.kind.to_string(),
+            file: "".to_string(),
+            ..Default::default()
+        };
+        graph.add_node_with_parent(NodeType::Language, lang_data, NodeType::Repository, "main");
+        // graph.add_language(self.lang.kind.to_string());
 
         debug!("collecting dirs...");
         let dirs = self.collect_dirs()?;
@@ -64,9 +78,47 @@ impl Repo {
 
         let mut i = dirs_not_empty.len();
         info!("adding {} dirs... {:?}", i, dirs_not_empty);
+        let mut processed_dirs = HashSet::new();
+
         for dir in &dirs_not_empty {
-            let dir = dir.display().to_string();
-            graph.add_directory(&dir);
+            let dir_path = dir.display().to_string();
+            let segments: Vec<&str> = dir_path.split('/').collect();
+
+            // Process each path segment to create full directory hierarchy
+            let mut current_path = String::new();
+            for (idx, segment) in segments.iter().enumerate() {
+                // Build current path
+                if idx > 0 {
+                    current_path.push('/');
+                }
+                current_path.push_str(segment);
+
+                // Skip if already processed
+                if processed_dirs.contains(&current_path) {
+                    continue;
+                }
+
+                // Create directory data
+                let mut dir_data = NodeData::in_file(&current_path);
+                dir_data.name = segment.to_string();
+
+                // Determine parent
+                let (parent_type, parent_file) = if idx == 0 {
+                    (NodeType::Repository, "main".to_string())
+                } else {
+                    let parent = segments[..idx].join("/");
+                    (NodeType::Directory, parent)
+                };
+
+                // Add directory and mark as processed
+                graph.add_node_with_parent(
+                    NodeType::Directory,
+                    dir_data,
+                    parent_type,
+                    &parent_file,
+                );
+                processed_dirs.insert(current_path.clone());
+            }
         }
 
         info!("parsing {} files...", files.len());
@@ -79,7 +131,30 @@ impl Repo {
             } else {
                 std::fs::read_to_string(&filepath)?
             };
-            graph.add_file(&filename.display().to_string(), &code);
+
+            let path = filename.display().to_string();
+
+            if graph.find_nodes_by_name(NodeType::File, &path).len() > 0 {
+                // file already exists
+                continue;
+            }
+            //Do not add pkg files here they will be added later
+            if path.ends_with(self.lang.kind.pkg_file()) {
+                continue;
+            }
+            let file_data = self.prepare_file_data(&path, &code);
+
+            let (parent_type, parent_file) = if path.contains('/') {
+                let mut paths: Vec<&str> = path.split('/').collect();
+                paths.pop();
+                (NodeType::Directory, paths.join("/"))
+            } else {
+                (NodeType::Repository, "main".to_string())
+            };
+
+            graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
+
+            //graph.add_file(path, code);
         }
 
         let filez = fileys(&files, &self.root)?;
@@ -102,33 +177,61 @@ impl Repo {
             .filter(|(f, _)| f.ends_with(self.lang.kind.pkg_file()));
         for (pkg_file, code) in pkg_files {
             info!("=> get_packages in... {:?}", pkg_file);
-            graph.add_file(&pkg_file, &code);
-            let libs = self.lang.get_libs(&code, &pkg_file)?;
+
+            let file_data = self.prepare_file_data(&pkg_file, code);
+
+            let (parent_type, parent_file) = self.get_parent_info(&pkg_file);
+
+            graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
+
+            //graph.add_file(pkg_file, code);
+
+            let libs = self.lang.get_libs::<ArrayGraph>(&code, &pkg_file)?;
             i += libs.len();
-            graph.add_libs(libs);
+
+            for lib in libs {
+                graph.add_node_with_parent(NodeType::Library, lib, NodeType::File, &pkg_file);
+            }
+            // graph.add_libs(libs);
         }
         info!("=> got {} libs", i);
 
         i = 0;
         info!("=> get_imports...");
         for (filename, code) in &filez {
-            let imports = self.lang.get_imports(&code, &filename)?;
+            let imports = self.lang.get_imports::<ArrayGraph>(&code, &filename)?;
             // imports are concatenated into one section
             let import_section = combine_imports(imports);
             if !import_section.is_empty() {
                 i += 1;
             }
-            graph.add_imports(import_section);
+            for import in import_section {
+                graph.add_node_with_parent(
+                    NodeType::Import,
+                    import.clone(),
+                    NodeType::File,
+                    &import.file,
+                );
+            }
+            // graph.add_imports(import_section);
         }
         info!("=> got {} import sections", i);
 
         i = 0;
         info!("=> get_classes...");
         for (filename, code) in &filez {
-            let classes = self.lang.get_classes(&code, &filename)?;
+            let classes = self.lang.get_classes::<ArrayGraph>(&code, &filename)?;
             i += classes.len();
 
-            graph.add_classes(classes);
+            for class in classes {
+                graph.add_node_with_parent(
+                    NodeType::Class,
+                    class.clone(),
+                    NodeType::File,
+                    &class.file,
+                );
+            }
+            //graph.add_classes(classes);
         }
         info!("=> got {} classes", i);
         graph.class_inherits();
@@ -137,18 +240,23 @@ impl Repo {
         info!("=> get_instances...");
         for (filename, code) in &filez {
             let q = self.lang.lang().instance_definition_query();
-            let instances = self
-                .lang
-                .get_query_opt(q, &code, &filename, NodeType::Instance)?;
+            let instances =
+                self.lang
+                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::Instance)?;
+
             graph.add_instances(instances);
         }
 
         i = 0;
         info!("=> get_traits...");
         for (filename, code) in &filez {
-            let traits = self.lang.get_traits(&code, &filename)?;
+            let traits = self.lang.get_traits::<ArrayGraph>(&code, &filename)?;
             i += traits.len();
-            graph.add_traits(traits);
+
+            for tr in traits {
+                graph.add_node_with_parent(NodeType::Trait, tr.clone(), NodeType::File, &tr.file);
+            }
+            // graph.add_traits(traits);
         }
         info!("=> got {} traits", i);
 
@@ -161,11 +269,20 @@ impl Repo {
                 }
             }
             let q = self.lang.lang().data_model_query();
-            let structs = self
-                .lang
-                .get_query_opt(q, &code, &filename, NodeType::DataModel)?;
+            let structs =
+                self.lang
+                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::DataModel)?;
             i += structs.len();
-            graph.add_structs(structs);
+
+            for st in &structs {
+                graph.add_node_with_parent(
+                    NodeType::DataModel,
+                    st.clone(),
+                    NodeType::File,
+                    &st.file,
+                );
+            }
+            //graph.add_structs(structs);
         }
         info!("=> got {} data models", i);
 
@@ -180,7 +297,16 @@ impl Repo {
 
             graph.add_functions(funcs);
             i += tests.len();
-            graph.add_tests(tests);
+
+            for test in tests {
+                graph.add_node_with_parent(
+                    NodeType::Test,
+                    test.0.clone(),
+                    NodeType::File,
+                    &test.0.file,
+                );
+            }
+            //graph.add_tests(tests);
         }
         info!("=> got {} functions and tests", i);
 
@@ -191,6 +317,7 @@ impl Repo {
             if self.lang.lang().is_router_file(&filename, &code) {
                 let pages = self.lang.get_pages(&code, &filename, &self.lsp_tx)?;
                 i += pages.len();
+
                 graph.add_pages(pages);
             }
         }
@@ -204,7 +331,16 @@ impl Repo {
             for pagepath in extra_pages {
                 if let Some(pagename) = get_page_name(&pagepath) {
                     let nd = NodeData::name_file(&pagename, &pagepath);
-                    let edge = self.lang.lang().extra_page_finder(&pagepath, &graph);
+                    let edge = self
+                        .lang
+                        .lang()
+                        .extra_page_finder(&pagepath, &|name, filename| {
+                            graph.find_node_by_name_and_file_end_with(
+                                NodeType::Function,
+                                name,
+                                filename,
+                            )
+                        });
                     graph.add_page((nd, edge));
                 }
             }
@@ -227,6 +363,7 @@ impl Repo {
                 self.lang
                     .collect_endpoints(&code, &filename, Some(&graph), &self.lsp_tx)?;
             i += endpoints.len();
+
             graph.add_endpoints(endpoints);
         }
         info!("=> got {} endpoints", i);
@@ -239,22 +376,14 @@ impl Repo {
             let q = self.lang.lang().endpoint_group_find();
             let endpoint_groups =
                 self.lang
-                    .get_query_opt(q, &code, &filename, NodeType::Endpoint)?;
+                    .get_query_opt::<ArrayGraph>(q, &code, &filename, NodeType::Endpoint)?;
             let _ = graph.process_endpoint_groups(endpoint_groups, &self.lang);
         }
 
         // try again on the endpoints to add data models, if manual
         if self.lang.lang().use_data_model_within_finder() {
             info!("=> get_data_models_within...");
-            for n in &graph.nodes {
-                if n.node_type == NodeType::DataModel {
-                    let edges = self
-                        .lang
-                        .lang()
-                        .data_model_within_finder(&n.node_data, &graph);
-                    graph.edges.extend(edges);
-                }
-            }
+            graph.get_data_models_within(&self.lang);
         }
 
         i = 0;
@@ -269,7 +398,7 @@ impl Repo {
                     .collect_integration_tests(code, filename, &graph)?;
                 i += int_tests.len();
                 for (nd, tt, edge_opt) in int_tests {
-                    graph.add_integration_test(nd, tt, edge_opt);
+                    graph.add_test_node(nd, tt, edge_opt);
                 }
             }
         }
@@ -287,29 +416,30 @@ impl Repo {
                     .get_function_calls(&code, &filename, &graph, &self.lsp_tx)
                     .await?;
                 i += all_calls.0.len();
+
                 graph.add_calls(all_calls);
             }
             info!("=> got {} function calls", i);
         }
 
-        self.lang.lang().clean_graph(&mut graph);
+        //Clean graph by filtering out classes without methods
+        self.lang
+            .lang()
+            .clean_graph(&mut |parent_type, child_type, child_meta_key| {
+                graph.filter_out_nodes_without_children(parent_type, child_type, child_meta_key);
+            });
 
         // filter by revs
         graph = filter_by_revs(&self.root.to_str().unwrap(), self.revs.clone(), graph);
 
         // prefix the "file" of each node and edge with the root
-        for node in &mut graph.nodes {
-            node.add_root(&self.root_less_tmp());
-        }
-        for edge in &mut graph.edges {
-            edge.add_root(&self.root_less_tmp());
-        }
+        graph.prefix_paths(&self.root_less_tmp());
 
         println!("done!");
+        let (num_of_nodes, num_of_edges) = graph.get_graph_size();
         println!(
             "Returning Graph with {} nodes and {} edges",
-            graph.nodes.len(),
-            graph.edges.len()
+            num_of_nodes, num_of_edges
         );
         Ok(graph)
     }
@@ -322,36 +452,36 @@ impl Repo {
             ret
         }
     }
+    fn prepare_file_data(&self, path: &str, code: &str) -> NodeData {
+        let mut file_data = NodeData::in_file(path);
+        let filename = path.split('/').last().unwrap_or(path);
+        file_data.name = filename.to_string();
+
+        let skip_file_content = std::env::var("DEV_SKIP_FILE_CONTENT").is_ok();
+        if !skip_file_content {
+            file_data.body = code.to_string();
+        }
+        file_data.hash = Some(sha256::digest(&file_data.body));
+        file_data
+    }
+    fn get_parent_info(&self, path: &str) -> (NodeType, String) {
+        if path.contains('/') {
+            let mut paths: Vec<&str> = path.split('/').collect();
+            paths.pop();
+            (NodeType::Directory, paths.join("/"))
+        } else {
+            (NodeType::Repository, "main".to_string())
+        }
+    }
 }
 
-fn filter_by_revs(root: &str, revs: Vec<String>, graph: ArrayGraph) -> ArrayGraph {
+fn filter_by_revs<G: Graph>(root: &str, revs: Vec<String>, graph: G) -> G {
     if revs.is_empty() {
         return graph;
     }
-    if let Some(final_filter) = check_revs_files(root, revs) {
-        let mut new_graph = ArrayGraph::new();
-        // only add nodes that are in the final filter
-        for node in graph.nodes {
-            if node.node_type == NodeType::Repository {
-                new_graph.nodes.push(node);
-                continue;
-            }
-            let node_data = node.into_data();
-            if final_filter.contains(&node_data.file) {
-                new_graph.nodes.push(node);
-            }
-        }
-        // and edges incoming/outgoing from them
-        for edge in graph.edges {
-            if final_filter.contains(&edge.source.node_data.file) {
-                new_graph.edges.push(edge);
-            } else if final_filter.contains(&edge.target.node_data.file) {
-                new_graph.edges.push(edge);
-            }
-        }
-        new_graph
-    } else {
-        graph
+    match check_revs_files(root, revs) {
+        Some(final_filter) => graph.create_filtered_graph(&final_filter),
+        None => graph,
     }
 }
 
