@@ -15,8 +15,8 @@ async fn test_ruby() {
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
 
-    assert!(graph.nodes.len() == 38);
-    assert!(graph.edges.len() == 51);
+    assert!(graph.nodes.len() == 46);
+    assert!(graph.edges.len() == 66);
 
     let lang = graph
         .nodes
@@ -43,7 +43,7 @@ async fn test_ruby() {
         .filter(|n| matches!(n.node_type, NodeType::Endpoint))
         .collect::<Vec<_>>();
     println!("My endpoints:{:#?}", endpoints);
-    assert_eq!(endpoints.len(), 3);
+    assert_eq!(endpoints.len(), 4);
 
     let endpoint = endpoints[0].into_data();
     assert_eq!(endpoint.name, "person/:id");
@@ -60,10 +60,15 @@ async fn test_ruby() {
     assert_eq!(endpoint.file, "src/testing/ruby/config/routes.rb");
     assert_eq!(endpoint.meta.get("verb").unwrap(), "DELETE");
 
+    let endpoint = endpoints[3].into_data();
+    assert_eq!(endpoint.name, "/people/articles");
+    assert_eq!(endpoint.file, "src/testing/ruby/config/routes.rb");
+    assert_eq!(endpoint.meta.get("verb").unwrap(), "GET");
+
     let edges = graph
         .edges
         .iter()
         .filter(|e| matches!(e.edge, EdgeType::Handler))
         .collect::<Vec<_>>();
-    assert_eq!(edges.len(), 3);
+    assert_eq!(edges.len(), 4);
 }

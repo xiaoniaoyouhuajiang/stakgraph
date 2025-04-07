@@ -29,6 +29,11 @@ class PeopleController < ApplicationController
     end
   end
 
+  def articles
+    articles = Article.all
+    render json: articles, status: :ok
+  end
+
   private
 
   def person_params
