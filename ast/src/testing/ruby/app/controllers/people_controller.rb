@@ -20,10 +20,9 @@ class PeopleController < ApplicationController
   end
 
   def destroy
-    person = PersonService.get_person_by_id(params[:id])
+    deleted_person = PersonService.delete(params[:id])
 
-    if person
-      person.destroy
+    if deleted_person.destroyed?
       render json: { message: 'Person deleted successfully' }, status: :ok
     else
       render json: { error: "Person not found" }, status: :not_found
