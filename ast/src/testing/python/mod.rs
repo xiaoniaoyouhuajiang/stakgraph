@@ -35,7 +35,7 @@ async fn test_python() {
         .filter(|n| matches!(n.node_type, NodeType::File))
         .collect::<Vec<_>>();
 
-    assert_eq!(files.len(), 16, "wrong file count");
+    assert_eq!(files.len(), 17, "wrong file count");
 
     let imports = graph
         .nodes

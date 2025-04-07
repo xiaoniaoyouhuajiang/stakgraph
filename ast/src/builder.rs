@@ -456,7 +456,7 @@ impl Repo {
         let mut file_data = NodeData::in_file(path);
         let filename = path.split('/').last().unwrap_or(path);
         file_data.name = filename.to_string();
-        //file_data.file = path.to_string();
+
         let skip_file_content = std::env::var("DEV_SKIP_FILE_CONTENT").is_ok();
         if !skip_file_content {
             file_data.body = code.to_string();
