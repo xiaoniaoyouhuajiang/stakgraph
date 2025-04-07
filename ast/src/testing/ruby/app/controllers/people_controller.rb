@@ -34,6 +34,17 @@ class PeopleController < ApplicationController
     render json: articles, status: :ok
   end
 
+  def create_article
+    person = Person.find(params[:id])
+    article = person.articles.build(article_params)
+
+    if article.save
+      render json: article, status: :created
+    else
+      render json: article.errors, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def person_params
