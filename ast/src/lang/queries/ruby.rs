@@ -32,66 +32,66 @@ impl Stack for Ruby {
     fn lib_query(&self) -> Option<String> {
         Some(format!(
             r#"(call
-    method: (identifier) @gem (#eq? @gem "gem")
-    arguments: (argument_list
-        . (string) @{LIBRARY_NAME}
-        (string)? @{LIBRARY_VERSION}
-    )
-) @{LIBRARY}"#
+                method: (identifier) @gem (#eq? @gem "gem")
+                arguments: (argument_list
+                    . (string) @{LIBRARY_NAME}
+                    (string)? @{LIBRARY_VERSION}
+                )
+            ) @{LIBRARY}"#
         ))
     }
     fn class_definition_query(&self) -> String {
         format!(
             r#"[
-    (class
-        name: [
-            (constant)
-            (scope_resolution)
-        ] @{CLASS_NAME}
-        (superclass
-            (constant) @{CLASS_PARENT}
-        )?
-        (body_statement
-            (call
-                method: (identifier) @call (#eq? @call "include")
-                arguments: (argument_list) @{INCLUDED_MODULES}
-            )
-        )?
-    )
-    (module
-        name: [
-            (constant)
-            (scope_resolution)
-        ] @{CLASS_NAME}
-    )
-] @{CLASS_DEFINITION}"#
+                (class
+                    name: [
+                        (constant)
+                        (scope_resolution)
+                    ] @{CLASS_NAME}
+                    (superclass
+                        (constant) @{CLASS_PARENT}
+                    )?
+                    (body_statement
+                        (call
+                            method: (identifier) @call (#eq? @call "include")
+                            arguments: (argument_list) @{INCLUDED_MODULES}
+                        )
+                    )?
+                )
+                (module
+                    name: [
+                        (constant)
+                        (scope_resolution)
+                    ] @{CLASS_NAME}
+                )
+            ] @{CLASS_DEFINITION}"#
         )
     }
     fn function_definition_query(&self) -> String {
         format!(
             "[
-    (method
-        name: (identifier) @{FUNCTION_NAME}
-        parameters: (method_parameters)? @{ARGUMENTS}
-    )
-    (singleton_method
-        name: (identifier) @{FUNCTION_NAME}
-        parameters: (method_parameters)? @{ARGUMENTS}
-    )
-] @{FUNCTION_DEFINITION}"
+                (method
+                    name: (identifier) @{FUNCTION_NAME}
+                    parameters: (method_parameters)? @{ARGUMENTS}
+                )
+                (singleton_method
+                    name: (identifier) @{FUNCTION_NAME}
+                    parameters: (method_parameters)? @{ARGUMENTS}
+                )
+            ] @{FUNCTION_DEFINITION}"
         )
     }
     fn function_call_query(&self) -> String {
         format!(
             "(call
-    receiver: [
-        (identifier)
-        (constant)
-        (call)
-    ] @{OPERAND}
-    method: (identifier) @{FUNCTION_NAME}
-    arguments: (argument_list) @{ARGUMENTS}
-) @{FUNCTION_CALL}"
+                receiver: [
+                    (identifier)
+                    (constant)
+                    (call)
+                ] @{OPERAND}
+                method: (identifier) @{FUNCTION_NAME}
+                arguments: (argument_list) @{ARGUMENTS}
+            ) @{FUNCTION_CALL}"
         )
     }
     fn endpoint_finders(&self) -> Vec<String> {
@@ -137,29 +137,29 @@ impl Stack for Ruby {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"(call
-    receiver: [
-        (element_reference
-            object: (scope_resolution
-                scope: (constant) @scope (#eq? @scope "ActiveRecord")
-                name: (constant) @name (#eq? @name "Schema")
-            )
-        )
-        (scope_resolution
-            scope: (constant) @scope (#eq? @scope "ActiveRecord")
-            name: (constant) @name (#eq? @name "Schema")
-        )
-    ]
-    block: (do_block
-        body: (body_statement
-            (call
-                method: (identifier) @create (#eq? @create "create_table")
-                arguments: (argument_list
-                    (string) @{STRUCT_NAME}
+            receiver: [
+                (element_reference
+                    object: (scope_resolution
+                        scope: (constant) @scope (#eq? @scope "ActiveRecord")
+                        name: (constant) @name (#eq? @name "Schema")
+                    )
                 )
-            ) @{STRUCT}
-        )
-    )
-    )"#
+                (scope_resolution
+                    scope: (constant) @scope (#eq? @scope "ActiveRecord")
+                    name: (constant) @name (#eq? @name "Schema")
+                )
+            ]
+            block: (do_block
+                body: (body_statement
+                    (call
+                        method: (identifier) @create (#eq? @create "create_table")
+                        arguments: (argument_list
+                            (string) @{STRUCT_NAME}
+                        )
+                    ) @{STRUCT}
+                )
+            )
+            )"#
         ))
     }
     fn data_model_path_filter(&self) -> Option<String> {
@@ -365,20 +365,20 @@ impl Stack for Ruby {
     fn integration_test_query(&self) -> Option<String> {
         Some(format!(
             r#"(call
-    method: (identifier) @describe (#eq? @describe "describe")
-    arguments: [
-        (argument_list
-            [
-                (constant)
-                (scope_resolution)
-            ] @{HANDLER}
-        )
-        (argument_list
-            (string) @{E2E_TEST_NAME}
-            (pair) @js-true (#eq? @js-true "js: true")
-        )
-    ]
-) @{INTEGRATION_TEST}"#
+                method: (identifier) @describe (#eq? @describe "describe")
+                arguments: [
+                    (argument_list
+                        [
+                            (constant)
+                            (scope_resolution)
+                        ] @{HANDLER}
+                    )
+                    (argument_list
+                        (string) @{E2E_TEST_NAME}
+                        (pair) @js-true (#eq? @js-true "js: true")
+                    )
+                ]
+            ) @{INTEGRATION_TEST}"#
         ))
     }
     fn use_integration_test_finder(&self) -> bool {

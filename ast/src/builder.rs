@@ -35,7 +35,6 @@ impl Repo {
         };
         repo_data.add_source_link(&self.url);
         graph.add_node_with_parent(NodeType::Repository, repo_data, NodeType::Repository, "");
-        // graph.add_repo(format!("{}/{}", org, repo_name), commit_hash.to_string());
 
         debug!("add language...");
         let lang_data = NodeData {
@@ -44,7 +43,6 @@ impl Repo {
             ..Default::default()
         };
         graph.add_node_with_parent(NodeType::Language, lang_data, NodeType::Repository, "main");
-        // graph.add_language(self.lang.kind.to_string());
 
         debug!("collecting dirs...");
         let dirs = self.collect_dirs()?;
@@ -57,18 +55,15 @@ impl Repo {
 
         let mut dirs_not_empty = Vec::new();
         for d in &dirs {
-            let child = files.iter().find(|f| {
-                match f.parent() {
-                    None => false,
-                    Some(p) => {
-                        if &strip_root(p, &self.root) == d {
-                            true
-                        } else {
-                            false
-                        }
+            let child = files.iter().find(|f| match f.parent() {
+                None => false,
+                Some(p) => {
+                    if &strip_root(p, &self.root) == d {
+                        true
+                    } else {
+                        false
                     }
                 }
-                // println!("f.parent() {:?} {:?}", strip_root(f.parent(), &self.root), d);
             });
             if child.is_some() {
                 dirs_not_empty.push(d.clone());
@@ -84,25 +79,20 @@ impl Repo {
             let dir_path = dir.display().to_string();
             let segments: Vec<&str> = dir_path.split('/').collect();
 
-            // Process each path segment to create full directory hierarchy
             let mut current_path = String::new();
             for (idx, segment) in segments.iter().enumerate() {
-                // Build current path
                 if idx > 0 {
                     current_path.push('/');
                 }
                 current_path.push_str(segment);
 
-                // Skip if already processed
                 if processed_dirs.contains(&current_path) {
                     continue;
                 }
 
-                // Create directory data
                 let mut dir_data = NodeData::in_file(&current_path);
                 dir_data.name = segment.to_string();
 
-                // Determine parent
                 let (parent_type, parent_file) = if idx == 0 {
                     (NodeType::Repository, "main".to_string())
                 } else {
@@ -110,7 +100,6 @@ impl Repo {
                     (NodeType::Directory, parent)
                 };
 
-                // Add directory and mark as processed
                 graph.add_node_with_parent(
                     NodeType::Directory,
                     dir_data,
@@ -135,10 +124,8 @@ impl Repo {
             let path = filename.display().to_string();
 
             if graph.find_nodes_by_name(NodeType::File, &path).len() > 0 {
-                // file already exists
                 continue;
             }
-            //Do not add pkg files here they will be added later
             if path.ends_with(self.lang.kind.pkg_file()) {
                 continue;
             }
@@ -153,8 +140,6 @@ impl Repo {
             };
 
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
-
-            //graph.add_file(path, code);
         }
 
         let filez = fileys(&files, &self.root)?;
@@ -184,15 +169,12 @@ impl Repo {
 
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
 
-            //graph.add_file(pkg_file, code);
-
             let libs = self.lang.get_libs::<ArrayGraph>(&code, &pkg_file)?;
             i += libs.len();
 
             for lib in libs {
                 graph.add_node_with_parent(NodeType::Library, lib, NodeType::File, &pkg_file);
             }
-            // graph.add_libs(libs);
         }
         info!("=> got {} libs", i);
 
@@ -200,7 +182,7 @@ impl Repo {
         info!("=> get_imports...");
         for (filename, code) in &filez {
             let imports = self.lang.get_imports::<ArrayGraph>(&code, &filename)?;
-            // imports are concatenated into one section
+
             let import_section = combine_imports(imports);
             if !import_section.is_empty() {
                 i += 1;
@@ -213,7 +195,6 @@ impl Repo {
                     &import.file,
                 );
             }
-            // graph.add_imports(import_section);
         }
         info!("=> got {} import sections", i);
 
@@ -231,7 +212,6 @@ impl Repo {
                     &class.file,
                 );
             }
-            //graph.add_classes(classes);
         }
         info!("=> got {} classes", i);
         graph.class_inherits();
@@ -256,7 +236,6 @@ impl Repo {
             for tr in traits {
                 graph.add_node_with_parent(NodeType::Trait, tr.clone(), NodeType::File, &tr.file);
             }
-            // graph.add_traits(traits);
         }
         info!("=> got {} traits", i);
 
@@ -282,7 +261,6 @@ impl Repo {
                     &st.file,
                 );
             }
-            //graph.add_structs(structs);
         }
         info!("=> got {} data models", i);
 
@@ -306,7 +284,6 @@ impl Repo {
                     &test.0.file,
                 );
             }
-            //graph.add_tests(tests);
         }
         info!("=> got {} functions and tests", i);
 

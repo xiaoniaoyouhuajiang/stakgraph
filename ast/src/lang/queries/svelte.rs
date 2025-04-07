@@ -33,9 +33,9 @@ impl Stack for Svelte {
     fn imports_query(&self) -> Option<String> {
         Some(format!(
             r#"
-        (document
-            (_) @{IMPORTS}
-        )
+            (document
+                (_) @{IMPORTS}
+            )
         "#
         ))
     }
@@ -43,10 +43,10 @@ impl Stack for Svelte {
     fn class_definition_query(&self) -> String {
         format!(
             r#"
-                (script_element
-                    (_) @{CLASS_NAME}
-                )
-                "#
+            (script_element
+                (_) @{CLASS_NAME}
+            )
+            "#
         )
     }
 

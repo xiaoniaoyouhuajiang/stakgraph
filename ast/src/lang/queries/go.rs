@@ -32,14 +32,14 @@ impl Stack for Go {
     fn lib_query(&self) -> Option<String> {
         Some(format!(
             r#"(command
-  name: (command_name) @require (#eq? @require "require")
-  (subshell
-    (command
-      name: (command_name) @{LIBRARY_NAME}
-      argument: (word) @{LIBRARY_VERSION}
-    )
-  )
-) @{LIBRARY}"#
+                name: (command_name) @require (#eq? @require "require")
+                (subshell
+                    (command
+                    name: (command_name) @{LIBRARY_NAME}
+                    argument: (word) @{LIBRARY_VERSION}
+                    )
+                )
+            ) @{LIBRARY}"#
         ))
     }
     fn module_query(&self) -> Option<String> {
@@ -48,82 +48,82 @@ impl Stack for Go {
     fn imports_query(&self) -> Option<String> {
         Some(format!(
             "(source_file
-    (import_declaration)+ @{IMPORTS}
-)"
+                (import_declaration)+ @{IMPORTS}
+            )"
         ))
     }
     fn trait_query(&self) -> Option<String> {
         Some(format!(
             r#"(type_declaration
-    (type_spec
-        name: (type_identifier) @{TRAIT_NAME}
-        type: (interface_type)
-    )
-) @{TRAIT}"#
+                (type_spec
+                    name: (type_identifier) @{TRAIT_NAME}
+                    type: (interface_type)
+                )
+            ) @{TRAIT}"#
         ))
     }
     // FIXME for go this just gets every struct. Filter them out later. If class has no methods, delete it.
     fn class_definition_query(&self) -> String {
         format!(
             "(type_spec
-    name: (type_identifier) @{CLASS_NAME}
-) @{CLASS_DEFINITION}"
+                name: (type_identifier) @{CLASS_NAME}
+            ) @{CLASS_DEFINITION}"
         )
     }
     fn instance_definition_query(&self) -> Option<String> {
         Some(format!(
             "(source_file
-    (var_declaration
-    	(var_spec
-        	name: (identifier) @{INSTANCE_NAME}
-            type: (type_identifier) @{CLASS_NAME}
-        )
-    ) @{INSTANCE}
-)"
+                (var_declaration
+                    (var_spec
+                        name: (identifier) @{INSTANCE_NAME}
+                        type: (type_identifier) @{CLASS_NAME}
+                    )
+                ) @{INSTANCE}
+            )"
         ))
     }
     fn function_definition_query(&self) -> String {
         let return_type = format!(r#"result: (_)? @{RETURN_TYPES}"#);
         format!(
             "[
-    (function_declaration
-        name: (identifier) @{FUNCTION_NAME}
-        parameters: (parameter_list) @{ARGUMENTS}
-        {return_type}
-    )
-    (method_declaration
-        receiver: (parameter_list
-            (parameter_declaration
-                name: (identifier) @{PARENT_NAME}
-                type: [
-                    (type_identifier)
-                    (pointer_type) (type_identifier)
-                ] @{PARENT_TYPE}
-            )
-        )
-        name: (field_identifier) @{FUNCTION_NAME}
-        parameters: (parameter_list) @{ARGUMENTS}
-        {return_type}
-    )
-] @{FUNCTION_DEFINITION}"
+                (function_declaration
+                    name: (identifier) @{FUNCTION_NAME}
+                    parameters: (parameter_list) @{ARGUMENTS}
+                    {return_type}
+                )
+                (method_declaration
+                    receiver: (parameter_list
+                        (parameter_declaration
+                            name: (identifier) @{PARENT_NAME}
+                            type: [
+                                (type_identifier)
+                                (pointer_type) (type_identifier)
+                            ] @{PARENT_TYPE}
+                        )
+                    )
+                    name: (field_identifier) @{FUNCTION_NAME}
+                    parameters: (parameter_list) @{ARGUMENTS}
+                    {return_type}
+                )
+            ] @{FUNCTION_DEFINITION}"
         )
     }
     fn function_call_query(&self) -> String {
         format!(
             "(call_expression
-    function: [
-    	(identifier) @{FUNCTION_NAME}
-        (selector_expression
-            operand: [
-                (identifier) @{OPERAND}
-            	(selector_expression) @{OPERAND}
-                (call_expression)
-            ]
-            field: (field_identifier) @{FUNCTION_NAME}
-        )
-    ]
-    arguments: (argument_list) @{ARGUMENTS}
-) @{FUNCTION_CALL}"
+                function: [
+                    (identifier) @{FUNCTION_NAME}
+                    (selector_expression
+                        operand: [
+                            (identifier) @{OPERAND}
+                            (selector_expression) @{OPERAND}
+                            (call_expression)
+                        ]
+                        field: (field_identifier) @{FUNCTION_NAME}
+                    )
+                ]
+                arguments: (argument_list) @{ARGUMENTS}
+            ) @{FUNCTION_CALL}"
         )
     }
     //     fn endpoint_handler_queries(&self) -> Vec<String> {
@@ -142,36 +142,36 @@ impl Stack for Go {
     fn endpoint_finders(&self) -> Vec<String> {
         vec![format!(
             r#"(call_expression
-    function: (selector_expression
-        operand: (identifier)
-        field: (field_identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^Get$|^Post$|^Put$|^Delete$")
-    )
-    arguments: (argument_list
-        (interpreted_string_literal) @{ENDPOINT}
-        [
-            (selector_expression
-                field: (field_identifier) @{HANDLER}
-            )
-            (identifier) @{HANDLER}
-        ]
-    )
-) @{ROUTE}"#
+                function: (selector_expression
+                    operand: (identifier)
+                    field: (field_identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^Get$|^Post$|^Put$|^Delete$")
+                )
+                arguments: (argument_list
+                    (interpreted_string_literal) @{ENDPOINT}
+                    [
+                        (selector_expression
+                            field: (field_identifier) @{HANDLER}
+                        )
+                        (identifier) @{HANDLER}
+                    ]
+                )
+            ) @{ROUTE}"#
         )]
     }
     fn endpoint_group_find(&self) -> Option<String> {
         Some(format!(
             r#"(call_expression
-            function: (selector_expression
-                operand: (identifier)
-                field: (field_identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "Mount")
-            )
-            arguments: (argument_list
-                (interpreted_string_literal) @{ENDPOINT}
-                (call_expression
-                    function: (identifier) @{ENDPOINT_GROUP}
+                function: (selector_expression
+                    operand: (identifier)
+                    field: (field_identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "Mount")
                 )
-            )
-        ) @{ROUTE}"#
+                arguments: (argument_list
+                    (interpreted_string_literal) @{ENDPOINT}
+                    (call_expression
+                        function: (identifier) @{ENDPOINT_GROUP}
+                    )
+                )
+            ) @{ROUTE}"#
         ))
     }
     fn find_function_parent(
@@ -234,19 +234,19 @@ impl Stack for Go {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             "(type_declaration
-    (type_spec
-        name: (type_identifier) @{STRUCT_NAME}
-        type: (_)
-    )
-) @{STRUCT}"
+                (type_spec
+                    name: (type_identifier) @{STRUCT_NAME}
+                    type: (_)
+                )
+            ) @{STRUCT}"
         ))
     }
     fn data_model_within_query(&self) -> Option<String> {
         // the surrounding () is required to match the match work
         let type_finder = format!(
             r#"(
-    (type_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-)"#
+                (type_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+            )"#
         );
         Some(type_finder)
     }
@@ -259,14 +259,14 @@ impl Stack for Go {
     fn integration_test_query(&self) -> Option<String> {
         Some(format!(
             r#"(call_expression
-    function: (selector_expression) @hff (#eq? @hff "http.HandlerFunc")
-    arguments: (argument_list
-        (selector_expression
-            operand: (identifier)
-            field: (field_identifier) @{HANDLER}
-        )
-    )
-)"#
+                function: (selector_expression) @hff (#eq? @hff "http.HandlerFunc")
+                arguments: (argument_list
+                    (selector_expression
+                        operand: (identifier)
+                        field: (field_identifier) @{HANDLER}
+                    )
+                )
+            )"#
         ))
     }
     fn clean_graph(&self, callback: &mut dyn FnMut(NodeType, NodeType, &str)) {

@@ -64,7 +64,7 @@ impl Stack for TypeScript {
         format!(
             r#"
            (function_declaration
-            name: (identifier) @{FUNCTION_NAME}
+                name: (identifier) @{FUNCTION_NAME}
             ) @{FUNCTION_DEFINITION}
             "#
         )
@@ -79,11 +79,11 @@ impl Stack for TypeScript {
             )@{FUNCTION_CALL}
 
             (call_expression
-            function: (member_expression
-                object: (identifier) @{CLASS_NAME}
-                property: (property_identifier) @{FUNCTION_NAME}
-            )
-                arguments: (arguments) @{ARGUMENTS}
+                function: (member_expression
+                    object: (identifier) @{CLASS_NAME}
+                    property: (property_identifier) @{FUNCTION_NAME}
+                )
+                    arguments: (arguments) @{ARGUMENTS}
             )@{FUNCTION_CALL}
             "#
         )

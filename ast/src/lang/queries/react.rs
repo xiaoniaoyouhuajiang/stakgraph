@@ -53,211 +53,211 @@ impl Stack for ReactTs {
         format!(
             "(class_declaration
                 name: (type_identifier) @{CLASS_NAME}
-               ) @{CLASS_DEFINITION}"
+            ) @{CLASS_DEFINITION}"
         )
     }
     // FIXME "render" is always discluded to avoid jsx classes
     fn function_definition_query(&self) -> String {
         format!(
             r#"[
-    (function_declaration
-        name: (identifier) @{FUNCTION_NAME}
-        parameters: (formal_parameters) @{ARGUMENTS}
-    )
-    (method_definition
-        name: (property_identifier) @{FUNCTION_NAME} (#not-eq? @{FUNCTION_NAME} "render")
-        parameters: (formal_parameters) @{ARGUMENTS}
-    )
-    (variable_declarator
-        name: (identifier) @{FUNCTION_NAME}
-        value: (arrow_function
-            parameters: (formal_parameters) @{ARGUMENTS}
-        )
-    )
-    (public_field_definition
-        name: (property_identifier) @{FUNCTION_NAME}
-        value: [
-            (function_expression
-        	    parameters: (formal_parameters) @{ARGUMENTS}
-            )
-            (arrow_function
-        	    parameters: (formal_parameters) @{ARGUMENTS}
-            )
-        ]
-    )
-    (pair
-        key: (property_identifier) @function-name
-        value: [
-            (function_expression
+                (function_declaration
+                    name: (identifier) @{FUNCTION_NAME}
                     parameters: (formal_parameters) @{ARGUMENTS}
-            )
-            (arrow_function
+                )
+                (method_definition
+                    name: (property_identifier) @{FUNCTION_NAME} (#not-eq? @{FUNCTION_NAME} "render")
                     parameters: (formal_parameters) @{ARGUMENTS}
-            )
-        ]
-    )
-    (variable_declarator
-        name: (identifier) @{FUNCTION_NAME}
-        value: (call_expression
-            function: (_)
-            arguments: (arguments
-                (arrow_function
-                    parameters: (formal_parameters)
-                    body: (statement_block
-                        (return_statement
-                            [
-                                (jsx_element)
-                                (parenthesized_expression
-                                    (jsx_element)
+                )
+                (variable_declarator
+                    name: (identifier) @{FUNCTION_NAME}
+                    value: (arrow_function
+                        parameters: (formal_parameters) @{ARGUMENTS}
+                    )
+                )
+                (public_field_definition
+                    name: (property_identifier) @{FUNCTION_NAME}
+                    value: [
+                        (function_expression
+                            parameters: (formal_parameters) @{ARGUMENTS}
+                        )
+                        (arrow_function
+                            parameters: (formal_parameters) @{ARGUMENTS}
+                        )
+                    ]
+                )
+                (pair
+                    key: (property_identifier) @function-name
+                    value: [
+                        (function_expression
+                                parameters: (formal_parameters) @{ARGUMENTS}
+                        )
+                        (arrow_function
+                                parameters: (formal_parameters) @{ARGUMENTS}
+                        )
+                    ]
+                )
+                (variable_declarator
+                    name: (identifier) @{FUNCTION_NAME}
+                    value: (call_expression
+                        function: (_)
+                        arguments: (arguments
+                            (arrow_function
+                                parameters: (formal_parameters)
+                                body: (statement_block
+                                    (return_statement
+                                        [
+                                            (jsx_element)
+                                            (parenthesized_expression
+                                                (jsx_element)
+                                            )
+                                        ]
+                                    )
                                 )
-                            ]
+                            )
                         )
                     )
                 )
-            )
-        )
-    )
-    (class_declaration
-        name: (type_identifier) @{FUNCTION_NAME}
-        (class_heritage
-            (extends_clause
-                value: (member_expression
-                    object: (identifier) @react (#eq @react "React")
-                    property: (property_identifier) @component (#eq @component "Component")
-                )
-            )
-        )
-        body: (class_body
-            (method_definition
-                name: (property_identifier) @render (#eq @render "render")
-                body: (statement_block
-                    (return_statement
-                        [
-                            (jsx_element)
-                            (parenthesized_expression
-                                (jsx_element)
+                (class_declaration
+                    name: (type_identifier) @{FUNCTION_NAME}
+                    (class_heritage
+                        (extends_clause
+                            value: (member_expression
+                                object: (identifier) @react (#eq @react "React")
+                                property: (property_identifier) @component (#eq @component "Component")
                             )
-                        ]
+                        )
+                    )
+                    body: (class_body
+                        (method_definition
+                            name: (property_identifier) @render (#eq @render "render")
+                            body: (statement_block
+                                (return_statement
+                                    [
+                                        (jsx_element)
+                                        (parenthesized_expression
+                                            (jsx_element)
+                                        )
+                                    ]
+                                )
+                            )
+                        )
                     )
                 )
-            )
-        )
-    )
-    (lexical_declaration
-        (variable_declarator
-            name: (identifier) @{FUNCTION_NAME}
-            value: (call_expression
-                function: (member_expression
-                    object: (identifier) @styled-object (#eq @styled-object "styled")
-                    property: (property_identifier) @styled-method
+                (lexical_declaration
+                    (variable_declarator
+                        name: (identifier) @{FUNCTION_NAME}
+                        value: (call_expression
+                            function: (member_expression
+                                object: (identifier) @styled-object (#eq @styled-object "styled")
+                                property: (property_identifier) @styled-method
+                            )
+                        )
+                    )
                 )
-            )
-        )
-    )
-] @{FUNCTION_DEFINITION}"#
+            ] @{FUNCTION_DEFINITION}"#
         )
     }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"[
-    (type_alias_declaration
-        name: (type_identifier) @{STRUCT_NAME}
-    ) @{STRUCT}
-    (interface_declaration
-        name: (type_identifier) @{STRUCT_NAME}
-    ) @{STRUCT}
-    ;; sequelize
-    (class_declaration
-        name: (type_identifier) @{STRUCT_NAME}
-        (class_heritage
-            (extends_clause
-                value: (identifier) @model (#eq? @model "Model")
-            )
-        )
-    ) @{STRUCT}
-    ;; typeorm
-    (
-        (decorator
-            (call_expression
-                function: (identifier) @entity (#eq? @entity "Entity")
-            )
-        )
-        (class_declaration
-            name: (type_identifier) @{STRUCT_NAME}
-        ) @{STRUCT}
-    )
-]"#
+                (type_alias_declaration
+                    name: (type_identifier) @{STRUCT_NAME}
+                ) @{STRUCT}
+                (interface_declaration
+                    name: (type_identifier) @{STRUCT_NAME}
+                ) @{STRUCT}
+                ;; sequelize
+                (class_declaration
+                    name: (type_identifier) @{STRUCT_NAME}
+                    (class_heritage
+                        (extends_clause
+                            value: (identifier) @model (#eq? @model "Model")
+                        )
+                    )
+                ) @{STRUCT}
+                ;; typeorm
+                (
+                    (decorator
+                        (call_expression
+                            function: (identifier) @entity (#eq? @entity "Entity")
+                        )
+                    )
+                    (class_declaration
+                        name: (type_identifier) @{STRUCT_NAME}
+                    ) @{STRUCT}
+                )
+            ]"#
         ))
     }
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(
             r#"(
-    (type_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
-)"#
+                (type_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+            )"#
         ))
     }
     fn test_query(&self) -> Option<String> {
         Some(format!(
             r#"[
-    (call_expression
-        function: (identifier) @it (#eq? @it "it")
-        arguments: (arguments
-            (string) @{FUNCTION_NAME}
-        )
-    )
-    (call_expression
-        function: (member_expression
-            object: (member_expression
-                object: (identifier) @cypress (#eq? @cypress "Cypress")
-                property: (property_identifier) @commands (#eq? @commands "Commands")
-            )
-            property: (property_identifier) @add (#eq? @add "add")
-        )
-        arguments: (arguments
-            (string) @{FUNCTION_NAME}
-        )
-    )
-] @{FUNCTION_DEFINITION}"#
+                    (call_expression
+                        function: (identifier) @it (#eq? @it "it")
+                        arguments: (arguments
+                            (string) @{FUNCTION_NAME}
+                        )
+                    )
+                    (call_expression
+                        function: (member_expression
+                            object: (member_expression
+                                object: (identifier) @cypress (#eq? @cypress "Cypress")
+                                property: (property_identifier) @commands (#eq? @commands "Commands")
+                            )
+                            property: (property_identifier) @add (#eq? @add "add")
+                        )
+                        arguments: (arguments
+                            (string) @{FUNCTION_NAME}
+                        )
+                    )
+                ] @{FUNCTION_DEFINITION}"#
         ))
     }
     fn request_finder(&self) -> Option<String> {
         Some(format!(
             r#"(call_expression
-    function: [
-        (identifier) @{REQUEST_CALL}
-        (member_expression
-            property: (property_identifier) @{REQUEST_CALL}
-        )
-    ] (#match? @{REQUEST_CALL} "^fetch$|^get$|^post$|^put$|^delete$")
-    arguments: (arguments
-        [(string) (template_string)] @{ENDPOINT}
-    )
-) @{ROUTE}"#
+                function: [
+                    (identifier) @{REQUEST_CALL}
+                    (member_expression
+                        property: (property_identifier) @{REQUEST_CALL}
+                    )
+                ] (#match? @{REQUEST_CALL} "^fetch$|^get$|^post$|^put$|^delete$")
+                arguments: (arguments
+                    [(string) (template_string)] @{ENDPOINT}
+                )
+            ) @{ROUTE}"#
         ))
     }
     fn function_call_query(&self) -> String {
         format!(
             "[
-    (call_expression
-        function: [
-            (identifier) @{FUNCTION_NAME}
-            (member_expression
-                object: (identifier) @{OPERAND}
-                property: (property_identifier) @{FUNCTION_NAME}
-            )
-        ]
-    )
-    [
-        (jsx_element
-            open_tag: (jsx_opening_element
-                name: (identifier) @{FUNCTION_NAME}
-            )
-        )
-        (jsx_self_closing_element
-            name: (identifier) @{FUNCTION_NAME}
-        )
-    ]
-] @{FUNCTION_CALL}"
+                (call_expression
+                    function: [
+                        (identifier) @{FUNCTION_NAME}
+                        (member_expression
+                            object: (identifier) @{OPERAND}
+                            property: (property_identifier) @{FUNCTION_NAME}
+                        )
+                    ]
+                )
+                [
+                    (jsx_element
+                        open_tag: (jsx_opening_element
+                            name: (identifier) @{FUNCTION_NAME}
+                        )
+                    )
+                    (jsx_self_closing_element
+                        name: (identifier) @{FUNCTION_NAME}
+                    )
+                ]
+            ] @{FUNCTION_CALL}"
         )
     }
     fn add_endpoint_verb(&self, inst: &mut NodeData, call: &Option<String>) {
@@ -289,60 +289,60 @@ impl Stack for ReactTs {
     fn page_query(&self) -> Option<String> {
         let component_attribute = format!(
             r#"(jsx_attribute
-                    (property_identifier) @header-attr (#eq? @header-attr "header")
-                    (jsx_expression
-                        (jsx_self_closing_element
-                            name: (identifier) @{PAGE_HEADER}
-                        )
+                (property_identifier) @header-attr (#eq? @header-attr "header")
+                (jsx_expression
+                    (jsx_self_closing_element
+                        name: (identifier) @{PAGE_HEADER}
                     )
-                )?"#
+                )
+            )?"#
         );
         Some(format!(
             r#"[
-    (jsx_self_closing_element
-        name: (
-            (identifier) @tag (#match? @tag "Route")
-        )
-        attribute: (jsx_attribute
-            (property_identifier) @path-attr (#eq? @path-attr "path")
-            (_) @{PAGE_PATHS}
-        )
-        attribute: (jsx_attribute
-            (property_identifier) @component-attr (#match? @component-attr "^component$|^element$")
-            (jsx_expression [
-                (identifier) @page-component
                 (jsx_self_closing_element
-                    (identifier) @page-component
+                    name: (
+                        (identifier) @tag (#match? @tag "Route")
+                    )
+                    attribute: (jsx_attribute
+                        (property_identifier) @path-attr (#eq? @path-attr "path")
+                        (_) @{PAGE_PATHS}
+                    )
+                    attribute: (jsx_attribute
+                        (property_identifier) @component-attr (#match? @component-attr "^component$|^element$")
+                        (jsx_expression [
+                            (identifier) @page-component
+                            (jsx_self_closing_element
+                                (identifier) @page-component
+                            )
+                        ])
+                    )?
                 )
-            ])
-        )?
-    )
-    (jsx_element
-        open_tag: (jsx_opening_element
-            name: (
-                (identifier) @tag (#match? @tag "Route")
-            )
-            (_)*   ; allow any children before
-            (jsx_attribute
-                (property_identifier) @path-attr (#eq? @path-attr "path")
-                (_) @{PAGE_PATHS}
-            )
-            (_)*   ; allow any children after
-        )
-        [
-            (jsx_element(jsx_opening_element
-                name: (identifier) @{PAGE_COMPONENT}
-                {component_attribute}
-            ) (jsx_self_closing_element
-                name: (identifier) @{PAGE_CHILD}
-            ))
-            (jsx_self_closing_element
-                name: (identifier) @{PAGE_COMPONENT}
-                {component_attribute}
-            )
-        ]
-    )
-] @{PAGE}"#
+                (jsx_element
+                    open_tag: (jsx_opening_element
+                        name: (
+                            (identifier) @tag (#match? @tag "Route")
+                        )
+                        (_)*   ; allow any children before
+                        (jsx_attribute
+                            (property_identifier) @path-attr (#eq? @path-attr "path")
+                            (_) @{PAGE_PATHS}
+                        )
+                        (_)*   ; allow any children after
+                    )
+                    [
+                        (jsx_element(jsx_opening_element
+                            name: (identifier) @{PAGE_COMPONENT}
+                            {component_attribute}
+                        ) (jsx_self_closing_element
+                            name: (identifier) @{PAGE_CHILD}
+                        ))
+                        (jsx_self_closing_element
+                            name: (identifier) @{PAGE_COMPONENT}
+                            {component_attribute}
+                        )
+                    ]
+                )
+            ] @{PAGE}"#
         ))
     }
     fn find_function_parent(

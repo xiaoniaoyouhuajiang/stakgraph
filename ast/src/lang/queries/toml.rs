@@ -50,7 +50,7 @@ impl Stack for Toml {
         format!(
             r#"(table
               (pair
-                (bare_key) @class_name
+                (bare_key) @{CLASS_NAME}
                 (inline_table
                   (pair
                     (bare_key) @class_key (#eq? @class_key "type")
@@ -65,7 +65,7 @@ impl Stack for Toml {
         format!(
             r#"(table
               (pair
-                (bare_key) @function_name
+                (bare_key) @{FUNCTION_NAME}
                 (inline_table
                   (pair
                     (bare_key) @function_key (#eq? @function_key "type")
@@ -81,7 +81,7 @@ impl Stack for Toml {
             r#"(pair
               (bare_key) @caller
               (array 
-                (string) @function_name
+                (string) @{FUNCTION_NAME}
               )
             ) @{FUNCTION_CALL}"#
         )

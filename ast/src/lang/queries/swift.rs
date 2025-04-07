@@ -98,9 +98,9 @@ impl Stack for Swift {
     fn request_finder(&self) -> Option<String> {
         Some(format!(
             r#"
-        (call_expression
-            (simple_identifier) @{REQUEST_CALL} (#match? @{REQUEST_CALL} "^createRequest$")
-        ) @{ROUTE}
+            (call_expression
+                (simple_identifier) @{REQUEST_CALL} (#match? @{REQUEST_CALL} "^createRequest$")
+            ) @{ROUTE}
         "#
         ))
     }
@@ -142,10 +142,10 @@ impl Stack for Swift {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
-        (class_declaration
-            (type_identifier) @{STRUCT_NAME}
-            (_)*
-        ) @{STRUCT}
+            (class_declaration
+                (type_identifier) @{STRUCT_NAME}
+                (_)*
+            ) @{STRUCT}
         "#
         ))
     }
@@ -160,10 +160,10 @@ impl Stack for Swift {
                 (identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
 
                 (call_expression
-                     (simple_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
+                    (simple_identifier) @{STRUCT_NAME} (#match? @{STRUCT_NAME} "^[A-Z].*")
                 )
 
-            ]@{STRUCT}
+                ]@{STRUCT}
             "#
         ))
     }
