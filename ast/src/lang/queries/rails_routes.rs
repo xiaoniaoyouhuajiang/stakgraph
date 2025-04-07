@@ -5,111 +5,111 @@ pub fn ruby_endpoint_finders_func() -> Vec<String> {
     // put 'request_center/:id', to: 'request_center#update'
     let verb_finder = format!(
         r#"(call
-    method: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
-    arguments: (argument_list
-        (string) @{ENDPOINT}
-        (pair
-            key: (hash_key_symbol) @to (#eq? @to "to")
-            value: (string) @{HANDLER}
-        )
-        (pair
-            key: (hash_key_symbol) @as (#eq? @as "as")
-            value: (simple_symbol) @{ENDPOINT_ALIAS}
-        )?
-        (pair
-            key: (hash_key_symbol) @action (#eq? @action "action")
-            value: (simple_symbol) @{ENDPOINT_ACTION}
-        )?
-    )
-) @{ROUTE}"#
+            method: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
+            arguments: (argument_list
+                (string) @{ENDPOINT}
+                (pair
+                    key: (hash_key_symbol) @to (#eq? @to "to")
+                    value: (string) @{HANDLER}
+                )
+                (pair
+                    key: (hash_key_symbol) @as (#eq? @as "as")
+                    value: (simple_symbol) @{ENDPOINT_ALIAS}
+                )?
+                (pair
+                    key: (hash_key_symbol) @action (#eq? @action "action")
+                    value: (simple_symbol) @{ENDPOINT_ACTION}
+                )?
+            )
+        ) @{ROUTE}"#
     );
     // resources :candidate_notes, only: %i[create update destroy]
     // !block after arguments: () will make this mutually exclusive with the collection_finder query
     let resources_finder = format!(
         r#"(call
-    method: (identifier) @resources (#eq? @resources "resources")
-        arguments: (argument_list
-            (simple_symbol) @{HANDLER}
-        (pair
-            key: (hash_key_symbol) @only (#eq? @only "only")
-            value: (array) @{HANDLER_ACTIONS_ARRAY}
-        )? 
-    )
-) @{ROUTE}"#
+            method: (identifier) @resources (#eq? @resources "resources")
+                arguments: (argument_list
+                    (simple_symbol) @{HANDLER}
+                (pair
+                    key: (hash_key_symbol) @only (#eq? @only "only")
+                    value: (array) @{HANDLER_ACTIONS_ARRAY}
+                )? 
+            )
+        ) @{ROUTE}"#
     );
     // resources :profiles do
     //     collection do
     //         post :enrich_profile
     let collection_finder = format!(
         r#"(call
-    method: (identifier) @resources (#eq? @resources "resources")
-    arguments: (argument_list
-        (simple_symbol) @{HANDLER}
-    )
-    block: (do_block
-        body: (body_statement
-            (call
-                method: (identifier) @extra-routes (#eq? @extra-routes "collection")
-                block: (do_block
-                    body: (body_statement
-                        (call
-                            method: (identifier) @{ENDPOINT_VERB}
-                            arguments: (argument_list) @{COLLECTION_ITEM}
+            method: (identifier) @resources (#eq? @resources "resources")
+            arguments: (argument_list
+                (simple_symbol) @{HANDLER}
+            )
+            block: (do_block
+                body: (body_statement
+                    (call
+                        method: (identifier) @extra-routes (#eq? @extra-routes "collection")
+                        block: (do_block
+                            body: (body_statement
+                                (call
+                                    method: (identifier) @{ENDPOINT_VERB}
+                                    arguments: (argument_list) @{COLLECTION_ITEM}
+                                )
+                            )
                         )
                     )
                 )
             )
-        )
-    )
-) @{ROUTE}"#
+        ) @{ROUTE}"#
     );
     // resources :profiles do
     //     member do
     //         post :enrich_profile
     let member_finder = format!(
         r#"(call
-    method: (identifier) @resources (#eq? @resources "resources")
-    arguments: (argument_list
-        (simple_symbol) @{HANDLER}
-    )
-    block: (do_block
-        body: (body_statement
-            (call
-                method: (identifier) @extra-routes (#eq? @extra-routes "member")
-                block: (do_block
-                    body: (body_statement
-                        (call
-                            method: (identifier) @{ENDPOINT_VERB}
-                            arguments: (argument_list) @{COLLECTION_ITEM}
+            method: (identifier) @resources (#eq? @resources "resources")
+            arguments: (argument_list
+                (simple_symbol) @{HANDLER}
+            )
+            block: (do_block
+                body: (body_statement
+                    (call
+                        method: (identifier) @extra-routes (#eq? @extra-routes "member")
+                        block: (do_block
+                            body: (body_statement
+                                (call
+                                    method: (identifier) @{ENDPOINT_VERB}
+                                    arguments: (argument_list) @{COLLECTION_ITEM}
+                                )
+                            )
                         )
                     )
                 )
-            )
-        )
-    )   
-) @{ROUTE}"#
+            )   
+        ) @{ROUTE}"#
     );
     // resources :intro_requests do
     //     post :create_from_public_page
     let do_finder = format!(
         r#"(call
-    method: (identifier) @resources (#eq? @resources "resources")
-    arguments: (argument_list
-        (simple_symbol) @{HANDLER}
-        (pair
-            key: (hash_key_symbol) @only (#eq? @only "only")
-            value: (array) @{HANDLER_ACTIONS_ARRAY}
-        )?
-    )
-    block: (do_block
-        body: (body_statement
-            (call
-                method: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
-                arguments: (argument_list) @{RESOURCE_ITEM}
+            method: (identifier) @resources (#eq? @resources "resources")
+            arguments: (argument_list
+                (simple_symbol) @{HANDLER}
+                (pair
+                    key: (hash_key_symbol) @only (#eq? @only "only")
+                    value: (array) @{HANDLER_ACTIONS_ARRAY}
+                )?
             )
-        )
-    )
-) @{ROUTE}"#
+            block: (do_block
+                body: (body_statement
+                    (call
+                        method: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
+                        arguments: (argument_list) @{RESOURCE_ITEM}
+                    )
+                )
+            )
+        ) @{ROUTE}"#
     );
     vec![
         verb_finder,

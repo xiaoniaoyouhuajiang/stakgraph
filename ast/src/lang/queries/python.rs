@@ -39,24 +39,24 @@ impl Stack for Python {
     fn imports_query(&self) -> Option<String> {
         Some(format!(
             "(module
-    [(import_statement)+ (import_from_statement)+] @{IMPORTS}
-)"
+                [(import_statement)+ (import_from_statement)+] @{IMPORTS}
+            )"
         ))
     }
     fn class_definition_query(&self) -> String {
         format!(
             "(class_definition
-    name: (identifier) @{CLASS_NAME}
-) @{CLASS_DEFINITION}"
+                name: (identifier) @{CLASS_NAME}
+            ) @{CLASS_DEFINITION}"
         )
     }
     // this captures both
     fn function_definition_query(&self) -> String {
         format!(
             "(function_definition
-    name: (identifier) @{FUNCTION_NAME}
-    parameters: (parameters) @{ARGUMENTS}
-) @{FUNCTION_DEFINITION}"
+                name: (identifier) @{FUNCTION_NAME}
+                parameters: (parameters) @{ARGUMENTS}
+            ) @{FUNCTION_DEFINITION}"
         )
     }
     fn find_function_parent(
@@ -90,13 +90,13 @@ impl Stack for Python {
     fn function_call_query(&self) -> String {
         format!(
             "(call
-    function: [
-        (identifier) @{FUNCTION_NAME}
-        (attribute object: (identifier) @{OPERAND}
-            attribute: (identifier) @{FUNCTION_NAME}
-        )
-    ]
-) @{FUNCTION_CALL}"
+                function: [
+                    (identifier) @{FUNCTION_NAME}
+                    (attribute object: (identifier) @{OPERAND}
+                        attribute: (identifier) @{FUNCTION_NAME}
+                    )
+                ]
+            ) @{FUNCTION_CALL}"
         )
     }
 
@@ -104,72 +104,72 @@ impl Stack for Python {
         vec![
             format!(
                 r#"(decorated_definition
-    (decorator
-        (call
-            function: (attribute
-                attribute: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
-            )
-            arguments: (argument_list
-                (string) @{ENDPOINT}
-            )
-       )
-    ) @{ROUTE}
-    definition: (function_definition
-        name: (identifier) @{HANDLER}
-    )
-)"#
+                    (decorator
+                        (call
+                            function: (attribute
+                                attribute: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "^get$|^post$|^put$|^delete$")
+                            )
+                            arguments: (argument_list
+                                (string) @{ENDPOINT}
+                            )
+                    )
+                    ) @{ROUTE}
+                    definition: (function_definition
+                        name: (identifier) @{HANDLER}
+                    )
+                )"#
             ),
             //Flask style
             format!(
                 r#"(decorated_definition
-    (decorator
-        (call
-            function: (attribute
-                object: (_)
-                attribute: (identifier) @route_func (#eq? @route_func "route")
-            )
-            arguments: (argument_list
-                (string) @{ENDPOINT}
-                .
-                (keyword_argument
-                    name: (identifier) @method_kw (#eq? @method_kw "methods")
-                    value: (list
-                        (string) @{ENDPOINT_VERB}
+                    (decorator
+                        (call
+                            function: (attribute
+                                object: (_)
+                                attribute: (identifier) @route_func (#eq? @route_func "route")
+                            )
+                            arguments: (argument_list
+                                (string) @{ENDPOINT}
+                                .
+                                (keyword_argument
+                                    name: (identifier) @method_kw (#eq? @method_kw "methods")
+                                    value: (list
+                                        (string) @{ENDPOINT_VERB}
+                                    )
+                                )?
+                            )
+                        )
+                    ) @{ROUTE}
+                    definition: (function_definition
+                        name: (identifier) @{HANDLER}
                     )
-                )?
-            )
-        )
-    ) @{ROUTE}
-    definition: (function_definition
-        name: (identifier) @{HANDLER}
-    )
-)"#
+                )"#
             ),
             format!(
                 r#"(assignment
-    (identifier) @url_patterns (#match? @url_patterns "^urlpatterns$")
-    (list
-        (call
-            (identifier) @path_func (#match? @path_func "^path$|^re_path$")
-            (argument_list
-                (string) @{ENDPOINT}
-                .
-                [
-                    (attribute
-                        (identifier)
-                        (identifier) @{HANDLER}
+                    (identifier) @url_patterns (#match? @url_patterns "^urlpatterns$")
+                    (list
+                        (call
+                            (identifier) @path_func (#match? @path_func "^path$|^re_path$")
+                            (argument_list
+                                (string) @{ENDPOINT}
+                                .
+                                [
+                                    (attribute
+                                        (identifier)
+                                        (identifier) @{HANDLER}
+                                    )
+                                    (identifier) @{HANDLER}
+                                ]
+                                .
+                                (keyword_argument
+                                    (identifier) @name_kw (#eq? @name_kw "name")
+                                    (string) @route_name
+                                )?
+                            )
+                        ) @{ROUTE}
                     )
-                    (identifier) @{HANDLER}
-                ]
-                .
-                (keyword_argument
-                    (identifier) @name_kw (#eq? @name_kw "name")
-                    (string) @route_name
-                )?
-            )
-        ) @{ROUTE}
-    )
-)"#
+                )"#
             ),
         ]
     }
@@ -177,8 +177,8 @@ impl Stack for Python {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             "(class_definition
-    name: (identifier) @{STRUCT_NAME}
-) @{STRUCT}"
+                name: (identifier) @{STRUCT_NAME}
+             ) @{STRUCT}"
         ))
     }
 

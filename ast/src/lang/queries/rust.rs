@@ -97,21 +97,21 @@ impl Stack for Rust {
         format!(
             r#"
                 (call_expression
-        function: [
-            (identifier) @FUNCTION_NAME
-            ;; module method
-            (scoped_identifier
-                path: (identifier) @PARENT_NAME
-                name: (identifier) @FUNCTION_NAME
-            )
-            ;; chained call
-            (field_expression
-                field: (field_identifier) @FUNCTION_NAME
-            )
-        ]
-                arguments: (arguments) @ARGUMENTS
-            ) @FUNCTION_CALL
-            "#
+                    function: [
+                        (identifier) @FUNCTION_NAME
+                        ;; module method
+                        (scoped_identifier
+                            path: (identifier) @PARENT_NAME
+                            name: (identifier) @FUNCTION_NAME
+                        )
+                        ;; chained call
+                        (field_expression
+                            field: (field_identifier) @FUNCTION_NAME
+                        )
+                    ]
+                    arguments: (arguments) @ARGUMENTS
+                ) @FUNCTION_CALL
+                "#
         )
     }
 
@@ -119,31 +119,31 @@ impl Stack for Rust {
         vec![
             format!(
                 r#"
-        (call_expression
-            (arguments
-                (string_literal) @endpoint
                 (call_expression
-                    function: (identifier) @verb (#match? @verb "^get$|^post$|^put$|^delete$")
-                    arguments: (arguments
-                        (identifier) @handler
+                    (arguments
+                        (string_literal) @endpoint
+                        (call_expression
+                            function: (identifier) @verb (#match? @verb "^get$|^post$|^put$|^delete$")
+                            arguments: (arguments
+                                (identifier) @handler
+                            )
+                        )
                     )
-                )
-            )
-        ) @route
+                ) @route
                 "#
             ),
             // Method-specific routes (.get("/path", handler))
             format!(
                 r#"
-        (call_expression
-            function: (field_expression
-                field: (field_identifier) @http_method (#match? @http_method "^get$|^post$|^put$|^delete$")
-            )
-            arguments: (arguments
-                (string_literal) @endpoint
-                (identifier) @handler
-            )
-        ) @direct_method_route
+                (call_expression
+                    function: (field_expression
+                        field: (field_identifier) @http_method (#match? @http_method "^get$|^post$|^put$|^delete$")
+                    )
+                    arguments: (arguments
+                        (string_literal) @endpoint
+                        (identifier) @handler
+                    )
+                ) @direct_method_route
         "#
             ),
             // Nested routes (.nest("/base", Router...))
@@ -164,18 +164,18 @@ impl Stack for Rust {
             format!(
                 r#"
                  (
-                (attribute_item
-                    (attribute
-                    (identifier) @http_method (#match? @http_method "^get$|^post$|^put$|^delete$")
-                    arguments: (token_tree
-                        (string_literal) @endpoint . (_)*
+                    (attribute_item
+                        (attribute
+                        (identifier) @http_method (#match? @http_method "^get$|^post$|^put$|^delete$")
+                        arguments: (token_tree
+                            (string_literal) @endpoint . (_)*
+                        )
+                        )
                     )
+                    .
+                    (function_item
+                        name: (identifier) @handler
                     )
-                )
-                .
-                (function_item
-                    name: (identifier) @handler
-                )
                 ) @route_with_handler
             "#,
             ),
@@ -243,7 +243,8 @@ impl Stack for Rust {
             endpoint.add_verb("GET");
         }
     }
-    fn clean_graph(&self, graph: &mut ArrayGraph) -> bool {
-        filter_out_classes_without_methods(graph)
+
+    fn clean_graph(&self, callback: &mut dyn FnMut(NodeType, NodeType, &str)) {
+        callback(NodeType::Class, NodeType::Function, "operand");
     }
 }

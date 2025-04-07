@@ -1,9 +1,8 @@
 use anyhow::Result;
+use ast::utils::logger;
 use ast::Lang;
 use ast::{self, repo::Repo};
 use lsp::language;
-use ast::utils::logger;
-
 /*
 FILE=routes.rb cargo run --example file
 FILE=db/schema.rb cargo run --example file

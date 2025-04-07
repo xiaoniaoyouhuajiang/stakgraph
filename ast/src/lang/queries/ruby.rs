@@ -12,6 +12,8 @@ use tree_sitter::{Language, Parser, Query, Tree};
 
 pub struct Ruby(Language);
 
+const CONTROLLER_FILE_SUFFIX: &str = "_controller.rb";
+
 impl Ruby {
     pub fn new() -> Self {
         Ruby(tree_sitter_ruby::LANGUAGE.into())
@@ -30,66 +32,66 @@ impl Stack for Ruby {
     fn lib_query(&self) -> Option<String> {
         Some(format!(
             r#"(call
-    method: (identifier) @gem (#eq? @gem "gem")
-    arguments: (argument_list
-        . (string) @{LIBRARY_NAME}
-        (string)? @{LIBRARY_VERSION}
-    )
-) @{LIBRARY}"#
+                method: (identifier) @gem (#eq? @gem "gem")
+                arguments: (argument_list
+                    . (string) @{LIBRARY_NAME}
+                    (string)? @{LIBRARY_VERSION}
+                )
+            ) @{LIBRARY}"#
         ))
     }
     fn class_definition_query(&self) -> String {
         format!(
             r#"[
-    (class
-        name: [
-            (constant)
-            (scope_resolution)
-        ] @{CLASS_NAME}
-        (superclass
-            (constant) @{CLASS_PARENT}
-        )?
-        (body_statement
-            (call
-                method: (identifier) @call (#eq? @call "include")
-                arguments: (argument_list) @{INCLUDED_MODULES}
-            )
-        )?
-    )
-    (module
-        name: [
-            (constant)
-            (scope_resolution)
-        ] @{CLASS_NAME}
-    )
-] @{CLASS_DEFINITION}"#
+                (class
+                    name: [
+                        (constant)
+                        (scope_resolution)
+                    ] @{CLASS_NAME}
+                    (superclass
+                        (constant) @{CLASS_PARENT}
+                    )?
+                    (body_statement
+                        (call
+                            method: (identifier) @call (#eq? @call "include")
+                            arguments: (argument_list) @{INCLUDED_MODULES}
+                        )
+                    )?
+                )
+                (module
+                    name: [
+                        (constant)
+                        (scope_resolution)
+                    ] @{CLASS_NAME}
+                )
+            ] @{CLASS_DEFINITION}"#
         )
     }
     fn function_definition_query(&self) -> String {
         format!(
             "[
-    (method
-        name: (identifier) @{FUNCTION_NAME}
-        parameters: (method_parameters)? @{ARGUMENTS}
-    )
-    (singleton_method
-        name: (identifier) @{FUNCTION_NAME}
-        parameters: (method_parameters)? @{ARGUMENTS}
-    )
-] @{FUNCTION_DEFINITION}"
+                (method
+                    name: (identifier) @{FUNCTION_NAME}
+                    parameters: (method_parameters)? @{ARGUMENTS}
+                )
+                (singleton_method
+                    name: (identifier) @{FUNCTION_NAME}
+                    parameters: (method_parameters)? @{ARGUMENTS}
+                )
+            ] @{FUNCTION_DEFINITION}"
         )
     }
     fn function_call_query(&self) -> String {
         format!(
             "(call
-    receiver: [
-        (identifier)
-        (constant)
-        (call)
-    ] @{OPERAND}
-    method: (identifier) @{FUNCTION_NAME}
-    arguments: (argument_list) @{ARGUMENTS}
-) @{FUNCTION_CALL}"
+                receiver: [
+                    (identifier)
+                    (constant)
+                    (call)
+                ] @{OPERAND}
+                method: (identifier) @{FUNCTION_NAME}
+                arguments: (argument_list) @{ARGUMENTS}
+            ) @{FUNCTION_CALL}"
         )
     }
     fn endpoint_finders(&self) -> Vec<String> {
@@ -135,29 +137,29 @@ impl Stack for Ruby {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"(call
-    receiver: [
-        (element_reference
-            object: (scope_resolution
-                scope: (constant) @scope (#eq? @scope "ActiveRecord")
-                name: (constant) @name (#eq? @name "Schema")
-            )
-        )
-        (scope_resolution
-            scope: (constant) @scope (#eq? @scope "ActiveRecord")
-            name: (constant) @name (#eq? @name "Schema")
-        )
-    ]
-    block: (do_block
-        body: (body_statement
-            (call
-                method: (identifier) @create (#eq? @create "create_table")
-                arguments: (argument_list
-                    (string) @{STRUCT_NAME}
+            receiver: [
+                (element_reference
+                    object: (scope_resolution
+                        scope: (constant) @scope (#eq? @scope "ActiveRecord")
+                        name: (constant) @name (#eq? @name "Schema")
+                    )
                 )
-            ) @{STRUCT}
-        )
-    )
-    )"#
+                (scope_resolution
+                    scope: (constant) @scope (#eq? @scope "ActiveRecord")
+                    name: (constant) @name (#eq? @name "Schema")
+                )
+            ]
+            block: (do_block
+                body: (body_statement
+                    (call
+                        method: (identifier) @create (#eq? @create "create_table")
+                        arguments: (argument_list
+                            (string) @{STRUCT_NAME}
+                        )
+                    ) @{STRUCT}
+                )
+            )
+            )"#
         ))
     }
     fn data_model_path_filter(&self) -> Option<String> {
@@ -166,12 +168,18 @@ impl Stack for Ruby {
     fn use_data_model_within_finder(&self) -> bool {
         true
     }
-    fn data_model_within_finder(&self, data_model: &NodeData, graph: &ArrayGraph) -> Vec<Edge> {
+    fn data_model_within_finder(
+        &self,
+        data_model: &NodeData,
+        find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
+    ) -> Vec<Edge> {
         // file: app/controllers/api/advisor_groups_controller.rb
         let mut models = Vec::new();
-        let singular_name = data_model.name.to_lowercase();
-        let plural_name = inflection::pluralize(&singular_name);
-        let funcs = graph.find_funcs_by(|f| is_controller(&f, &plural_name));
+
+        println!("{}{}", &data_model.name, CONTROLLER_FILE_SUFFIX);
+
+        let funcs = find_fns_in(format!("{}{}", &data_model.name, CONTROLLER_FILE_SUFFIX).as_str());
+
         for func in funcs {
             models.push(Edge::contains(
                 NodeType::Function,
@@ -180,6 +188,7 @@ impl Stack for Ruby {
                 data_model,
             ));
         }
+
         // without: Returning Graph with 12726 nodes and 13283 edges
         // if edge:Handler with source.node_data.name == name, then the target -> Contains this data model
         // "advisor_groups"
@@ -207,7 +216,7 @@ impl Stack for Ruby {
         if endpoint.meta.get("handler").is_none() {
             return Vec::new();
         }
-        const CONTROLLER_FILE_SUFFIX: &str = "_controller.rb";
+
         let handler_string = endpoint.meta.get("handler").unwrap();
         // tracing::info!("handler_finder: {} {:?}", handler_string, params);
         let mut explicit_path = false;
@@ -356,20 +365,20 @@ impl Stack for Ruby {
     fn integration_test_query(&self) -> Option<String> {
         Some(format!(
             r#"(call
-    method: (identifier) @describe (#eq? @describe "describe")
-    arguments: [
-        (argument_list
-            [
-                (constant)
-                (scope_resolution)
-            ] @{HANDLER}
-        )
-        (argument_list
-            (string) @{E2E_TEST_NAME}
-            (pair) @js-true (#eq? @js-true "js: true")
-        )
-    ]
-) @{INTEGRATION_TEST}"#
+                method: (identifier) @describe (#eq? @describe "describe")
+                arguments: [
+                    (argument_list
+                        [
+                            (constant)
+                            (scope_resolution)
+                        ] @{HANDLER}
+                    )
+                    (argument_list
+                        (string) @{E2E_TEST_NAME}
+                        (pair) @js-true (#eq? @js-true "js: true")
+                    )
+                ]
+            ) @{INTEGRATION_TEST}"#
         ))
     }
     fn use_integration_test_finder(&self) -> bool {
@@ -406,7 +415,11 @@ impl Stack for Ruby {
         let is_view = file_name.contains("/views/");
         is_view && is_good_ext && !is_underscore
     }
-    fn extra_page_finder(&self, file_path: &str, graph: &ArrayGraph) -> Option<Edge> {
+    fn extra_page_finder(
+        &self,
+        file_path: &str,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+    ) -> Option<Edge> {
         let pagename = get_page_name(file_path);
         if pagename.is_none() {
             return None;
@@ -418,8 +431,10 @@ impl Stack for Ruby {
         let func_name = remove_all_extensions(p);
         let controller_name = p.parent()?.file_name()?.to_str()?;
         // println!("func_name: {}, controller_name: {}", func_name, controller_name);
-        let handler =
-            graph.find_func_by(|nd| nd.name == func_name && is_controller(nd, controller_name));
+        let handler = find_fn(
+            &func_name,
+            &format!("{}{}", controller_name, CONTROLLER_FILE_SUFFIX),
+        );
         if let Some(handler) = handler {
             Some(Edge::renders(&page, &handler))
         } else {
@@ -456,6 +471,6 @@ fn trim_array_string(s: &str) -> String {
         .to_string()
 }
 
-fn is_controller(nd: &NodeData, controller: &str) -> bool {
-    nd.file.ends_with(&format!("{}_controller.rb", controller))
-}
+// fn is_controller(nd: &NodeData, controller: &str) -> bool {
+//     nd.file.ends_with(&format!("{}_controller.rb", controller))
+// }
