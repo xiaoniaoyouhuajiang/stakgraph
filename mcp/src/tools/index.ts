@@ -31,14 +31,14 @@ export interface Tool {
   inputSchema: Json;
 }
 
-function getTools(): Tool[] {
+function getTools(): HttpTool[] {
   return [
     search.SearchTool,
     get_nodes.GetNodesTool,
     get_map.GetMapTool,
     get_code.GetCodeTool,
     shortest_path.ShortestPathTool,
-  ];
+  ].map(fmtToolForHttp);
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -90,4 +90,19 @@ export function mcp_routes(app: express.Express) {
   app.get("/tools", (_, res) => {
     res.send(getTools());
   });
+}
+
+// not for mcp, for http tool schema
+export interface HttpTool {
+  name: string;
+  description: string;
+  input_schema: Json;
+}
+
+function fmtToolForHttp(tool: Tool): HttpTool {
+  return {
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.inputSchema,
+  };
 }
