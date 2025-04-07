@@ -25,18 +25,18 @@ impl Stack for Java {
     fn lib_query(&self) -> Option<String> {
         Some(format!(
             r#"
-                (package_declaration
-                    (scoped_identifier)@{LIBRARY}
-                )"#
+            (package_declaration
+                (scoped_identifier)@{LIBRARY}
+            )"#
         ))
     }
 
     fn imports_query(&self) -> Option<String> {
         Some(format!(
             r#"
-                (import_declaration
-                    (scoped_identifier)@{IMPORTS}
-                )"#
+            (import_declaration
+                (scoped_identifier)@{IMPORTS}
+            )"#
         ))
     }
 
@@ -62,26 +62,26 @@ impl Stack for Java {
     fn instance_definition_query(&self) -> Option<String> {
         Some(format!(
             r#"
-                (field_declaration
-                    (type_identifier) @{CLASS_NAME}
-                    (variable_declarator
-                        (identifier) @{INSTANCE_NAME}
-                    )
+            (field_declaration
+                (type_identifier) @{CLASS_NAME}
+                (variable_declarator
+                    (identifier) @{INSTANCE_NAME}
                 )
-                "#
+            )
+            "#
         ))
     }
     fn function_definition_query(&self) -> String {
         format!(
             r#"
-                (method_declaration
-					type: (_) @{RETURN_TYPES}
-                    name: (identifier) @{FUNCTION_NAME}                
-                    (formal_parameters
-                        (formal_parameter)@{ARGUMENTS}
-                    )?  
-                )@{FUNCTION_DEFINITION}
-                "#
+            (method_declaration
+                type: (_) @{RETURN_TYPES}
+                name: (identifier) @{FUNCTION_NAME}                
+                (formal_parameters
+                    (formal_parameter)@{ARGUMENTS}
+                )?  
+            )@{FUNCTION_DEFINITION}
+            "#
         )
     }
 
@@ -102,18 +102,18 @@ impl Stack for Java {
     fn endpoint_finders(&self) -> Vec<String> {
         vec![format!(
             r#"
-                    (method_declaration
-                        (modifiers
-                        (annotation
-                            name: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "GetMapping|PostMapping|PutMapping|DeleteMapping|RequestMapping|PatchMapping")
-                            arguments: (annotation_argument_list 
-                            (string_literal) @{ENDPOINT}
-                            )?
-                        )
-                        )
-                        name: (identifier) @{HANDLER}
-                    ) @{ROUTE}
-                "#
+            (method_declaration
+                (modifiers
+                (annotation
+                    name: (identifier) @{ENDPOINT_VERB} (#match? @{ENDPOINT_VERB} "GetMapping|PostMapping|PutMapping|DeleteMapping|RequestMapping|PatchMapping")
+                    arguments: (annotation_argument_list 
+                    (string_literal) @{ENDPOINT}
+                    )?
+                )
+                )
+                name: (identifier) @{HANDLER}
+            ) @{ROUTE}
+            "#
         )]
     }
 
