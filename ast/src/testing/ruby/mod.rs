@@ -42,7 +42,6 @@ async fn test_ruby() {
         .iter()
         .filter(|n| matches!(n.node_type, NodeType::Endpoint))
         .collect::<Vec<_>>();
-    println!("My endpoints:{:#?}", endpoints);
     assert_eq!(endpoints.len(), 6);
 
     let endpoint = endpoints[0].into_data();
@@ -66,7 +65,7 @@ async fn test_ruby() {
     assert_eq!(endpoint.meta.get("verb").unwrap(), "GET");
 
     let endpoint = endpoints[4].into_data();
-    assert_eq!(endpoint.name, "/people/articles");
+    assert_eq!(endpoint.name, "/people/:id/articles");
     assert_eq!(endpoint.file, "src/testing/ruby/config/routes.rb");
     assert_eq!(endpoint.meta.get("verb").unwrap(), "POST");
 
