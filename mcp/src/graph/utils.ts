@@ -33,7 +33,7 @@ export function nameFileOnly(node: Neo4jNode): { name: string; file: string } {
   };
 }
 
-export function getNodeLabel(node: any, tokenizer?: TikTokenizer) {
+export function getNodeLabel(node: any) {
   if (!node.labels) {
     console.log("Node has no labels:", node);
     throw new Error("Node has no labels");
@@ -41,14 +41,6 @@ export function getNodeLabel(node: any, tokenizer?: TikTokenizer) {
   let label = rightLabel(node);
   const props = node.properties;
   let name = props.name;
-  if (tokenizer) {
-    if (props.body) {
-      const tokens = tokenizer.encode(props.body, []);
-      name = `${name} (${tokens.length})`;
-    } else {
-      name = `${name} (0)`;
-    }
-  }
   if (props.verb) {
     return `${label}: ${props.verb} ${name}`;
   } else {

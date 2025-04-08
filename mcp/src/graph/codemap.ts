@@ -1,7 +1,6 @@
 import { Record } from "neo4j-driver";
 import { getNodeLabel } from "./utils.js";
-import { createByModelName } from "@microsoft/tiktokenizer";
-
+import { TikTokenizer } from "@microsoft/tiktokenizer";
 interface TreeNode {
   label: string;
   nodes: TreeNode[];
@@ -10,15 +9,21 @@ interface TreeNode {
 // list the edge types which are "parents" that we want shown as "children" in the tree
 const REVERSE_RELATIONSHIPS = ["OPERAND"];
 
+interface Tree {
+  root: TreeNode;
+  total_tokens: number;
+}
+
 export async function buildTree(
   record: Record,
-  direction: string = "down"
-): Promise<TreeNode> {
+  direction: string = "down",
+  tokenizer: TikTokenizer
+): Promise<Tree> {
   if (!record) {
     throw new Error("failed to get record");
   }
 
-  const tokenizer = await createByModelName("gpt-4");
+  let total_tokens = 0;
 
   // Extract data from the record
   const startNode = record.get("startNode");
@@ -79,7 +84,12 @@ export async function buildTree(
 
   // Create TreeNodes for all Neo4j nodes
   for (const [id, node] of nodeMap.entries()) {
-    const label = getNodeLabel(node, tokenizer);
+    let label = getNodeLabel(node);
+    if (node.properties?.body) {
+      const tokens = tokenizer.encode(node.properties.body, []);
+      total_tokens += tokens.length;
+      label = `${label} (${tokens.length})`;
+    }
     treeNodeMap.set(id, {
       label,
       nodes: [],
@@ -135,5 +145,6 @@ export async function buildTree(
     }
   }
 
-  return rootNode || { label: "Root not found", nodes: [] };
+  const root = rootNode || { label: "Root not found", nodes: [] };
+  return { root, total_tokens };
 }

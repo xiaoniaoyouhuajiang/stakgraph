@@ -4,6 +4,7 @@ import { buildTree } from "./codemap.js";
 import { extractNodesFromRecord } from "./codebody.js";
 import { Neo4jNode, NodeType } from "./types.js";
 import { nameFileOnly, toReturnNode, formatNode } from "./utils.js";
+import { createByModelName } from "@microsoft/tiktokenizer";
 
 export type SearchMethod = "vector" | "fulltext";
 
@@ -63,13 +64,19 @@ export async function get_subtree(p: MapParams) {
 export async function get_map(params: MapParams) {
   const record = await get_subtree(params);
   const pkg_files = await db.get_pkg_files();
-  const tree = await buildTree(record, params.direction);
-  const text = archy(tree);
+  const tokenizer = await createByModelName("gpt-4");
+  let total_tokens = 0;
+  const tree = await buildTree(record, params.direction, tokenizer);
+  const text = archy(tree.root);
+  total_tokens = tree.total_tokens;
   let html = `<pre>`;
   html += text;
   for (const file of pkg_files) {
-    html += `File: ${toNode(file, true).file}\n`;
+    const tokens = tokenizer.encode(file.properties.body || "", []);
+    total_tokens += tokens.length;
+    html += `File: ${toNode(file, true).file} (${tokens.length})\n`;
   }
+  html += `Total tokens: ${total_tokens}`;
   html += `<pre>`;
   return html;
 }
@@ -77,8 +84,10 @@ export async function get_map(params: MapParams) {
 export async function get_code(params: MapParams) {
   const record = await get_subtree(params);
   const pkg_files = await db.get_pkg_files();
+  const tokenizer = await createByModelName("gpt-4");
   const text = extractNodesFromRecord(record, pkg_files);
-  return text;
+  const tokens = tokenizer.encode(text, []);
+  return `Total tokens: ${tokens.length}\n\n${text}`;
 }
 
 function toSnippets(path: any) {
