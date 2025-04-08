@@ -80,7 +80,7 @@ pub fn ruby_endpoint_finders_func() -> Vec<String> {
                             body: (body_statement
                                 (call
                                     method: (identifier) @{ENDPOINT_VERB}
-                                    arguments: (argument_list) @{COLLECTION_ITEM}
+                                    arguments: (argument_list) @{MEMBER_ITEM}
                                 )
                             )
                         )
