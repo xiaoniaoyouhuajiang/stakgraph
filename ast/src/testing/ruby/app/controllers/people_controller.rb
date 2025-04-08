@@ -19,6 +19,32 @@ class PeopleController < ApplicationController
     end
   end
 
+  def destroy
+    deleted_person = PersonService.delete(params[:id])
+
+    if deleted_person.destroyed?
+      render json: { message: 'Person deleted successfully' }, status: :ok
+    else
+      render json: { error: "Person not found" }, status: :not_found
+    end
+  end
+
+  def articles
+    articles = Article.all
+    render json: articles, status: :ok
+  end
+
+  def create_article
+    person = Person.find(params[:id])
+    article = person.articles.build(article_params)
+
+    if article.save
+      render json: article, status: :created
+    else
+      render json: article.errors, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def person_params
