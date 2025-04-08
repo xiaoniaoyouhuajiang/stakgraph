@@ -87,6 +87,7 @@ interface MapParams {
   tests: boolean;
   depth: number;
   direction: G.Direction;
+  trim: string[];
 }
 
 function mapParams(req: Request): MapParams {
@@ -111,6 +112,7 @@ function mapParams(req: Request): MapParams {
     tests,
     depth,
     direction: direction || default_direction,
+    trim: ((req.query.trim as string) || "").split(","),
   };
 }
 

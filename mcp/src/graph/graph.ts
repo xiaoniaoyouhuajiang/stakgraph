@@ -47,6 +47,7 @@ export interface MapParams {
   tests: boolean;
   depth: number;
   direction: Direction;
+  trim: string[];
 }
 
 export async function get_subtree(p: MapParams) {
@@ -56,7 +57,8 @@ export async function get_subtree(p: MapParams) {
     p.ref_id,
     p.tests,
     p.depth,
-    p.direction
+    p.direction,
+    p.trim
   );
   return r.records[0];
 }

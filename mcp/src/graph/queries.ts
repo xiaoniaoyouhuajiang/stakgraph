@@ -120,10 +120,11 @@ WITH $node_label AS nodeLabel,
      $ref_id as refId,
      $direction as direction,
      $label_filter as labelFilter,
-     $depth as depth
+     $depth as depth,
+     $trim as trim
 
 // Determine the relationshipFilter based on the direction parameter
-WITH nodeLabel, nodeName, refId, labelFilter, depth,
+WITH nodeLabel, nodeName, refId, labelFilter, depth, trim,
      CASE direction
         WHEN "down" THEN "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND"
         WHEN "up" THEN "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND"
@@ -142,7 +143,7 @@ WITH CASE
        WHEN fByRefId IS NOT NULL THEN fByRefId
        ELSE fByName
      END AS f,
-     relationshipFilter, labelFilter, depth
+     relationshipFilter, labelFilter, depth, trim
 WHERE f IS NOT NULL
 
 // Now use the dynamically determined relationshipFilter
@@ -157,24 +158,32 @@ YIELD path
 
 WITH f as startNode,
      COLLECT(DISTINCT path) AS paths,
-     COLLECT(DISTINCT [n IN nodes(path) | n]) AS allPathNodes
+     trim
 
+// Filter out trimmed nodes from collected paths
 UNWIND paths AS path
-UNWIND relationships(path) AS rel
+WITH startNode, path, trim
+WHERE NONE(n IN nodes(path) WHERE n.name IN trim)
+
+// Collect the filtered paths and their nodes
 WITH startNode,
-     COLLECT(DISTINCT {
-        source: id(startNode(rel)),
-        target: id(endNode(rel)),
-        type: type(rel),
-        properties: properties(rel)
-     }) AS relationships,
-     allPathNodes
+     COLLECT(DISTINCT path) AS filteredPaths,
+     trim
 
-UNWIND allPathNodes AS pathNodes
-UNWIND pathNodes AS node
-WITH startNode, relationships, COLLECT(DISTINCT node) AS allNodes
+UNWIND filteredPaths AS path
+UNWIND nodes(path) AS node
+WITH startNode, filteredPaths, trim, COLLECT(DISTINCT node) AS allNodes
 
-WITH startNode, relationships, allNodes,
+UNWIND filteredPaths AS path
+UNWIND relationships(path) AS rel
+WITH startNode, allNodes, COLLECT(DISTINCT {
+    source: id(startNode(rel)),
+    target: id(endNode(rel)),
+    type: type(rel),
+    properties: properties(rel)
+}) AS relationships, trim
+
+WITH startNode, allNodes, relationships,
      [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
 MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames

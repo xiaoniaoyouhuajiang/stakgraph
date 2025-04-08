@@ -11,6 +11,7 @@ export function toMapParams(args: z.infer<typeof GetMapSchema>): G.MapParams {
     tests: args.tests ?? false,
     depth: args.depth ?? 10,
     direction: (args.direction || "down") as G.Direction,
+    trim: args.trim?.split(",") || [],
   };
 }
 
@@ -35,6 +36,10 @@ export const GetMapSchema = z.object({
     .enum(["up", "down"] as const)
     .optional()
     .describe("Direction of relationships to traverse."),
+  trim: z
+    .string()
+    .optional()
+    .describe("Nodes to trim by name (comma separated list)."),
 });
 
 export const GetMapTool: Tool = {

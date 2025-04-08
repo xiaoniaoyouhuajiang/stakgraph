@@ -99,7 +99,8 @@ class Db {
     ref_id: string,
     include_tests: boolean,
     depth: number,
-    direction: Direction
+    direction: Direction,
+    trim: string[]
   ) {
     const disclude: NodeType[] = ["File", "Directory", "Repository"];
     if (include_tests === false) {
@@ -116,6 +117,7 @@ class Db {
         depth,
         direction,
         label_filter,
+        trim,
       });
     } finally {
       await session.close();

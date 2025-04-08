@@ -133,6 +133,13 @@ paths:
             type: string
             enum: [up, down]
             default: down
+        - name: trim
+          in: query
+          required: false
+          description: Nodes to trim by name (comma separated list)
+          schema:
+            type: string
+            example: "MainStore"
       responses:
         "200":
           description: HTML representation of the code map
@@ -191,6 +198,13 @@ paths:
             type: string
             enum: [up, down]
             default: down
+        - name: trim
+          in: query
+          required: false
+          description: Nodes to trim by name (comma separated list)
+          schema:
+            type: string
+            example: "MainStore"
       responses:
         "200":
           description: HTML representation of the code snippets
