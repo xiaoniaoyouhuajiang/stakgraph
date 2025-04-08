@@ -15,7 +15,7 @@
 export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
 export OUTPUT_FORMAT=jsonl
 export OUTPUT_NAME=tribes
-cargo run --bin urls
+cargo run --bin index
 
 ### load data into neo4j (in this dir)
 

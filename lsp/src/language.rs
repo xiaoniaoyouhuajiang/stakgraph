@@ -129,6 +129,11 @@ impl Language {
     }
 
     pub fn default_do_lsp(&self) -> bool {
+        if let Ok(use_lsp) = std::env::var("USE_LSP") {
+            if use_lsp == "false" || use_lsp == "0" {
+                return false;
+            }
+        }
         match self {
             Self::Rust => true,
             Self::Go => true,

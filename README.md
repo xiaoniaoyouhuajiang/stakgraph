@@ -10,7 +10,7 @@ Example of parsing [sphinx-tribes](https://github.com/stakwork/demo-repo) and [s
 
 ```bash
 export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
-cargo run --bin urls
+cargo run --bin index
 ```
 
 [ingest some data](https://github.com/stakwork/stakgraph/wiki/Ingest-some-data)

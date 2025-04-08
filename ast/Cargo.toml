@@ -90,5 +90,5 @@ name = "print_queries"
 path = "src/print_queries.rs"
 
 [[bin]]
-name = "urls"
-path = "src/urls.rs"
+name = "index"
+path = "src/index.rs"
