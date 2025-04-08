@@ -1,4 +1,4 @@
-use crate::lang::graph::{ArrayGraph, Node, NodeType};
+use crate::lang::graphs::{ArrayGraph, Node, NodeType};
 use crate::lang::Lang;
 use crate::repo::Repo;
 use anyhow::Context;

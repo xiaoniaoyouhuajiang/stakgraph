@@ -3,10 +3,7 @@ use crate::lang::{Function, FunctionCall};
 use anyhow::Result;
 use std::fmt::Debug;
 
-use super::{
-    asg::{NodeData, NodeKeys},
-    graph::EdgeType,
-};
+use super::{EdgeType, NodeData, NodeKeys};
 
 pub trait Graph: Default + Debug {
     fn new() -> Self

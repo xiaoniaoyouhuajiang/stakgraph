@@ -1,6 +1,5 @@
 pub mod asg;
-pub mod graph;
-pub mod graph_trait;
+pub mod graphs;
 pub mod linker;
 pub mod parse;
 pub mod queries;
@@ -8,9 +7,7 @@ pub mod queries;
 use anyhow::{Context, Result};
 use asg::*;
 use consts::*;
-use graph::*;
-pub use graph::{ArrayGraph, NodeType};
-use graph_trait::Graph;
+pub use graphs::*;
 use lsp::{CmdSender, Language};
 use queries::*;
 use std::fmt;

@@ -1,4 +1,4 @@
-use super::{graph_trait::Graph, *};
+use super::{graphs::Graph, *};
 use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
 use streaming_iterator::StreamingIterator;

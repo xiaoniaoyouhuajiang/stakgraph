@@ -1,4 +1,4 @@
-use crate::lang::graph_trait::Graph;
+use crate::lang::graphs::Graph;
 use crate::lang::{linker, ArrayGraph, Lang};
 use anyhow::{anyhow, Context, Result};
 use git_url_parse::GitUrl;

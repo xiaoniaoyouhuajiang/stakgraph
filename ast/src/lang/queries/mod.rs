@@ -17,7 +17,7 @@ pub mod toml;
 pub mod typescript;
 
 use crate::lang::asg::Operand;
-use crate::lang::graph::Edge;
+use crate::lang::graphs::Edge;
 use crate::lang::{Function, NodeData, NodeType};
 use anyhow::Result;
 use lsp::Language as LspLanguage;

@@ -243,3 +243,10 @@ impl ToString for UniqueKey {
         s
     }
 }
+
+impl ToString for Operand {
+    fn to_string(&self) -> String {
+        let s = format!("{:?}", self.source.name);
+        s //Given that the source is a class
+    }
+}
