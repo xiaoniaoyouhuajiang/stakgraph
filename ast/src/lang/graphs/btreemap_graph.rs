@@ -1,4 +1,5 @@
 use super::{graph::Graph, *};
+use crate::lang::linker::normalize_backend_path;
 use crate::lang::{Function, FunctionCall, Lang};
 use crate::utils::create_node_key;
 use anyhow::Result;
@@ -642,5 +643,89 @@ impl Default for BTreeMapGraph {
             nodes: BTreeMap::new(),
             edges: BTreeMap::new(),
         }
+    }
+}
+
+impl BTreeMapGraph {
+    pub fn file_data(&self, filename: &str) -> Option<NodeData> {
+        let prefix = format!("{:?}-", NodeType::File);
+        self.nodes
+            .range(prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&prefix))
+            .find(|(_, n)| n.node_data.file == filename)
+            .map(|n| n.1.node_data.clone())
+    }
+
+    pub fn find_languages(&self) -> Vec<Node> {
+        let prefix = format!("{:?}-", NodeType::Language);
+        self.nodes
+            .range(prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&prefix))
+            .map(|(_, node)| node.clone())
+            .collect()
+    }
+
+    pub fn find_specific_endpoints(&self, verb: &str, path: &str) -> Option<Node> {
+        let prefix = format!("{:?}-", NodeType::Endpoint);
+        self.nodes
+            .range(prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&prefix))
+            .find(|(_, node)| {
+                if node.node_type == NodeType::Endpoint {
+                    let normalized_actual_path =
+                        normalize_backend_path(&node.node_data.name).unwrap_or_default();
+
+                    let actual_verb = match node.node_data.meta.get("verb") {
+                        Some(v) => v.trim_matches('\''),
+                        None => "",
+                    };
+
+                    normalized_actual_path == path
+                        && actual_verb.to_uppercase() == verb.to_uppercase()
+                } else {
+                    false
+                }
+            })
+            .map(|(_, node)| node.clone())
+    }
+    pub fn find_target_by_edge_type(&self, source: &Node, edge_type: EdgeType) -> Option<Node> {
+        let source_key = create_node_key(source.clone());
+
+        // Find matching edge
+        self.edges
+            .iter()
+            .find(|((src, _), edge)| src == &source_key && **edge == edge_type)
+            .and_then(|((_, dst), _)| self.nodes.get(dst).cloned())
+    }
+    pub fn find_data_model_by<F>(&self, predicate: F) -> Option<NodeData>
+    where
+        F: Fn(&NodeData) -> bool,
+    {
+        let prefix = format!("{:?}-", NodeType::DataModel);
+        self.nodes
+            .range(prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&prefix))
+            .find(|(_, node)| predicate(&node.node_data))
+            .map(|(_, node)| node.node_data.clone())
+    }
+    pub fn find_functions_called_by_handler(&self, handler: &Node) -> Vec<Node> {
+        let handler_key = create_node_key(handler.clone());
+        let mut called_functions = Vec::new();
+
+        // Get all edges starting with the handler key
+        let prefix = handler_key.clone();
+        for ((_src, dst), edge_type) in self
+            .edges
+            .range((prefix.clone(), String::new())..)
+            .take_while(|((src, _), _)| src == &prefix)
+        {
+            if let EdgeType::Calls(_) = edge_type {
+                if let Some(node) = self.nodes.get(dst) {
+                    called_functions.push(node.clone());
+                }
+            }
+        }
+
+        called_functions
     }
 }
