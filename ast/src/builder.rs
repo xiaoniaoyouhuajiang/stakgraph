@@ -1,7 +1,7 @@
 use super::repo::{check_revs_files, Repo};
-use crate::lang::graph_trait::Graph;
+use crate::lang::graphs::Graph;
 use crate::lang::ArrayGraph;
-use crate::lang::{asg::NodeData, graph::NodeType};
+use crate::lang::{asg::NodeData, graphs::NodeType};
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};

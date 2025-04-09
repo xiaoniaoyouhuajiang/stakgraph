@@ -1,4 +1,4 @@
-use crate::lang::graph::{EdgeType, NodeType};
+use crate::lang::graphs::{EdgeType, NodeType};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;

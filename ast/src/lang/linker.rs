@@ -1,4 +1,4 @@
-use crate::lang::graph::{ArrayGraph, NodeType};
+use crate::lang::graphs::{array_graph::ArrayGraph, NodeType};
 use crate::lang::{CallsMeta, Edge, Language, NodeData};
 use anyhow::{Context, Result};
 use lsp::language::PROGRAMMING_LANGUAGES;
@@ -221,7 +221,7 @@ fn paths_match(frontend_path: &str, backend_path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::graph::Node;
+    use crate::lang::graphs::Node;
 
     #[test]
     fn test_normalize_frontend_path() {

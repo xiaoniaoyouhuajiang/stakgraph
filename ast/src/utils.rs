@@ -1,4 +1,4 @@
-use crate::lang::ArrayGraph;
+use crate::lang::graphs::{ArrayGraph, Node};
 use anyhow::Result;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -32,4 +32,30 @@ pub fn logger() {
         .with_target(false)
         .with_env_filter(filter)
         .init();
+}
+
+pub fn create_node_key(node: Node) -> String {
+    let node_type = node.node_type.to_string();
+    let node_data = node.node_data;
+    let name = node_data.name;
+    let file = node_data.file;
+    let start = node_data.start.to_string();
+    let meta = node_data.meta;
+
+    let mut parts = vec![node_type, name, file, start];
+    if let Some(v) = meta.get("verb") {
+        parts.push(v.clone());
+    }
+
+    let sanitized_parts: Vec<String> = parts
+        .into_iter()
+        .map(|part| {
+            part.to_lowercase()
+                .trim()
+                .replace(char::is_whitespace, "")
+                .replace(|c: char| !c.is_alphanumeric(), "")
+        })
+        .collect();
+
+    sanitized_parts.join("-")
 }
