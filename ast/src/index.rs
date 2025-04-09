@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
 
     let name = env::var("OUTPUT_NAME").unwrap_or_else(|_| {
         repo_urls
-            .unwrap_or(repo_path.context("no REPO_PATH").unwrap())
+            .unwrap_or_else(|| repo_path.context("no REPO_PATH").unwrap())
             .split('/')
             .last()
             .unwrap()
