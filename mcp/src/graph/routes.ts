@@ -66,8 +66,20 @@ export async function search(req: Request, res: Response) {
       node_types = (req.query.node_types as string).split(",") as NodeType[];
     }
     const method = req.query.method as G.SearchMethod;
-    const result = await G.search(query, limit, node_types, concise, method);
-    res.json(result);
+    const output = req.query.output as G.OutputFormat;
+    const result = await G.search(
+      query,
+      limit,
+      node_types,
+      concise,
+      method,
+      output || "json"
+    );
+    if (output === "snippet") {
+      res.send(result);
+    } else {
+      res.json(result);
+    }
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");

@@ -20,20 +20,38 @@ export async function get_files(prefix: string, limit: number) {
   return result.map((f) => toNode(f, true));
 }
 
+export type OutputFormat = "json" | "snippet";
+
 export async function search(
   query: string,
   limit: number,
   node_types: NodeType[],
   concise: boolean,
-  method: SearchMethod = "fulltext"
+  method: SearchMethod = "fulltext",
+  output: OutputFormat = "json"
 ) {
   if (method === "vector") {
     const result = await db.vectorSearch(query, limit, node_types);
-    return result.map((f) => toNode(f, concise));
+    return toNodes(result, concise, output);
   } else {
     const result = await db.search(query, limit, node_types);
-    return result.map((f) => toNode(f, concise));
+    return toNodes(result, concise, output);
   }
+}
+
+export function toNodes(
+  result: Neo4jNode[],
+  concise: boolean,
+  output: OutputFormat = "json"
+) {
+  if (output === "snippet") {
+    let r = "";
+    for (const node of result) {
+      r += formatNode(node);
+    }
+    return r;
+  }
+  return result.map((f) => toNode(f, concise));
 }
 
 export function toNode(node: Neo4jNode, concise: boolean): any {
