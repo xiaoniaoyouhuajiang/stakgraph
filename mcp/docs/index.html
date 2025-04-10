@@ -16,6 +16,34 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/rust.min.js"></script>
     
     <style>
+        :root {
+            --text-color: #000000;
+            --bg-color: #ffffff;
+            --border-color: #cccccc;
+            --editor-bg: #ffffff;
+            --results-bg: #f9f9f9;
+            --tooltip-header-bg: #1e2329;
+            --tooltip-header-text: #b9c0c8;
+            --tooltip-header-border: #3e4451;
+            --tooltip-action-bg: #3e4451;
+            --tooltip-action-hover: #4e5563;
+            --close-btn-color: #b9c0c8;
+        }
+        
+        .dark-mode {
+            --text-color: #e8e6e3;
+            --bg-color: #181a1b;
+            --border-color: #736b5e;
+            --editor-bg: #181a1b;
+            --results-bg: #232627;
+            --tooltip-header-bg: #15171a;
+            --tooltip-header-text: #b9c0c8;
+            --tooltip-header-border: #2a2e39;
+            --tooltip-action-bg: #2a2e39;
+            --tooltip-action-hover: #3a3f4d;
+            --close-btn-color: #b9c0c8;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             display: flex;
@@ -24,6 +52,8 @@
             padding: 20px;
             height: 100vh;
             box-sizing: border-box;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
         
         .content-container {
@@ -37,7 +67,7 @@
         }
         
         #editor {
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             min-height: 300px;
             padding: 15px;
             outline: none;
@@ -45,24 +75,27 @@
             font-size: 16px;
             border-radius: 5px 0 0 5px;
             box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+            background-color: var(--editor-bg);
+            color: var(--text-color);
         }
         
         #results-pane {
             width: 150px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             border-left: none;
             border-radius: 0 5px 5px 0;
             padding: 10px;
             display: none;
             overflow-y: auto;
-            background-color: #f9f9f9;
+            background-color: var(--results-bg);
             height: calc(300px + 8px); /* Match editor height + its borders */
+            color: var(--text-color);
         }
         
         #results-pane h3 {
             margin-top: 0;
             font-size: 14px;
-            color: #555;
+            color: var(--text-color);
             margin-bottom: 10px;
             text-align: center;
         }
@@ -88,7 +121,7 @@
         }
         
         .result-item.selected {
-            outline: 2px solid white;
+            outline: 1px solid var(--border-color);
             transform: scale(1.07);
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
@@ -131,12 +164,12 @@
         
         /* File info banner */
         .file-info {
-            background-color: #1e2329;
-            color: #b9c0c8;
+            background-color: var(--tooltip-header-bg);
+            color: var(--tooltip-header-text);
             font-size: 12px;
             padding: 4px 8px;
             margin: -12px -12px -4px -12px;
-            border-bottom: 1px solid #3e4451;
+            border-bottom: 1px solid var(--tooltip-header-border);
             border-radius: 6px 6px 0 0;
             font-family: 'Segoe UI', system-ui, sans-serif;
             display: flex;
@@ -151,7 +184,7 @@
         }
         
         .file-info .file-type {
-            background-color: #3e4451;
+            background-color: var(--tooltip-action-bg);
             border-radius: 4px;
             padding: 0 6px;
             margin-left: 8px;
@@ -164,10 +197,10 @@
         /* Close button */
         .close-btn {
             cursor: pointer;
-            color: #b9c0c8;
+            color: var(--close-btn-color);
             font-size: 13px;
             font-weight: bold;
-            background: #3e4451;
+            background: var(--tooltip-action-bg);
             border-radius: 4px;
             width: 20px;
             height: 20px;
@@ -178,24 +211,24 @@
         }
         
         .close-btn:hover {
-            background-color: #4e5563;
+            background-color: var(--tooltip-action-hover);
         }
         
         .untag-btn {
             margin-left: 10px;
             margin-right: 2px;
             cursor: pointer;
-            background-color: #3e4451;
+            background-color: var(--tooltip-action-bg);
             border-radius: 4px;
             padding: 0 6px;
             font-size: 11px;
             line-height: 18px;
             height: 18px;
-            color: #b9c0c8;
+            color: var(--close-btn-color);
         }
         
         .untag-btn:hover {
-            background-color: #4e5563;
+            background-color: var(--tooltip-action-hover);
         }
         
         .actions {
@@ -221,6 +254,24 @@
             // return window.BASE_URL || "https://mcp.repo2graph.sphinx.chat";
             return "http://localhost:3000";
         }
+        
+        // Check for dark mode preference
+        function checkDarkMode() {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+        }
+        
+        // Initial check
+        checkDarkMode();
+        
+        // Listen for changes
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', checkDarkMode);
+        }
+        
         // Define colors for each NodeType (darker versions for better contrast with white text)
         const nodeTypeColors = {
             "Repository": "#2C5985", // Darker blue
@@ -303,7 +354,7 @@
                 } else {
                     hideResultsPane();
                 }
-            }, 200);
+            }, 222);
         }
 
         function handleKeydown(e) {
@@ -399,7 +450,7 @@
                     triggerStart = i;
                     triggerChar = text[i];
                     break;
-                } else if (!/[\w-]/.test(text[i])) {
+                } else if (!/[\w\.-]/.test(text[i])) { // Allow . and -
                     break;
                 }
             }
@@ -409,8 +460,8 @@
             // Extract the text without the trigger symbol
             const tagText = text.substring(triggerStart + 1, cursorPos);
             
-            // Return if valid
-            return tagText && /^[\w-]+$/.test(tagText) ? { text: tagText, trigger: triggerChar } : null;
+            // Return if valid . and -
+            return tagText && /^[\w\.-]+$/.test(tagText) ? { text: tagText, trigger: triggerChar } : null;
         }
 
         async function searchForTag(tag, trigger) {
@@ -543,7 +594,7 @@
                 if (text[i] === '#' || text[i] === '/' || text[i] === '@') {
                     hashStart = i;
                     break;
-                } else if (!/[\w-]/.test(text[i])) {
+                } else if (!/[\w\.-]/.test(text[i])) {
                     break;
                 }
             }
@@ -568,7 +619,12 @@
             tagSpan.className = 'tagged-text';
             tagSpan.style.color = color;
             tagSpan.style.fontWeight = 'bold';
-            tagSpan.textContent = `#${currentTag}`;
+            // FIXME: for Files, we should show the filename
+            if (result.node_type === 'File' && result.properties.name) {
+                tagSpan.textContent = `@${result.properties.name}`;
+            } else {
+                tagSpan.textContent = `${currentTrigger}${currentTag}`;
+            }
             tagSpan.dataset.body = result.properties.body || '';
             tagSpan.dataset.file = result.properties.file || '';
             tagSpan.dataset.nodeType = result.node_type;
