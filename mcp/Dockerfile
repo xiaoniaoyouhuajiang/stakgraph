@@ -20,6 +20,7 @@ RUN yarn
 COPY ./tsconfig.json ./tsconfig.json
 COPY ./src ./src
 COPY ./redoc-static.html ./redoc-static.html
+COPY ./textarea.html ./textarea.html
 
 # Build the application
 RUN yarn build

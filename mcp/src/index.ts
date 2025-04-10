@@ -10,8 +10,12 @@ import cors from "cors";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function swagger(_: Request, res: Response) {
+function swagger(_: Request, res: Response) {
   res.sendFile(path.join(__dirname, "../redoc-static.html"));
+}
+
+function textarea(_: Request, res: Response) {
+  res.sendFile(path.join(__dirname, "../textarea.html"));
 }
 
 const app = express();
@@ -21,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
 
 app.get("/", swagger);
-
+app.get("/textarea", textarea);
 mcp_routes(app);
 app.get("/schema", r.schema);
 app.get("/ontology", r.schema);
