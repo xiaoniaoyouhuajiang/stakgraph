@@ -450,38 +450,38 @@
             const text = textNode.textContent;
             const cursorPos = range.startOffset;
             
-            // Find the start of the trigger
-            let triggerStart = -1;
+            // Find the start of the hashtag
+            let hashStart = -1;
             for (let i = cursorPos - 1; i >= 0; i--) {
                 if (text[i] === '#' || text[i] === '/' || text[i] === '@') {
-                    triggerStart = i;
+                    hashStart = i;
                     break;
                 } else if (!/[\w-]/.test(text[i])) {
                     break;
                 }
             }
             
-            if (triggerStart === -1) return;
+            if (hashStart === -1) return;
             
             // Split text into before, tag, and after
-            const beforeText = text.substring(0, triggerStart);
+            const beforeText = text.substring(0, hashStart);
             const afterText = text.substring(cursorPos);
             
             // Create document fragment
             const fragment = document.createDocumentFragment();
             
-            // Add text before the trigger
+            // Add text before the hashtag
             if (beforeText) {
                 fragment.appendChild(document.createTextNode(beforeText));
             }
             
-            // Create styled span for the tag
+            // Create styled span for the hashtag
             const color = nodeTypeColors[result.node_type] || '#333';
             const tagSpan = document.createElement('span');
             tagSpan.className = 'tagged-text';
             tagSpan.style.color = color;
             tagSpan.style.fontWeight = 'bold';
-            tagSpan.textContent = `${currentTrigger}${currentTag}`;
+            tagSpan.textContent = `#${currentTag}`;
             tagSpan.dataset.body = result.properties.body || '';
             tagSpan.dataset.file = result.properties.file || '';
             tagSpan.dataset.nodeType = result.node_type;
@@ -490,22 +490,22 @@
             fragment.appendChild(tagSpan);
             
             // Create a separate text node for afterText
+            // If afterText is empty, use a zero-width space to ensure there's a valid cursor position
             const afterNode = document.createTextNode(afterText || '\u200B');
             fragment.appendChild(afterNode);
             
             // Replace the original text node with our new structure
             textNode.parentNode.replaceChild(fragment, textNode);
             
-            // Position cursor after the tag
+            // Position cursor at the beginning of the text after the tag
             const newRange = document.createRange();
-            newRange.setStartAfter(tagSpan);
+            newRange.setStartAfter(afterNode);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
             
             // Reset state
             currentTag = '';
-            currentTrigger = '';
             lastRange = null;
         }
 
