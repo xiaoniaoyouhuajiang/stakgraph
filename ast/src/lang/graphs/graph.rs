@@ -83,4 +83,16 @@ pub trait Graph: Default + Debug {
 
     //Specific
     fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData>;
+
+    fn find_data_model_nodes(&self, name: &str) -> Vec<NodeData>;
+    fn find_resource_nodes(&self, node_type: NodeType, verb: &str, path: &str) -> Vec<NodeData>;
+    fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData>;
+    fn check_direct_data_model_usage(&self, function_name: &str, data_model: &str) -> bool;
+    fn find_functions_called_by(&self, function: &NodeData) -> Vec<NodeData>;
+    fn check_indirect_data_model_usage(
+        &self,
+        function_name: &str,
+        data_model: &str,
+        visited: &mut Vec<String>,
+    ) -> bool;
 }

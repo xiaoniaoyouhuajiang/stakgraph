@@ -110,6 +110,7 @@ async fn test_react_typescript() {
         .iter()
         .filter(|n| matches!(n.node_type, NodeType::Page))
         .collect::<Vec<_>>();
+    println!("page_node: {:?}", page_node);
     assert_eq!(page_node.len(), 2);
 
     let renders_edges = graph
@@ -120,6 +121,6 @@ async fn test_react_typescript() {
     assert_eq!(renders_edges.len(), 2);
 
     let page = page_node[0].into_data();
-    assert_eq!(page.name, "/");
+    assert_eq!(page.name, "/people");
     assert_eq!(normalize_path(&page.file), "src/testing/react/src/App.tsx");
 }

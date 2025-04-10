@@ -450,6 +450,147 @@ impl Graph for ArrayGraph {
             edge.add_root(root);
         }
     }
+    fn find_data_model_nodes(&self, name: &str) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|n| n.node_type == NodeType::DataModel && n.node_data.name.contains(name))
+            .map(|n| n.node_data.clone())
+            .collect()
+    }
+
+    fn find_resource_nodes(&self, node_type: NodeType, verb: &str, path: &str) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|node| {
+                if node.node_type != node_type {
+                    return false;
+                }
+
+                let node_data = &node.node_data;
+                let normalized_path = normalize_backend_path(&node_data.name);
+
+                println!(
+                    "normalized_path: {:?} vs path: {}\n\n",
+                    normalized_path, path
+                );
+                let path_matches = normalized_path.map_or(false, |p| p.contains(path))
+                    || node_data.name.contains(path);
+                println!(
+                    "{} vs {} &  {} vs {:?}",
+                    path,
+                    node_data.name,
+                    verb,
+                    node_data.meta.get("verb")
+                );
+
+                let verb_matches = match node_data.meta.get("verb") {
+                    Some(node_verb) => node_verb.to_uppercase() == verb.to_uppercase(),
+                    None => true,
+                };
+
+                path_matches && verb_matches
+            })
+            .map(|node| node.node_data.clone())
+            .collect()
+    }
+    fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData> {
+        // double check if the endpoint is in the graph
+        let endpoint_node = self.nodes.iter().find(|n| {
+            n.node_type == NodeType::Endpoint
+                && n.node_data.name == endpoint.name
+                && n.node_data.file == endpoint.file
+        });
+
+        if let Some(endpoint_node) = endpoint_node {
+            self.edges
+                .iter()
+                .filter(|edge| {
+                    edge.edge == EdgeType::Handler
+                        && edge.source.node_data.name == endpoint_node.node_data.name
+                })
+                .filter_map(|edge| {
+                    self.nodes
+                        .iter()
+                        .find(|node| {
+                            node.node_type == NodeType::Function
+                                && node.node_data.name == edge.target.node_data.name
+                                && node.node_data.file == edge.target.node_data.file
+                        })
+                        .map(|node| node.node_data.clone())
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn check_direct_data_model_usage(&self, function_name: &str, data_model: &str) -> bool {
+        self.edges.iter().any(|edge| {
+            edge.edge == EdgeType::Contains
+                && edge.source.node_data.name == function_name
+                && edge.target.node_data.name.contains(data_model)
+        })
+    }
+
+    fn find_functions_called_by(&self, function: &NodeData) -> Vec<NodeData> {
+        let mut result = Vec::new();
+        for edge in &self.edges {
+            if let EdgeType::Calls(_) = edge.edge {
+                if edge.source.node_data.name == function.name
+                    && edge.source.node_data.file == function.file
+                {
+                    for node in &self.nodes {
+                        if node.node_type == NodeType::Function
+                            && node.node_data.name == edge.target.node_data.name
+                            && node.node_data.file == edge.target.node_data.file
+                        {
+                            result.push(node.node_data.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        result
+    }
+    fn check_indirect_data_model_usage(
+        &self,
+        function_name: &str,
+        data_model: &str,
+        visited: &mut Vec<String>,
+    ) -> bool {
+        if visited.contains(&function_name.to_string()) {
+            return false;
+        }
+        visited.push(function_name.to_string());
+
+        if self.check_direct_data_model_usage(function_name, data_model) {
+            return true;
+        }
+
+        let function_nodes: Vec<_> = self
+            .nodes
+            .iter()
+            .filter(|node| {
+                node.node_type == NodeType::Function && node.node_data.name == function_name
+            })
+            .collect();
+
+        if function_nodes.is_empty() {
+            return false;
+        }
+
+        let function_node = &function_nodes[0];
+
+        let called_functions = self.find_functions_called_by(&function_node.node_data);
+
+        for called_function in called_functions {
+            if self.check_indirect_data_model_usage(&called_function.name, data_model, visited) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl ArrayGraph {
@@ -460,7 +601,6 @@ impl ArrayGraph {
             errors: Vec::new(),
         }
     }
-
     pub fn file_data(&self, filename: &str) -> Option<NodeData> {
         self.nodes.iter().find_map(|n| {
             if n.node_type == NodeType::File && n.node_data.file == filename {
@@ -484,59 +624,6 @@ impl ArrayGraph {
             }
         }
         None
-    }
-
-    pub fn find_data_model_by<F>(&self, predicate: F) -> Option<NodeData>
-    where
-        F: Fn(&NodeData) -> bool,
-    {
-        let mut f = None;
-        for n in self.nodes.iter() {
-            if n.node_type == NodeType::DataModel {
-                if predicate(&n.node_data) {
-                    f = Some(n.node_data.clone());
-                    break;
-                }
-            }
-        }
-        f
-    }
-
-    pub fn find_languages(&self) -> Vec<Node> {
-        self.nodes
-            .iter()
-            .filter(|n| matches!(n.node_type, NodeType::Language))
-            .cloned()
-            .collect::<Vec<_>>()
-    }
-
-    pub fn find_specific_endpoints(&self, verb: &str, path: &str) -> Option<Node> {
-        let endpoints_nodes = self
-            .nodes
-            .iter()
-            .filter(|n| matches!(n.node_type, NodeType::Endpoint))
-            .cloned()
-            .collect::<Vec<_>>();
-
-        endpoints_nodes
-            .iter()
-            .find(|node| {
-                if node.node_type == NodeType::Endpoint {
-                    let normalized_actual_path =
-                        normalize_backend_path(&node.node_data.name).unwrap_or_default();
-
-                    let actual_verb = match node.node_data.meta.get("verb") {
-                        Some(v) => v.trim_matches('\''),
-                        None => "",
-                    };
-
-                    normalized_actual_path == path
-                        && actual_verb.to_uppercase() == verb.to_uppercase()
-                } else {
-                    false
-                }
-            })
-            .cloned()
     }
 
     pub fn find_target_by_edge_type(&self, source: &Node, edge_type: EdgeType) -> Option<Node> {

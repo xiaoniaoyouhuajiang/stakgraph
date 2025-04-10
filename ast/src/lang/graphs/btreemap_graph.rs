@@ -1,5 +1,4 @@
 use super::{graph::Graph, *};
-use crate::lang::linker::normalize_backend_path;
 use crate::lang::{Function, FunctionCall, Lang};
 use crate::utils::create_node_key;
 use anyhow::Result;
@@ -39,6 +38,22 @@ impl Graph for BTreeMapGraph {
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         let prefix = format!("{:?}-{}", node_type, name.to_lowercase());
+
+        //FIXME: Problem might be with building the graph.
+        // let new_prefix = "".to_string();
+        // let _value: Vec<_> = self
+        //     .nodes
+        //     .range(new_prefix.clone()..)
+        //     .take_while(|(k, n)| {
+        //         println!(
+        //             "key:  {:?} of node : {:?} : {:?}\n",
+        //             &k, &n.node_data.name, n.node_type
+        //         );
+        //         k.starts_with(&new_prefix)
+        //     })
+        //     .map(|(_, node)| node.node_data.clone())
+        //     .collect();
+
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
@@ -608,11 +623,138 @@ impl Graph for BTreeMapGraph {
             })
             .collect();
 
-        // Replace old nodes with updated ones
         for (key, node) in nodes_to_update {
             self.nodes.insert(key, node);
         }
-        //We do not need ot update the file path for the edges
+    }
+
+    fn find_data_model_nodes(&self, name: &str) -> Vec<NodeData> {
+        let prefix = format!("{:?}", NodeType::DataModel);
+        self.nodes
+            .range(prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&prefix) && k.contains(name))
+            .map(|(_, node)| node.node_data.clone())
+            .collect()
+    }
+
+    fn find_resource_nodes(&self, node_type: NodeType, verb: &str, path: &str) -> Vec<NodeData> {
+        let prefix = format!("{:?}-", node_type);
+
+        self.nodes
+            .range(prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&prefix))
+            .filter(|(_, node)| {
+                let node_data = &node.node_data;
+
+                // Check if path matches
+                let path_matches = node_data.name.contains(path);
+
+                // Check if verb matches (if present in metadata)
+                let verb_matches = match node_data.meta.get("verb") {
+                    Some(node_verb) => node_verb.to_uppercase() == verb.to_uppercase(),
+                    None => true, // If no verb in metadata, don't filter on it
+                };
+
+                path_matches && verb_matches
+            })
+            .map(|(_, node)| node.node_data.clone())
+            .collect()
+    }
+
+    fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData> {
+        let endpoint = Node::new(NodeType::Endpoint, endpoint.clone());
+        let endpoint_key = create_node_key(endpoint.clone());
+
+        let mut handlers = Vec::new();
+
+        for ((src, dst), edge_type) in &self.edges {
+            if *edge_type == EdgeType::Handler && src == &endpoint_key {
+                if let Some(node) = self.nodes.get(dst) {
+                    handlers.push(node.node_data.clone());
+                }
+            }
+        }
+
+        handlers
+    }
+
+    fn check_direct_data_model_usage(&self, function_name: &str, data_model: &str) -> bool {
+        for ((src_key, dst_key), edge_type) in &self.edges {
+            if *edge_type == EdgeType::Contains {
+                if let (Some(src_node), Some(dst_node)) =
+                    (self.nodes.get(src_key), self.nodes.get(dst_key))
+                {
+                    if src_node.node_data.name == function_name
+                        && dst_node.node_data.name.contains(data_model)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    fn find_functions_called_by(&self, function: &NodeData) -> Vec<NodeData> {
+        let function_prefix = format!(
+            "{:?}-{}-{}",
+            NodeType::Function,
+            function.name,
+            function.file
+        );
+        let mut called_functions = Vec::new();
+
+        for ((src, dst), edge_type) in &self.edges {
+            if let EdgeType::Calls(_) = edge_type {
+                if src.starts_with(&function_prefix) {
+                    if let Some(node) = self.nodes.get(dst) {
+                        called_functions.push(node.node_data.clone());
+                    }
+                }
+            }
+        }
+
+        called_functions
+    }
+
+    fn check_indirect_data_model_usage(
+        &self,
+        function_name: &str,
+        data_model: &str,
+        visited: &mut Vec<String>,
+    ) -> bool {
+        if visited.contains(&function_name.to_string()) {
+            return false;
+        }
+        visited.push(function_name.to_string());
+
+        if self.check_direct_data_model_usage(function_name, data_model) {
+            return true;
+        }
+
+        let function_prefix = format!("{:?}-{}", NodeType::Function, function_name);
+
+        let function_nodes: Vec<NodeData> = self
+            .nodes
+            .range(function_prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&function_prefix))
+            .map(|(_, node)| node.node_data.clone())
+            .collect();
+
+        if function_nodes.is_empty() {
+            return false;
+        }
+
+        let called_functions = self.find_functions_called_by(&function_nodes[0]);
+
+        for called_func in called_functions {
+            if self.check_indirect_data_model_usage(&called_func.name, data_model, visited) {
+                return true;
+            }
+        }
+
+        false
     }
 }
 impl BTreeMapGraph {
@@ -656,38 +798,6 @@ impl BTreeMapGraph {
             .map(|n| n.1.node_data.clone())
     }
 
-    pub fn find_languages(&self) -> Vec<Node> {
-        let prefix = format!("{:?}-", NodeType::Language);
-        self.nodes
-            .range(prefix.clone()..)
-            .take_while(|(k, _)| k.starts_with(&prefix))
-            .map(|(_, node)| node.clone())
-            .collect()
-    }
-
-    pub fn find_specific_endpoints(&self, verb: &str, path: &str) -> Option<Node> {
-        let prefix = format!("{:?}-", NodeType::Endpoint);
-        self.nodes
-            .range(prefix.clone()..)
-            .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, node)| {
-                if node.node_type == NodeType::Endpoint {
-                    let normalized_actual_path =
-                        normalize_backend_path(&node.node_data.name).unwrap_or_default();
-
-                    let actual_verb = match node.node_data.meta.get("verb") {
-                        Some(v) => v.trim_matches('\''),
-                        None => "",
-                    };
-
-                    normalized_actual_path == path
-                        && actual_verb.to_uppercase() == verb.to_uppercase()
-                } else {
-                    false
-                }
-            })
-            .map(|(_, node)| node.clone())
-    }
     pub fn find_target_by_edge_type(&self, source: &Node, edge_type: EdgeType) -> Option<Node> {
         let source_key = create_node_key(source.clone());
 
@@ -697,17 +807,7 @@ impl BTreeMapGraph {
             .find(|((src, _), edge)| src == &source_key && **edge == edge_type)
             .and_then(|((_, dst), _)| self.nodes.get(dst).cloned())
     }
-    pub fn find_data_model_by<F>(&self, predicate: F) -> Option<NodeData>
-    where
-        F: Fn(&NodeData) -> bool,
-    {
-        let prefix = format!("{:?}-", NodeType::DataModel);
-        self.nodes
-            .range(prefix.clone()..)
-            .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, node)| predicate(&node.node_data))
-            .map(|(_, node)| node.node_data.clone())
-    }
+
     pub fn find_functions_called_by_handler(&self, handler: &Node) -> Vec<Node> {
         let handler_key = create_node_key(handler.clone());
         let mut called_functions = Vec::new();
