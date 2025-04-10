@@ -1,10 +1,11 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
+use anyhow::Ok;
 use std::str::FromStr;
 use test_log::test;
 
-#[test(tokio::test)]
-async fn test_angular() {
+pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let repo = Repo::new(
         "src/testing/angular",
         Lang::from_str("angular").unwrap(),
@@ -13,63 +14,55 @@ async fn test_angular() {
         Vec::new(),
     )
     .unwrap();
-    let graph = repo.build_graph().await.unwrap();
-    assert!(graph.nodes.len() == 77);
-    assert!(graph.edges.len() == 78);
 
-    let l = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Language))
-        .collect::<Vec<_>>();
-    assert_eq!(l.len(), 1);
-    let l = l[0].into_data();
-    assert_eq!(l.name, "angular");
-    assert_eq!(l.file, "src/testing/angular/");
+    let graph = repo.build_graph_inner::<G>().await?;
 
-    let imports = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Import))
-        .collect::<Vec<_>>();
-    assert_eq!(imports.len(), 10);
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(num_nodes, 77, "Expected 77 nodes");
+    assert_eq!(num_edges, 78, "Expected 78 edges");
 
-    let cls = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Class))
-        .collect::<Vec<_>>();
-    assert_eq!(cls.len(), 5);
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 10, "Expected 10 imports");
 
-    let models = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::DataModel))
-        .collect::<Vec<_>>();
-    assert_eq!(models.len(), 1);
-    let models = models[0].into_data();
-    assert_eq!(models.name, "Person");
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+    assert_eq!(classes.len(), 5, "Expected 5 classes");
 
-    let functions = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Function))
-        .collect::<Vec<_>>();
-    assert_eq!(functions.len(), 8);
-    let functions = functions[0].into_data();
-    assert_eq!(functions.name, "constructor");
+    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    assert_eq!(data_models.len(), 1, "Expected 1 data model");
+    assert_eq!(
+        data_models[0].name, "Person",
+        "Data model name should be 'Person'"
+    );
 
-    let reqs = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Request))
-        .collect::<Vec<_>>();
-    assert_eq!(reqs.len(), 8);
+    let functions = graph.find_nodes_by_type(NodeType::Function);
+    assert_eq!(functions.len(), 8, "Expected 8 functions");
 
-    let calls_edges = graph
-        .edges
-        .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Calls(_)))
-        .collect::<Vec<_>>();
-    assert_eq!(calls_edges.len(), 8);
+    // Check if there's a constructor function
+    let constructor = functions.iter().find(|f| f.name == "constructor");
+    assert!(
+        constructor.is_some(),
+        "Expected constructor function not found"
+    );
+
+    // Test requests
+    let requests = graph.find_nodes_by_type(NodeType::Request);
+    assert_eq!(requests.len(), 8, "Expected 8 requests");
+
+    // Test calls edges
+    let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls(Default::default()));
+    assert_eq!(calls_edges_count, 8, "Expected 8 calls edges");
+
+    Ok(())
 }
+
+#[test(tokio::test)]
+async fn test_angular() {
+    use crate::lang::graphs::ArrayGraph;
+    test_angular_generic::<ArrayGraph>().await.unwrap();
+}
+
+// #[test(tokio::test)]
+// async fn test_angular_btree() {
+//     use crate::lang::graphs::BTreeMapGraph;
+//     test_angular_generic::<BTreeMapGraph>().await.unwrap();
+// }

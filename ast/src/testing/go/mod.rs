@@ -1,10 +1,10 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
 
-#[test(tokio::test)]
-async fn test_go() {
+pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let repo = Repo::new(
         "src/testing/go",
         Lang::from_str("go").unwrap(),
@@ -13,88 +13,81 @@ async fn test_go() {
         Vec::new(),
     )
     .unwrap();
-    let graph = repo.build_graph().await.unwrap();
-    assert!(graph.nodes.len() == 30);
-    assert!(graph.edges.len() == 48);
 
-    let l = graph
-        .nodes
+    let graph = repo.build_graph_inner::<G>().await?;
+
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(num_nodes, 30, "Expected 30 nodes");
+    assert_eq!(num_edges, 48, "Expected 48 edges");
+
+    let language_nodes = graph.find_nodes_by_name(NodeType::Language, "go");
+    assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
+    assert_eq!(
+        language_nodes[0].name, "go",
+        "Language node name should be 'go'"
+    );
+    assert_eq!(
+        language_nodes[0].file, "src/testing/go/",
+        "Language node file path is incorrect"
+    );
+
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 3, "Expected 3 imports");
+
+    // Find classes
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+    assert_eq!(classes.len(), 1, "Expected 1 class");
+    assert_eq!(
+        classes[0].name, "database",
+        "Class name should be 'database'"
+    );
+    assert_eq!(
+        classes[0].file, "src/testing/go/db.go",
+        "Class file path is incorrect"
+    );
+
+    let class_function_edges =
+        graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
+    assert_eq!(class_function_edges.len(), 4, "Expected 4 methods");
+
+    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    assert_eq!(data_models.len(), 2, "Expected 2 data models");
+    assert!(
+        data_models
+            .iter()
+            .any(|dm| dm.name == "Person" && dm.file == "src/testing/go/db.go"),
+        "Expected Person data model not found"
+    );
+
+    let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
+    assert_eq!(endpoints.len(), 2, "Expected 2 endpoints");
+
+    let get_endpoint = endpoints
         .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Language))
-        .collect::<Vec<_>>();
-    assert_eq!(l.len(), 1);
-    let l = l[0].into_data();
-    assert_eq!(l.name, "go");
-    assert_eq!(l.file, "src/testing/go/");
+        .find(|e| e.name == "/person/{id}" && e.meta.get("verb") == Some(&"GET".to_string()))
+        .expect("GET endpoint not found");
+    assert_eq!(get_endpoint.file, "src/testing/go/routes.go");
 
-    let files = graph
-        .nodes
+    let post_endpoint = endpoints
         .iter()
-        .filter(|n| matches!(n.node_type, NodeType::File))
-        .collect::<Vec<_>>();
-    for f in files {
-        println!("file: {:?}", f.into_data().name);
-    }
-    // FIXME go.mod is counted twice
-    // assert_eq!(files.len(), 5);
+        .find(|e| e.name == "/person" && e.meta.get("verb") == Some(&"POST".to_string()))
+        .expect("POST endpoint not found");
+    assert_eq!(post_endpoint.file, "src/testing/go/routes.go");
 
-    let imports = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Import))
-        .collect::<Vec<_>>();
-    assert_eq!(imports.len(), 3);
+    let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
+    assert_eq!(handler_edges_count, 2, "Expected 2 handler edges");
 
-    let cls = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Class))
-        .collect::<Vec<_>>();
-    assert_eq!(cls.len(), 1);
-    let cls = cls[0].into_data();
-    assert_eq!(cls.name, "database");
-    assert_eq!(cls.file, "src/testing/go/db.go");
-
-    let methods = graph
-        .edges
-        .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Operand) && e.source.node_type == NodeType::Class)
-        .collect::<Vec<_>>();
-    assert_eq!(methods.len(), 4);
-
-    let dms = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::DataModel))
-        .collect::<Vec<_>>();
-    assert_eq!(dms.len(), 2);
-
-    let dm = dms[1].into_data();
-    assert_eq!(dm.name, "Person");
-    assert_eq!(dm.file, "src/testing/go/db.go");
-
-    let ends = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Endpoint))
-        .collect::<Vec<_>>();
-    assert_eq!(ends.len(), 2);
-
-    let end = ends[0].into_data();
-    assert_eq!(end.name, "/person/{id}");
-    assert_eq!(end.file, "src/testing/go/routes.go");
-    assert_eq!(end.meta.get("verb").unwrap(), "GET");
-
-    let end = ends[1].into_data();
-    assert_eq!(end.name, "/person");
-    assert_eq!(end.file, "src/testing/go/routes.go");
-    assert_eq!(end.meta.get("verb").unwrap(), "POST");
-
-    // get handler edges
-    let edges = graph
-        .edges
-        .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Handler))
-        .collect::<Vec<_>>();
-    assert_eq!(edges.len(), 2);
+    Ok(())
 }
+
+#[test(tokio::test)]
+async fn test_go() {
+    use crate::lang::graphs::ArrayGraph;
+    test_go_generic::<ArrayGraph>().await.unwrap();
+}
+
+// #[test(tokio::test)]
+// async fn test_go_btree() {
+//     use crate::lang::graphs::BTreeMapGraph;
+//     test_go_generic::<BTreeMapGraph>().await.unwrap();
+// }

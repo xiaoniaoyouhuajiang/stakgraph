@@ -95,4 +95,12 @@ pub trait Graph: Default + Debug {
         data_model: &str,
         visited: &mut Vec<String>,
     ) -> bool;
+    fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData>;
+    fn find_nodes_with_edge_type(
+        &self,
+        source_type: NodeType,
+        target_type: NodeType,
+        edge_type: EdgeType,
+    ) -> Vec<(NodeData, NodeData)>;
+    fn count_edges_of_type(&self, edge_type: EdgeType) -> usize;
 }

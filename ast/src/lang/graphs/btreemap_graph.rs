@@ -756,6 +756,53 @@ impl Graph for BTreeMapGraph {
 
         false
     }
+    fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData> {
+        let prefix = format!("{:?}-", node_type);
+        self.nodes
+            .range(prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&prefix))
+            .map(|(_, node)| node.node_data.clone())
+            .collect()
+    }
+
+    fn find_nodes_with_edge_type(
+        &self,
+        source_type: NodeType,
+        target_type: NodeType,
+        edge_type: EdgeType,
+    ) -> Vec<(NodeData, NodeData)> {
+        let mut result = Vec::new();
+        let source_prefix = format!("{:?}-", source_type);
+        let target_prefix = format!("{:?}-", target_type);
+
+        for ((src_key, dst_key), edge) in &self.edges {
+            if *edge == edge_type
+                && src_key.starts_with(&source_prefix)
+                && dst_key.starts_with(&target_prefix)
+            {
+                if let (Some(src_node), Some(dst_node)) =
+                    (self.nodes.get(src_key), self.nodes.get(dst_key))
+                {
+                    result.push((src_node.node_data.clone(), dst_node.node_data.clone()));
+                }
+            }
+        }
+
+        result
+    }
+    fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
+        self.edges
+            .iter()
+            .filter(|(_, edge)| {
+                match (edge, &edge_type) {
+                    // Special case for Calls - only match the variant, not the data
+                    (EdgeType::Calls(_), EdgeType::Calls(_)) => true,
+                    // For all other edge types, exact equality
+                    _ => **edge == edge_type,
+                }
+            })
+            .count()
+    }
 }
 impl BTreeMapGraph {
     fn find_node_from_node_ref(&self, node_ref: NodeRef) -> Option<Node> {
@@ -785,47 +832,5 @@ impl Default for BTreeMapGraph {
             nodes: BTreeMap::new(),
             edges: BTreeMap::new(),
         }
-    }
-}
-
-impl BTreeMapGraph {
-    pub fn file_data(&self, filename: &str) -> Option<NodeData> {
-        let prefix = format!("{:?}-", NodeType::File);
-        self.nodes
-            .range(prefix.clone()..)
-            .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, n)| n.node_data.file == filename)
-            .map(|n| n.1.node_data.clone())
-    }
-
-    pub fn find_target_by_edge_type(&self, source: &Node, edge_type: EdgeType) -> Option<Node> {
-        let source_key = create_node_key(source.clone());
-
-        // Find matching edge
-        self.edges
-            .iter()
-            .find(|((src, _), edge)| src == &source_key && **edge == edge_type)
-            .and_then(|((_, dst), _)| self.nodes.get(dst).cloned())
-    }
-
-    pub fn find_functions_called_by_handler(&self, handler: &Node) -> Vec<Node> {
-        let handler_key = create_node_key(handler.clone());
-        let mut called_functions = Vec::new();
-
-        // Get all edges starting with the handler key
-        let prefix = handler_key.clone();
-        for ((_src, dst), edge_type) in self
-            .edges
-            .range((prefix.clone(), String::new())..)
-            .take_while(|((src, _), _)| src == &prefix)
-        {
-            if let EdgeType::Calls(_) = edge_type {
-                if let Some(node) = self.nodes.get(dst) {
-                    called_functions.push(node.clone());
-                }
-            }
-        }
-
-        called_functions
     }
 }

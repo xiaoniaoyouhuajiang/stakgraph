@@ -1,10 +1,11 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::lang::{CallsMeta, Graph};
 use crate::{lang::Lang, repo::Repo};
+use anyhow::Result;
 use std::str::FromStr;
 use test_log::test;
 
-#[test(tokio::test)]
-async fn test_kotlin() {
+pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let repo = Repo::new(
         "src/testing/kotlin",
         Lang::from_str("kotlin").unwrap(),
@@ -14,90 +15,84 @@ async fn test_kotlin() {
     )
     .unwrap();
 
-    let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 145);
-    assert_eq!(graph.edges.len(), 148);
+    let graph = repo.build_graph_inner::<G>().await?;
+
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(num_nodes, 145, "Expected 145 nodes");
+    assert_eq!(num_edges, 148, "Expected 148 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
     }
 
-    let language_nodes = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Language))
-        .collect::<Vec<_>>();
-    assert_eq!(language_nodes.len(), 1);
-    let language_node = language_nodes[0].into_data();
-    assert_eq!(language_node.name, "kotlin");
-    assert_eq!(normalize_path(&language_node.file), "src/testing/kotlin/");
-
-    let build_gradle_nodes = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::File) && n.node_data.name == "build.gradle.kts")
-        .collect::<Vec<_>>();
-    assert_eq!(build_gradle_nodes.len(), 2);
-    let build_gradle_node = build_gradle_nodes[0].into_data();
-    assert_eq!(build_gradle_node.name, "build.gradle.kts");
-
-    let imports = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Library))
-        .collect::<Vec<_>>();
-    assert_eq!(imports.len(), 44);
-
-    let imports = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Import))
-        .collect::<Vec<_>>();
-    assert_eq!(imports.len(), 9);
-
-    let mut classes = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Class))
-        .collect::<Vec<_>>();
-    assert_eq!(classes.len(), 6);
-
-    classes.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
-
-    let example_class = classes[1].into_data();
-    assert_eq!(example_class.name, "ExampleInstrumentedTest");
+    let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
     assert_eq!(
-        normalize_path(&example_class.file),
-        "src/testing/kotlin/app/src/androidTest/java/com/kotlintestapp/ExampleInstrumentedTest.kt"
+        language_nodes[0].name, "kotlin",
+        "Language node name should be 'kotlin'"
+    );
+    assert_eq!(
+        normalize_path(&language_nodes[0].file),
+        "src/testing/kotlin/",
+        "Language node file path is incorrect"
     );
 
-    let functions = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Function))
-        .collect::<Vec<_>>();
-    assert_eq!(functions.len(), 45);
+    let build_gradle_files = graph.find_nodes_by_name(NodeType::File, "build.gradle.kts");
+    assert_eq!(
+        build_gradle_files.len(),
+        2,
+        "Expected 2 build.gradle.kts files"
+    );
+    assert_eq!(
+        build_gradle_files[0].name, "build.gradle.kts",
+        "Gradle file name is incorrect"
+    );
 
-    let data_models = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::DataModel))
-        .collect::<Vec<_>>();
-    assert_eq!(data_models.len(), 1);
+    let libraries = graph.find_nodes_by_type(NodeType::Library);
+    assert_eq!(libraries.len(), 44, "Expected 44 libraries");
 
-    let requests = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Request))
-        .collect::<Vec<_>>();
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 9, "Expected 9 imports");
 
-    //FIXME: Records more than 2 requests
-    assert_eq!(requests.len(), 6);
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+    assert_eq!(classes.len(), 6, "Expected 6 classes");
 
-    let calls_edges = graph
-        .edges
-        .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Calls(_)))
-        .collect::<Vec<_>>();
-    assert!(calls_edges.len() > 0, "Calls edges not found");
+    let mut sorted_classes = classes.clone();
+    sorted_classes.sort_by(|a, b| a.name.cmp(&b.name));
+
+    assert_eq!(
+        sorted_classes[1].name, "ExampleInstrumentedTest",
+        "Class name is incorrect"
+    );
+    assert_eq!(
+        normalize_path(&sorted_classes[1].file),
+        "src/testing/kotlin/app/src/androidTest/java/com/kotlintestapp/ExampleInstrumentedTest.kt",
+        "Class file path is incorrect"
+    );
+
+    let functions = graph.find_nodes_by_type(NodeType::Function);
+    assert_eq!(functions.len(), 45, "Expected 45 functions");
+
+    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    assert_eq!(data_models.len(), 1, "Expected 1 data model");
+
+    let requests = graph.find_nodes_by_type(NodeType::Request);
+    assert_eq!(requests.len(), 6, "Expected 6 requests"); // FIXME: Records more than 2 requests
+
+    let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls(CallsMeta::default()));
+    assert!(calls_edges_count > 0, "Expected at least one calls edge");
+
+    Ok(())
 }
+
+#[test(tokio::test)]
+async fn test_kotlin() {
+    use crate::lang::graphs::ArrayGraph;
+    test_kotlin_generic::<ArrayGraph>().await.unwrap();
+}
+
+// #[test(tokio::test)]
+// async fn test_kotlin_btree() {
+//     use crate::lang::graphs::BTreeMapGraph;
+//     test_kotlin_generic::<BTreeMapGraph>().await.unwrap();
+// }

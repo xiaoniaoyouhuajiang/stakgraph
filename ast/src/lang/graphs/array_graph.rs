@@ -591,6 +591,57 @@ impl Graph for ArrayGraph {
         }
         false
     }
+
+    fn find_nodes_with_edge_type(
+        &self,
+        source_type: NodeType,
+        target_type: NodeType,
+        edge_type: EdgeType,
+    ) -> Vec<(NodeData, NodeData)> {
+        self.edges
+            .iter()
+            .filter(|edge| edge.edge == edge_type)
+            .filter_map(|edge| {
+                if edge.source.node_type == source_type && edge.target.node_type == target_type {
+                    let source_nodes = self.find_nodes_by_name(
+                        edge.source.node_type.clone(),
+                        &edge.source.node_data.name,
+                    );
+                    let source = source_nodes.first().unwrap();
+                    let target_nodes = self.find_nodes_by_name(
+                        edge.target.node_type.clone(),
+                        &edge.target.node_data.name,
+                    );
+                    let target = target_nodes.first().unwrap();
+                    Some((source.clone(), target.clone()))
+                } else {
+                    None
+                }
+            })
+            .map(|(source, target)| (source.clone(), target.clone()))
+            .collect::<Vec<(NodeData, NodeData)>>()
+    }
+    fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
+        self.edges
+            .iter()
+            .filter(|edge| {
+                match (&edge.edge, &edge_type) {
+                    // Special case for Calls - only match the variant, not the data
+                    (EdgeType::Calls(_), EdgeType::Calls(_)) => true,
+                    // For all other edge types, exact equality
+                    _ => edge.edge == edge_type,
+                }
+            })
+            .count()
+    }
+
+    fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|node| node.node_type == node_type)
+            .map(|node| node.node_data.clone())
+            .collect()
+    }
 }
 
 impl ArrayGraph {
@@ -624,54 +675,6 @@ impl ArrayGraph {
             }
         }
         None
-    }
-
-    pub fn find_target_by_edge_type(&self, source: &Node, edge_type: EdgeType) -> Option<Node> {
-        let source_data = source.into_data();
-
-        for edge in &self.edges {
-            if edge.edge == edge_type
-                && source_data.name == edge.source.node_data.name
-                && source_data.file == edge.source.node_data.file
-            {
-                for node in &self.nodes {
-                    let node_data = node.into_data();
-                    if node_data.name == edge.target.node_data.name
-                        && node_data.file == edge.target.node_data.file
-                        && node.to_node_type() == edge.target.node_type
-                    {
-                        return Some(node.clone());
-                    }
-                }
-            }
-        }
-
-        None
-    }
-
-    pub fn find_functions_called_by_handler(&self, handler: &Node) -> Vec<Node> {
-        let handler_data = handler.into_data();
-        let mut called_functions = Vec::new();
-
-        for edge in &self.edges {
-            if let EdgeType::Calls(_) = &edge.edge {
-                let source_data = &handler_data;
-                if edge.source.node_data.name == source_data.name
-                    && edge.source.node_data.file == source_data.file
-                {
-                    for node in &self.nodes {
-                        let node_data = node.into_data();
-                        if node_data.name == edge.target.node_data.name
-                            && node_data.file == edge.target.node_data.file
-                        {
-                            called_functions.push(node.clone());
-                        }
-                    }
-                }
-            }
-        }
-
-        called_functions
     }
 }
 
