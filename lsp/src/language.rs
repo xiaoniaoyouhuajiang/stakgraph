@@ -223,8 +223,10 @@ impl Language {
     }
 
     pub fn post_clone_cmd(&self) -> Vec<&'static str> {
-        if std::env::var("LSP_SKIP_POST_CLONE").is_ok() {
-            return Vec::new();
+        if let Ok(lsp_skip) = std::env::var("LSP_SKIP_POST_CLONE") {
+            if lsp_skip == "true" || lsp_skip == "1" {
+                return Vec::new();
+            }
         }
         match self {
             Self::Rust => Vec::new(),
