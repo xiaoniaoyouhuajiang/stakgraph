@@ -4,14 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tag-Based Search</title>
+    <!-- Add highlight.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <!-- Load highlight.js script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <!-- Optional: Load common language packages -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/rust.min.js"></script>
+    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             display: flex;
+            flex-direction: column-reverse;
             margin: 0;
             padding: 20px;
             height: 100vh;
             box-sizing: border-box;
+        }
+        
+        .content-container {
+            display: flex;
+            position: relative;
         }
         
         #editor-container {
@@ -26,50 +43,77 @@
             outline: none;
             line-height: 1.6;
             font-size: 16px;
-            border-radius: 5px;
+            border-radius: 5px 0 0 5px;
             box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
         }
         
         #results-pane {
-            width: 250px;
-            margin-left: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 15px;
+            width: 150px;
+            border: 1px solid #ccc;
+            border-left: none;
+            border-radius: 0 5px 5px 0;
+            padding: 10px;
             display: none;
-            max-height: calc(100vh - 40px);
             overflow-y: auto;
+            background-color: #f9f9f9;
+            height: calc(300px + 8px); /* Match editor height + its borders */
+        }
+        
+        #results-pane h3 {
+            margin-top: 0;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+            text-align: center;
         }
         
         .result-item {
             cursor: pointer;
-            padding: 10px;
-            margin-bottom: 6px;
-            border-radius: 4px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            transition: transform 0.1s ease;
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            border-radius: 20px;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-size: 13px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
         .result-item:hover {
             transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         
         .tooltip {
-            position: fixed;
+            position: absolute;
             display: none;
-            background: white;
+            background: #282c34; /* Dark background to match code highlighting */
             border-radius: 6px;
             padding: 12px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.2);
             z-index: 100;
-            max-width: 300px;
+            width: calc(100% - 24px);
+            height: 300px;
+            overflow-y: auto;
+            top: -327px; /* Position above the editor */
+        }
+
+        .tooltip pre {
+            margin: 0;
             white-space: pre-wrap;
-            font-family: monospace;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
             font-size: 14px;
             line-height: 1.5;
+        }
+
+        .tooltip code {
+            display: block;
+            overflow-x: auto;
+            padding: 0;
+            font-family: inherit;
         }
 
         .tagged-text {
@@ -78,16 +122,92 @@
             border-radius: 3px;
             padding: 1px 2px;
         }
+        
+        /* File info banner */
+        .file-info {
+            background-color: #1e2329;
+            color: #b9c0c8;
+            font-size: 12px;
+            padding: 4px 8px;
+            margin: -12px -12px -4px -12px;
+            border-bottom: 1px solid #3e4451;
+            border-radius: 6px 6px 0 0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-info .file-path {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .file-info .file-type {
+            background-color: #3e4451;
+            border-radius: 4px;
+            padding: 0 6px;
+            margin-left: 8px;
+            font-size: 11px;
+            line-height: 18px;
+            height: 18px;
+            align-self: center;
+        }
+        
+        /* Close button */
+        .close-btn {
+            cursor: pointer;
+            color: #b9c0c8;
+            font-size: 13px;
+            font-weight: bold;
+            background: #3e4451;
+            border-radius: 4px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        
+        .close-btn:hover {
+            background-color: #4e5563;
+        }
+        
+        .untag-btn {
+            margin-left: 10px;
+            margin-right: 2px;
+            cursor: pointer;
+            background-color: #3e4451;
+            border-radius: 4px;
+            padding: 0 6px;
+            font-size: 11px;
+            line-height: 18px;
+            height: 18px;
+            color: #b9c0c8;
+        }
+        
+        .untag-btn:hover {
+            background-color: #4e5563;
+        }
+        
+        .actions {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
-    <div id="editor-container">
-        <div id="editor" contenteditable="true"></div>
-        <div id="tooltip" class="tooltip"></div>
-    </div>
-    <div id="results-pane">
-        <h3>Search Results</h3>
-        <div id="results-list"></div>
+    <div class="content-container">
+        <div class="tooltip" id="tooltip"></div>
+        <div id="editor-container">
+            <div id="editor" contenteditable="true"></div>
+        </div>
+        <div id="results-pane">
+            <h3>Search Results</h3>
+            <div id="results-list"></div>
+        </div>
     </div>
 
     <script>
@@ -95,23 +215,23 @@
             // return window.BASE_URL || "https://mcp.repo2graph.sphinx.chat";
             return "http://localhost:3000";
         }
-        // Define colors for each NodeType
+        // Define colors for each NodeType (darker versions for better contrast with white text)
         const nodeTypeColors = {
-            "Repository": "#6C8EBF",
-            "Language": "#D79B00",
-            "Directory": "#82B366",
-            "File": "#9673A6",
-            "Import": "#B85450",
-            "Class": "#D5E8D4",
-            "Trait": "#DAE8FC",
-            "Library": "#F8CECC",
-            "Function": "#FFE6CC",
-            "Test": "#FFF2CC",
-            "E2etest": "#E1D5E7",
-            "Endpoint": "#D4E1F5",
-            "Request": "#C3ABD0",
-            "Datamodel": "#F5B7B1",
-            "Page": "#AED6F1"
+            "Repository": "#2C5985", // Darker blue
+            "Language": "#A35D00",   // Darker orange
+            "Directory": "#3A7336",  // Darker green
+            "File": "#5A3973",       // Darker purple
+            "Import": "#8B2E2A",     // Darker red
+            "Class": "#4A7D4A",      // Darker light green
+            "Trait": "#3B6EB5",      // Darker light blue
+            "Library": "#A83333",    // Darker pink
+            "Function": "#C67000",   // Darker light orange
+            "Test": "#B7940A",       // Darker yellow
+            "E2etest": "#7C4A85",    // Darker lavender
+            "Endpoint": "#385D8A",   // Darker blue gray
+            "Request": "#6B4A7A",    // Darker medium purple
+            "Datamodel": "#A13939",  // Darker salmon
+            "Page": "#2980B9"        // Darker sky blue
         };
 
         // DOM elements
@@ -119,11 +239,14 @@
         const resultsPane = document.getElementById('results-pane');
         const resultsList = document.getElementById('results-list');
         const tooltip = document.getElementById('tooltip');
+        const editorContainer = document.getElementById('editor-container');
+        const contentContainer = document.querySelector('.content-container');
 
         // Current state
         let searchTimeout;
         let currentTag = '';
         let lastRange = null;
+        let activeTagElement = null;
 
         // Initialize
         editor.focus();
@@ -131,6 +254,7 @@
         // Event listeners
         editor.addEventListener('input', handleInput);
         editor.addEventListener('keydown', handleKeydown);
+        editor.addEventListener('click', handleEditorClick);
 
         function handleInput(e) {
             clearTimeout(searchTimeout);
@@ -155,6 +279,32 @@
             // Close results pane on escape
             if (e.key === 'Escape') {
                 hideResultsPane();
+                hideTooltip();
+            }
+        }
+        
+        function handleEditorClick(e) {
+            // Check if we clicked on a tagged word
+            if (e.target.closest('.tagged-text')) {
+                const tagElement = e.target.closest('.tagged-text');
+                
+                // If clicking on the same tag that's already active, do nothing
+                if (tagElement === activeTagElement && tooltip.style.display === 'block') {
+                    return;
+                }
+                
+                // Set this as the active tag
+                activeTagElement = tagElement;
+                
+                // Show the tooltip for this tag
+                showTooltip(
+                    tagElement.dataset.body, 
+                    tagElement.dataset.file
+                );
+            } else {
+                // If we clicked elsewhere in the editor, hide the tooltip
+                hideTooltip();
+                activeTagElement = null;
             }
         }
 
@@ -212,17 +362,18 @@
                 resultItem.className = 'result-item';
                 resultItem.textContent = result.properties.name || 'Unnamed';
                 
-                const color = nodeTypeColors[result.node_type] || '#ccc';
+                const color = nodeTypeColors[result.node_type] || '#333';
                 resultItem.style.backgroundColor = color;
-                resultItem.style.color = getContrastColor(color);
                 
-                // Add hover event
+                // Add hover event for preview
                 resultItem.addEventListener('mouseover', () => {
-                    showTooltip(resultItem, result.properties.body, true);
+                    showTooltip(result.properties.body, result.properties.file);
                 });
                 
                 resultItem.addEventListener('mouseout', () => {
-                    hideTooltip();
+                    if (!activeTagElement) {
+                        hideTooltip();
+                    }
                 });
                 
                 // Add click event
@@ -266,37 +417,43 @@
             
             if (hashStart === -1) return;
             
-            // Create a range for the hashtag
-            const hashtagRange = document.createRange();
-            hashtagRange.setStart(textNode, hashStart);
-            hashtagRange.setEnd(textNode, cursorPos);
+            // Split text into before, tag, and after
+            const beforeText = text.substring(0, hashStart);
+            const afterText = text.substring(cursorPos);
             
-            // Create a styled span
-            const color = nodeTypeColors[result.node_type] || '#ccc';
+            // Create document fragment
+            const fragment = document.createDocumentFragment();
+            
+            // Add text before the hashtag
+            if (beforeText) {
+                fragment.appendChild(document.createTextNode(beforeText));
+            }
+            
+            // Create styled span for the hashtag
+            const color = nodeTypeColors[result.node_type] || '#333';
             const tagSpan = document.createElement('span');
             tagSpan.className = 'tagged-text';
             tagSpan.style.color = color;
             tagSpan.style.fontWeight = 'bold';
             tagSpan.textContent = `#${currentTag}`;
             tagSpan.dataset.body = result.properties.body || '';
+            tagSpan.dataset.file = result.properties.file || '';
             tagSpan.dataset.nodeType = result.node_type;
             
-            // Add hover event
-            tagSpan.addEventListener('mouseover', (e) => {
-                showTooltip(e.target, result.properties.body);
-            });
+            // Add styled span to fragment
+            fragment.appendChild(tagSpan);
             
-            tagSpan.addEventListener('mouseout', () => {
-                hideTooltip();
-            });
+            // Create a separate text node for afterText
+            // If afterText is empty, use a zero-width space to ensure there's a valid cursor position
+            const afterNode = document.createTextNode(afterText || '\u200B');
+            fragment.appendChild(afterNode);
             
-            // Replace the hashtag with the styled span
-            hashtagRange.deleteContents();
-            hashtagRange.insertNode(tagSpan);
+            // Replace the original text node with our new structure
+            textNode.parentNode.replaceChild(fragment, textNode);
             
-            // Move cursor after the span
+            // Position cursor at the beginning of the text after the tag
             const newRange = document.createRange();
-            newRange.setStartAfter(tagSpan);
+            newRange.setStartAfter(afterNode);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
@@ -306,16 +463,118 @@
             lastRange = null;
         }
 
-        function showTooltip(element, bodyText, leftof) {
-            const rect = element.getBoundingClientRect();
-            if (leftof) {
-                tooltip.style.left = `${rect.left - 340}px`;
-            } else {
-                tooltip.style.left = `${rect.right + 10}px`;
+        function showTooltip(bodyText, filePath) {
+            if (!bodyText) {
+                tooltip.innerHTML = '<div class="file-info"><span class="file-path">No content available</span><div class="actions"><div class="untag-btn">Untag</div><div class="close-btn">×</div></div></div>';
+                tooltip.style.display = 'block';
+                setupTooltipButtons();
+                return;
             }
-            tooltip.style.top = `${rect.top}px`;
-            tooltip.textContent = getFirst10Lines(bodyText);
+            
+            // Create file info header
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-info';
+            
+            const filePart = document.createElement('span');
+            filePart.className = 'file-path';
+            filePart.textContent = filePath || 'Unknown file';
+            fileInfo.appendChild(filePart);
+            
+            // Actions container
+            const actions = document.createElement('div');
+            actions.className = 'actions';
+            
+            // Add untag button
+            const untagBtn = document.createElement('div');
+            untagBtn.className = 'untag-btn';
+            untagBtn.textContent = 'Untag';
+            actions.appendChild(untagBtn);
+            
+            // Add close button
+            const closeBtn = document.createElement('div');
+            closeBtn.className = 'close-btn';
+            closeBtn.textContent = '×';
+            actions.appendChild(closeBtn);
+            
+            fileInfo.appendChild(actions);
+            
+            // Add language badge
+            if (filePath) {
+                const lang = getLanguageFromFilePath(filePath);
+                if (lang) {
+                    const langBadge = document.createElement('span');
+                    langBadge.className = 'file-type';
+                    langBadge.textContent = lang;
+                    filePart.appendChild(langBadge);
+                }
+            }
+            
+            // Create pre and code elements for syntax highlighting
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            
+            // If we have a file path, try to set the language class
+            if (filePath) {
+                const langClass = getHighlightJsClass(filePath);
+                if (langClass) {
+                    code.className = langClass;
+                }
+            }
+            
+            // Show the entire code body (not just first 15 lines)
+            code.textContent = bodyText;
+            pre.appendChild(code);
+            
+            // Clear tooltip and add new content
+            tooltip.innerHTML = '';
+            tooltip.appendChild(fileInfo);
+            tooltip.appendChild(pre);
+            
+            // Apply syntax highlighting
+            hljs.highlightElement(code);
+            
+            // Show tooltip
             tooltip.style.display = 'block';
+            
+            // Setup tooltip buttons
+            setupTooltipButtons();
+        }
+        
+        function setupTooltipButtons() {
+            // Setup close button
+            const closeBtn = tooltip.querySelector('.close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    hideTooltip();
+                });
+            }
+            
+            // Setup untag button
+            const untagBtn = tooltip.querySelector('.untag-btn');
+            if (untagBtn) {
+                untagBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    untagElement();
+                    hideTooltip();
+                });
+            }
+        }
+        
+        function untagElement() {
+            if (!activeTagElement) return;
+            
+            // Get the text content without the # symbol
+            const tagText = activeTagElement.textContent;
+            
+            // Create a text node to replace the tag span
+            const textNode = document.createTextNode(tagText);
+            
+            // Replace the tag span with the text node
+            activeTagElement.parentNode.replaceChild(textNode, activeTagElement);
+            
+            // Reset active tag
+            activeTagElement = null;
         }
 
         function hideTooltip() {
@@ -326,32 +585,81 @@
             resultsPane.style.display = 'none';
         }
 
-        function getFirst10Lines(text) {
-            if (!text) return "No content available";
-            const lines = text.split('\n');
-            return lines.slice(0, 10).join('\n');
+        function getLanguageFromFilePath(filePath) {
+            if (!filePath) return null;
+            
+            const extension = filePath.split('.').pop().toLowerCase();
+            const langMap = {
+                'js': 'JavaScript',
+                'jsx': 'React',
+                'ts': 'TypeScript',
+                'tsx': 'React TSX',
+                'py': 'Python',
+                'rb': 'Ruby',
+                'java': 'Java',
+                'go': 'Go',
+                'rs': 'Rust',
+                'c': 'C',
+                'cpp': 'C++',
+                'cs': 'C#',
+                'php': 'PHP',
+                'html': 'HTML',
+                'css': 'CSS',
+                'scss': 'SCSS',
+                'json': 'JSON',
+                'md': 'Markdown',
+                'sql': 'SQL',
+                'sh': 'Shell',
+                'bash': 'Bash',
+                'yaml': 'YAML',
+                'yml': 'YAML',
+                'xml': 'XML'
+            };
+            
+            return langMap[extension] || extension.toUpperCase();
         }
-
-        function getContrastColor(hexColor) {
-            // Convert hex to RGB
-            const r = parseInt(hexColor.substring(1, 3), 16);
-            const g = parseInt(hexColor.substring(3, 5), 16);
-            const b = parseInt(hexColor.substring(5, 7), 16);
+        
+        function getHighlightJsClass(filePath) {
+            if (!filePath) return '';
             
-            // Calculate luminance
-            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            const extension = filePath.split('.').pop().toLowerCase();
+            const langMap = {
+                'js': 'language-javascript',
+                'jsx': 'language-javascript',
+                'ts': 'language-typescript',
+                'tsx': 'language-typescript',
+                'py': 'language-python',
+                'rb': 'language-ruby',
+                'java': 'language-java',
+                'go': 'language-go',
+                'rs': 'language-rust',
+                'c': 'language-c',
+                'cpp': 'language-cpp',
+                'cs': 'language-csharp',
+                'php': 'language-php',
+                'html': 'language-html',
+                'css': 'language-css',
+                'scss': 'language-scss',
+                'json': 'language-json',
+                'md': 'language-markdown',
+                'sql': 'language-sql',
+                'sh': 'language-bash',
+                'bash': 'language-bash',
+                'yaml': 'language-yaml',
+                'yml': 'language-yaml',
+                'xml': 'language-xml'
+            };
             
-            // Return black or white based on luminance
-            return luminance > 0.5 ? '#000000' : '#ffffff';
+            return langMap[extension] || '';
         }
 
         // Global event listeners
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.tagged-text') && !e.target.closest('.result-item')) {
+            // If clicking outside the editor and tooltip, hide tooltip and results
+            if (!e.target.closest('.tooltip') && !e.target.closest('#editor') && !e.target.closest('.result-item')) {
                 hideTooltip();
-                if (!e.target.closest('#editor')) {
-                    hideResultsPane();
-                }
+                hideResultsPane();
+                activeTagElement = null;
             }
         });
     </script>

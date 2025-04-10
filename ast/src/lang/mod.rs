@@ -140,15 +140,16 @@ impl Lang {
             Ok(Vec::new())
         }
     }
-    pub fn get_pages(
+    pub fn get_pages<G: Graph>(
         &self,
         code: &str,
         file: &str,
         lsp_tx: &Option<CmdSender>,
+        graph: &G,
     ) -> Result<Vec<(NodeData, Vec<Edge>)>> {
         if let Some(qo) = self.lang.page_query() {
             let qo = self.q(&qo, &NodeType::Page);
-            Ok(self.collect_pages(&qo, code, file, lsp_tx)?)
+            Ok(self.collect_pages(&qo, code, file, lsp_tx, graph)?)
         } else {
             Ok(Vec::new())
         }

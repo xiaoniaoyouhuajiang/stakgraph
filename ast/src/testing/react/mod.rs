@@ -17,7 +17,7 @@ async fn test_react_typescript() {
     let graph = repo.build_graph().await.unwrap();
 
     assert!(graph.nodes.len() == 50);
-    assert!(graph.edges.len() == 59);
+    assert!(graph.edges.len() == 61);
 
     // Function to normalize paths and replace backslashes with forward slashes
     fn normalize_path(path: &str) -> String {
@@ -111,6 +111,13 @@ async fn test_react_typescript() {
         .filter(|n| matches!(n.node_type, NodeType::Page))
         .collect::<Vec<_>>();
     assert_eq!(page_node.len(), 2);
+
+    let renders_edges = graph
+        .edges
+        .iter()
+        .filter(|e| matches!(e.edge, EdgeType::Renders))
+        .collect::<Vec<_>>();
+    assert_eq!(renders_edges.len(), 2);
 
     let page = page_node[0].into_data();
     assert_eq!(page.name, "/");
