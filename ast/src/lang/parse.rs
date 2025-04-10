@@ -104,30 +104,32 @@ impl Lang {
         })?;
         Ok(res)
     }
-    pub fn collect_pages(
+    pub fn collect_pages<G: Graph>(
         &self,
         q: &Query,
         code: &str,
         file: &str,
         lsp_tx: &Option<CmdSender>,
+        graph: &G,
     ) -> Result<Vec<(NodeData, Vec<Edge>)>> {
         let tree = self.lang.parse(&code, &NodeType::Page)?;
         let mut cursor = QueryCursor::new();
         let mut matches = cursor.matches(q, tree.root_node(), code.as_bytes());
         let mut res = Vec::new();
         while let Some(m) = matches.next() {
-            let page = self.format_page(&m, code, file, q, lsp_tx)?;
+            let page = self.format_page(&m, code, file, q, lsp_tx, graph)?;
             res.extend(page);
         }
         Ok(res)
     }
-    pub fn format_page(
+    pub fn format_page<G: Graph>(
         &self,
         m: &QueryMatch,
         code: &str,
         file: &str,
         q: &Query,
         lsp: &Option<CmdSender>,
+        graph: &G,
     ) -> Result<Vec<(NodeData, Vec<Edge>)>> {
         let mut pag = NodeData::in_file(file);
         let mut components_positions_names = Vec::new();
@@ -169,6 +171,12 @@ impl Lang {
                     let target_file = gt.file.display().to_string();
                     let target = NodeData::name_file(&comp_name, &target_file);
                     page_renders.push(Edge::renders(&pag, &target));
+                }
+            } else {
+                // fallback
+                let nodes = graph.find_nodes_by_name(NodeType::Function, &comp_name);
+                if let Some(node) = nodes.first() {
+                    page_renders.push(Edge::renders(&pag, &node));
                 }
             }
         }

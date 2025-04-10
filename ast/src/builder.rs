@@ -295,9 +295,10 @@ impl Repo {
         info!("=> get_pages");
         for (filename, code) in &filez {
             if self.lang.lang().is_router_file(&filename, &code) {
-                let pages = self.lang.get_pages(&code, &filename, &self.lsp_tx)?;
+                let pages = self
+                    .lang
+                    .get_pages(&code, &filename, &self.lsp_tx, &graph)?;
                 i += pages.len();
-
                 graph.add_pages(pages);
             }
         }
