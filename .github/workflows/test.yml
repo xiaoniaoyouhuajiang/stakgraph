@@ -65,6 +65,9 @@ jobs:
       - name: Run command LS
         run: ls
 
+      - name: Just test
+        run: ls
+
       - name: Run Env Command
         run: |
           export REPO_URL="https://github.com/stakwork/demo-repo.git"
