@@ -251,8 +251,7 @@
 
     <script>
         function base_url() {
-            // return window.BASE_URL || "https://mcp.repo2graph.sphinx.chat";
-            return "http://localhost:3000";
+            return window.BASE_URL || ""
         }
         
         // Check for dark mode preference
@@ -277,7 +276,7 @@
             "Repository": "#2C5985", // Darker blue
             "Language": "#A35D00",   // Darker orange
             "Directory": "#3A7336",  // Darker green
-            "File": "#5A3973",       // Darker purple
+            "File": "#ad8cc6",       // Darker purple
             "Import": "#8B2E2A",     // Darker red
             "Class": "#4A7D4A",      // Darker light green
             "Trait": "#3B6EB5",      // Darker light blue
@@ -316,6 +315,11 @@
         editor.addEventListener('keydown', handleKeydown);
         editor.addEventListener('click', handleEditorClick);
         
+        editor.addEventListener('keyup', function(e) {
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                cleanupEmptyTaggedSpans();
+            }
+        });
         // Global keydown/keyup listeners for Shift
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Shift') {
@@ -337,7 +341,47 @@
             }
         });
 
+        function cleanupEmptyTaggedSpans() {
+            // Get the raw HTML content
+            const rawContent = editor.innerHTML;
+            const textContent = editor.textContent.trim();
+            
+            // More aggressive detection of "empty" state - account for various browser representations
+            if (textContent === '' || 
+                rawContent === '' || 
+                rawContent === '<br>' || 
+                rawContent === '&nbsp;' || 
+                /^(\s|&nbsp;|<br\s*\/?>|<div>(<br\s*\/?>)*<\/div>)*$/i.test(rawContent)) {
+                                
+                // Complete reset - this is crucial to remove any hidden spans
+                editor.innerHTML = '';
+                
+                // Also reset any saved state
+                currentTag = '';
+                lastRange = null;
+                activeTagElement = null;
+                currentTrigger = '';
+                
+                // Force cursor position to be reset properly
+                const range = document.createRange();
+                range.setStart(editor, 0);
+                range.collapse(true);
+                
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
+                return true;
+            }
+            return false;
+        }
+
         function handleInput(e) {
+            // Check if the editor is empty and reset it if needed
+            if (cleanupEmptyTaggedSpans()) {
+                return; // Exit early if we've cleaned up
+            }
+            
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 const selection = window.getSelection();
