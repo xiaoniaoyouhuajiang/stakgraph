@@ -19,9 +19,7 @@ const delay_start = parseInt(process.env.DELAY_START || "0") || 0;
 
 setTimeout(async () => {
   try {
-    await db.createFulltextIndex();
-    await db.createVectorIndex();
-    await db.createKeyIndex();
+    await db.createIndexes();
   } catch (error) {
     console.error("Error creating indexes:", error);
   }
@@ -267,7 +265,7 @@ class Db {
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
-      const result = await session.run(Q.SEARCH_QUERY_NODE_TYPES, {
+      const result = await session.run(Q.SEARCH_QUERY_NAME, {
         query,
         limit,
         node_types,
@@ -319,84 +317,19 @@ class Db {
     }
   }
 
-  async createFulltextIndex(): Promise<void> {
+  async createIndexes(): Promise<void> {
     let session: Session | null = null;
     try {
       session = this.driver.session();
-      const indexName = Q.BODY_INDEX;
-      // First check if the index already exists
-      const indexResult = await session.run(
-        `SHOW INDEXES WHERE name = $indexName`,
-        { indexName }
-      );
-      const exists = indexResult.records.length > 0;
-      if (!exists) {
-        console.log("Creating fulltext index...");
-        await session.run(
-          `CREATE FULLTEXT INDEX ${indexName} FOR (f:${Data_Bank})
-          ON EACH [f.body]
-          OPTIONS {
-            indexConfig: {
-              \`fulltext.analyzer\`: 'english'
-            }
-          }`
-        );
-        console.log("Fulltext index created successfully");
-      } else {
-        console.log("Fulltext index already exists, skipping creation");
-      }
-    } catch (error) {
-      console.error("Error creating fulltext index:", error);
-      throw error;
-    } finally {
-      if (session) {
-        await session.close();
-      }
-    }
-  }
-
-  async createVectorIndex(): Promise<void> {
-    let session: Session | null = null;
-    try {
-      session = this.driver.session();
-      const indexName = Q.VECTOR_INDEX;
-      // First check if the index already exists
-      const indexResult = await session.run(
-        `SHOW INDEXES WHERE name = $indexName`,
-        { indexName }
-      );
-      const exists = indexResult.records.length > 0;
-      if (!exists) {
-        console.log("Creating vector index...");
-        await session.run(
-          `CREATE VECTOR INDEX ${indexName} FOR (n:${Data_Bank})
-           ON n.embeddings
-           OPTIONS {
-             indexConfig: {
-               \`vector.dimensions\`: ${DIMENSIONS}, // Adjust to match your embedding dimensions
-               \`vector.similarity_function\`: 'cosine'
-             }
-           }`
-        );
-        console.log("Vector index created successfully");
-      } else {
-        console.log("Vector index already exists, skipping creation");
-      }
-    } catch (error) {
-      console.error("Error creating vector index:", error);
-      throw error;
-    } finally {
-      if (session) {
-        await session.close();
-      }
-    }
-  }
-
-  async createKeyIndex(): Promise<void> {
-    let session: Session | null = null;
-    try {
-      session = this.driver.session();
+      console.log("Creating indexes...");
+      console.log(Q.KEY_INDEX_QUERY);
+      console.log(Q.FULLTEXT_BODY_INDEX_QUERY);
+      console.log(Q.FULLTEXT_NAME_INDEX_QUERY);
+      console.log(Q.VECTOR_INDEX_QUERY);
       await session.run(Q.KEY_INDEX_QUERY);
+      await session.run(Q.FULLTEXT_BODY_INDEX_QUERY);
+      await session.run(Q.FULLTEXT_NAME_INDEX_QUERY);
+      await session.run(Q.VECTOR_INDEX_QUERY);
     } finally {
       if (session) {
         await session.close();
