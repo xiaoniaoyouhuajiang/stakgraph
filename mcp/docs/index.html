@@ -247,6 +247,7 @@
         let currentTag = '';
         let lastRange = null;
         let activeTagElement = null;
+        let currentTrigger = '';
 
         // Initialize
         editor.focus();
@@ -263,12 +264,13 @@
                 if (!selection.rangeCount) return;
                 
                 const range = selection.getRangeAt(0);
-                const hashtag = findHashtagBeforeCursor(range);
+                const triggerResult = findTriggerBeforeCursor(range);
                 
-                if (hashtag) {
-                    currentTag = hashtag;
+                if (triggerResult) {
+                    currentTag = triggerResult.text;
+                    currentTrigger = triggerResult.trigger;
                     lastRange = range.cloneRange(); // Save the range for later use
-                    searchForTag(hashtag);
+                    searchForTag(triggerResult.text, triggerResult.trigger);
                 } else {
                     hideResultsPane();
                 }
@@ -308,7 +310,7 @@
             }
         }
 
-        function findHashtagBeforeCursor(range) {
+        function findTriggerBeforeCursor(range) {
             if (!range.collapsed) return null;
             
             const textNode = range.startContainer;
@@ -317,28 +319,42 @@
             const text = textNode.textContent;
             const cursorPos = range.startOffset;
             
-            // Find the start of the hashtag
-            let hashStart = -1;
+            // Find the start of the triggered text
+            let triggerStart = -1;
+            let triggerChar = '';
+            
+            // Check for #, /, or @ triggers
             for (let i = cursorPos - 1; i >= 0; i--) {
-                if (text[i] === '#') {
-                    hashStart = i;
+                if (text[i] === '#' || text[i] === '/' || text[i] === '@') {
+                    triggerStart = i;
+                    triggerChar = text[i];
                     break;
                 } else if (!/[\w-]/.test(text[i])) {
                     break;
                 }
             }
             
-            if (hashStart === -1) return null;
+            if (triggerStart === -1) return null;
             
-            // Extract the hashtag without the # symbol
-            const hashtagText = text.substring(hashStart + 1, cursorPos);
+            // Extract the text without the trigger symbol
+            const tagText = text.substring(triggerStart + 1, cursorPos);
             
-            return hashtagText && /^[\w-]+$/.test(hashtagText) ? hashtagText : null;
+            // Return if valid
+            return tagText && /^[\w-]+$/.test(tagText) ? { text: tagText, trigger: triggerChar } : null;
         }
 
-        async function searchForTag(tag) {
+        async function searchForTag(tag, trigger) {
             try {
-                const response = await fetch(`${base_url()}/search?query=${encodeURIComponent(tag)}`);
+                let queryParams = `query=${encodeURIComponent(tag)}`;
+                
+                // Add node_type param based on trigger
+                if (trigger === '/') {
+                    queryParams += '&node_types=Page';
+                } else if (trigger === '@') {
+                    queryParams += '&node_types=File';
+                }
+                console.log("=>",queryParams);
+                const response = await fetch(`${base_url()}/search?${queryParams}`);
                 if (!response.ok) throw new Error(`HTTP error ${response.status}`);
                 
                 const data = await response.json();
@@ -360,7 +376,37 @@
             results.forEach((result) => {
                 const resultItem = document.createElement('div');
                 resultItem.className = 'result-item';
-                resultItem.textContent = result.properties.name || 'Unnamed';
+                
+                // Create container for flex layout
+                const contentContainer = document.createElement('div');
+                contentContainer.style.display = 'flex';
+                contentContainer.style.justifyContent = 'space-between';
+                contentContainer.style.alignItems = 'center';
+                contentContainer.style.width = '100%';
+                
+                // Name container (to allow text overflow handling)
+                const nameContainer = document.createElement('div');
+                nameContainer.style.overflow = 'hidden';
+                nameContainer.style.textOverflow = 'ellipsis';
+                nameContainer.style.whiteSpace = 'nowrap';
+                nameContainer.textContent = result.properties.name || 'Unnamed';
+                contentContainer.appendChild(nameContainer);
+                
+                // Add language tag if file exists
+                if (result.properties.file) {
+                    const langBadge = document.createElement('span');
+                    langBadge.className = 'lang-badge';
+                    langBadge.textContent = fileExtension(result.properties.file);
+                    langBadge.style.fontSize = '9px';
+                    langBadge.style.padding = '1px 4px';
+                    langBadge.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                    langBadge.style.borderRadius = '3px';
+                    langBadge.style.marginLeft = '4px';
+                    langBadge.style.flexShrink = '0';
+                    contentContainer.appendChild(langBadge);
+                }
+                
+                resultItem.appendChild(contentContainer);
                 
                 const color = nodeTypeColors[result.node_type] || '#333';
                 resultItem.style.backgroundColor = color;
@@ -378,7 +424,7 @@
                 
                 // Add click event
                 resultItem.addEventListener('click', () => {
-                    replaceHashtagWithStyledSpan(result);
+                    replaceTagWithStyledSpan(result);
                     hideResultsPane();
                 });
                 
@@ -388,7 +434,7 @@
             resultsPane.style.display = 'block';
         }
 
-        function replaceHashtagWithStyledSpan(result) {
+        function replaceTagWithStyledSpan(result) {
             if (!lastRange) return;
             
             // Restore the saved range
@@ -404,38 +450,38 @@
             const text = textNode.textContent;
             const cursorPos = range.startOffset;
             
-            // Find the start of the hashtag
-            let hashStart = -1;
+            // Find the start of the trigger
+            let triggerStart = -1;
             for (let i = cursorPos - 1; i >= 0; i--) {
-                if (text[i] === '#') {
-                    hashStart = i;
+                if (text[i] === '#' || text[i] === '/' || text[i] === '@') {
+                    triggerStart = i;
                     break;
                 } else if (!/[\w-]/.test(text[i])) {
                     break;
                 }
             }
             
-            if (hashStart === -1) return;
+            if (triggerStart === -1) return;
             
             // Split text into before, tag, and after
-            const beforeText = text.substring(0, hashStart);
+            const beforeText = text.substring(0, triggerStart);
             const afterText = text.substring(cursorPos);
             
             // Create document fragment
             const fragment = document.createDocumentFragment();
             
-            // Add text before the hashtag
+            // Add text before the trigger
             if (beforeText) {
                 fragment.appendChild(document.createTextNode(beforeText));
             }
             
-            // Create styled span for the hashtag
+            // Create styled span for the tag
             const color = nodeTypeColors[result.node_type] || '#333';
             const tagSpan = document.createElement('span');
             tagSpan.className = 'tagged-text';
             tagSpan.style.color = color;
             tagSpan.style.fontWeight = 'bold';
-            tagSpan.textContent = `#${currentTag}`;
+            tagSpan.textContent = `${currentTrigger}${currentTag}`;
             tagSpan.dataset.body = result.properties.body || '';
             tagSpan.dataset.file = result.properties.file || '';
             tagSpan.dataset.nodeType = result.node_type;
@@ -444,22 +490,22 @@
             fragment.appendChild(tagSpan);
             
             // Create a separate text node for afterText
-            // If afterText is empty, use a zero-width space to ensure there's a valid cursor position
             const afterNode = document.createTextNode(afterText || '\u200B');
             fragment.appendChild(afterNode);
             
             // Replace the original text node with our new structure
             textNode.parentNode.replaceChild(fragment, textNode);
             
-            // Position cursor at the beginning of the text after the tag
+            // Position cursor after the tag
             const newRange = document.createRange();
-            newRange.setStartAfter(afterNode);
+            newRange.setStartAfter(tagSpan);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
             
             // Reset state
             currentTag = '';
+            currentTrigger = '';
             lastRange = null;
         }
 
@@ -563,16 +609,16 @@
         
         function untagElement() {
             if (!activeTagElement) return;
-            
+
             // Get the text content without the # symbol
             const tagText = activeTagElement.textContent;
-            
+
             // Create a text node to replace the tag span
             const textNode = document.createTextNode(tagText);
-            
+
             // Replace the tag span with the text node
             activeTagElement.parentNode.replaceChild(textNode, activeTagElement);
-            
+
             // Reset active tag
             activeTagElement = null;
         }
@@ -585,9 +631,13 @@
             resultsPane.style.display = 'none';
         }
 
+        function fileExtension(filePath) {
+            if (!filePath) return null;
+            return filePath.split('.').pop().toLowerCase();
+        }
+
         function getLanguageFromFilePath(filePath) {
             if (!filePath) return null;
-            
             const extension = filePath.split('.').pop().toLowerCase();
             const langMap = {
                 'js': 'JavaScript',

@@ -27,7 +27,7 @@ app.get("/schema", r.schema);
 app.get("/ontology", r.schema);
 
 app.use(r.authMiddleware);
-
+app.use(r.logEndpoint);
 app.get("/nodes", r.get_nodes);
 app.get("/search", r.search);
 app.get("/map", r.get_map);
