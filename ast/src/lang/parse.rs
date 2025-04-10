@@ -169,16 +169,22 @@ impl Lang {
                 let res = LspCmd::GotoDefinition(pos.clone()).send(&lsp)?;
                 if let LspRes::GotoDefinition(Some(gt)) = res {
                     let target_file = gt.file.display().to_string();
-                    let target = NodeData::name_file(&comp_name, &target_file);
-                    page_renders.push(Edge::renders(&pag, &target));
+                    if let Some(_) = graph.find_node_by_name_in_file(
+                        NodeType::Function,
+                        &comp_name,
+                        &target_file,
+                    ) {
+                        let target = NodeData::name_file(&comp_name, &target_file);
+                        page_renders.push(Edge::renders(&pag, &target));
+                        continue;
+                    }
                 }
-            } else {
-                // fallback
-                let nodes = graph.find_nodes_by_name(NodeType::Function, &comp_name);
-                // only take the first? FIXME
-                if let Some(node) = nodes.first() {
-                    page_renders.push(Edge::renders(&pag, &node));
-                }
+            }
+            // fallback
+            let nodes = graph.find_nodes_by_name(NodeType::Function, &comp_name);
+            // only take the first? FIXME
+            if let Some(node) = nodes.first() {
+                page_renders.push(Edge::renders(&pag, &node));
             }
         }
         if page_names.is_empty() {
