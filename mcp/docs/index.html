@@ -87,6 +87,12 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         
+        .result-item.selected {
+            outline: 2px solid white;
+            transform: scale(1.07);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
         .tooltip {
             position: absolute;
             display: none;
@@ -248,6 +254,8 @@
         let lastRange = null;
         let activeTagElement = null;
         let currentTrigger = '';
+        let selectedResultIndex = -1;
+        let shiftPressed = false;
 
         // Initialize
         editor.focus();
@@ -256,6 +264,27 @@
         editor.addEventListener('input', handleInput);
         editor.addEventListener('keydown', handleKeydown);
         editor.addEventListener('click', handleEditorClick);
+        
+        // Global keydown/keyup listeners for Shift
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Shift') {
+                shiftPressed = true;
+                if (resultsPane.style.display === 'block' && selectedResultIndex >= 0) {
+                    const resultItems = Array.from(resultsList.querySelectorAll('.result-item'));
+                    if (resultItems.length > 0 && selectedResultIndex < resultItems.length) {
+                        const selectedItem = resultItems[selectedResultIndex];
+                        showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
+                    }
+                }
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Shift') {
+                shiftPressed = false;
+                hideTooltip();
+            }
+        });
 
         function handleInput(e) {
             clearTimeout(searchTimeout);
@@ -282,6 +311,47 @@
             if (e.key === 'Escape') {
                 hideResultsPane();
                 hideTooltip();
+                return;
+            }
+            
+            // Handle keyboard navigation in search results
+            if (resultsPane.style.display === 'block') {
+                const resultItems = Array.from(resultsList.querySelectorAll('.result-item'));
+                const itemCount = resultItems.length;
+                
+                if (itemCount > 0) {
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault(); // Prevent cursor movement
+                        selectedResultIndex = (selectedResultIndex + 1) % itemCount;
+                        updateSelectedResult(resultItems);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault(); // Prevent cursor movement
+                        selectedResultIndex = (selectedResultIndex - 1 + itemCount) % itemCount;
+                        updateSelectedResult(resultItems);
+                    } else if (e.key === 'Enter' && selectedResultIndex >= 0) {
+                        e.preventDefault(); // Prevent default Enter behavior
+                        resultItems[selectedResultIndex].click();
+                    }
+                }
+            }
+        }
+        
+        function updateSelectedResult(resultItems) {
+            // Remove selection from all items
+            resultItems.forEach(item => item.classList.remove('selected'));
+            
+            // Apply selection to current item
+            if (selectedResultIndex >= 0 && selectedResultIndex < resultItems.length) {
+                resultItems[selectedResultIndex].classList.add('selected');
+                
+                // Ensure the selected item is visible (scroll if needed)
+                resultItems[selectedResultIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                // If shift is pressed, show the tooltip for the selected item
+                if (shiftPressed) {
+                    const selectedItem = resultItems[selectedResultIndex];
+                    showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
+                }
             }
         }
         
@@ -377,6 +447,10 @@
                 const resultItem = document.createElement('div');
                 resultItem.className = 'result-item';
                 
+                // Store data for tooltip
+                resultItem.dataset.body = result.properties.body || '';
+                resultItem.dataset.file = result.properties.file || '';
+                
                 // Create container for flex layout
                 const contentContainer = document.createElement('div');
                 contentContainer.style.display = 'flex';
@@ -413,13 +487,22 @@
                 
                 // Add hover event for preview
                 resultItem.addEventListener('mouseover', () => {
-                    showTooltip(result.properties.body, result.properties.file);
+                    if (!shiftPressed) { // Only show tooltip on hover if shift is not pressed
+                        showTooltip(result.properties.body, result.properties.file);
+                    }
                 });
                 
                 resultItem.addEventListener('mouseout', () => {
-                    if (!activeTagElement) {
+                    if (!activeTagElement && !shiftPressed) {
                         hideTooltip();
                     }
+                });
+                
+                // Update selection on mouse enter
+                resultItem.addEventListener('mouseenter', () => {
+                    const resultItems = Array.from(resultsList.querySelectorAll('.result-item'));
+                    selectedResultIndex = resultItems.indexOf(resultItem);
+                    updateSelectedResult(resultItems);
                 });
                 
                 // Add click event
@@ -432,6 +515,10 @@
             });
             
             resultsPane.style.display = 'block';
+            
+            // Initialize selection to first item
+            selectedResultIndex = 0;
+            updateSelectedResult(Array.from(resultsList.querySelectorAll('.result-item')));
         }
 
         function replaceTagWithStyledSpan(result) {
@@ -629,6 +716,7 @@
 
         function hideResultsPane() {
             resultsPane.style.display = 'none';
+            selectedResultIndex = -1;
         }
 
         function fileExtension(filePath) {
