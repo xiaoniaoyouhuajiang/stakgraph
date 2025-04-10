@@ -628,11 +628,11 @@ impl Graph for BTreeMapGraph {
         }
     }
 
-    fn find_data_model_nodes(&self, name: &str) -> Vec<NodeData> {
-        let prefix = format!("{:?}", NodeType::DataModel);
+    fn find_nodes_by_name_contains(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
+        let prefix = format!("{:?}-{}", node_type, name);
         self.nodes
             .range(prefix.clone()..)
-            .take_while(|(k, _)| k.starts_with(&prefix) && k.contains(name))
+            .take_while(|(k, n)| k.starts_with(&prefix) && n.node_data.name.contains(name))
             .map(|(_, node)| node.node_data.clone())
             .collect()
     }
@@ -718,44 +718,6 @@ impl Graph for BTreeMapGraph {
         called_functions
     }
 
-    fn check_indirect_data_model_usage(
-        &self,
-        function_name: &str,
-        data_model: &str,
-        visited: &mut Vec<String>,
-    ) -> bool {
-        if visited.contains(&function_name.to_string()) {
-            return false;
-        }
-        visited.push(function_name.to_string());
-
-        if self.check_direct_data_model_usage(function_name, data_model) {
-            return true;
-        }
-
-        let function_prefix = format!("{:?}-{}", NodeType::Function, function_name);
-
-        let function_nodes: Vec<NodeData> = self
-            .nodes
-            .range(function_prefix.clone()..)
-            .take_while(|(k, _)| k.starts_with(&function_prefix))
-            .map(|(_, node)| node.node_data.clone())
-            .collect();
-
-        if function_nodes.is_empty() {
-            return false;
-        }
-
-        let called_functions = self.find_functions_called_by(&function_nodes[0]);
-
-        for called_func in called_functions {
-            if self.check_indirect_data_model_usage(&called_func.name, data_model, visited) {
-                return true;
-            }
-        }
-
-        false
-    }
     fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData> {
         let prefix = format!("{:?}-", node_type);
         self.nodes
@@ -793,13 +755,9 @@ impl Graph for BTreeMapGraph {
     fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
         self.edges
             .iter()
-            .filter(|(_, edge)| {
-                match (edge, &edge_type) {
-                    // Special case for Calls - only match the variant, not the data
-                    (EdgeType::Calls(_), EdgeType::Calls(_)) => true,
-                    // For all other edge types, exact equality
-                    _ => **edge == edge_type,
-                }
+            .filter(|(_, edge)| match (edge, &edge_type) {
+                (EdgeType::Calls(_), EdgeType::Calls(_)) => true,
+                _ => **edge == edge_type,
             })
             .count()
     }

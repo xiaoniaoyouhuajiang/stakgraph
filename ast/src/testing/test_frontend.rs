@@ -84,10 +84,9 @@ impl<G: Graph> FrontendTester<G> {
     }
 
     fn test_language(&self) -> Result<(), anyhow::Error> {
-        let language_name = self.lang.kind.to_string();
         let language_nodes = self
             .graph
-            .find_nodes_by_name(NodeType::Language, &language_name)
+            .find_nodes_by_type(NodeType::Language)
             .first()
             .cloned()
             .unwrap();
@@ -120,7 +119,9 @@ impl<G: Graph> FrontendTester<G> {
     }
 
     fn test_data_model(&self, data_model: &str) -> Result<(), anyhow::Error> {
-        let data_model_nodes = self.graph.find_data_model_nodes(data_model);
+        let data_model_nodes = self
+            .graph
+            .find_nodes_by_name_contains(NodeType::DataModel, data_model);
 
         info!("✓ Found data model {}", data_model);
 

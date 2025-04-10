@@ -64,9 +64,7 @@ impl<G: Graph> BackendTester<G> {
     }
 
     fn test_language(&self) -> Result<(), anyhow::Error> {
-        let language_nodes = self
-            .graph
-            .find_nodes_by_name(NodeType::Language, &self.lang.kind.to_string());
+        let language_nodes = self.graph.find_nodes_by_type(NodeType::Language);
 
         assert!(!language_nodes.is_empty(), "Language node not found");
 
@@ -99,8 +97,9 @@ impl<G: Graph> BackendTester<G> {
     }
 
     fn test_data_model(&self, name: &str) -> Result<(), anyhow::Error> {
-        // Using find_data_model_nodes which we added to the Graph trait
-        let data_model_nodes = self.graph.find_data_model_nodes(name);
+        let data_model_nodes = self
+            .graph
+            .find_nodes_by_name_contains(NodeType::DataModel, name);
 
         if !data_model_nodes.is_empty() {
             info!("✓ Found data model {}", name);
@@ -193,10 +192,7 @@ impl<G: Graph> BackendTester<G> {
 
                 let mut visited = Vec::new();
 
-                if self
-                    .graph
-                    .check_indirect_data_model_usage(&func.name, data_model, &mut visited)
-                {
+                if self.check_indirect_data_model_usage(&func.name, data_model, &mut visited) {
                     data_model_found = true;
                     info!(
                         "✓ Found function {} that indirectly triggers data model {}",
@@ -226,6 +222,44 @@ impl<G: Graph> BackendTester<G> {
         }
 
         Ok(())
+    }
+
+    fn check_indirect_data_model_usage(
+        &self,
+        function_name: &str,
+        data_model: &str,
+        visited: &mut Vec<String>,
+    ) -> bool {
+        if visited.contains(&function_name.to_string()) {
+            return false;
+        }
+        visited.push(function_name.to_string());
+
+        if self
+            .graph
+            .check_direct_data_model_usage(function_name, data_model)
+        {
+            return true;
+        }
+
+        let function_nodes = self
+            .graph
+            .find_nodes_by_name(NodeType::Function, function_name);
+
+        if function_nodes.is_empty() {
+            return false;
+        }
+
+        let function_node = &function_nodes[0];
+
+        let called_functions = self.graph.find_functions_called_by(&function_node);
+
+        for called_function in called_functions {
+            if self.check_indirect_data_model_usage(&called_function.name, data_model, visited) {
+                return true;
+            }
+        }
+        false
     }
 }
 

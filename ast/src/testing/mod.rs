@@ -1,4 +1,4 @@
-use crate::lang::{ArrayGraph, BTreeMapGraph, Lang};
+use crate::lang::{ArrayGraph, Lang};
 use lsp::Language;
 use std::env;
 use std::str::FromStr;
