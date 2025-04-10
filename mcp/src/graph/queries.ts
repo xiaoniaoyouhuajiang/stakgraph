@@ -1,6 +1,40 @@
-export const Data_Bank = "Data_Bank";
+import { DIMENSIONS } from "../vector/index.js";
 
-export const KEY_INDEX_QUERY = `CREATE INDEX data_bank_node_key_index IF NOT EXISTS FOR (n:${Data_Bank}) ON (n.node_key)`;
+export const Data_Bank = "Data_Bank";
+export const KEY_INDEX = "data_bank_node_key_index";
+export const FULLTEXT_BODY_INDEX = "bodyIndex";
+export const FULLTEXT_NAME_INDEX = "nameIndex";
+export const VECTOR_INDEX = "vectorIndex";
+
+export const KEY_INDEX_QUERY = `CREATE INDEX ${KEY_INDEX} IF NOT EXISTS FOR (n:${Data_Bank}) ON (n.node_key)`;
+
+const ENGLISH = `OPTIONS {
+  indexConfig: {
+    \`fulltext.analyzer\`: 'english'
+  }
+}`;
+
+const COSINE = `OPTIONS {
+  indexConfig: {
+    \`vector.dimensions\`: ${DIMENSIONS},
+    \`vector.similarity_function\`: 'cosine'
+  }
+}`;
+
+export const FULLTEXT_BODY_INDEX_QUERY = `CREATE FULLTEXT INDEX ${FULLTEXT_BODY_INDEX}
+  IF NOT EXISTS FOR (f:${Data_Bank})
+  ON EACH [f.body]
+${ENGLISH}`;
+
+export const FULLTEXT_NAME_INDEX_QUERY = `CREATE FULLTEXT INDEX ${FULLTEXT_NAME_INDEX}
+  IF NOT EXISTS FOR (f:${Data_Bank})
+  ON EACH [f.name]
+${ENGLISH}`;
+
+export const VECTOR_INDEX_QUERY = `CREATE VECTOR INDEX ${VECTOR_INDEX}
+  IF NOT EXISTS FOR (n:${Data_Bank})
+  ON n.embeddings
+${COSINE}`;
 
 export const DATA_BANK_QUERY = `MATCH (n:${Data_Bank}) RETURN n`;
 
@@ -75,20 +109,14 @@ WHERE
 RETURN f as component
 `;
 
-export const BODY_INDEX = "bodyIndex";
-
-export const VECTOR_INDEX = "vectorIndex";
-
-export const SEARCH_QUERY = `
-CALL db.index.fulltext.queryNodes('${BODY_INDEX}', $query) YIELD node, score
+export const SEARCH_QUERY_SIMPLE = `
+CALL db.index.fulltext.queryNodes('${FULLTEXT_BODY_INDEX}', $query) YIELD node, score
 RETURN node, score
 ORDER BY score DESC
 LIMIT toInteger($limit)
 `;
 
-export const SEARCH_QUERY_NODE_TYPES = `
-CALL db.index.fulltext.queryNodes('${BODY_INDEX}', $query) YIELD node, score
-WITH node, score
+const NODE_TYPES = `WITH node, score
 WHERE
   CASE
     WHEN $node_types IS NULL OR size($node_types) = 0 THEN true
@@ -96,7 +124,16 @@ WHERE
   END
 RETURN node, score
 ORDER BY score DESC
-LIMIT toInteger($limit)
+LIMIT toInteger($limit)`;
+
+export const SEARCH_QUERY_BODY = `
+CALL db.index.fulltext.queryNodes('${FULLTEXT_BODY_INDEX}', $query) YIELD node, score
+${NODE_TYPES}
+`;
+
+export const SEARCH_QUERY_NAME = `
+CALL db.index.fulltext.queryNodes('${FULLTEXT_NAME_INDEX}', $query) YIELD node, score
+${NODE_TYPES}
 `;
 
 export const VECTOR_SEARCH_QUERY = `
@@ -306,6 +343,15 @@ WHERE ALL(node IN nodes(path) WHERE
     node:Datamodel)
 RETURN path
 `;
+
+/*
+
+CALL db.index.fulltext.queryNodes('nameIndex', 'bounty') YIELD node, score
+RETURN node, score
+ORDER BY score DESC
+LIMIT 25
+
+*/
 
 /*
 MATCH (start {node_key: 'p-stakworksphinxtribesfrontendsrcpagesindextsx'}), (end {node_key: 'person-stakworksphinxtribesdbstructsgo'})
