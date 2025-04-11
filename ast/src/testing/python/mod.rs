@@ -1,10 +1,10 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
 
-#[test(tokio::test)]
-async fn test_python() {
+pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let repo = Repo::new(
         "src/testing/python",
         Lang::from_str("python").unwrap(),
@@ -14,69 +14,63 @@ async fn test_python() {
     )
     .unwrap();
 
-    let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 59);
-    assert_eq!(graph.edges.len(), 78);
+    let graph = repo.build_graph_inner::<G>().await?;
 
-    let languages = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Language))
-        .collect::<Vec<_>>();
-    assert_eq!(languages.len(), 1);
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(num_nodes, 59, "Expected 59 nodes");
+    assert_eq!(num_edges, 78, "Expected 78 edges");
 
-    let language = languages[0].into_data();
-    assert_eq!(language.name, "python");
-    assert_eq!(language.file, "src/testing/python/");
+    let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
+    assert_eq!(
+        language_nodes[0].name, "python",
+        "Language node name should be 'python'"
+    );
+    assert_eq!(
+        language_nodes[0].file, "src/testing/python/",
+        "Language node file path is incorrect"
+    );
 
-    let files = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::File))
-        .collect::<Vec<_>>();
+    let files = graph.find_nodes_by_type(NodeType::File);
+    assert_eq!(files.len(), 16, "Expected 16 files");
 
-    assert_eq!(files.len(), 16, "wrong file count");
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 12, "Expected 12 imports");
 
-    let imports = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Import))
-        .collect::<Vec<_>>();
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+    assert_eq!(classes.len(), 3, "Expected 3 classes");
 
-    assert_eq!(imports.len(), 12, "wrong import count");
+    let mut sorted_classes = classes.clone();
+    sorted_classes.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let classes = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Class))
-        .collect::<Vec<_>>();
+    assert!(
+        classes
+            .iter()
+            .any(|c| c.name == "Person" && c.file == "src/testing/python/model.py"),
+        "Expected Person class not found"
+    );
 
-    assert_eq!(classes.len(), 3);
+    let class_function_edges =
+        graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
+    assert_eq!(class_function_edges.len(), 2, "Expected 2 methods");
 
-    let class = classes[0].into_data();
-    assert_eq!(class.name, "Person");
-    assert_eq!(class.file, "src/testing/python/model.py");
+    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    assert_eq!(data_models.len(), 3, "Expected 3 data models");
 
-    let methods = graph
-        .edges
-        .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Operand) && e.source.node_type == NodeType::Class)
-        .collect::<Vec<_>>();
-    assert_eq!(methods.len(), 2);
+    let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
+    assert_eq!(endpoints.len(), 4, "Expected 4 endpoints");
 
-    let data_models = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::DataModel))
-        .collect::<Vec<_>>();
-    //Data models are zero because they are just classes in python
-    assert_eq!(data_models.len(), 3);
-
-    let endpoints = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Endpoint))
-        .collect::<Vec<_>>();
-
-    assert_eq!(endpoints.len(), 4, "wrong endpoint count");
+    Ok(())
 }
+
+#[test(tokio::test)]
+async fn test_python() {
+    use crate::lang::graphs::ArrayGraph;
+    test_python_generic::<ArrayGraph>().await.unwrap();
+}
+
+// #[test(tokio::test)]
+// async fn test_python_btree() {
+//     use crate::lang::graphs::BTreeMapGraph;
+//     test_python_generic::<BTreeMapGraph>().await.unwrap();
+// }
