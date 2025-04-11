@@ -1,5 +1,5 @@
 // Text area module - handles editor and search functionality
-Tagger.textareaModule = (function() {
+Tagger.Textarea = (function() {
     let searchTimeout;
     return {
 
@@ -49,7 +49,7 @@ Tagger.textareaModule = (function() {
         // Close results pane on escape
         if (e.key === 'Escape') {
             this.hideResultsPane();
-            Tagger.tooltipModule.hideTooltip();
+            Tagger.Tooltip.hideTooltip();
             return;
         }
         
@@ -89,7 +89,7 @@ Tagger.textareaModule = (function() {
                 const resultItems = Array.from(Tagger.elements.resultsList.querySelectorAll('.result-item'));
                 if (resultItems.length > 0 && Tagger.state.selectedResultIndex < resultItems.length) {
                     const selectedItem = resultItems[Tagger.state.selectedResultIndex];
-                    Tagger.tooltipModule.showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
+                    Tagger.Tooltip.showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
                 }
             }
         }
@@ -98,7 +98,7 @@ Tagger.textareaModule = (function() {
     handleGlobalKeyup: function(e) {
         if (e.key === 'Shift') {
             Tagger.state.shiftPressed = false;
-            Tagger.tooltipModule.hideTooltip();
+            Tagger.Tooltip.hideTooltip();
         }
     },
     
@@ -117,13 +117,13 @@ Tagger.textareaModule = (function() {
             Tagger.state.activeTagElement = tagElement;
             
             // Show the tooltip for this tag
-            Tagger.tooltipModule.showTooltip(
+            Tagger.Tooltip.showTooltip(
                 tagElement.dataset.body, 
                 tagElement.dataset.file
             );
         } else {
             // If we clicked elsewhere in the editor, hide the tooltip
-            Tagger.tooltipModule.hideTooltip();
+            Tagger.Tooltip.hideTooltip();
             Tagger.state.activeTagElement = null;
         }
     },
@@ -133,7 +133,7 @@ Tagger.textareaModule = (function() {
         if (!e.target.closest('.tooltip') && 
             !e.target.closest('#editor') && 
             !e.target.closest('.result-item')) {
-            Tagger.tooltipModule.hideTooltip();
+            Tagger.Tooltip.hideTooltip();
             this.hideResultsPane();
             Tagger.state.activeTagElement = null;
         }
@@ -267,7 +267,7 @@ Tagger.textareaModule = (function() {
             if (result.properties.file) {
                 const langBadge = document.createElement('span');
                 langBadge.className = 'lang-badge';
-                langBadge.textContent = Tagger.tooltipModule.fileExtension(result.properties.file);
+                langBadge.textContent = Tagger.Tooltip.fileExtension(result.properties.file);
                 langBadge.style.fontSize = '9px';
                 langBadge.style.padding = '1px 4px';
                 langBadge.style.backgroundColor = 'rgba(255,255,255,0.2)';
@@ -285,13 +285,13 @@ Tagger.textareaModule = (function() {
             // Add hover event for preview
             resultItem.addEventListener('mouseover', () => {
                 if (!Tagger.state.shiftPressed) { // Only show tooltip on hover if shift is not pressed
-                    Tagger.tooltipModule.showTooltip(result.properties.body, result.properties.file);
+                    Tagger.Tooltip.showTooltip(result.properties.body, result.properties.file);
                 }
             });
             
             resultItem.addEventListener('mouseout', () => {
                 if (!Tagger.state.activeTagElement && !Tagger.state.shiftPressed) {
-                    Tagger.tooltipModule.hideTooltip();
+                    Tagger.Tooltip.hideTooltip();
                 }
             });
             
@@ -336,7 +336,7 @@ Tagger.textareaModule = (function() {
             // If shift is pressed, show the tooltip for the selected item
             if (Tagger.state.shiftPressed) {
                 const selectedItem = resultItems[Tagger.state.selectedResultIndex];
-                Tagger.tooltipModule.showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
+                Tagger.Tooltip.showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
             }
         }
     },

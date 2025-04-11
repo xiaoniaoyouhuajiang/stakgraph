@@ -1,5 +1,5 @@
 // Tooltip module - handles tooltips and code highlighting
-Tagger.tooltipModule = (function() { return {
+Tagger.Tooltip = (function() { return {
     init: function() {
         // Nothing to initialize for now
     },
