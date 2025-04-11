@@ -33,10 +33,14 @@ pub struct Repos(pub Vec<Repo>);
 
 impl Repos {
     pub async fn build_graphs(&self) -> Result<ArrayGraph> {
-        let mut graph = ArrayGraph::new();
+        self.build_graphs_inner::<ArrayGraph>().await
+    }
+
+    async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
+        let mut graph = G::new();
         for repo in &self.0 {
             info!("building graph for {:?}", repo);
-            let subgraph = repo.build_graph().await?;
+            let subgraph = repo.build_graph_inner().await?;
             graph.extend_graph(subgraph);
         }
 
