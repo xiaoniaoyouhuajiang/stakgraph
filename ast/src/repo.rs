@@ -39,7 +39,7 @@ impl Repos {
             let subgraph = repo.build_graph().await?;
             graph.extend_graph(subgraph);
         }
-        //TODO: handler linker
+
         info!("linking e2e tests");
         linker::link_e2e_tests(&mut graph)?;
         info!("linking api nodes");
