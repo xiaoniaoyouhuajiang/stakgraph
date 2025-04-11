@@ -36,12 +36,14 @@ impl Graph for BTreeMapGraph {
         (self.nodes.len() as u32, self.edges.len() as u32)
     }
     fn add_edge(&mut self, edge: Edge) {
-        let source_node = self.find_node_from_node_ref(edge.source).unwrap();
-        let target_node = self.find_node_from_node_ref(edge.target).unwrap();
-        let source_key = create_node_key(source_node);
-        let target_key = create_node_key(target_node);
-
-        self.edges.insert((source_key, target_key), edge.edge);
+        if let (Some(source_node), Some(target_node)) = (
+            self.find_node_from_node_ref(edge.source),
+            self.find_node_from_node_ref(edge.target),
+        ) {
+            let source_key = create_node_key(source_node);
+            let target_key = create_node_key(target_node);
+            self.edges.insert((source_key, target_key), edge.edge);
+        }
     }
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
