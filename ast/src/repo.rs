@@ -1,5 +1,5 @@
 use crate::lang::graphs::Graph;
-use crate::lang::{linker, Lang};
+use crate::lang::{linker, ArrayGraph, BTreeMapGraph, Lang};
 use anyhow::{anyhow, Context, Result};
 use git_url_parse::GitUrl;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
@@ -32,11 +32,18 @@ pub struct Repo {
 pub struct Repos(pub Vec<Repo>);
 
 impl Repos {
-    pub async fn build_graphs<G: Graph>(&self) -> Result<G> {
+    pub async fn build_graphs(&self) -> Result<ArrayGraph> {
+        self.build_graphs_inner::<ArrayGraph>().await
+    }
+
+    pub async fn build_graphs_btree(&self) -> Result<BTreeMapGraph> {
+        self.build_graphs_inner::<BTreeMapGraph>().await
+    }
+    async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
         let mut graph = G::new();
         for repo in &self.0 {
             info!("building graph for {:?}", repo);
-            let subgraph = repo.build_graph().await?;
+            let subgraph = repo.build_graph_inner().await?;
             graph.extend_graph(subgraph);
         }
 

@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
-use ast::lang::{ArrayGraph, BTreeMapGraph, Graph};
 use ast::repo::Repo;
 use ast::utils::{logger, print_json};
-use serde::Serialize;
 use std::env;
 
 /*
@@ -35,24 +33,7 @@ async fn main() -> Result<()> {
     let revs: Vec<String> = rev
         .map(|r| r.split(',').map(|s| s.to_string()).collect())
         .unwrap_or_default();
-    let graph_type = env::var("GRAPH_TYPE").unwrap_or_else(|_| "array".to_string());
-    match graph_type.as_str() {
-        "btree" => {
-            println!("Using BTreeMapGraph");
-            main_with_graph_type::<BTreeMapGraph>(repo_path, repo_urls, revs).await
-        }
-        _ => {
-            println!("Using ArrayGraph");
-            main_with_graph_type::<ArrayGraph>(repo_path, repo_urls, revs).await
-        }
-    }
-}
 
-async fn main_with_graph_type<G: Graph + Serialize + 'static>(
-    repo_path: Option<String>,
-    repo_urls: Option<String>,
-    revs: Vec<String>,
-) -> Result<()> {
     let repos = if let Some(repo_path) = &repo_path {
         Repo::new_multi_detect(repo_path, None, Vec::new(), revs.clone()).await?
     } else {
@@ -80,7 +61,7 @@ async fn main_with_graph_type<G: Graph + Serialize + 'static>(
     });
     println!("{}", name);
 
-    let graph = repos.build_graphs::<G>().await?;
+    let graph = repos.build_graphs().await?;
 
     if std::env::var("OUTPUT_FORMAT")
         .unwrap_or_else(|_| "json".to_string())

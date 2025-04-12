@@ -41,19 +41,11 @@ pub fn print_json<G: Graph + Serialize + 'static>(graph: &G, name: &str) -> Resu
 }
 
 fn as_array_graph<G: Graph + Serialize + 'static>(graph: &G) -> Option<&ArrayGraph> {
-    if let Some(array_graph) = (graph as &dyn Any).downcast_ref::<ArrayGraph>() {
-        Some(array_graph)
-    } else {
-        None
-    }
+    (graph as &dyn Any).downcast_ref::<ArrayGraph>()
 }
 
 fn as_btreemap_graph<G: Graph + Serialize + 'static>(graph: &G) -> Option<&BTreeMapGraph> {
-    if let Some(btreemap_graph) = (graph as &dyn Any).downcast_ref::<BTreeMapGraph>() {
-        Some(btreemap_graph)
-    } else {
-        None
-    }
+    (graph as &dyn Any).downcast_ref::<BTreeMapGraph>()
 }
 
 pub fn logger() {

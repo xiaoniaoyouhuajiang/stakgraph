@@ -1,7 +1,6 @@
 use crate::lang::{Edge, Lang, NodeType};
 use crate::lang::{Function, FunctionCall};
 use anyhow::Result;
-use std::env;
 use std::fmt::Debug;
 
 use super::{EdgeType, NodeData, NodeKeys};
@@ -130,16 +129,4 @@ pub trait Graph: Default + Debug {
             .into_iter()
             .find(|node| node.file == file && node.start == line as usize)
     }
-}
-
-pub fn create_graph<G: Graph>() -> G {
-    G::new()
-}
-
-pub fn get_graph_type() -> String {
-    env::var("GRAPH_TYPE").unwrap_or_else(|_| "array".to_string())
-}
-
-pub fn graph_type_is_btree() -> bool {
-    get_graph_type().as_str() == "btreemap"
 }
