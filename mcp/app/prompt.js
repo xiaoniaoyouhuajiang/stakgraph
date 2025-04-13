@@ -364,6 +364,7 @@ export const Prompt = ({ onSend }) => {
     const [rangeInfo, setRangeInfo] = useState(null);
     const [activeTagElement, setActiveTagElement] = useState(null);
     const [isHoveringTooltip, setIsHoveringTooltip] = useState(false);
+    const [isHoveringResult, setIsHoveringResult] = useState(false);
     
     // Refs
     const tooltipTimeoutRef = useRef(null);
@@ -410,7 +411,8 @@ export const Prompt = ({ onSend }) => {
         const handleGlobalKeyup = (e) => {
             if (e.key === 'Shift') {
                 setShiftPressed(false);
-                if (!activeTagElement && !isHoveringTooltip) {
+                // Hide tooltip on shift release unless actively hovering something
+                if (!isHoveringTooltip && !isHoveringResult) {
                     hideTooltip();
                 }
             }
@@ -423,7 +425,7 @@ export const Prompt = ({ onSend }) => {
             document.removeEventListener('keydown', handleGlobalKeydown);
             document.removeEventListener('keyup', handleGlobalKeyup);
         };
-    }, [showResults, selectedResultIndex, results, activeTagElement, isHoveringTooltip]);
+    }, [showResults, selectedResultIndex, results, isHoveringTooltip, isHoveringResult]);
     
     // Global click handler
     useEffect(() => {
@@ -481,10 +483,10 @@ export const Prompt = ({ onSend }) => {
     
     const handleTooltipMouseLeave = useCallback(() => {
         setIsHoveringTooltip(false);
-        if (!activeTagElement && !shiftPressed) {
+        if (!shiftPressed) {
             hideTooltip();
         }
-    }, [activeTagElement, shiftPressed, hideTooltip]);
+    }, [shiftPressed, hideTooltip]);
     
     const untagElement = useCallback(() => {
         if (!activeTagElement) return;
@@ -657,18 +659,20 @@ export const Prompt = ({ onSend }) => {
     
     const handleResultMouseEnter = useCallback((index, result) => {
         setSelectedResultIndex(index);
-        if (shiftPressed) {
-            showTooltip(result.properties.body, result.properties.file);
-        }
-    }, [shiftPressed, showTooltip]);
+        setIsHoveringResult(true);
+        // Always show tooltip on hover, regardless of shift key
+        showTooltip(result.properties.body, result.properties.file);
+    }, [showTooltip]);
     
     const handleResultMouseOut = useCallback(() => {
-        if (!activeTagElement && !shiftPressed && !isHoveringTooltip) {
-            tooltipTimeoutRef.current = setTimeout(() => {
+        setIsHoveringResult(false);
+        // Hide tooltip after a small delay unless shift is pressed or hovering tooltip
+        tooltipTimeoutRef.current = setTimeout(() => {
+            if (!shiftPressed && !isHoveringTooltip) {
                 hideTooltip();
-            }, 100);
-        }
-    }, [activeTagElement, shiftPressed, isHoveringTooltip, hideTooltip]);
+            }
+        }, 100);
+    }, [shiftPressed, isHoveringTooltip, hideTooltip]);
     
     const handleTagClick = useCallback((tagElement) => {
         // If clicking on the same tag that's already active, do nothing
