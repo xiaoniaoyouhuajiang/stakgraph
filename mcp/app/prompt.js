@@ -152,7 +152,7 @@ const ResultsPane = ({
     
     return html`
         <div id="results-pane" style="display: block;">
-            <h3>Search Results</h3>
+            <h3>Code (${results.length})</h3>
             <div id="results-list">
                 ${results.map((result, index) => html`
                     <div 
@@ -363,7 +363,6 @@ export const Prompt = ({ onSend }) => {
     const [currentTrigger, setCurrentTrigger] = useState('');
     const [rangeInfo, setRangeInfo] = useState(null);
     const [activeTagElement, setActiveTagElement] = useState(null);
-    const [isHoveringTooltip, setIsHoveringTooltip] = useState(false);
     const [isHoveringResult, setIsHoveringResult] = useState(false);
     
     // Refs
@@ -412,7 +411,7 @@ export const Prompt = ({ onSend }) => {
             if (e.key === 'Shift') {
                 setShiftPressed(false);
                 // Hide tooltip on shift release unless actively hovering something
-                if (!isHoveringTooltip && !isHoveringResult) {
+                if (!isHoveringResult) {
                     hideTooltip();
                 }
             }
@@ -425,7 +424,7 @@ export const Prompt = ({ onSend }) => {
             document.removeEventListener('keydown', handleGlobalKeydown);
             document.removeEventListener('keyup', handleGlobalKeyup);
         };
-    }, [showResults, selectedResultIndex, results, isHoveringTooltip, isHoveringResult]);
+    }, [showResults, selectedResultIndex, results, isHoveringResult]);
     
     // Global click handler
     useEffect(() => {
@@ -468,25 +467,8 @@ export const Prompt = ({ onSend }) => {
     }, []);
     
     const hideTooltip = useCallback(() => {
-        if (!isHoveringTooltip) {
-            setTooltipVisible(false);
-        }
-    }, [isHoveringTooltip]);
-    
-    const handleTooltipMouseEnter = useCallback(() => {
-        setIsHoveringTooltip(true);
-        if (tooltipTimeoutRef.current) {
-            clearTimeout(tooltipTimeoutRef.current);
-            tooltipTimeoutRef.current = null;
-        }
+        setTooltipVisible(false);
     }, []);
-    
-    const handleTooltipMouseLeave = useCallback(() => {
-        setIsHoveringTooltip(false);
-        if (!shiftPressed) {
-            hideTooltip();
-        }
-    }, [shiftPressed, hideTooltip]);
     
     const untagElement = useCallback(() => {
         if (!activeTagElement) return;
@@ -512,7 +494,7 @@ export const Prompt = ({ onSend }) => {
             
             // Add node_type param based on trigger
             if (trigger === '/') {
-                queryParams += '&node_types=Page';
+                queryParams += '&node_types=Page,Endpoint';
             } else if (trigger === '@') {
                 queryParams += '&node_types=File';
             }
@@ -658,21 +640,31 @@ export const Prompt = ({ onSend }) => {
     }, [replaceTagWithStyledSpan, rangeInfo, hideResultsPane]);
     
     const handleResultMouseEnter = useCallback((index, result) => {
+        // Clear any existing hide tooltip timeout
+        if (tooltipTimeoutRef.current) {
+            clearTimeout(tooltipTimeoutRef.current);
+            tooltipTimeoutRef.current = null;
+        }
+        
         setSelectedResultIndex(index);
         setIsHoveringResult(true);
         // Always show tooltip on hover, regardless of shift key
         showTooltip(result.properties.body, result.properties.file);
     }, [showTooltip]);
-    
+
     const handleResultMouseOut = useCallback(() => {
-        setIsHoveringResult(false);
-        // Hide tooltip after a small delay unless shift is pressed or hovering tooltip
-        tooltipTimeoutRef.current = setTimeout(() => {
-            if (!shiftPressed && !isHoveringTooltip) {
+        // Use a small delay to let other mouseEnter events fire first
+        setTimeout(() => {
+            // Only hide if we're not hovering any result or the tooltip
+            const isHoveringAnyResult = document.querySelector('.result-item:hover');
+            const isHoveringTooltip = document.querySelector('.tooltip:hover');
+            
+            if (!isHoveringAnyResult && !isHoveringTooltip && !shiftPressed) {
+                setIsHoveringResult(false);
                 hideTooltip();
             }
-        }, 100);
-    }, [shiftPressed, isHoveringTooltip, hideTooltip]);
+        }, 50);
+    }, [shiftPressed, hideTooltip]);
     
     const handleTagClick = useCallback((tagElement) => {
         // If clicking on the same tag that's already active, do nothing
@@ -783,8 +775,6 @@ export const Prompt = ({ onSend }) => {
                 isVisible=${tooltipVisible}
                 onClose=${hideTooltip}
                 onUntag=${untagElement}
-                onMouseEnter=${handleTooltipMouseEnter}
-                onMouseLeave=${handleTooltipMouseLeave}
             />
             <${Editor}
                 onSearchTriggered=${searchForTag}
