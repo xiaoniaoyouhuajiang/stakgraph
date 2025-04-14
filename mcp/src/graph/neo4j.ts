@@ -107,7 +107,7 @@ class Db {
     const label_filter = this.skip_string(disclude);
     const session = this.driver.session();
     try {
-      return await session.run(Q.SUBTREE_QUERY, {
+      return await session.run(Q.SUBGRAPH_QUERY, {
         node_label: node_type,
         node_name: name,
         ref_id: ref_id,
