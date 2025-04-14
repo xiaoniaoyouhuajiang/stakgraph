@@ -118,10 +118,7 @@ function mapParams(req: Request): MapParams {
   const direction = req.query.direction as G.Direction;
   const tests = !(req.query.tests === "false" || req.query.tests === "0");
   const depth = parseInt(req.query.depth as string) || DEFAULT_DEPTH;
-  let default_direction = "down";
-  if (node_type === "Datamodel") {
-    default_direction = "up";
-  }
+  const default_direction = "both" as G.Direction;
   return {
     node_type: node_type || "",
     name: name || "",
