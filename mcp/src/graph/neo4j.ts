@@ -4,14 +4,10 @@ import readline from "readline";
 import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
-import {
-  DIMENSIONS,
-  vectorizeCodeDocument,
-  vectorizeQuery,
-} from "../vector/index.js";
+import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
 import { v4 as uuidv4 } from "uuid";
 
-export type Direction = "up" | "down";
+export type Direction = "up" | "down" | "both";
 
 export const Data_Bank = Q.Data_Bank;
 

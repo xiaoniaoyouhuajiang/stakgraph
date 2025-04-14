@@ -1,6 +1,6 @@
 ### openapi
 
-redocly build-docs docs/swagger.yaml
+redocly build-docs docs/swagger.yaml --output docs/redoc-static.html
 
 ### dev
 
