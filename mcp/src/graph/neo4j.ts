@@ -266,7 +266,7 @@ class Db {
     const session = this.driver.session();
     try {
       const result = await session.run(Q.SEARCH_QUERY_NAME, {
-        query: `${query}* OR ${query}`, // wildcard or not
+        query: `${query}* OR ${query}`, // wildcard OR not
         limit,
         node_types,
       });
