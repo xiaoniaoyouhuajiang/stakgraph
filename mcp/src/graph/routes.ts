@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { Neo4jNode, node_type_descriptions, NodeType } from "./types.js";
-import { nameFileOnly, toReturnNode } from "./utils.js";
+import { nameFileOnly, toReturnNode, isTrue } from "./utils.js";
 import * as G from "./graph.js";
 
 export function schema(_req: Request, res: Response) {
@@ -40,7 +40,7 @@ export async function get_nodes(req: Request, res: Response) {
   try {
     console.log("=> get_nodes", req.query);
     const node_type = req.query.node_type as NodeType;
-    const concise = req.query.concise === "true";
+    const concise = isTrue(req.query.concise as string);
     const result = await G.get_nodes(node_type, concise);
     res.json(result);
   } catch (error) {
@@ -65,7 +65,7 @@ export async function search(req: Request, res: Response) {
   try {
     const query = req.query.query as string;
     const limit = parseInt(req.query.limit as string) || 25;
-    const concise = req.query.concise === "true";
+    const concise = isTrue(req.query.concise as string);
     let node_types: NodeType[] = [];
     if (req.query.node_types) {
       node_types = (req.query.node_types as string).split(",") as NodeType[];
