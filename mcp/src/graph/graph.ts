@@ -44,6 +44,7 @@ export async function search(
     const result = await db.vectorSearch(query, limit, node_types);
     return toNodes(result, concise, output);
   } else {
+    console.log("=> search", `${query}* OR ${query}`);
     const result = await db.search(query, limit, node_types);
     return toNodes(result, concise, output);
   }

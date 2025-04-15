@@ -2,7 +2,7 @@
 
 redocly build-docs docs/swagger.yaml --output docs/redoc-static.html
 
-### dev
+### dev`
 
 yarn dev
 

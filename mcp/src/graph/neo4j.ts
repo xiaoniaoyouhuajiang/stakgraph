@@ -271,8 +271,9 @@ class Db {
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
+      // ^8 is a boost factor for exact match query
       const result = await session.run(Q.SEARCH_QUERY_NAME, {
-        query: `${query}* OR ${query}`, // wildcard OR not
+        query: `${query}^8 OR ${query}*`, // wildcard OR not
         limit,
         node_types,
       });
