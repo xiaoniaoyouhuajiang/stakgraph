@@ -52,6 +52,16 @@ class Db {
     }
   }
 
+  async nodes_by_ref_ids(ref_ids: string[]): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const r = await session.run(Q.REF_IDS_LIST_QUERY, { ref_ids });
+      return r.records.map((record) => record.get("n"));
+    } finally {
+      await session.close();
+    }
+  }
+
   async files(prefix: string, limit: number): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {

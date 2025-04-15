@@ -74,6 +74,13 @@ WHERE any(label IN labels(f) WHERE label = nodeLabel)
 RETURN f
 `;
 
+export const REF_IDS_LIST_QUERY = `
+WITH $ref_ids AS refIdList
+MATCH (n)
+WHERE n.ref_id IN refIdList
+RETURN n
+`;
+
 export const FILES_QUERY = `
 MATCH path = (d:Directory)-[:CONTAINS*0..]->(node)
 WHERE (node:Directory OR node:File)

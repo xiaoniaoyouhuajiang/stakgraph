@@ -41,8 +41,17 @@ export async function get_nodes(req: Request, res: Response) {
     console.log("=> get_nodes", req.query);
     const node_type = req.query.node_type as NodeType;
     const concise = isTrue(req.query.concise as string);
-    const result = await G.get_nodes(node_type, concise);
-    res.json(result);
+    let ref_ids: string[] = [];
+    if (req.query.ref_ids) {
+      ref_ids = (req.query.ref_ids as string).split(",");
+    }
+    const output = req.query.output as G.OutputFormat;
+    const result = await G.get_nodes(node_type, concise, ref_ids, output);
+    if (output === "snippet") {
+      res.send(result);
+    } else {
+      res.json(result);
+    }
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");
@@ -69,6 +78,8 @@ export async function search(req: Request, res: Response) {
     let node_types: NodeType[] = [];
     if (req.query.node_types) {
       node_types = (req.query.node_types as string).split(",") as NodeType[];
+    } else if (req.query.node_type) {
+      node_types = [req.query.node_type as NodeType];
     }
     const method = req.query.method as G.SearchMethod;
     const output = req.query.output as G.OutputFormat;
