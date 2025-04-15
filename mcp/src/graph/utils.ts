@@ -57,7 +57,7 @@ export function formatNode(node: Neo4jNode): string {
     return [
       `<snippet>`,
       `name: ${getNodeLabel(node)}`,
-      `ref id: ${node.ref_id || node.properties.ref_id || "N/A"}`,
+      `ref_id: ${node.ref_id || node.properties.ref_id || "N/A"}`,
       `file: ${node.properties.file || "Not specified"}`,
       `start: ${node.properties.start || "N/A"}, end: ${
         node.properties.end || "N/A"
