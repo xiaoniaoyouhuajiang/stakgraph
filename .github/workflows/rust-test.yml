@@ -16,5 +16,37 @@ jobs:
       - name: Checkout from Github
         uses: actions/checkout@v4
 
+      - name: Verify Go Installation
+        run: go version
+
+      - name: Install gopls
+        run: go install golang.org/x/tools/gopls@latest
+
+      - name: Verify gopls Installation
+        run: |
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+          gopls version
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify Node.js Installation
+        run: node -v
+
+      - name: Install TypeScript and TypeScript LSP
+        run: |
+          npm install -g typescript typescript-language-server
+          echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
+
+      - name: Verify TypeScript Installation
+        run: |
+          tsc --version
+          typescript-language-server --version
+
       - name: Run rust test
         run: cargo test
+
+      - name: Run rust test with LSP
+        run: USE_LSP=true cargo test
