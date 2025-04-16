@@ -267,18 +267,21 @@ class Db {
   async search(
     query: string,
     limit: number,
-    node_types: NodeType[]
+    node_types: NodeType[],
+    skip_node_types: NodeType[]
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
 
     // const compositeQuery = `${query}^8 OR ${query}*`;
     const q = `name:${query}^10 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
     console.log("search query:", q);
+    console.log(Q.SEARCH_QUERY_COMPOSITE);
     try {
       const result = await session.run(Q.SEARCH_QUERY_COMPOSITE, {
         query: q,
         limit,
         node_types,
+        skip_node_types,
       });
       return result.records.map((record) => {
         const node = record.get("node");
