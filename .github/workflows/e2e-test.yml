@@ -126,9 +126,9 @@ jobs:
         working-directory: ./mcp
         run: |
           sleep 10
-          RESPONSE=$(curl -s "http://localhost:3000/search?query=NewPerson&&method=fulltext")
+          RESPONSE=$(curl -s "http://localhost:3000/search?query=NewRouter&method=fulltext")
           echo "Response: $RESPONSE"
-          curl -s -X GET "http://localhost:3000/search?query=NewPerson&&method=fulltext" -o ./testing/actual-fulltext-search.json
+          curl -s -X GET "http://localhost:3000/search?query=NewRouter&method=fulltext" -o ./testing/actual-fulltext-search.json
 
       - name: Compare Fulltext Search Response with Expected Output
         working-directory: ./mcp
