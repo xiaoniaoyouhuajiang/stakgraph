@@ -1,14 +1,15 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::Graph;
+use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
-use test_log::test;
 
 pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
+    let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/go",
         Lang::from_str("go").unwrap(),
-        false,
+        use_lsp,
         Vec::new(),
         Vec::new(),
     )
@@ -17,8 +18,13 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 30, "Expected 30 nodes");
-    assert_eq!(num_edges, 48, "Expected 48 edges");
+    if use_lsp == true {
+        assert_eq!(num_nodes, 64, "Expected 64 nodes");
+        assert_eq!(num_edges, 108, "Expected 108 edges");
+    } else {
+        assert_eq!(num_nodes, 30, "Expected 30 nodes");
+        assert_eq!(num_edges, 48, "Expected 48 edges");
+    }
 
     let language_nodes = graph.find_nodes_by_name(NodeType::Language, "go");
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -80,7 +86,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[test(tokio::test)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_go() {
     use crate::lang::graphs::ArrayGraph;
     test_go_generic::<ArrayGraph>().await.unwrap();

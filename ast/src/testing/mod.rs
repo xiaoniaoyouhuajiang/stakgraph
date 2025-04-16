@@ -2,7 +2,6 @@ use crate::lang::{ArrayGraph, Lang};
 use lsp::Language;
 use std::env;
 use std::str::FromStr;
-use test_log::test;
 
 pub mod angular;
 pub mod go;
@@ -21,7 +20,9 @@ fn pre_test() {
     env::set_var("LSP_SKIP_POST_CLONE", "true");
 }
 
-#[test(tokio::test)]
+// #[test(tokio::test)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+
 async fn run_server_tests() {
     pre_test();
     let implemented_servers = ["go", "python", "ruby", "rust", "typescript", "java"];
@@ -36,7 +37,8 @@ async fn run_server_tests() {
     }
 }
 
-#[test(tokio::test)]
+// #[test(tokio::test)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_client_tests() {
     pre_test();
     let implemented_clients = ["react", "kotlin", "swift"];
