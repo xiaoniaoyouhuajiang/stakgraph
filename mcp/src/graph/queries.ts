@@ -15,6 +15,7 @@ const ENGLISH_ANALYZER = `OPTIONS {
   }
 }`;
 
+// less aggressive analyzer
 const STANDARD_ANALYZER = `OPTIONS {
   indexConfig: {
     \`fulltext.analyzer\`: 'standard'
@@ -141,6 +142,11 @@ WHERE
   CASE
     WHEN $node_types IS NULL OR size($node_types) = 0 THEN true
     ELSE ANY(label IN labels(node) WHERE label IN $node_types)
+  END
+  AND
+  CASE
+    WHEN $skip_node_types IS NULL OR size($skip_node_types) = 0 THEN true
+    ELSE NOT ANY(label IN labels(node) WHERE label IN $skip_node_types)
   END
 RETURN node, score
 ORDER BY score DESC

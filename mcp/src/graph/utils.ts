@@ -5,7 +5,7 @@ export function isTrue(value: string): boolean {
   return value === "true" || value === "1" || value === "True";
 }
 
-const IS_TEST = isTrue(process.env.TEST_REF_ID as string);
+export const IS_TEST = isTrue(process.env.TEST_REF_ID as string);
 
 export function rightLabel(node: Neo4jNode): string {
   let label = node.labels[0];
@@ -54,10 +54,13 @@ export function getNodeLabel(node: any) {
 export function formatNode(node: Neo4jNode): string {
   if (node && node.properties) {
     // Regular format for other nodes
+    const ref_id = IS_TEST
+      ? "test_ref_id"
+      : node.ref_id || node.properties.ref_id || "N/A";
     return [
       `<snippet>`,
       `name: ${getNodeLabel(node)}`,
-      `ref_id: ${node.ref_id || node.properties.ref_id || "N/A"}`,
+      `ref_id: ${ref_id}`,
       `file: ${node.properties.file || "Not specified"}`,
       `start: ${node.properties.start || "N/A"}, end: ${
         node.properties.end || "N/A"
