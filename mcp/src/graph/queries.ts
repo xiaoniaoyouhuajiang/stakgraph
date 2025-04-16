@@ -15,6 +15,7 @@ const ENGLISH_ANALYZER = `OPTIONS {
   }
 }`;
 
+// less aggressive analyzer
 const STANDARD_ANALYZER = `OPTIONS {
   indexConfig: {
     \`fulltext.analyzer\`: 'standard'
