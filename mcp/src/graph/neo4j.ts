@@ -270,10 +270,13 @@ class Db {
     node_types: NodeType[]
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
+
+    // const compositeQuery = `${query}^8 OR ${query}*`;
+    const q = `name:${query}^10 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
+    console.log("search query:", q);
     try {
-      // ^8 is a boost factor for exact match query
-      const result = await session.run(Q.SEARCH_QUERY_NAME, {
-        query: `${query}^8 OR ${query}*`, // wildcard OR not
+      const result = await session.run(Q.SEARCH_QUERY_COMPOSITE, {
+        query: q,
         limit,
         node_types,
       });
@@ -332,10 +335,12 @@ class Db {
       console.log(Q.KEY_INDEX_QUERY);
       console.log(Q.FULLTEXT_BODY_INDEX_QUERY);
       console.log(Q.FULLTEXT_NAME_INDEX_QUERY);
+      console.log(Q.FULLTEXT_COMPOSITE_INDEX_QUERY);
       console.log(Q.VECTOR_INDEX_QUERY);
       await session.run(Q.KEY_INDEX_QUERY);
       await session.run(Q.FULLTEXT_BODY_INDEX_QUERY);
       await session.run(Q.FULLTEXT_NAME_INDEX_QUERY);
+      await session.run(Q.FULLTEXT_COMPOSITE_INDEX_QUERY);
       await session.run(Q.VECTOR_INDEX_QUERY);
     } finally {
       if (session) {

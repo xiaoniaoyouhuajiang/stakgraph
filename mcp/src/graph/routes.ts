@@ -83,13 +83,15 @@ export async function search(req: Request, res: Response) {
     }
     const method = req.query.method as G.SearchMethod;
     const output = req.query.output as G.OutputFormat;
+    let tests = isTrue(req.query.tests as string);
     const result = await G.search(
       query,
       limit,
       node_types,
       concise,
       method,
-      output || "json"
+      output || "json",
+      tests
     );
     if (output === "snippet") {
       res.send(result);

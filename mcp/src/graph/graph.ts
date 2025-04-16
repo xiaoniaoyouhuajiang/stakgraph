@@ -38,23 +38,29 @@ export async function search(
   node_types: NodeType[],
   concise: boolean,
   method: SearchMethod = "fulltext",
-  output: OutputFormat = "json"
+  output: OutputFormat = "json",
+  tests: boolean = false
 ) {
   if (method === "vector") {
     const result = await db.vectorSearch(query, limit, node_types);
-    return toNodes(result, concise, output);
+    return toNodes(result, concise, output, tests);
   } else {
-    console.log("=> search", `${query}* OR ${query}`);
     const result = await db.search(query, limit, node_types);
-    return toNodes(result, concise, output);
+    return toNodes(result, concise, output, tests);
   }
 }
 
 export function toNodes(
   result: Neo4jNode[],
   concise: boolean,
-  output: OutputFormat = "json"
+  output: OutputFormat = "json",
+  tests: boolean = false
 ) {
+  if (!tests) {
+    result = result.filter(
+      (r) => !r.labels.includes("Test") && !r.labels.includes("E2etest")
+    );
+  }
   if (output === "snippet") {
     let r = "";
     for (const node of result) {

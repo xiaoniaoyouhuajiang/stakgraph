@@ -4,13 +4,20 @@ export const Data_Bank = "Data_Bank";
 export const KEY_INDEX = "data_bank_node_key_index";
 export const FULLTEXT_BODY_INDEX = "bodyIndex";
 export const FULLTEXT_NAME_INDEX = "nameIndex";
+export const FULLTEXT_COMPOSITE_INDEX = "compositeIndex";
 export const VECTOR_INDEX = "vectorIndex";
 
 export const KEY_INDEX_QUERY = `CREATE INDEX ${KEY_INDEX} IF NOT EXISTS FOR (n:${Data_Bank}) ON (n.node_key)`;
 
-const ENGLISH = `OPTIONS {
+const ENGLISH_ANALYZER = `OPTIONS {
   indexConfig: {
     \`fulltext.analyzer\`: 'english'
+  }
+}`;
+
+const STANDARD_ANALYZER = `OPTIONS {
+  indexConfig: {
+    \`fulltext.analyzer\`: 'standard'
   }
 }`;
 
@@ -24,12 +31,18 @@ const COSINE = `OPTIONS {
 export const FULLTEXT_BODY_INDEX_QUERY = `CREATE FULLTEXT INDEX ${FULLTEXT_BODY_INDEX}
   IF NOT EXISTS FOR (f:${Data_Bank})
   ON EACH [f.body]
-${ENGLISH}`;
+${STANDARD_ANALYZER}`;
 
 export const FULLTEXT_NAME_INDEX_QUERY = `CREATE FULLTEXT INDEX ${FULLTEXT_NAME_INDEX}
   IF NOT EXISTS FOR (f:${Data_Bank})
   ON EACH [f.name]
-${ENGLISH}`;
+${STANDARD_ANALYZER}`;
+
+export const FULLTEXT_COMPOSITE_INDEX_QUERY = `
+CREATE FULLTEXT INDEX ${FULLTEXT_COMPOSITE_INDEX}
+  IF NOT EXISTS FOR (f:${Data_Bank})
+  ON EACH [f.name, f.body]
+${STANDARD_ANALYZER}`;
 
 export const VECTOR_INDEX_QUERY = `CREATE VECTOR INDEX ${VECTOR_INDEX}
   IF NOT EXISTS FOR (n:${Data_Bank})
@@ -140,6 +153,11 @@ ${NODE_TYPES}
 
 export const SEARCH_QUERY_NAME = `
 CALL db.index.fulltext.queryNodes('${FULLTEXT_NAME_INDEX}', $query) YIELD node, score
+${NODE_TYPES}
+`;
+
+export const SEARCH_QUERY_COMPOSITE = `
+CALL db.index.fulltext.queryNodes('${FULLTEXT_COMPOSITE_INDEX}', $query) YIELD node, score
 ${NODE_TYPES}
 `;
 
