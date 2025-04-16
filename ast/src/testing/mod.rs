@@ -2,7 +2,6 @@ use crate::lang::{ArrayGraph, Lang};
 use lsp::Language;
 use std::env;
 use std::str::FromStr;
-use test_log::test;
 
 pub mod angular;
 pub mod go;
