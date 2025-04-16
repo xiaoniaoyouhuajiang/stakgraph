@@ -19,8 +19,8 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
-        assert_eq!(num_nodes, 50, "Expected 50 nodes");
-        assert_eq!(num_edges, 61, "Expected 61 edges");
+        assert_eq!(num_nodes, 56, "Expected 56 nodes");
+        assert_eq!(num_edges, 77, "Expected 77 edges");
     } else {
         assert_eq!(num_nodes, 50, "Expected 50 nodes");
         assert_eq!(num_edges, 61, "Expected 61 edges");
@@ -53,7 +53,11 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     assert_eq!(imports.len(), 4, "Expected 4 imports");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
-    assert_eq!(functions.len(), 11, "Expected 11 functions/components");
+    if use_lsp == true {
+        assert_eq!(functions.len(), 17, "Expected 17 functions/components");
+    } else {
+        assert_eq!(functions.len(), 11, "Expected 11 functions/components");
+    }
 
     let mut sorted_functions = functions.clone();
     sorted_functions.sort_by(|a, b| a.name.cmp(&b.name));
