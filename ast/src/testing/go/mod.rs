@@ -1,21 +1,29 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
-use test_log::test;
 
-#[test(tokio::test)]
+// #[test(tokio::test)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+
 async fn test_go() {
+    let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/go",
         Lang::from_str("go").unwrap(),
-        false,
+        use_lsp,
         Vec::new(),
         Vec::new(),
     )
     .unwrap();
     let graph = repo.build_graph().await.unwrap();
-    assert!(graph.nodes.len() == 30);
-    assert!(graph.edges.len() == 48);
+    if use_lsp == true {
+        assert!(graph.nodes.len() == 64);
+        assert!(graph.edges.len() == 108);
+    } else {
+        assert!(graph.nodes.len() == 30);
+        assert!(graph.edges.len() == 48);
+    }
 
     let l = graph
         .nodes

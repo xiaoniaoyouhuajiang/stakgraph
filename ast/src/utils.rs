@@ -1,3 +1,5 @@
+use std::env;
+
 use crate::lang::graphs::{ArrayGraph, Node};
 use anyhow::Result;
 use tracing_subscriber::filter::LevelFilter;
@@ -58,4 +60,13 @@ pub fn create_node_key(node: Node) -> String {
         .collect();
 
     sanitized_parts.join("-")
+}
+
+pub fn get_use_lsp() -> bool {
+    env::set_var("LSP_SKIP_POST_CLONE", "true");
+    let lsp = env::var("USE_LSP").unwrap_or_else(|_| "false".to_string());
+    if lsp == "true" {
+        return true;
+    }
+    false
 }

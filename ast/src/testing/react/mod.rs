@@ -1,23 +1,29 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
-use test_log::test;
 
-#[test(tokio::test)]
+// #[test(tokio::test)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_react_typescript() {
+    let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/react",
         Lang::from_str("tsx").unwrap(),
-        false,
+        use_lsp,
         Vec::new(),
         Vec::new(),
     )
     .unwrap();
 
     let graph = repo.build_graph().await.unwrap();
-
-    assert!(graph.nodes.len() == 50);
-    assert!(graph.edges.len() == 61);
+    if use_lsp == true {
+        assert!(graph.nodes.len() == 56);
+        assert!(graph.edges.len() == 77);
+    } else {
+        assert!(graph.nodes.len() == 50);
+        assert!(graph.edges.len() == 61);
+    }
 
     // Function to normalize paths and replace backslashes with forward slashes
     fn normalize_path(path: &str) -> String {
@@ -58,7 +64,11 @@ async fn test_react_typescript() {
 
     functions.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
 
-    assert_eq!(functions.len(), 11);
+    if use_lsp == true {
+        assert_eq!(functions.len(), 17);
+    } else {
+        assert_eq!(functions.len(), 11);
+    }
 
     let people_component = functions[0].into_data();
     assert_eq!(people_component.name, "App");
