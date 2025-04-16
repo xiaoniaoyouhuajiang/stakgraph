@@ -88,7 +88,7 @@ pub fn create_node_key(node: Node) -> String {
 pub fn get_use_lsp() -> bool {
     env::set_var("LSP_SKIP_POST_CLONE", "true");
     let lsp = env::var("USE_LSP").unwrap_or_else(|_| "false".to_string());
-    if lsp == "true" {
+    if lsp == "true" || lsp == "1" {
         return true;
     }
     false
