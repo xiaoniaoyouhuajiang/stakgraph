@@ -128,16 +128,16 @@ jobs:
           sleep 10
           RESPONSE=$(curl -s "http://localhost:3000/search?query=NewRouter&output=snippet")
           echo "Response: $RESPONSE"
-          curl -s -X GET "http://localhost:3000/search?query=NewRouter&output=snippet" -o ./testing/actual-fulltext-search.json
+          curl -s -X GET "http://localhost:3000/search?query=NewRouter&output=snippet" -o ./testing/actual-fulltext-search.txt
 
       - name: Compare Fulltext Search Response with Expected Output
         working-directory: ./mcp
         run: |
-          ACTUAL_FULLTEXT_FILE="./testing/actual-fulltext-search.json"
-          EXPECTED_FULLTEXT_FILE="./testing/fulltext-search-response.json"
+          ACTUAL_FULLTEXT_FILE="./testing/actual-fulltext-search.txt"
+          EXPECTED_FULLTEXT_FILE="./testing/fulltext-search-response.txt"
 
-          # SORTED_ACTUAL_FULLTEXT="/tmp/sorted_actual_fulltext.json"
-          # SORTED_EXPECTED_FULLTEXT="/tmp/sorted_expected_fulltext.json"
+          # SORTED_ACTUAL_FULLTEXT="/tmp/sorted_actual_fulltext.txt"
+          # SORTED_EXPECTED_FULLTEXT="/tmp/sorted_expected_fulltext.txt"
 
           # jq --sort-keys . "$ACTUAL_FULLTEXT_FILE" > "$SORTED_ACTUAL_FULLTEXT"
           # jq --sort-keys . "$EXPECTED_FULLTEXT_FILE" > "$SORTED_EXPECTED_FULLTEXT"
