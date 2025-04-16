@@ -1,45 +1,42 @@
-use crate::lang::graphs::{ArrayGraph, EdgeType, Node, NodeType};
+use crate::lang::graphs::NodeType;
+use crate::lang::Graph;
 use crate::lang::{linker::normalize_backend_path, Lang};
 use crate::repo::Repo;
+use anyhow::Context;
 use tracing::{error, info};
 
-pub struct BackendTester {
-    graph: ArrayGraph,
+pub struct BackendTester<G: Graph> {
+    graph: G,
     lang: Lang,
     repo: Option<String>,
 }
 
-impl BackendTester {
-    pub async fn new(lang: Lang, repo: Option<String>) -> Result<Self, anyhow::Error> {
+impl<G: Graph> BackendTester<G> {
+    pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self, anyhow::Error>
+    where
+        G: Default,
+    {
         let language_name = lang.kind.clone();
         let language_in_repository = Lang::from_language(language_name.clone());
-        let return_repo = match &repo {
-            Some(repo) => repo.clone(),
-            None => language_name.to_string(),
-        };
-        let repository = match repo {
-            Some(repo) => Repo::new(
-                &format!("src/testing/{}", repo.clone()),
-                language_in_repository,
-                false,
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-            None => Repo::new(
-                &format!("src/testing/{}", language_name.to_string()),
-                language_in_repository,
-                false,
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-        };
+        let repo_path = repo.clone().unwrap_or_else(|| language_name.to_string());
+
+        let repository = Repo::new(
+            &format!("src/testing/{}", repo_path),
+            language_in_repository,
+            false,
+            Vec::new(),
+            Vec::new(),
+        )?;
+
+        let graph = repository
+            .build_graph_inner()
+            .await
+            .with_context(|| format!("Failed to build graph for {}", repo_path))?;
 
         Ok(Self {
-            graph: repository.build_graph().await?,
+            graph,
             lang,
-            repo: Some(return_repo),
+            repo: Some(repo_path),
         })
     }
 
@@ -67,18 +64,17 @@ impl BackendTester {
     }
 
     fn test_language(&self) -> Result<(), anyhow::Error> {
-        let language_nodes = self.graph.find_languages();
+        let language_nodes = self.graph.find_nodes_by_type(NodeType::Language);
 
-        let language_node = language_nodes
-            .iter()
-            .find(|node| node.into_data().name == self.lang.kind.to_string())
-            .unwrap();
+        assert!(!language_nodes.is_empty(), "Language node not found");
 
+        let language_node = &language_nodes[0];
         assert_eq!(
-            language_node.into_data().name,
+            language_node.name,
             self.lang.kind.to_string(),
             "Language node name mismatch"
         );
+
         Ok(())
     }
 
@@ -87,21 +83,10 @@ impl BackendTester {
 
         let file_nodes = self
             .graph
-            .nodes
-            .iter()
-            .filter(|n| matches!(n.node_type, NodeType::File))
-            .collect::<Vec<_>>();
-
-        let package_files: Vec<_> = file_nodes
-            .iter()
-            .filter(|n| {
-                let file_data = n.into_data();
-                file_data.name.contains(&package_file_name)
-            })
-            .collect();
+            .find_nodes_by_name(NodeType::File, &package_file_name);
 
         assert!(
-            !package_files.is_empty(),
+            !file_nodes.is_empty(),
             "No package file found matching {}",
             package_file_name
         );
@@ -112,18 +97,15 @@ impl BackendTester {
     }
 
     fn test_data_model(&self, name: &str) -> Result<(), anyhow::Error> {
-        let data_model = self
+        let data_model_nodes = self
             .graph
-            .find_data_model_by(|node| node.name.contains(name));
+            .find_nodes_by_name_contains(NodeType::DataModel, name);
 
-        match data_model {
-            Some(_) => {
-                info!("✓ Found data model {}", name);
-                Ok(())
-            }
-            None => {
-                anyhow::bail!("Data model {} not found", name);
-            }
+        if !data_model_nodes.is_empty() {
+            info!("✓ Found data model {}", name);
+            Ok(())
+        } else {
+            anyhow::bail!("Data model {} not found", name)
         }
     }
 
@@ -131,20 +113,18 @@ impl BackendTester {
         for (method, path) in endpoints {
             let normalized_expected_path = normalize_backend_path(path).unwrap();
 
-            let endpoint = self
-                .graph
-                .find_specific_endpoints(method, &normalized_expected_path);
+            // Using find_resource_nodes which we added to the Graph trait
+            let matching_endpoints = self.graph.find_resource_nodes(
+                NodeType::Endpoint,
+                method,
+                &normalized_expected_path,
+            );
 
-            match endpoint {
-                Some(_) => {
-                    info!("✓ Found endpoint {} {}", method, path);
-                }
-                None => {
-                    anyhow::bail!("Endpoint {} {} not found", method, path);
-                }
+            if !matching_endpoints.is_empty() {
+                info!("✓ Found endpoint {} {}", method, path);
+            } else {
+                anyhow::bail!("Endpoint {} {} not found", method, path);
             }
-
-            assert!(endpoint.is_some(), "Endpoint {} {} not found", method, path);
         }
 
         Ok(())
@@ -156,99 +136,89 @@ impl BackendTester {
         data_model: &str,
     ) -> Result<(), anyhow::Error> {
         for (verb, path) in expected_enpoints {
-            let normalized_expected_path = normalize_path(path);
+            let normalized_path = normalize_path(path);
 
-            let endpoint = self
-                .graph
-                .find_specific_endpoints(verb, &normalized_expected_path)
-                .unwrap();
-            let handler = self
-                .graph
-                .find_target_by_edge_type(&endpoint, EdgeType::Handler);
-
-            match handler {
-                Some(endpoint_handler) => {
-                    let formatted_handler =
-                        normalize_function_name(&endpoint_handler.into_data().name.as_str());
-
-                    info!("✓ Found handler {}", formatted_handler);
-
-                    let handler_data = endpoint_handler.into_data();
-                    let handler_name = handler_data.name.clone();
-
-                    let direct_handler_connection = self.graph.edges.iter().any(|edge| {
-                        edge.edge == EdgeType::Contains
-                            && edge.target.node_data.name.contains(data_model)
-                            && edge.source.node_data.name.contains(&handler_name)
-                    });
-
-                    if direct_handler_connection {
-                        continue;
-                    }
-
-                    let triggered_functions = self
-                        .graph
-                        .find_functions_called_by_handler(&endpoint_handler);
-
-                    if triggered_functions.is_empty() {
-                        error!("No functions triggered by handler {}", formatted_handler);
-                    }
-
-                    let mut data_model_found = false;
-
-                    let mut functions_to_check = triggered_functions.clone();
-                    functions_to_check.push(endpoint_handler.clone());
-
-                    for func in &functions_to_check {
-                        let func_name = func.into_data().name.clone();
-
-                        let direction_connection = self.graph.edges.iter().any(|edge| {
-                            edge.edge == EdgeType::Contains
-                                && edge.target.node_data.name.contains(data_model)
-                                && edge.source.node_data.name.contains(&func_name)
-                        });
-
-                        if direction_connection {
-                            data_model_found = true;
-                            break;
-                        }
-
-                        let indirect_connection = self.check_indirect_data_model_usage(
-                            &func,
-                            data_model,
-                            &mut Vec::new(),
-                        );
-
-                        if indirect_connection {
-                            data_model_found = true;
-                            info!(
-                                "✓ Found function {} that indirectly triggers data model {}",
-                                func_name, data_model
-                            );
-                            break;
-                        }
-                    }
-
-                    if data_model_found {
-                        info!(
-                            "✓ Data model {} used by handler {}",
-                            data_model, formatted_handler
-                        );
-                    } else {
-                        error!(
-                            "Data model {} not used by handler {}",
-                            data_model, formatted_handler
-                        );
-                    }
-
-                    assert!(
-                        data_model_found,
-                        "No function triggers data model {}",
-                        data_model
-                    );
-                }
-                None => anyhow::bail!("Handler not found for endpoint {}", path),
+            let matching_endpoints =
+                self.graph
+                    .find_resource_nodes(NodeType::Endpoint, verb, &normalized_path);
+            if matching_endpoints.is_empty() {
+                anyhow::bail!("Endpoint {} {} not found", verb, path);
             }
+            let endpoint = &matching_endpoints[0];
+
+            let handlers = self.graph.find_handlers_for_endpoint(endpoint);
+
+            if handlers.is_empty() {
+                anyhow::bail!("Handler not found for endpoint {}", path);
+            }
+
+            let handler = &handlers[0];
+            let handler_name = &handler.name;
+            let formatted_handler = normalize_function_name(handler_name);
+
+            info!("✓ Found handler {}", formatted_handler);
+
+            let direct_connection = self
+                .graph
+                .check_direct_data_model_usage(&handler_name, data_model);
+
+            if direct_connection {
+                info!(
+                    "✓ Handler {} directly uses data model {}",
+                    formatted_handler, data_model
+                );
+                continue;
+            }
+
+            let triggered_functions = self.graph.find_functions_called_by(handler);
+
+            if triggered_functions.is_empty() {
+                error!("No functions triggered by handler {}", formatted_handler);
+            }
+
+            let mut data_model_found = false;
+            let mut functions_to_check = triggered_functions.clone();
+            functions_to_check.push(handler.clone());
+
+            for func in &functions_to_check {
+                // Check if this function directly uses the data model
+                if self
+                    .graph
+                    .check_direct_data_model_usage(&func.name, data_model)
+                {
+                    data_model_found = true;
+                    break;
+                }
+
+                let mut visited = Vec::new();
+
+                if self.check_indirect_data_model_usage(&func.name, data_model, &mut visited) {
+                    data_model_found = true;
+                    info!(
+                        "✓ Found function {} that indirectly triggers data model {}",
+                        func.name, data_model
+                    );
+                    break;
+                }
+            }
+
+            if data_model_found {
+                info!(
+                    "✓ Data model {} used by handler {}",
+                    data_model, formatted_handler
+                );
+            } else {
+                error!(
+                    "Data model {} not used by handler {}",
+                    data_model, formatted_handler
+                );
+            }
+
+            assert!(
+                data_model_found,
+                "No function triggers data model {}",
+                data_model
+            );
         }
 
         Ok(())
@@ -256,36 +226,39 @@ impl BackendTester {
 
     fn check_indirect_data_model_usage(
         &self,
-        func: &Node,
+        function_name: &str,
         data_model: &str,
         visited: &mut Vec<String>,
     ) -> bool {
-        let func_name = func.into_data().name.clone();
-
-        if visited.contains(&func_name) {
+        if visited.contains(&function_name.to_string()) {
             return false;
         }
+        visited.push(function_name.to_string());
 
-        visited.push(func_name.clone());
-
-        let direct_connection = self.graph.edges.iter().any(|edge| {
-            edge.edge == EdgeType::Contains
-                && edge.target.node_data.name == data_model
-                && edge.source.node_data.name == func_name
-        });
-
-        if direct_connection {
+        if self
+            .graph
+            .check_direct_data_model_usage(function_name, data_model)
+        {
             return true;
         }
 
-        let called_functions = self.graph.find_functions_called_by_handler(func);
+        let function_nodes = self
+            .graph
+            .find_nodes_by_name(NodeType::Function, function_name);
 
-        for called_func in called_functions {
-            if self.check_indirect_data_model_usage(&called_func, data_model, visited) {
+        if function_nodes.is_empty() {
+            return false;
+        }
+
+        let function_node = &function_nodes[0];
+
+        let called_functions = self.graph.find_functions_called_by(&function_node);
+
+        for called_function in called_functions {
+            if self.check_indirect_data_model_usage(&called_function.name, data_model, visited) {
                 return true;
             }
         }
-
         false
     }
 }

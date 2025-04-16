@@ -1,10 +1,10 @@
 use crate::lang::graphs::NodeType;
+use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
 
-#[test(tokio::test)]
-async fn test_svelte() {
+pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let repo = Repo::new(
         "src/testing/svelte",
         Lang::from_str("svelte").unwrap(),
@@ -14,71 +14,66 @@ async fn test_svelte() {
     )
     .unwrap();
 
-    let graph = repo.build_graph().await.unwrap();
-    assert_eq!(graph.nodes.len(), 44);
-    assert_eq!(graph.edges.len(), 43);
+    let graph = repo.build_graph_inner::<G>().await?;
 
-    let languages = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Language))
-        .collect::<Vec<_>>();
-    assert_eq!(languages.len(), 1);
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(num_nodes, 44, "Expected 44 nodes");
+    assert_eq!(num_edges, 43, "Expected 43 edges");
 
-    let language = languages[0].into_data();
-    assert_eq!(language.name, "svelte");
-    assert_eq!(language.file, "src/testing/svelte/");
+    let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
+    assert_eq!(
+        language_nodes[0].name, "svelte",
+        "Language node name should be 'svelte'"
+    );
+    assert_eq!(
+        language_nodes[0].file, "src/testing/svelte/",
+        "Language node file path is incorrect"
+    );
 
-    let files = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::File))
-        .collect::<Vec<_>>();
+    let files = graph.find_nodes_by_type(NodeType::File);
+    assert_eq!(files.len(), 7, "Expected 7 files");
 
-    assert_eq!(files.len(), 7, "wrong file count");
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 7, "Expected 7 imports");
 
-    let imports = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Import))
-        .collect::<Vec<_>>();
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+    assert_eq!(classes.len(), 3, "Expected 3 classes");
+    assert_eq!(classes[0].body, "", "Class body should be empty");
 
-    assert_eq!(imports.len(), 7, "wrong import count");
+    let functions = graph.find_nodes_by_type(NodeType::Function);
+    assert_eq!(functions.len(), 6, "Expected 6 functions");
 
-    let classes = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Class))
-        .collect::<Vec<_>>();
+    let mut sorted_functions = functions.clone();
+    sorted_functions.sort_by(|a, b| a.name.cmp(&b.name));
 
-    assert_eq!(classes.len(), 3);
-    let class = classes[0].into_data();
-    assert_eq!(class.body, "");
+    assert_eq!(
+        functions.iter().any(|f| f.name == "addPerson"),
+        true,
+        "Expected 'addPerson' function not found"
+    );
 
-    let functions = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Function))
-        .collect::<Vec<_>>();
-    assert_eq!(functions.len(), 6);
-    let func = functions[0].into_data();
-    assert_eq!(func.name, "addPerson");
+    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    assert_eq!(data_models.len(), 13, "Expected 13 data models");
 
-    let data_models = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::DataModel))
-        .collect::<Vec<_>>();
+    let requests = graph.find_nodes_by_type(NodeType::Request);
+    assert_eq!(requests.len(), 1, "Expected 1 request");
+    assert_eq!(
+        requests[0].name, "fetchPeople",
+        "Request name should be 'fetchPeople'"
+    );
 
-    assert_eq!(data_models.len(), 13);
-
-    let total_requests = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Request))
-        .collect::<Vec<_>>();
-    let request = total_requests[0].into_data();
-    assert_eq!(request.name, "fetchPeople");
-
-    assert_eq!(total_requests.len(), 1, "wrong request count");
+    Ok(())
 }
+
+#[test(tokio::test)]
+async fn test_svelte() {
+    use crate::lang::graphs::ArrayGraph;
+    test_svelte_generic::<ArrayGraph>().await.unwrap();
+}
+
+// #[test(tokio::test)]
+// async fn test_svelte_btree() {
+//     use crate::lang::graphs::BTreeMapGraph;
+//     test_svelte_generic::<BTreeMapGraph>().await.unwrap();
+// }

@@ -1,6 +1,40 @@
-export const Data_Bank = "Data_Bank";
+import { DIMENSIONS } from "../vector/index.js";
 
-export const KEY_INDEX_QUERY = `CREATE INDEX data_bank_node_key_index IF NOT EXISTS FOR (n:${Data_Bank}) ON (n.node_key)`;
+export const Data_Bank = "Data_Bank";
+export const KEY_INDEX = "data_bank_node_key_index";
+export const FULLTEXT_BODY_INDEX = "bodyIndex";
+export const FULLTEXT_NAME_INDEX = "nameIndex";
+export const VECTOR_INDEX = "vectorIndex";
+
+export const KEY_INDEX_QUERY = `CREATE INDEX ${KEY_INDEX} IF NOT EXISTS FOR (n:${Data_Bank}) ON (n.node_key)`;
+
+const ENGLISH = `OPTIONS {
+  indexConfig: {
+    \`fulltext.analyzer\`: 'english'
+  }
+}`;
+
+const COSINE = `OPTIONS {
+  indexConfig: {
+    \`vector.dimensions\`: ${DIMENSIONS},
+    \`vector.similarity_function\`: 'cosine'
+  }
+}`;
+
+export const FULLTEXT_BODY_INDEX_QUERY = `CREATE FULLTEXT INDEX ${FULLTEXT_BODY_INDEX}
+  IF NOT EXISTS FOR (f:${Data_Bank})
+  ON EACH [f.body]
+${ENGLISH}`;
+
+export const FULLTEXT_NAME_INDEX_QUERY = `CREATE FULLTEXT INDEX ${FULLTEXT_NAME_INDEX}
+  IF NOT EXISTS FOR (f:${Data_Bank})
+  ON EACH [f.name]
+${ENGLISH}`;
+
+export const VECTOR_INDEX_QUERY = `CREATE VECTOR INDEX ${VECTOR_INDEX}
+  IF NOT EXISTS FOR (n:${Data_Bank})
+  ON n.embeddings
+${COSINE}`;
 
 export const DATA_BANK_QUERY = `MATCH (n:${Data_Bank}) RETURN n`;
 
@@ -40,6 +74,13 @@ WHERE any(label IN labels(f) WHERE label = nodeLabel)
 RETURN f
 `;
 
+export const REF_IDS_LIST_QUERY = `
+WITH $ref_ids AS refIdList
+MATCH (n)
+WHERE n.ref_id IN refIdList
+RETURN n
+`;
+
 export const FILES_QUERY = `
 MATCH path = (d:Directory)-[:CONTAINS*0..]->(node)
 WHERE (node:Directory OR node:File)
@@ -75,20 +116,14 @@ WHERE
 RETURN f as component
 `;
 
-export const BODY_INDEX = "bodyIndex";
-
-export const VECTOR_INDEX = "vectorIndex";
-
-export const SEARCH_QUERY = `
-CALL db.index.fulltext.queryNodes('${BODY_INDEX}', $query) YIELD node, score
+export const SEARCH_QUERY_SIMPLE = `
+CALL db.index.fulltext.queryNodes('${FULLTEXT_BODY_INDEX}', $query) YIELD node, score
 RETURN node, score
 ORDER BY score DESC
 LIMIT toInteger($limit)
 `;
 
-export const SEARCH_QUERY_NODE_TYPES = `
-CALL db.index.fulltext.queryNodes('${BODY_INDEX}', $query) YIELD node, score
-WITH node, score
+const NODE_TYPES = `WITH node, score
 WHERE
   CASE
     WHEN $node_types IS NULL OR size($node_types) = 0 THEN true
@@ -96,7 +131,16 @@ WHERE
   END
 RETURN node, score
 ORDER BY score DESC
-LIMIT toInteger($limit)
+LIMIT toInteger($limit)`;
+
+export const SEARCH_QUERY_BODY = `
+CALL db.index.fulltext.queryNodes('${FULLTEXT_BODY_INDEX}', $query) YIELD node, score
+${NODE_TYPES}
+`;
+
+export const SEARCH_QUERY_NAME = `
+CALL db.index.fulltext.queryNodes('${FULLTEXT_NAME_INDEX}', $query) YIELD node, score
+${NODE_TYPES}
 `;
 
 export const VECTOR_SEARCH_QUERY = `
@@ -114,7 +158,7 @@ ORDER BY score DESC
 LIMIT toInteger($limit)
 `;
 
-export const SUBTREE_QUERY = `
+export const SUBGRAPH_QUERY = `
 WITH $node_label AS nodeLabel,
      $node_name as nodeName,
      $ref_id as refId,
@@ -122,14 +166,6 @@ WITH $node_label AS nodeLabel,
      $label_filter as labelFilter,
      $depth as depth,
      $trim as trim
-
-// Determine the relationshipFilter based on the direction parameter
-WITH nodeLabel, nodeName, refId, labelFilter, depth, trim,
-     CASE direction
-        WHEN "down" THEN "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND"
-        WHEN "up" THEN "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND"
-        ELSE "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND" // default
-     END AS relationshipFilter
 
 // Find the start node using either ref_id or name+label
 OPTIONAL MATCH (fByName {name: nodeName})
@@ -142,55 +178,86 @@ WHERE refId <> ''
 WITH CASE
        WHEN fByRefId IS NOT NULL THEN fByRefId
        ELSE fByName
-     END AS f,
-     relationshipFilter, labelFilter, depth, trim
-WHERE f IS NOT NULL
+     END AS startNode,
+     direction, labelFilter, depth, trim
+WHERE startNode IS NOT NULL
 
-// Now use the dynamically determined relationshipFilter
-CALL apoc.path.expandConfig(f, {
-    relationshipFilter: relationshipFilter,
-    uniqueness: "NODE_PATH",
-    minLevel: 1,
-    maxLevel: depth,
-    labelFilter: labelFilter
-})
-YIELD path
+// For bidirectional queries, reduce depth to prevent explosion
+WITH startNode, direction, labelFilter, trim,
+     CASE WHEN direction = 'both' THEN toInteger(depth/2) ELSE depth END AS effectiveDepth
 
-WITH f as startNode,
-     COLLECT(DISTINCT path) AS paths,
-     trim
+// Execute separate traversals and combine results
+CALL {
+    WITH *
+    CALL apoc.path.subgraphAll(startNode, {
+        relationshipFilter: CASE WHEN direction IN ['down', 'both'] 
+                            THEN "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND" 
+                            ELSE null END,
+        minLevel: 1,
+        maxLevel: effectiveDepth,
+        labelFilter: labelFilter
+    })
+    YIELD nodes as downNodes, relationships as downRels
+    RETURN downNodes, downRels
+}
 
-// Filter out trimmed nodes from collected paths
-UNWIND paths AS path
-WITH startNode, path, trim
-WHERE NONE(n IN nodes(path) WHERE n.name IN trim)
+CALL {
+    WITH *
+    CALL apoc.path.subgraphAll(startNode, {
+        relationshipFilter: CASE WHEN direction IN ['up', 'both'] 
+                            THEN "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND" 
+                            ELSE null END,
+        minLevel: 1,
+        maxLevel: effectiveDepth,
+        labelFilter: labelFilter
+    })
+    YIELD nodes as upNodes, relationships as upRels
+    RETURN upNodes, upRels
+}
 
-// Collect the filtered paths and their nodes
+// Combine and deduplicate nodes and relationships
+WITH startNode, trim, 
+     CASE WHEN direction IN ['down', 'both'] THEN downNodes ELSE [] END + 
+     CASE WHEN direction IN ['up', 'both'] THEN upNodes ELSE [] END AS allNodes,
+     CASE WHEN direction IN ['down', 'both'] THEN downRels ELSE [] END + 
+     CASE WHEN direction IN ['up', 'both'] THEN upRels ELSE [] END AS allRels
+
+// Remove duplicates
+WITH startNode, trim,
+     apoc.coll.toSet(allNodes) AS uniqueNodes,
+     apoc.coll.toSet(allRels) AS uniqueRels
+
+// Filter out trimmed nodes
 WITH startNode,
-     COLLECT(DISTINCT path) AS filteredPaths,
+     [n IN uniqueNodes WHERE NOT n.name IN trim] AS filteredNodes,
+     uniqueRels, trim
+
+// Filter relationships to only include those between non-trimmed nodes
+WITH startNode, filteredNodes,
+     [r IN uniqueRels 
+      WHERE 
+        NOT startNode(r).name IN trim AND
+        NOT endNode(r).name IN trim
+     ] AS filteredRels,
      trim
 
-UNWIND filteredPaths AS path
-UNWIND nodes(path) AS node
-WITH startNode, filteredPaths, trim, COLLECT(DISTINCT node) AS allNodes
+// Transform to the format you need
+WITH startNode, filteredNodes, 
+     [rel IN filteredRels | {
+        source: id(startNode(rel)),
+        target: id(endNode(rel)),
+        type: type(rel),
+        properties: properties(rel)
+     }] AS relationshipData,
+     [node IN filteredNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
 
-UNWIND filteredPaths AS path
-UNWIND relationships(path) AS rel
-WITH startNode, allNodes, COLLECT(DISTINCT {
-    source: id(startNode(rel)),
-    target: id(endNode(rel)),
-    type: type(rel),
-    properties: properties(rel)
-}) AS relationships, trim
-
-WITH startNode, allNodes, relationships,
-     [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
+// Get imports
 MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames
 
 RETURN startNode,
-       allNodes,
-       relationships,
+       filteredNodes AS allNodes,
+       relationshipData AS relationships,
        COLLECT(DISTINCT import) AS imports
 `;
 
@@ -306,6 +373,15 @@ WHERE ALL(node IN nodes(path) WHERE
     node:Datamodel)
 RETURN path
 `;
+
+/*
+
+CALL db.index.fulltext.queryNodes('nameIndex', 'bounty') YIELD node, score
+RETURN node, score
+ORDER BY score DESC
+LIMIT 25
+
+*/
 
 /*
 MATCH (start {node_key: 'p-stakworksphinxtribesfrontendsrcpagesindextsx'}), (end {node_key: 'person-stakworksphinxtribesdbstructsgo'})

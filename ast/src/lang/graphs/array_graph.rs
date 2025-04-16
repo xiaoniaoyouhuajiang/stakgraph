@@ -61,6 +61,9 @@ impl Graph for ArrayGraph {
     fn get_graph_size(&self) -> (u32, u32) {
         ((self.nodes.len() as u32), (self.edges.len() as u32))
     }
+    fn add_edge(&mut self, edge: Edge) {
+        self.edges.push(edge);
+    }
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         self.nodes
@@ -111,7 +114,7 @@ impl Graph for ArrayGraph {
         {
             let edge = Edge::contains(parent_type, &parent, node_type.clone(), &node_data);
             self.nodes.push(Node::new(node_type, node_data));
-            self.edges.push(edge.clone());
+            self.add_edge(edge);
         } else {
             self.nodes.push(Node::new(node_type, node_data));
         };
@@ -211,17 +214,17 @@ impl Graph for ArrayGraph {
             let (node, method_of, reqs, dms, trait_operand, return_types) = f;
             if let Some(ff) = self.file_data(&node.file) {
                 let edge = Edge::contains(NodeType::File, &ff, NodeType::Function, &node);
-                self.edges.push(edge);
+                self.add_edge(edge);
             }
             self.nodes.push(Node::new(NodeType::Function, node.clone()));
             if let Some(p) = method_of {
-                self.edges.push(p.into());
+                self.add_edge(p.into());
             }
             if let Some(to) = trait_operand {
-                self.edges.push(to.into());
+                self.add_edge(to.into());
             }
             for rt in return_types {
-                self.edges.push(rt);
+                self.add_edge(rt);
             }
             for r in reqs {
                 // FIXME add operand on calls (axios, api, etc)
@@ -254,7 +257,7 @@ impl Graph for ArrayGraph {
         for (p, e) in pages {
             self.nodes.push(Node::new(NodeType::Page, p));
             for edge in e {
-                self.edges.push(edge);
+                self.add_edge(edge);
             }
         }
     }
@@ -310,7 +313,7 @@ impl Graph for ArrayGraph {
         // add lib funcs first
         for (fc, ext_func) in funcs {
             if let Some(ext_nd) = ext_func {
-                self.edges.push(Edge::uses(fc.source, &ext_nd));
+                self.add_edge(Edge::uses(fc.source, &ext_nd));
                 // don't add if it's already in the graph
                 if let None =
                     self.find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
@@ -318,24 +321,24 @@ impl Graph for ArrayGraph {
                     self.nodes.push(Node::new(NodeType::Function, ext_nd));
                 }
             } else {
-                self.edges.push(fc.into())
+                self.add_edge(fc.into())
             }
         }
         for (tc, ext_func) in tests {
             if let Some(ext_nd) = ext_func {
-                self.edges.push(Edge::uses(tc.source, &ext_nd));
-                // don't add if it's already in the graph
+                self.add_edge(Edge::uses(tc.source, &ext_nd));
+
                 if let None =
                     self.find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
                 {
                     self.nodes.push(Node::new(NodeType::Function, ext_nd));
                 }
             } else {
-                self.edges.push(Edge::new_test_call(tc));
+                self.add_edge(Edge::new_test_call(tc));
             }
         }
-        for edg in int_tests {
-            self.edges.push(edg);
+        for edge in int_tests {
+            self.add_edge(edge);
         }
     }
     fn find_node_by_name_in_file(
@@ -450,6 +453,141 @@ impl Graph for ArrayGraph {
             edge.add_root(root);
         }
     }
+    fn find_nodes_by_name_contains(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|n| n.node_type == node_type && n.node_data.name.contains(name))
+            .map(|n| n.node_data.clone())
+            .collect()
+    }
+
+    fn find_resource_nodes(&self, node_type: NodeType, verb: &str, path: &str) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|node| {
+                if node.node_type != node_type {
+                    return false;
+                }
+
+                let node_data = &node.node_data;
+                let normalized_path = normalize_backend_path(&node_data.name);
+
+                let path_matches = normalized_path.map_or(false, |p| p.contains(path))
+                    || node_data.name.contains(path);
+
+                let verb_matches = match node_data.meta.get("verb") {
+                    Some(node_verb) => node_verb.to_uppercase() == verb.to_uppercase(),
+                    None => true,
+                };
+
+                path_matches && verb_matches
+            })
+            .map(|node| node.node_data.clone())
+            .collect()
+    }
+    fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData> {
+        // double check if the endpoint is in the graph
+        let endpoint_node = self.nodes.iter().find(|n| {
+            n.node_type == NodeType::Endpoint
+                && n.node_data.name == endpoint.name
+                && n.node_data.file == endpoint.file
+        });
+
+        if let Some(_endpoint_node) = endpoint_node {
+            self.edges
+                .iter()
+                .filter(|edge| {
+                    edge.edge == EdgeType::Handler
+                        && edge.source.node_type == NodeType::Endpoint
+                        && edge.source.node_data.name == endpoint.name
+                        && edge.source.node_data.file == endpoint.file
+                })
+                .filter_map(|edge| {
+                    let handler_nodes = self.find_nodes_by_name(
+                        edge.target.node_type.clone(),
+                        &edge.target.node_data.name,
+                    );
+                    handler_nodes.first().cloned()
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn check_direct_data_model_usage(&self, function_name: &str, data_model: &str) -> bool {
+        self.edges.iter().any(|edge| {
+            edge.edge == EdgeType::Contains
+                && edge.source.node_data.name == function_name
+                && edge.target.node_data.name.contains(data_model)
+        })
+    }
+
+    fn find_functions_called_by(&self, function: &NodeData) -> Vec<NodeData> {
+        let mut result = Vec::new();
+        for edge in &self.edges {
+            if let EdgeType::Calls(_) = edge.edge {
+                if edge.source.node_data.name == function.name
+                    && edge.source.node_data.file == function.file
+                {
+                    if let Some(target_function) = self.find_node_by_name_in_file(
+                        edge.target.node_type.clone(),
+                        &edge.target.node_data.name,
+                        &edge.target.node_data.file,
+                    ) {
+                        result.push(target_function);
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
+    fn find_nodes_with_edge_type(
+        &self,
+        source_type: NodeType,
+        target_type: NodeType,
+        edge_type: EdgeType,
+    ) -> Vec<(NodeData, NodeData)> {
+        self.edges
+            .iter()
+            .filter(|edge| {
+                edge.edge == edge_type
+                    && edge.source.node_type == source_type
+                    && edge.target.node_type == target_type
+            })
+            .filter_map(|edge| {
+                let source_nodes = self
+                    .find_nodes_by_name(edge.source.node_type.clone(), &edge.source.node_data.name);
+                let target_nodes = self
+                    .find_nodes_by_name(edge.target.node_type.clone(), &edge.target.node_data.name);
+
+                if let (Some(source), Some(target)) = (source_nodes.first(), target_nodes.first()) {
+                    Some((source.clone(), target.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<(NodeData, NodeData)>>()
+    }
+    fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
+        self.edges
+            .iter()
+            .filter(|edge| match (&edge.edge, &edge_type) {
+                (EdgeType::Calls(_), EdgeType::Calls(_)) => true,
+                _ => edge.edge == edge_type,
+            })
+            .count()
+    }
+
+    fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData> {
+        self.nodes
+            .iter()
+            .filter(|node| node.node_type == node_type)
+            .map(|node| node.node_data.clone())
+            .collect()
+    }
 }
 
 impl ArrayGraph {
@@ -460,7 +598,6 @@ impl ArrayGraph {
             errors: Vec::new(),
         }
     }
-
     pub fn file_data(&self, filename: &str) -> Option<NodeData> {
         self.nodes.iter().find_map(|n| {
             if n.node_type == NodeType::File && n.node_data.file == filename {
@@ -484,107 +621,6 @@ impl ArrayGraph {
             }
         }
         None
-    }
-
-    pub fn find_data_model_by<F>(&self, predicate: F) -> Option<NodeData>
-    where
-        F: Fn(&NodeData) -> bool,
-    {
-        let mut f = None;
-        for n in self.nodes.iter() {
-            if n.node_type == NodeType::DataModel {
-                if predicate(&n.node_data) {
-                    f = Some(n.node_data.clone());
-                    break;
-                }
-            }
-        }
-        f
-    }
-
-    pub fn find_languages(&self) -> Vec<Node> {
-        self.nodes
-            .iter()
-            .filter(|n| matches!(n.node_type, NodeType::Language))
-            .cloned()
-            .collect::<Vec<_>>()
-    }
-
-    pub fn find_specific_endpoints(&self, verb: &str, path: &str) -> Option<Node> {
-        let endpoints_nodes = self
-            .nodes
-            .iter()
-            .filter(|n| matches!(n.node_type, NodeType::Endpoint))
-            .cloned()
-            .collect::<Vec<_>>();
-
-        endpoints_nodes
-            .iter()
-            .find(|node| {
-                if node.node_type == NodeType::Endpoint {
-                    let normalized_actual_path =
-                        normalize_backend_path(&node.node_data.name).unwrap_or_default();
-
-                    let actual_verb = match node.node_data.meta.get("verb") {
-                        Some(v) => v.trim_matches('\''),
-                        None => "",
-                    };
-
-                    normalized_actual_path == path
-                        && actual_verb.to_uppercase() == verb.to_uppercase()
-                } else {
-                    false
-                }
-            })
-            .cloned()
-    }
-
-    pub fn find_target_by_edge_type(&self, source: &Node, edge_type: EdgeType) -> Option<Node> {
-        let source_data = source.into_data();
-
-        for edge in &self.edges {
-            if edge.edge == edge_type
-                && source_data.name == edge.source.node_data.name
-                && source_data.file == edge.source.node_data.file
-            {
-                for node in &self.nodes {
-                    let node_data = node.into_data();
-                    if node_data.name == edge.target.node_data.name
-                        && node_data.file == edge.target.node_data.file
-                        && node.to_node_type() == edge.target.node_type
-                    {
-                        return Some(node.clone());
-                    }
-                }
-            }
-        }
-
-        None
-    }
-
-    pub fn find_functions_called_by_handler(&self, handler: &Node) -> Vec<Node> {
-        let handler_data = handler.into_data();
-        let mut called_functions = Vec::new();
-
-        for edge in &self.edges {
-            if let EdgeType::Calls(_) = &edge.edge {
-                let source_data = &handler_data;
-                if edge.source.node_data.name == source_data.name
-                    && edge.source.node_data.file == source_data.file
-                {
-                    for node in &self.nodes {
-                        let node_data = node.into_data();
-                        if node_data.name == edge.target.node_data.name
-                            && node_data.file == edge.target.node_data.file
-                        {
-                            called_functions.push(node.clone());
-                        }
-                    }
-                }
-            }
-        }
-
-        called_functions
     }
 }
 

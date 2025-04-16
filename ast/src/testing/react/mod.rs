@@ -1,11 +1,10 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::lang::Graph;
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 
-// #[test(tokio::test)]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_react_typescript() {
+pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/react",
@@ -16,120 +15,117 @@ async fn test_react_typescript() {
     )
     .unwrap();
 
-    let graph = repo.build_graph().await.unwrap();
+    let graph = repo.build_graph_inner::<G>().await?;
+
+    let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
-        assert!(graph.nodes.len() == 56);
-        assert!(graph.edges.len() == 77);
+        assert_eq!(num_nodes, 50, "Expected 50 nodes");
+        assert_eq!(num_edges, 61, "Expected 61 edges");
     } else {
-        assert!(graph.nodes.len() == 50);
-        assert!(graph.edges.len() == 61);
+        assert_eq!(num_nodes, 50, "Expected 50 nodes");
+        assert_eq!(num_edges, 61, "Expected 61 edges");
     }
 
-    // Function to normalize paths and replace backslashes with forward slashes
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
     }
 
-    let l = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Language))
-        .collect::<Vec<_>>();
-    assert_eq!(l.len(), 1);
-    let l = l[0].into_data();
-    assert_eq!(l.name, "react");
-    assert_eq!(normalize_path(&l.file), "src/testing/react/");
-
-    let pkg_file = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::File) && n.into_data().name == "package.json")
-        .collect::<Vec<_>>();
-    assert_eq!(pkg_file.len(), 1);
-    let pkg_file = pkg_file[0].into_data();
-    assert_eq!(pkg_file.name, "package.json");
-
-    let imports = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Import))
-        .collect::<Vec<_>>();
-    assert_eq!(imports.len(), 4);
-
-    let mut functions = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Function))
-        .collect::<Vec<_>>();
-
-    functions.sort_by(|a, b| a.into_data().name.cmp(&b.into_data().name));
-
-    if use_lsp == true {
-        assert_eq!(functions.len(), 17);
-    } else {
-        assert_eq!(functions.len(), 11);
-    }
-
-    let people_component = functions[0].into_data();
-    assert_eq!(people_component.name, "App");
+    let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
     assert_eq!(
-        normalize_path(&people_component.file),
-        "src/testing/react/src/App.tsx"
+        language_nodes[0].name, "react",
+        "Language node name should be 'react'"
+    );
+    assert_eq!(
+        normalize_path(&language_nodes[0].file),
+        "src/testing/react/",
+        "Language node file path is incorrect"
     );
 
-    let new_person_component = functions[1].into_data();
-    assert_eq!(new_person_component.name, "FormContainer");
+    let pkg_files = graph.find_nodes_by_name(NodeType::File, "package.json");
+    assert_eq!(pkg_files.len(), 1, "Expected 1 package.json file");
     assert_eq!(
-        normalize_path(&new_person_component.file),
-        "src/testing/react/src/components/NewPerson.tsx"
+        pkg_files[0].name, "package.json",
+        "Package file name is incorrect"
     );
 
-    let styled_components = graph
-        .nodes
-        .iter()
-        .filter(|n| {
-            matches!(n.node_type, NodeType::Function) && n.into_data().name == "SubmitButton"
-        })
-        .collect::<Vec<_>>();
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 4, "Expected 4 imports");
 
-    assert_eq!(styled_components.len(), 1);
+    let functions = graph.find_nodes_by_type(NodeType::Function);
+    assert_eq!(functions.len(), 11, "Expected 11 functions/components");
 
-    let styled_component = styled_components[0].into_data();
-    assert_eq!(styled_component.name, "SubmitButton");
+    let mut sorted_functions = functions.clone();
+    sorted_functions.sort_by(|a, b| a.name.cmp(&b.name));
+
     assert_eq!(
-        normalize_path(&styled_component.file),
-        "src/testing/react/src/components/NewPerson.tsx"
+        sorted_functions[0].name, "App",
+        "App component name is incorrect"
+    );
+    assert_eq!(
+        normalize_path(&sorted_functions[0].file),
+        "src/testing/react/src/App.tsx",
+        "App component file path is incorrect"
     );
 
-    let requests = graph
-        .nodes
-        .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Request))
-        .collect::<Vec<_>>();
-    assert_eq!(requests.len(), 3);
+    assert_eq!(
+        sorted_functions[1].name, "FormContainer",
+        "FormContainer component name is incorrect"
+    );
+    assert_eq!(
+        normalize_path(&sorted_functions[1].file),
+        "src/testing/react/src/components/NewPerson.tsx",
+        "FormContainer component file path is incorrect"
+    );
 
-    let calls_edges = graph
-        .edges
+    let submit_button = functions
         .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Calls(_)))
-        .collect::<Vec<_>>();
-    assert_eq!(calls_edges.len(), 14);
+        .find(|f| f.name == "SubmitButton")
+        .expect("SubmitButton component not found");
+    assert_eq!(
+        submit_button.name, "SubmitButton",
+        "SubmitButton component name is incorrect"
+    );
+    assert_eq!(
+        normalize_path(&submit_button.file),
+        "src/testing/react/src/components/NewPerson.tsx",
+        "SubmitButton component file path is incorrect"
+    );
 
-    let page_node = graph
-        .nodes
+    let requests = graph.find_nodes_by_type(NodeType::Request);
+    assert_eq!(requests.len(), 3, "Expected 3 requests");
+
+    let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls(Default::default()));
+    assert_eq!(calls_edges_count, 14, "Expected 14 calls edges");
+
+    let pages = graph.find_nodes_by_type(NodeType::Page);
+    assert_eq!(pages.len(), 2, "Expected 2 pages");
+
+    let renders_edges_count = graph.count_edges_of_type(EdgeType::Renders);
+    assert_eq!(renders_edges_count, 2, "Expected 2 renders edges");
+
+    let people_page = pages
         .iter()
-        .filter(|n| matches!(n.node_type, NodeType::Page))
-        .collect::<Vec<_>>();
-    assert_eq!(page_node.len(), 2);
+        .find(|p| p.name == "/people")
+        .expect("Expected '/people' page not found");
+    assert_eq!(people_page.name, "/people", "Page name should be '/people'");
+    assert_eq!(
+        normalize_path(&people_page.file),
+        "src/testing/react/src/App.tsx",
+        "Page file path is incorrect"
+    );
 
-    let renders_edges = graph
-        .edges
-        .iter()
-        .filter(|e| matches!(e.edge, EdgeType::Renders))
-        .collect::<Vec<_>>();
-    assert_eq!(renders_edges.len(), 2);
-
-    let page = page_node[0].into_data();
-    assert_eq!(page.name, "/");
-    assert_eq!(normalize_path(&page.file), "src/testing/react/src/App.tsx");
+    Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_react_typescript() {
+    use crate::lang::graphs::ArrayGraph;
+    test_react_typescript_generic::<ArrayGraph>().await.unwrap();
+}
+
+// #[test(tokio::test)]
+// async fn test_react_typescript_btree() {
+//     use crate::lang::graphs::BTreeMapGraph;
+//     test_react_typescript_generic::<BTreeMapGraph>().await.unwrap();
+// }

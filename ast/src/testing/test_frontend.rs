@@ -1,5 +1,5 @@
-use crate::lang::graphs::{ArrayGraph, Node, NodeType};
-use crate::lang::Lang;
+use crate::lang::graphs::NodeType;
+use crate::lang::{Graph, Lang};
 use crate::repo::Repo;
 use anyhow::Context;
 use lsp::Language as LspLanguage;
@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::result::Result;
 use tracing::info;
 
-pub struct FrontendTester {
-    graph: ArrayGraph,
+pub struct FrontendTester<G: Graph> {
+    graph: G,
     lang: Lang,
     repo: Option<String>,
 }
@@ -32,11 +32,13 @@ impl FrontendArtefact<'_> {
         }
     }
 }
-impl FrontendTester {
-    pub async fn new(lang: Lang, repo: Option<String>) -> Result<Self, anyhow::Error> {
+impl<G: Graph> FrontendTester<G> {
+    pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self, anyhow::Error>
+    where
+        G: Default,
+    {
         let language_name = lang.kind.clone();
         let language_in_repository = Lang::from_language(language_name.clone());
-
         let repo_path = repo.clone().unwrap_or_else(|| language_name.to_string());
         let repository = Repo::new(
             &format!("src/testing/{}", repo_path),
@@ -46,11 +48,12 @@ impl FrontendTester {
             Vec::new(),
         )?;
 
+        let graph = repository
+            .build_graph_inner()
+            .await
+            .with_context(|| format!("Failed to build graph for {}", repo_path))?;
         Ok(Self {
-            graph: repository
-                .build_graph()
-                .await
-                .with_context(|| format!("Failed to build graph for {}", repo_path))?,
+            graph,
             lang,
             repo: Some(repo_path),
         })
@@ -81,15 +84,15 @@ impl FrontendTester {
     }
 
     fn test_language(&self) -> Result<(), anyhow::Error> {
-        let language_nodes = self.graph.find_languages();
-
-        let language_node = language_nodes
-            .iter()
-            .find(|node| node.into_data().name == self.lang.kind.to_string())
+        let language_nodes = self
+            .graph
+            .find_nodes_by_type(NodeType::Language)
+            .first()
+            .cloned()
             .unwrap();
 
         assert_eq!(
-            language_node.into_data().name,
+            language_nodes.name,
             self.lang.kind.to_string(),
             "Language node name mismatch"
         );
@@ -100,23 +103,12 @@ impl FrontendTester {
     fn test_package_file(&self) -> Result<(), anyhow::Error> {
         let package_file_name = self.lang.kind.pkg_file();
 
-        let file_nodes = self
+        let pkg_file_nodes = self
             .graph
-            .nodes
-            .iter()
-            .filter(|node| matches!(node.node_type, NodeType::File))
-            .collect::<Vec<_>>();
-
-        let package_files: Vec<_> = file_nodes
-            .iter()
-            .filter(|node| {
-                let file_data = node.into_data();
-                file_data.name.contains(&package_file_name)
-            })
-            .collect();
+            .find_nodes_by_name(NodeType::File, &package_file_name);
 
         assert!(
-            !package_files.is_empty(),
+            pkg_file_nodes.len() >= 1,
             "No package file found matching {}",
             package_file_name
         );
@@ -129,12 +121,12 @@ impl FrontendTester {
     fn test_data_model(&self, data_model: &str) -> Result<(), anyhow::Error> {
         let data_model_nodes = self
             .graph
-            .find_data_model_by(|node| node.name.contains(data_model));
+            .find_nodes_by_name_contains(NodeType::DataModel, data_model);
 
         info!("✓ Found data model {}", data_model);
 
         assert!(
-            !data_model_nodes.is_none(),
+            data_model_nodes.len() >= 1,
             "No data model found matching {}",
             data_model
         );
@@ -143,96 +135,71 @@ impl FrontendTester {
     }
 
     fn test_components(&self, expected_components: Vec<&str>) -> Result<(), anyhow::Error> {
-        self.verify_nodes(
-            expected_components,
-            |node| matches!(node.node_type, NodeType::Function),
-            |component, name| component.contains(name),
-            "component",
-        )
-    }
-
-    fn test_pages(&self, expected_pages: Vec<&str>) -> Result<(), anyhow::Error> {
-        self.verify_nodes(
-            expected_pages,
-            |node| matches!(node.node_type, NodeType::Page),
-            |page, name| page.contains(name),
-            "page",
-        )
-    }
-
-    fn test_requests(&self, expected_requests: Vec<(&str, &str)>) -> Result<(), anyhow::Error> {
-        let requests = self
-            .graph
-            .nodes
-            .iter()
-            .filter(|node| matches!(node.node_type, NodeType::Request))
-            .collect::<Vec<_>>();
-
-        let mut found_requests: HashMap<(String, String), bool> = expected_requests
-            .iter()
-            .map(|request| ((request.0.to_string(), request.1.to_string()), false))
-            .collect();
-
-        for request in &requests {
-            let request_data = request.into_data();
-
-            let verb = match request_data.meta.get("verb") {
-                Some(verb_value) => verb_value.to_uppercase(),
-                None => "".to_string(),
-            };
-
-            let url = &request_data.name;
-
-            for ((expected_verb, expected_endpoint), found) in found_requests.iter_mut() {
-                if verb == expected_verb.to_uppercase() && url.contains(expected_endpoint) {
-                    *found = true;
-                    info!("✓ Found request: {} {} ({})", verb, expected_endpoint, url);
-                }
-            }
-        }
-
-        for ((verb, endpoint), found) in found_requests.iter() {
-            assert!(*found, "Request {} {} not found in graph", verb, endpoint);
-        }
-
-        Ok(())
-    }
-
-    fn verify_nodes<T, F>(
-        &self,
-        expected_items: Vec<T>,
-        filter_fn: F,
-        match_fn: impl Fn(&T, &String) -> bool,
-        item_type: &str,
-    ) -> Result<(), anyhow::Error>
-    where
-        T: std::fmt::Display + std::cmp::Eq + std::hash::Hash,
-        F: Fn(&&Node) -> bool,
-    {
-        let nodes = self
-            .graph
-            .nodes
-            .iter()
-            .filter(filter_fn)
-            .collect::<Vec<_>>();
-
-        let mut found_map: HashMap<T, bool> = expected_items
+        let mut found_components: HashMap<&str, bool> = expected_components
+            .clone()
             .into_iter()
             .map(|item| (item, false))
             .collect();
 
-        for node in nodes {
-            let name = node.into_data().name.to_string();
-            for (item, found) in found_map.iter_mut() {
-                if match_fn(item, &name) {
-                    *found = true;
-                    info!("✓ Found {} {}", item_type, name);
+        for component in expected_components {
+            if let Some(node) = self
+                .graph
+                .find_nodes_by_name(NodeType::Function, component)
+                .first()
+            {
+                let component_name = node.name.as_str();
+                if let Some(entry) = found_components.get_mut(component_name) {
+                    *entry = true;
+                    info!("✓ Found component {}", component_name);
                 }
             }
         }
 
-        for (item, found) in found_map.iter() {
-            assert!(*found, "{} {} not found in graph", item_type, item);
+        for (component_name, found) in found_components.iter() {
+            assert!(*found, "Component {} not found in graph", component_name);
+        }
+        Ok(())
+    }
+
+    fn test_pages(&self, expected_pages: Vec<&str>) -> Result<(), anyhow::Error> {
+        let mut found_pages: HashMap<&str, bool> = expected_pages
+            .clone()
+            .into_iter()
+            .map(|item| (item, false))
+            .collect();
+
+        for page in expected_pages {
+            if let Some(node) = self.graph.find_nodes_by_name(NodeType::Page, page).last() {
+                let page_name = node.name.as_str();
+                if let Some(entry) = found_pages.get_mut(page_name) {
+                    *entry = true;
+                    info!("✓ Found page {}", page_name);
+                }
+            }
+        }
+        for (page_name, found) in found_pages.iter() {
+            assert!(*found, "Page {} not found in graph", page_name);
+        }
+        Ok(())
+    }
+
+    fn test_requests(&self, expected_requests: Vec<(&str, &str)>) -> Result<(), anyhow::Error> {
+        let mut found_requests = HashMap::new();
+        for (verb, path) in expected_requests.iter() {
+            found_requests.insert((verb.to_string(), path.to_string()), false);
+        }
+        for ((verb, path), found) in found_requests.iter_mut() {
+            let matching_nodes = self
+                .graph
+                .find_resource_nodes(NodeType::Request, verb, path);
+            if !matching_nodes.is_empty() {
+                *found = true;
+                info!("✓ Found request {} {}", verb, path);
+            }
+        }
+
+        for ((verb, path), found) in found_requests.iter() {
+            assert!(*found, "Request {} {} not found in graph", verb, path);
         }
 
         Ok(())

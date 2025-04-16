@@ -28,10 +28,7 @@ pub trait Graph: Default + Debug {
 
     fn get_graph_size(&self) -> (u32, u32);
 
-    //Nodes
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData>;
-    fn find_nodes_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData>;
-    fn find_node_at(&self, node_type: NodeType, file: &str, line: u32) -> Option<NodeData>;
     fn add_node_with_parent(
         &mut self,
         node_type: NodeType,
@@ -39,20 +36,7 @@ pub trait Graph: Default + Debug {
         parent_type: NodeType,
         parent_file: &str,
     );
-    fn find_node_by_name_in_file(
-        &self,
-        node_type: NodeType,
-        name: &str,
-        file: &str,
-    ) -> Option<NodeData>;
-    fn find_node_by_name_and_file_end_with(
-        &self,
-        node_type: NodeType,
-        name: &str,
-        suffix: &str,
-    ) -> Option<NodeData>;
-    fn find_nodes_by_file_ends_with(&self, node_type: NodeType, file: &str) -> Vec<NodeData>;
-    // this method is used only in ruby (so far)
+    fn add_edge(&mut self, edge: Edge);
 
     fn find_source_edge_by_name_and_file(
         &self,
@@ -83,4 +67,66 @@ pub trait Graph: Default + Debug {
 
     //Specific
     fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData>;
+
+    fn find_resource_nodes(&self, node_type: NodeType, verb: &str, path: &str) -> Vec<NodeData>;
+    fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData>;
+    fn check_direct_data_model_usage(&self, function_name: &str, data_model: &str) -> bool;
+    fn find_functions_called_by(&self, function: &NodeData) -> Vec<NodeData>;
+    fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData>;
+    fn find_nodes_with_edge_type(
+        &self,
+        source_type: NodeType,
+        target_type: NodeType,
+        edge_type: EdgeType,
+    ) -> Vec<(NodeData, NodeData)>;
+    fn count_edges_of_type(&self, edge_type: EdgeType) -> usize;
+
+    //Default implementations
+    fn find_nodes_by_name_contains(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
+        self.find_nodes_by_type(node_type)
+            .into_iter()
+            .filter(|node| node.name.contains(name))
+            .collect()
+    }
+
+    fn find_node_by_name_in_file(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        file: &str,
+    ) -> Option<NodeData> {
+        self.find_nodes_by_name(node_type, name)
+            .into_iter()
+            .find(|node| node.file == file)
+    }
+
+    fn find_nodes_by_file_ends_with(&self, node_type: NodeType, file: &str) -> Vec<NodeData> {
+        self.find_nodes_by_type(node_type)
+            .into_iter()
+            .filter(|node| node.file.ends_with(file))
+            .collect()
+    }
+
+    fn find_node_by_name_and_file_end_with(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        suffix: &str,
+    ) -> Option<NodeData> {
+        self.find_nodes_by_name(node_type, name)
+            .into_iter()
+            .find(|node| node.file.ends_with(suffix))
+    }
+
+    fn find_nodes_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
+        self.find_nodes_by_type(node_type)
+            .into_iter()
+            .find(|node| node.file == file && node.start as u32 <= row && node.end as u32 >= row)
+    }
+
+    fn find_node_at(&self, node_type: NodeType, file: &str, line: u32) -> Option<NodeData> {
+        self.find_nodes_by_type(node_type)
+            .into_iter()
+            .find(|node| node.file == file && node.start == line as usize)
+    }
 }
