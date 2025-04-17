@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node build/index.js",
     "gen-redoc": "tsc --noEmit && tsx docs/gen-redoc.ts",
-    "copydir": "tsx docs/copydir.ts",
+    "copydir": "node docs/copydir/index.js",
     "build-app1": "tsc --noEmit && tsc --target esnext --module commonjs --outDir build/app app/app.ts"
   },
   "bin": {

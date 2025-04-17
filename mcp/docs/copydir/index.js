@@ -1,6 +1,8 @@
-import * as fs from "fs";
-import * as path from "path";
-import clipboard from "clipboardy";
+#!/usr/bin/env node
+
+const fs = require("fs");
+const path = require("path");
+const clipboard = require("clipboardy").default;
 
 // Get the directory path from command line argument
 const dirPath = process.argv[2];
@@ -18,8 +20,8 @@ if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
 }
 
 // Function to recursively walk a directory
-function walkDirectory(dir: string): string[] {
-  let files: string[] = [];
+function walkDirectory(dir) {
+  let files = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
   for (const entry of entries) {
@@ -49,7 +51,7 @@ try {
     try {
       const content = fs.readFileSync(file, "utf8");
       output += `${file}\n\`\`\`\n${content}\n\`\`\`\n\n`;
-    } catch (err: any) {
+    } catch (err) {
       console.error(`Error reading file ${file}: ${err.message}`);
       output += `${file}\n\`\`\`\n// Error reading file: ${err.message}\n\`\`\`\n\n`;
     }
@@ -63,7 +65,7 @@ try {
 
   console.log("Copied to clipboard");
   console.log(`Total lines copied: ${lineCount}`);
-} catch (err: any) {
+} catch (err) {
   console.error(`Error: ${err.message}`);
   process.exit(1);
 }
