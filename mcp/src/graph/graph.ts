@@ -98,7 +98,19 @@ export async function get_subtree(p: MapParams) {
   return r.records[0];
 }
 
-export async function get_map(params: MapParams) {
+export async function get_repo_map(
+  name: string,
+  ref_id: string
+): Promise<string> {
+  const r = await db.get_repo_subtree(name, ref_id);
+  const record = r.records[0];
+  const tokenizer = await createByModelName("gpt-4");
+  const tree = await buildTree(record, "down", tokenizer);
+  const text = archy(tree.root);
+  return `<pre>${text}</pre>`;
+}
+
+export async function get_map(params: MapParams): Promise<string> {
   const record = await get_subtree(params);
   const pkg_files = await db.get_pkg_files();
   const tokenizer = await createByModelName("gpt-4");
@@ -118,7 +130,7 @@ export async function get_map(params: MapParams) {
   return html;
 }
 
-export async function get_code(params: MapParams) {
+export async function get_code(params: MapParams): Promise<string> {
   const record = await get_subtree(params);
   const pkg_files = await db.get_pkg_files();
   const tokenizer = await createByModelName("gpt-4");

@@ -202,86 +202,81 @@ WHERE refId <> ''
 WITH CASE
        WHEN fByRefId IS NOT NULL THEN fByRefId
        ELSE fByName
-     END AS startNode,
+     END AS f,
      direction, labelFilter, depth, trim
-WHERE startNode IS NOT NULL
+WHERE f IS NOT NULL
 
-// For bidirectional queries, reduce depth to prevent explosion
-WITH startNode, direction, labelFilter, trim,
-     CASE WHEN direction = 'both' THEN toInteger(depth/2) ELSE depth END AS effectiveDepth
-
-// Execute separate traversals and combine results
+// First handle "down" direction
+WITH f, direction, labelFilter, depth, trim,
+     CASE WHEN direction IN ["down", "both"] THEN 1 ELSE 0 END AS includeDown
+     
+// Get downward paths conditionally
 CALL {
-    WITH *
-    CALL apoc.path.subgraphAll(startNode, {
-        relationshipFilter: CASE WHEN direction IN ['down', 'both'] 
-                            THEN "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND" 
-                            ELSE null END,
+    WITH f, labelFilter, depth, includeDown
+    CALL apoc.path.expandConfig(f, {
+        relationshipFilter: "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND",
+        uniqueness: "NODE_PATH",
         minLevel: 1,
-        maxLevel: effectiveDepth,
+        maxLevel: includeDown * depth, // Will be 0 if not including down paths
         labelFilter: labelFilter
     })
-    YIELD nodes as downNodes, relationships as downRels
-    RETURN downNodes, downRels
+    YIELD path
+    RETURN collect(path) AS downwardPaths
 }
 
+// Now handle "up" direction
+WITH f, direction, labelFilter, depth, trim, downwardPaths,
+     CASE WHEN direction IN ["up", "both"] THEN 1 ELSE 0 END AS includeUp
+     
+// Get upward paths conditionally
 CALL {
-    WITH *
-    CALL apoc.path.subgraphAll(startNode, {
-        relationshipFilter: CASE WHEN direction IN ['up', 'both'] 
-                            THEN "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND" 
-                            ELSE null END,
+    WITH f, labelFilter, depth, includeUp
+    CALL apoc.path.expandConfig(f, {
+        relationshipFilter: "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND",
+        uniqueness: "NODE_PATH",
         minLevel: 1,
-        maxLevel: effectiveDepth,
+        maxLevel: includeUp * depth, // Will be 0 if not including up paths
         labelFilter: labelFilter
     })
-    YIELD nodes as upNodes, relationships as upRels
-    RETURN upNodes, upRels
+    YIELD path
+    RETURN collect(path) AS upwardPaths
 }
 
-// Combine and deduplicate nodes and relationships
-WITH startNode, trim, 
-     CASE WHEN direction IN ['down', 'both'] THEN downNodes ELSE [] END + 
-     CASE WHEN direction IN ['up', 'both'] THEN upNodes ELSE [] END AS allNodes,
-     CASE WHEN direction IN ['down', 'both'] THEN downRels ELSE [] END + 
-     CASE WHEN direction IN ['up', 'both'] THEN upRels ELSE [] END AS allRels
-
-// Remove duplicates
-WITH startNode, trim,
-     apoc.coll.toSet(allNodes) AS uniqueNodes,
-     apoc.coll.toSet(allRels) AS uniqueRels
-
-// Filter out trimmed nodes
-WITH startNode,
-     [n IN uniqueNodes WHERE NOT n.name IN trim] AS filteredNodes,
-     uniqueRels, trim
-
-// Filter relationships to only include those between non-trimmed nodes
-WITH startNode, filteredNodes,
-     [r IN uniqueRels 
-      WHERE 
-        NOT startNode(r).name IN trim AND
-        NOT endNode(r).name IN trim
-     ] AS filteredRels,
+// Combine the paths
+WITH f AS startNode, 
+     downwardPaths + upwardPaths AS paths,
      trim
 
-// Transform to the format you need
-WITH startNode, filteredNodes, 
-     [rel IN filteredRels | {
-        source: id(startNode(rel)),
-        target: id(endNode(rel)),
-        type: type(rel),
-        properties: properties(rel)
-     }] AS relationshipData,
-     [node IN filteredNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
+// Rest of query remains the same
+UNWIND paths AS path
+WITH startNode, path, trim
+WHERE NONE(n IN nodes(path) WHERE n.name IN trim)
 
-// Get imports
+WITH startNode,
+     COLLECT(DISTINCT path) AS filteredPaths,
+     trim
+
+UNWIND filteredPaths AS path
+UNWIND nodes(path) AS node
+WITH startNode, filteredPaths, trim, COLLECT(DISTINCT node) AS allNodes
+
+UNWIND filteredPaths AS path
+UNWIND relationships(path) AS rel
+WITH startNode, allNodes, COLLECT(DISTINCT {
+    source: id(startNode(rel)),
+    target: id(endNode(rel)),
+    type: type(rel),
+    properties: properties(rel)
+}) AS relationships, trim
+
+WITH startNode, allNodes, relationships,
+     [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
 MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames
 
 RETURN startNode,
-       filteredNodes AS allNodes,
-       relationshipData AS relationships,
+       allNodes,
+       relationships,
        COLLECT(DISTINCT import) AS imports
 `;
 
