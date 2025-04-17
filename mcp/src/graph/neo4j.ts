@@ -1,7 +1,7 @@
 import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
-import { Node, Edge, Neo4jNode, NodeType } from "./types.js";
+import { Node, Edge, Neo4jNode, NodeType, all_node_types } from "./types.js";
 import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
 import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
@@ -117,11 +117,32 @@ class Db {
         node_label: node_type,
         node_name: name,
         ref_id: ref_id,
-        include_tests,
         depth,
         direction,
         label_filter,
         trim,
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_repo_subtree(name: string, ref_id: string) {
+    const disclude: NodeType[] = all_node_types().filter(
+      (type: NodeType) =>
+        type !== "File" && type !== "Directory" && type !== "Repository"
+    );
+    const session = this.driver.session();
+    console.log("get_repo_subtree", name, ref_id, this.skip_string(disclude));
+    try {
+      return await session.run(Q.SUBGRAPH_QUERY, {
+        node_label: "Repository",
+        node_name: name,
+        ref_id: ref_id || "",
+        depth: 10,
+        direction: "down",
+        label_filter: this.skip_string(disclude),
+        trim: [],
       });
     } finally {
       await session.close();

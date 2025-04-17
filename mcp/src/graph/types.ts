@@ -79,6 +79,26 @@ export function relevant_node_types(): NodeType[] {
   ];
 }
 
+export function all_node_types(): NodeType[] {
+  return [
+    "Repository",
+    "Language",
+    "Directory",
+    "File",
+    "Import",
+    "Class",
+    "Trait",
+    "Library",
+    "Function",
+    "Test",
+    "E2etest",
+    "Endpoint",
+    "Request",
+    "Datamodel",
+    "Page",
+  ];
+}
+
 export function node_type_descriptions(): { [k in NodeType]: string } {
   return {
     Repository:

@@ -33,6 +33,7 @@ app.use(r.logEndpoint);
 app.get("/nodes", r.get_nodes);
 app.get("/search", r.search);
 app.get("/map", r.get_map);
+app.get("/repo_map", r.get_repo_map);
 app.get("/code", r.get_code);
 app.get("/shortest_path", r.get_shortest_path);
 app.post("/upload", uploads.upload_files);

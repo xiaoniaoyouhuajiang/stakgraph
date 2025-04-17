@@ -153,6 +153,18 @@ export async function get_map(req: Request, res: Response) {
   }
 }
 
+export async function get_repo_map(req: Request, res: Response) {
+  try {
+    const name = req.query.name as string;
+    const ref_id = req.query.ref_id as string;
+    const html = await G.get_repo_map(name, ref_id);
+    res.send(html);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
 export async function get_code(req: Request, res: Response) {
   try {
     const text = await G.get_code(mapParams(req));
