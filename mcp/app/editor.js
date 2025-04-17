@@ -190,24 +190,28 @@ export const Tooltip = ({
       onMouseEnter=${onMouseEnter}
       onMouseLeave=${onMouseLeave}
     >
-      <div class="file-info">
-        <span class="file-path">
-          ${filePath || "Unknown file"}
-          ${filePath &&
-          html`
-            <span class="file-type">
-              ${utils.getLanguageFromFilePath(filePath)}
-            </span>
-          `}
-        </span>
-        <div class="actions">
-          <div class="untag-btn" onClick=${onUntag}>Untag</div>
-          <div class="close-btn" onClick=${onClose}>×</div>
+      <div class="tooltip-header">
+        <div class="file-info">
+          <span class="file-path">
+            ${filePath || "Unknown file"}
+            ${filePath &&
+            html`
+              <span class="file-type">
+                ${utils.getLanguageFromFilePath(filePath)}
+              </span>
+            `}
+          </span>
+          <div class="actions">
+            <div class="untag-btn" onClick=${onUntag}>Untag</div>
+            <div class="close-btn" onClick=${onClose}>×</div>
+          </div>
         </div>
       </div>
-      ${bodyText
-        ? html`<pre><code class=${langClass} ref=${codeRef}>${bodyText}</code></pre>`
-        : "No content available"}
+      <div class="tooltip-content">
+        ${bodyText
+          ? html`<pre><code class=${langClass} ref=${codeRef}>${bodyText}</code></pre>`
+          : "No content available"}
+      </div>
     </div>
   `;
 };

@@ -234,8 +234,8 @@ export const Prompt = ({ onSend }) => {
       tagSpan.style.color = color;
       tagSpan.style.fontWeight = "bold";
 
-      // For Files, show the filename
-      if (result.node_type === "File" && result.properties.name) {
+      // For Files, show the filename (for testing)
+      if (false && result.node_type === "File" && result.properties.name) {
         tagSpan.textContent = `@${result.properties.name}`;
       } else {
         tagSpan.textContent = `${currentRangeInfo.triggerChar}${currentRangeInfo.tagText}`;
