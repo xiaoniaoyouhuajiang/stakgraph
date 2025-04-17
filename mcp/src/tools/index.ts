@@ -3,6 +3,7 @@ import * as search from "./search.js";
 import * as get_nodes from "./get_nodes.js";
 import * as get_map from "./get_map.js";
 import * as get_code from "./get_code.js";
+import * as repo_map from "./repo_map.js";
 import * as shortest_path from "./shortest_path.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
@@ -36,6 +37,7 @@ function getTools(): HttpTool[] {
     search.SearchTool,
     get_nodes.GetNodesTool,
     get_map.GetMapTool,
+    repo_map.RepoMapTool,
     get_code.GetCodeTool,
     shortest_path.ShortestPathTool,
   ].map(fmtToolForHttp);
@@ -67,6 +69,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case shortest_path.ShortestPathTool.name: {
       const fa = shortest_path.ShortestPathSchema.parse(args);
       return await shortest_path.shortestPath(fa);
+    }
+    case repo_map.RepoMapTool.name: {
+      const fa = repo_map.RepoMapSchema.parse(args);
+      return await repo_map.repoMap(fa);
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

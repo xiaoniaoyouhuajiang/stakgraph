@@ -13,7 +13,7 @@ export const RepoMapSchema = z.object({
     ),
 });
 
-export const GetMapTool: Tool = {
+export const RepoMapTool: Tool = {
   name: "repo_map",
   description:
     "Generate a visual map/tree of the directories and files in the repo",
@@ -21,7 +21,7 @@ export const GetMapTool: Tool = {
 };
 
 export async function repoMap(args: z.infer<typeof RepoMapSchema>) {
-  console.log("=> Running get_map tool with args:", args);
+  console.log("=> Running repo_map tool with args:", args);
   const result = await G.get_repo_map(args.name || "", args.ref_id || "");
   return {
     content: [
