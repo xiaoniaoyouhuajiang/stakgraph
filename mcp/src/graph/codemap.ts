@@ -149,3 +149,26 @@ export async function buildTree(
   const root = rootNode || { label: "Root not found", nodes: [] };
   return { root, total_tokens };
 }
+
+export function alphabetizeNodeLabels(node: TreeNode) {
+  if (node && node.nodes && Array.isArray(node.nodes)) {
+    // Sort the nodes array based on the 'label' property
+    node.nodes.sort((a, b) => {
+      const labelA = a.label.toUpperCase(); // Ignore case for sorting
+      const labelB = b.label.toUpperCase();
+      if (labelA < labelB) {
+        return -1;
+      }
+      if (labelA > labelB) {
+        return 1;
+      }
+      return 0; // labels are equal
+    });
+
+    // Recursively alphabetize the labels of child nodes
+    node.nodes.forEach((childNode) => {
+      alphabetizeNodeLabels(childNode);
+    });
+  }
+  return node; // Return the modified node
+}

@@ -1,6 +1,6 @@
 import { db, Direction, Data_Bank } from "./neo4j.js";
 import archy from "archy";
-import { buildTree, TreeNode } from "./codemap.js";
+import { buildTree, alphabetizeNodeLabels } from "./codemap.js";
 import { extractNodesFromRecord } from "./codebody.js";
 import { Neo4jNode, NodeType } from "./types.js";
 import { nameFileOnly, toReturnNode, formatNode } from "./utils.js";
@@ -172,27 +172,4 @@ export async function get_shortest_path(
     const path = result.records[0].get("path");
     return toSnippets(path);
   }
-}
-
-function alphabetizeNodeLabels(node: TreeNode) {
-  if (node && node.nodes && Array.isArray(node.nodes)) {
-    // Sort the nodes array based on the 'label' property
-    node.nodes.sort((a, b) => {
-      const labelA = a.label.toUpperCase(); // Ignore case for sorting
-      const labelB = b.label.toUpperCase();
-      if (labelA < labelB) {
-        return -1;
-      }
-      if (labelA > labelB) {
-        return 1;
-      }
-      return 0; // labels are equal
-    });
-
-    // Recursively alphabetize the labels of child nodes
-    node.nodes.forEach((childNode) => {
-      alphabetizeNodeLabels(childNode);
-    });
-  }
-  return node; // Return the modified node
 }
