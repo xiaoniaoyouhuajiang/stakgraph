@@ -102,6 +102,7 @@ jobs:
           http://localhost:3000/upload
 
       - name: Test API Response
+        working-directory: ./mcp
         run: |
           curl "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
 
