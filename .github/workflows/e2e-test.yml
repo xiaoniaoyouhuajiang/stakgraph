@@ -106,7 +106,8 @@ jobs:
         run: |
           curl "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
 
-      - name: Compare Map rResponse
+      - name: Compare Map Response
+        working-directory: ./mcp
         run: |
           ACTUAL_MAP_FILE="./testing/actual-map-response.html"
           EXPECTED_MAP_FILE="./testing/map.html"
