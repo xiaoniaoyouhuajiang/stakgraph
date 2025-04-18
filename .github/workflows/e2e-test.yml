@@ -104,35 +104,57 @@ jobs:
           sleep 25
           curl "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
 
-      - name: Compare API Response with Expected Output
-        working-directory: ./mcp
-        run: |
-          cat -A ./testing/actual-map-response.html
-          cat -A ./testing/map.html
+      # - name: Compare API Response with Expected Output
+      #   working-directory: ./mcp
+      #   run: |
+      #     cat -A ./testing/actual-map-response.html
+      #     cat -A ./testing/map.html
 
-      - name: Normalize Files (strip non-printable characters)
-        working-directory: ./mcp
-        run: |
-          tr -cd '\11\12\15\40-\176' < ./testing/actual-map-response.html > ./testing/actual-map-response.clean.html
-          tr -cd '\11\12\15\40-\176' < ./testing/map.html > ./testing/map.clean.html
-      - name: Show Debug Output (Optional)
-        working-directory: ./mcp
-        run: |
-          echo "=== ACTUAL (cleaned) ==="
-          cat -A ./testing/actual-map-response.clean.html
-          echo "=== EXPECTED (cleaned) ==="
-          cat -A ./testing/map.clean.html
+      # - name: Normalize Files (strip non-printable characters)
+      #   working-directory: ./mcp
+      #   run: |
+      #     tr -cd '\11\12\15\40-\176' < ./testing/actual-map-response.html > ./testing/actual-map-response.clean.html
+      #     tr -cd '\11\12\15\40-\176' < ./testing/map.html > ./testing/map.clean.html
+      # - name: Show Debug Output (Optional)
+      #   working-directory: ./mcp
+      #   run: |
+      #     echo "=== ACTUAL (cleaned) ==="
+      #     cat -A ./testing/actual-map-response.clean.html
+      #     echo "=== EXPECTED (cleaned) ==="
+      #     cat -A ./testing/map.clean.html
 
-      - name: Compare Map Response
+      # - name: Compare Map Response
+      #   working-directory: ./mcp
+      #   run: |
+      #     ACTUAL_MAP_FILE="./testing/actual-map-response.clean.html"
+      #     EXPECTED_MAP_FILE="./testing/map.clean.html"
+
+      #     if diff --color=always -u "$ACTUAL_MAP_FILE" "$EXPECTED_MAP_FILE"; then
+      #       echo "Response matches expected output ✅"
+      #     else
+      #       echo "Response does NOT match expected output ❌"
+      #       exit 1
+      #     fi
+
+      - name: Install HTML Tidy
+        run: sudo apt-get install -y tidy
+
+      - name: Canonicalize HTML and Compare
         working-directory: ./mcp
         run: |
-          ACTUAL_MAP_FILE="./testing/actual-map-response.clean.html"
-          EXPECTED_MAP_FILE="./testing/map.clean.html"
+          tidy -quiet -indent -wrap 0 -utf8 -ashtml -o ./testing/actual.normalized.html ./testing/actual-map-response.html || true
+          tidy -quiet -indent -wrap 0 -utf8 -ashtml -o ./testing/expected.normalized.html ./testing/map.html || true
 
-          if diff --color=always -u "$ACTUAL_MAP_FILE" "$EXPECTED_MAP_FILE"; then
-            echo "Response matches expected output ✅"
+          echo "=== ACTUAL (normalized) ==="
+          cat ./testing/actual.normalized.html
+
+          echo "=== EXPECTED (normalized) ==="
+          cat ./testing/expected.normalized.html
+
+          if diff --color=always -u ./testing/actual.normalized.html ./testing/expected.normalized.html; then
+            echo "✅ HTML matches expected output"
           else
-            echo "Response does NOT match expected output ❌"
+            echo "❌ HTML does NOT match expected output"
             exit 1
           fi
 
