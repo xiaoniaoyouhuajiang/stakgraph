@@ -107,8 +107,8 @@ jobs:
       - name: Compare API Response with Expected Output
         working-directory: ./mcp
         run: |
-          cat ./testing/actual-map-response.html
-          cat ./testing/map.html
+          cat -A ./testing/actual-map-response.html
+          cat -A ./testing/map.html
 
       - name: Compare Map Response
         working-directory: ./mcp
