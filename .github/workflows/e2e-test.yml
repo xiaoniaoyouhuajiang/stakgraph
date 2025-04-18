@@ -101,7 +101,7 @@ jobs:
       - name: Test API Response
         working-directory: ./mcp
         run: |
-          sleep 15
+          sleep 25
           curl "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
 
       - name: Compare API Response with Expected Output
