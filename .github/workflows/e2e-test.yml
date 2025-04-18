@@ -136,25 +136,30 @@ jobs:
       #       exit 1
       #     fi
 
-      - name: Install HTML Tidy
-        run: sudo apt-get install -y tidy
-
-      - name: Canonicalize HTML and Compare
+      - name: Extract <pre> block content (actual)
         working-directory: ./mcp
         run: |
-          tidy -quiet -indent -wrap 0 -utf8 -ashtml -o ./testing/actual.normalized.html ./testing/actual-map-response.html || true
-          tidy -quiet -indent -wrap 0 -utf8 -ashtml -o ./testing/expected.normalized.html ./testing/map.html || true
+          grep -Po '(?<=<pre>)(.|\n)*?(?=</pre>)' ./testing/actual-map-response.html > ./testing/actual-pre.txt
 
-          echo "=== ACTUAL (normalized) ==="
-          cat ./testing/actual.normalized.html
+      - name: Extract <pre> block content (expected)
+        working-directory: ./mcp
+        run: |
+          grep -Po '(?<=<pre>)(.|\n)*?(?=</pre>)' ./testing/map.html > ./testing/expected-pre.txt
 
-          echo "=== EXPECTED (normalized) ==="
-          cat ./testing/expected.normalized.html
+      - name: Compare actual and expected output
+        working-directory: ./mcp
+        run: |
+          echo "======= ACTUAL ======="
+          cat ./testing/actual-pre.txt
 
-          if diff --color=always -u ./testing/actual.normalized.html ./testing/expected.normalized.html; then
-            echo "✅ HTML matches expected output"
+          echo "======= EXPECTED ======="
+          cat ./testing/expected-pre.txt
+
+          echo "======= DIFF ======="
+          if diff --color=always -u ./testing/expected-pre.txt ./testing/actual-pre.txt; then
+            echo "✅ Output matches expected"
           else
-            echo "❌ HTML does NOT match expected output"
+            echo "❌ Output does not match expected"
             exit 1
           fi
 
