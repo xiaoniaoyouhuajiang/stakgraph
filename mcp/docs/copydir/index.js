@@ -4,8 +4,10 @@ const fs = require("fs");
 const path = require("path");
 const clipboard = require("clipboardy").default;
 
-// Get the directory path from command line argument
-const dirPath = process.argv[2];
+// Parse command line arguments
+const args = process.argv.slice(2);
+const jsonFlag = args.includes("--json");
+const dirPath = args.filter((arg) => !arg.startsWith("--"))[0];
 
 // Check if path was provided
 if (!dirPath) {
@@ -45,26 +47,42 @@ try {
   // Get all files in the directory and subdirectories
   const allFiles = walkDirectory(dirPath);
   let output = "";
+  let jsonOutput = {}; // Changed from array to object
 
   // Process each file
   for (const file of allFiles) {
     try {
       const content = fs.readFileSync(file, "utf8");
-      output += `${file}\n\`\`\`\n${content}\n\`\`\`\n\n`;
+
+      if (jsonFlag) {
+        // Use the file path as key and content as value
+        jsonOutput[file] = content;
+      } else {
+        output += `${file}\n\`\`\`\n${content}\n\`\`\`\n\n`;
+      }
     } catch (err) {
       console.error(`Error reading file ${file}: ${err.message}`);
-      output += `${file}\n\`\`\`\n// Error reading file: ${err.message}\n\`\`\`\n\n`;
+
+      if (jsonFlag) {
+        // For files with errors, include error message in the value
+        jsonOutput[file] = `// Error reading file: ${err.message}`;
+      } else {
+        output += `${file}\n\`\`\`\n// Error reading file: ${err.message}\n\`\`\`\n\n`;
+      }
     }
   }
 
   // Write the output to the clipboard
-  clipboard.write(output);
-
-  // Count the total number of lines
-  const lineCount = output.split("\n").length;
-
-  console.log("Copied to clipboard");
-  console.log(`Total lines copied: ${lineCount}`);
+  if (jsonFlag) {
+    clipboard.write(JSON.stringify(jsonOutput, null, 2));
+    console.log("Copied JSON to clipboard");
+    console.log(`Total files copied: ${Object.keys(jsonOutput).length}`);
+  } else {
+    clipboard.write(output);
+    const lineCount = output.split("\n").length;
+    console.log("Copied to clipboard");
+    console.log(`Total lines copied: ${lineCount}`);
+  }
 } catch (err) {
   console.error(`Error: ${err.message}`);
   process.exit(1);

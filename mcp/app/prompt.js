@@ -28,9 +28,6 @@ export const Prompt = ({ onSend }) => {
     editorRef.current = document.getElementById("editor");
   }, []);
 
-  // Config
-  const baseUrl = window.BASE_URL || "";
-
   // Global keydown/keyup for shift
   useEffect(() => {
     const handleGlobalKeydown = (e) => {
@@ -144,6 +141,7 @@ export const Prompt = ({ onSend }) => {
         queryParams += "&node_types=File";
       }
 
+      const baseUrl = window.BASE_URL || "";
       const response = await fetch(`${baseUrl}/search?${queryParams}&limit=40`);
       if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
