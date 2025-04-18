@@ -118,9 +118,9 @@ jobs:
       - name: Show Debug Output (Optional)
         working-directory: ./mcp
         run: |
-          echo "=== ACTUAL (cleaned) ==="
+          echo "=== ACTUAL (clean) ==="
           cat -A ./testing/actual.clean.html
-          echo "=== EXPECTED (cleaned) ==="
+          echo "=== EXPECTED (clean) ==="
           cat -A ./testing/expected.clean.html
 
       - name: Compare Map Response
