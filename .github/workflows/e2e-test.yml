@@ -62,12 +62,6 @@ jobs:
           tsc --version
           typescript-language-server --version
 
-      - name: Run command LS
-        run: ls
-
-      - name: Just test
-        run: ls
-
       - name: Run Env Command
         run: |
           export REPO_URL="https://github.com/stakwork/demo-repo.git"
@@ -83,9 +77,6 @@ jobs:
             sleep 10
           done'
           echo "Neo4j is healthy!"
-
-      - name: Neo4j logs
-        run: docker logs neo4j.sphinx
 
       - name: Start Node Server
         working-directory: ./mcp
@@ -108,26 +99,27 @@ jobs:
           http://localhost:3000/upload
 
       - name: Test API Response
+        working-directory: ./mcp
         run: |
           sleep 10
-          RESPONSE=$(curl -s "http://localhost:3000/map?name=App&node_type=Function")
-          echo "Response: $RESPONSE"
+          curl "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
 
-          EXPECTED='<pre>Function: App (85)'
+      - name: Compare actual and expected output
+        working-directory: ./mcp
+        run: |
+          ACTUAL_MAP_FILE="./testing/actual-map-response.html"
+          EXPECTED_MAP_FILE="./testing/map.html"
 
-          if echo "$RESPONSE" | grep -q "$EXPECTED"; then
-            echo "Test passed: Response contains expected output."
+          if diff --color=always -u "$ACTUAL_MAP_FILE" "$EXPECTED_MAP_FILE"; then
+            echo "✅ Output matches expected"
           else
-            echo "Test failed: Response does not contain expected output."
+            echo "❌ Output does not match expected"
             exit 1
           fi
 
       - name: Check Fulltext Search
         working-directory: ./mcp
         run: |
-          sleep 10
-          RESPONSE=$(curl -s "http://localhost:3000/search?query=NewRouter&output=snippet")
-          echo "Response: $RESPONSE"
           curl -s -X GET "http://localhost:3000/search?query=NewRouter&output=snippet" -o ./testing/actual-fulltext-search.txt
 
       - name: Compare Fulltext Search Response with Expected Output
@@ -152,8 +144,6 @@ jobs:
       - name: Check NodeType Endpoint
         working-directory: ./mcp
         run: |
-          RESPONSE=$(curl -s -X GET "http://localhost:3000/nodes?node_type=Endpoint")
-          echo "Response: $RESPONSE"
           curl -s -X GET "http://localhost:3000/nodes?node_type=Endpoint" -o ./testing/actual-nodes-nodetypes-endpoint.json
 
       - name: Compare NodeType Response with Expected Output
