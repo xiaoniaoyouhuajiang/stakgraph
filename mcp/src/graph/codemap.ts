@@ -2,7 +2,7 @@ import { Record } from "neo4j-driver";
 import { getNodeLabel } from "./utils.js";
 import { TikTokenizer } from "@microsoft/tiktokenizer";
 
-interface TreeNode {
+export interface TreeNode {
   label: string;
   nodes: TreeNode[];
 }

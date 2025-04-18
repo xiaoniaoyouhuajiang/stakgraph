@@ -104,59 +104,13 @@ jobs:
           sleep 25
           curl "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
 
-      - name: Compare API Response with Expected Output
-        working-directory: ./mcp
-        run: |
-          cat ./testing/actual-map-response.html
-          cat ./testing/map.html
-
-      # - name: Normalize Files (strip non-printable characters)
-      #   working-directory: ./mcp
-      #   run: |
-      #     tr -cd '\11\12\15\40-\176' < ./testing/actual-map-response.html > ./testing/actual-map-response.clean.html
-      #     tr -cd '\11\12\15\40-\176' < ./testing/map.html > ./testing/map.clean.html
-      # - name: Show Debug Output (Optional)
-      #   working-directory: ./mcp
-      #   run: |
-      #     echo "=== ACTUAL (cleaned) ==="
-      #     cat -A ./testing/actual-map-response.clean.html
-      #     echo "=== EXPECTED (cleaned) ==="
-      #     cat -A ./testing/map.clean.html
-
-      # - name: Compare Map Response
-      #   working-directory: ./mcp
-      #   run: |
-      #     ACTUAL_MAP_FILE="./testing/actual-map-response.clean.html"
-      #     EXPECTED_MAP_FILE="./testing/map.clean.html"
-
-      #     if diff --color=always -u "$ACTUAL_MAP_FILE" "$EXPECTED_MAP_FILE"; then
-      #       echo "Response matches expected output ✅"
-      #     else
-      #       echo "Response does NOT match expected output ❌"
-      #       exit 1
-      #     fi
-
-      - name: Extract <pre> block content (actual)
-        working-directory: ./mcp
-        run: |
-          grep -Po '(?<=<pre>)(.|\n)*?(?=</pre>)' ./testing/actual-map-response.html > ./testing/actual-pre.txt
-
-      - name: Extract <pre> block content (expected)
-        working-directory: ./mcp
-        run: |
-          grep -Po '(?<=<pre>)(.|\n)*?(?=</pre>)' ./testing/map.html > ./testing/expected-pre.txt
-
       - name: Compare actual and expected output
         working-directory: ./mcp
         run: |
-          echo "======= ACTUAL ======="
-          cat ./testing/actual-pre.txt
+          ACTUAL_MAP_FILE="./testing/actual-map-response.html"
+          EXPECTED_MAP_FILE="./testing/map.html"
 
-          echo "======= EXPECTED ======="
-          cat ./testing/expected-pre.txt
-
-          echo "======= DIFF ======="
-          if diff --color=always -u ./testing/expected-pre.txt ./testing/actual-pre.txt; then
+          if diff --color=always -u ACTUAL_MAP_FILE EXPECTED_MAP_FILE; then
             echo "✅ Output matches expected"
           else
             echo "❌ Output does not match expected"
