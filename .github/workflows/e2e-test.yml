@@ -115,13 +115,13 @@ jobs:
         run: |
           tr -cd '\11\12\15\40-\176' < ./testing/actual-map-response.html > ./testing/actual-map-response.clean.html
           tr -cd '\11\12\15\40-\176' < ./testing/map.html > ./testing/map.clean.html
-      # - name: Show Debug Output (Optional)
-      #   working-directory: ./mcp
-      #   run: |
-      #     echo "=== ACTUAL (clean) ==="
-      #     cat -A ./testing/actual-map-response.clean.html
-      #     echo "=== EXPECTED (clean) ==="
-      #     cat -A ./testing/map.clean.html
+      - name: Show Debug Output (Optional)
+        working-directory: ./mcp
+        run: |
+          echo "=== ACTUAL (clean) ==="
+          cat -A ./testing/actual-map-response.clean.html
+          echo "=== EXPECTED (clean) ==="
+          cat -A ./testing/map.clean.html
 
       - name: Compare Map Response
         working-directory: ./mcp
