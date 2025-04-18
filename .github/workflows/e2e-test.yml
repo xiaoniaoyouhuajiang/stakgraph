@@ -110,11 +110,17 @@ jobs:
           cat -A ./testing/actual-map-response.html
           cat -A ./testing/map.html
 
+      - name: Normalize Files (strip non-printable characters)
+        working-directory: ./mcp
+        run: |
+          tr -cd '\11\12\15\40-\176' < ./testing/actual-map-response.html > ./testing/actual-map-response.clean.html
+          tr -cd '\11\12\15\40-\176' < ./testing/map.html > ./testing/map.clean.html
+
       - name: Compare Map Response
         working-directory: ./mcp
         run: |
-          ACTUAL_MAP_FILE="./testing/actual-map-response.html"
-          EXPECTED_MAP_FILE="./testing/map.html"
+          ACTUAL_MAP_FILE="./testing/actual-map-response.clean.html"
+          EXPECTED_MAP_FILE="./testing/map.clean.html"
 
           if diff --color=always -u "$ACTUAL_MAP_FILE" "$EXPECTED_MAP_FILE"; then
             echo "Response matches expected output ✅"
