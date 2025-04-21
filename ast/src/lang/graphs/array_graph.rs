@@ -78,17 +78,39 @@ impl Graph for ArrayGraph {
     }
     fn add_edge(&mut self, edge: Edge) {
         let is_duplicate = self.edges.iter().any(|existing_edge| {
-            existing_edge.edge == edge.edge
-                && existing_edge.source.node_type == edge.source.node_type
+            if existing_edge.edge != edge.edge {
+                return false;
+            }
+
+            let source_match = existing_edge.source.node_type == edge.source.node_type
                 && existing_edge.source.node_data.name == edge.source.node_data.name
                 && existing_edge.source.node_data.file == edge.source.node_data.file
-                && existing_edge.source.node_data.verb == edge.source.node_data.verb
-                && existing_edge.target.node_type == edge.target.node_type
+                && existing_edge.source.node_data.verb == edge.source.node_data.verb;
+
+            let target_match = existing_edge.target.node_type == edge.target.node_type
                 && existing_edge.target.node_data.name == edge.target.node_data.name
                 && existing_edge.target.node_data.file == edge.target.node_data.file
-                && existing_edge.target.node_data.verb == edge.target.node_data.verb
-        });
+                && existing_edge.target.node_data.verb == edge.target.node_data.verb;
 
+            if source_match && target_match {
+                match &existing_edge.edge {
+                    EdgeType::Calls(meta) => {
+                        if let Some(operand1) = &meta.operand {
+                            if let EdgeType::Calls(meta2) = &edge.edge {
+                                if let Some(operand2) = &meta2.operand {
+                                    return operand1 == operand2;
+                                }
+                            }
+                        }
+
+                        true
+                    }
+                    _ => true,
+                }
+            } else {
+                false
+            }
+        });
         if !is_duplicate {
             self.edges.push(edge);
         }
