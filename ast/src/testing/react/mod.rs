@@ -3,7 +3,6 @@ use crate::lang::Graph;
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
-use test_log::test;
 
 pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let use_lsp = get_use_lsp();
@@ -129,8 +128,8 @@ async fn test_react_typescript() {
     test_react_typescript_generic::<ArrayGraph>().await.unwrap();
 }
 
-#[test(tokio::test)]
-async fn test_react() {
-    use crate::lang::graphs::ArrayGraph;
-    test_react_typescript_generic::<ArrayGraph>().await.unwrap();
-}
+// #[test(tokio::test)]
+// async fn test_react_typescript_btree() {
+//     use crate::lang::graphs::BTreeMapGraph;
+//     test_react_typescript_generic::<BTreeMapGraph>().await.unwrap();
+// }
