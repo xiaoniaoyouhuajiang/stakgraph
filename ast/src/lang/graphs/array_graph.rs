@@ -82,9 +82,11 @@ impl Graph for ArrayGraph {
                 && existing_edge.source.node_type == edge.source.node_type
                 && existing_edge.source.node_data.name == edge.source.node_data.name
                 && existing_edge.source.node_data.file == edge.source.node_data.file
+                && existing_edge.source.node_data.verb == edge.source.node_data.verb
                 && existing_edge.target.node_type == edge.target.node_type
                 && existing_edge.target.node_data.name == edge.target.node_data.name
                 && existing_edge.target.node_data.file == edge.target.node_data.file
+                && existing_edge.target.node_data.verb == edge.target.node_data.verb
         });
 
         if !is_duplicate {
