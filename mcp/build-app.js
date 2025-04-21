@@ -24,6 +24,33 @@ function copyFile(source, destination) {
   }
 }
 
+// Function to copy an entire directory
+function copyDirectory(source, destination) {
+  // Create destination directory if it doesn't exist
+  if (!fs.existsSync(destination)) {
+    fs.mkdirSync(destination, { recursive: true });
+  }
+
+  // Read all entries in the source directory
+  const entries = fs.readdirSync(source, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(source, entry.name);
+    const destPath = path.join(destination, entry.name);
+
+    if (entry.isDirectory()) {
+      // Recursively copy subdirectories
+      copyDirectory(srcPath, destPath);
+    } else {
+      // Copy files
+      fs.copyFileSync(srcPath, destPath);
+      console.log(`✅ Copied ${srcPath} to ${destPath}`);
+    }
+  }
+
+  console.log(`✅ Copied directory ${source} to ${destination}`);
+}
+
 // Copy static files to dist
 const staticFiles = [
   { source: "app/index.html", destination: "dist/index.html" },
@@ -39,6 +66,14 @@ if (!fs.existsSync("dist")) {
 staticFiles.forEach((file) => {
   copyFile(file.source, file.destination);
 });
+
+// Copy vendor directory if it exists
+const vendorDir = "app/vendor";
+if (fs.existsSync(vendorDir)) {
+  copyDirectory(vendorDir, "dist/vendor");
+} else {
+  console.log(`⚠️ Vendor directory ${vendorDir} does not exist`);
+}
 
 // Function to recursively get all JS files in a directory
 function getJSFilesInDirectory(directory) {
