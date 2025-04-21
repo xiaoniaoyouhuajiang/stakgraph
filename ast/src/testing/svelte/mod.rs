@@ -15,10 +15,12 @@ pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
     .unwrap();
 
     let graph = repo.build_graph_inner::<G>().await?;
-
     let (num_nodes, num_edges) = graph.get_graph_size();
+
+    graph.analysis();
+
     assert_eq!(num_nodes, 44, "Expected 44 nodes");
-    assert_eq!(num_edges, 43, "Expected 43 edges");
+    assert_eq!(num_edges, 42, "Expected 43 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");

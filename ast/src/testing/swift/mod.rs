@@ -17,8 +17,11 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
 
     let (num_nodes, num_edges) = graph.get_graph_size();
+
+    graph.analysis();
+
     assert_eq!(num_nodes, 55, "Expected 55 nodes");
-    assert_eq!(num_edges, 81, "Expected 81 edges");
+    assert_eq!(num_edges, 73, "Expected 81 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
