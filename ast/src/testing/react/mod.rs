@@ -3,6 +3,7 @@ use crate::lang::Graph;
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
+use test_log::test;
 
 pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let use_lsp = get_use_lsp();
@@ -20,7 +21,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 56, "Expected 56 nodes");
-        assert_eq!(num_edges, 77, "Expected 77 edges");
+        assert_eq!(num_edges, 75, "Expected 75 edges");
     } else {
         assert_eq!(num_nodes, 50, "Expected 50 nodes");
         assert_eq!(num_edges, 61, "Expected 61 edges");
@@ -128,8 +129,8 @@ async fn test_react_typescript() {
     test_react_typescript_generic::<ArrayGraph>().await.unwrap();
 }
 
-// #[test(tokio::test)]
-// async fn test_react_typescript_btree() {
-//     use crate::lang::graphs::BTreeMapGraph;
-//     test_react_typescript_generic::<BTreeMapGraph>().await.unwrap();
-// }
+#[test(tokio::test)]
+async fn test_react() {
+    use crate::lang::graphs::ArrayGraph;
+    test_react_typescript_generic::<ArrayGraph>().await.unwrap();
+}

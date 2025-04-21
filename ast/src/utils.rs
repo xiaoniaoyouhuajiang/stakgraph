@@ -123,9 +123,3 @@ pub fn create_synthetic_key_from_ref(node_ref: NodeRef, start: u32) -> String {
 
     format!("{}-{}-{}-{}", node_type, name, file, start)
 }
-pub fn normalize_string(s: &str) -> String {
-    s.to_lowercase()
-        .trim()
-        .replace(char::is_whitespace, "")
-        .replace(|c: char| !c.is_alphanumeric(), "")
-}

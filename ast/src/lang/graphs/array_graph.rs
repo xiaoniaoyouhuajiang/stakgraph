@@ -1,7 +1,6 @@
 use super::{graph::Graph, *};
 use crate::lang::linker::normalize_backend_path;
 use crate::lang::{Function, FunctionCall, Lang};
-use crate::utils::normalize_string;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
