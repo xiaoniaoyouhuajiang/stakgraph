@@ -28,3 +28,4 @@ src/pr/*.xml
 src/pr/*.txt
 .neo4j2
 .neo4j-*
+temp

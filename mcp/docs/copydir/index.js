@@ -21,6 +21,9 @@ if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
   process.exit(1);
 }
 
+// Directories to skip
+const dirsToSkip = ["node_modules", "vendor"];
+
 // Function to recursively walk a directory
 function walkDirectory(dir) {
   let files = [];
@@ -31,6 +34,9 @@ function walkDirectory(dir) {
 
     // Skip file_contents.txt to avoid including it in the output
     if (entry.name === "file_contents.txt") continue;
+
+    // Skip node_modules and vendor directories
+    if (entry.isDirectory() && dirsToSkip.includes(entry.name)) continue;
 
     if (entry.isDirectory()) {
       // Recursively walk subdirectories
@@ -81,6 +87,7 @@ try {
     clipboard.write(output);
     const lineCount = output.split("\n").length;
     console.log("Copied to clipboard");
+    console.log(`Total files copied: ${allFiles.length}`);
     console.log(`Total lines copied: ${lineCount}`);
   }
 } catch (err) {
