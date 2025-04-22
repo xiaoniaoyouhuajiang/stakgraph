@@ -79,7 +79,7 @@ const App = () => {
     console.log("Message sent:", message);
     const userMessage = {
       role: "user",
-      content: message.text,
+      content: message.content,
       taggedWords: message.taggedWords,
     };
     const loadingMessage = {
@@ -96,7 +96,7 @@ const App = () => {
 
     postMessage({
       type: "chat-msg",
-      message: message,
+      message: userMessage,
     });
   };
 

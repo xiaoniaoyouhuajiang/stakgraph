@@ -371,7 +371,7 @@ export const Prompt = ({ onSend, baseUrl }) => {
             const taggedWords = collectTaggedWords();
             if (onSend && text.trim()) {
               onSend({
-                text,
+                content: text,
                 taggedWords,
               });
               // Clear the editor content
