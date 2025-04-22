@@ -244,7 +244,8 @@ export const Prompt = ({ onSend, baseUrl }) => {
       }
       tagSpan.dataset.body = result.properties.body || "";
       tagSpan.dataset.file = result.properties.file || "";
-      tagSpan.dataset.nodeType = result.node_type;
+      tagSpan.dataset.name = result.properties.name || "";
+      tagSpan.dataset.node_type = result.node_type;
 
       // Add styled span to fragment
       fragment.appendChild(tagSpan);
@@ -346,9 +347,10 @@ export const Prompt = ({ onSend, baseUrl }) => {
     const taggedElements = editorRef.current.querySelectorAll(".tagged-text");
     return Array.from(taggedElements).map((el) => ({
       text: el.textContent,
-      nodeType: el.dataset.nodeType || null,
+      node_type: el.dataset.node_type || null,
       file: el.dataset.file || null,
       body: el.dataset.body || null,
+      name: el.dataset.name || null,
     }));
   }, []);
 
