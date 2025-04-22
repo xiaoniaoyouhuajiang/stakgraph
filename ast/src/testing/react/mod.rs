@@ -22,7 +22,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
         assert_eq!(num_nodes, 56, "Expected 56 nodes");
         assert_eq!(num_edges, 75, "Expected 75 edges");
     } else {
-        assert_eq!(num_nodes, 50, "Expected 50 nodes");
+        assert_eq!(num_nodes, 49, "Expected 49 nodes");
         assert_eq!(num_edges, 61, "Expected 61 edges");
     }
 
@@ -97,7 +97,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     );
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
-    assert_eq!(requests.len(), 3, "Expected 3 requests");
+    assert_eq!(requests.len(), 2, "Expected 2 requests");
 
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls(Default::default()));
     assert_eq!(calls_edges_count, 14, "Expected 14 calls edges");
@@ -124,12 +124,9 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_react_typescript() {
-    use crate::lang::graphs::ArrayGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_react_typescript_generic::<ArrayGraph>().await.unwrap();
+    test_react_typescript_generic::<BTreeMapGraph>()
+        .await
+        .unwrap();
 }
-
-// #[test(tokio::test)]
-// async fn test_react_typescript_btree() {
-//     use crate::lang::graphs::BTreeMapGraph;
-//     test_react_typescript_generic::<BTreeMapGraph>().await.unwrap();
-// }

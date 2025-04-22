@@ -39,7 +39,8 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
-    assert_eq!(endpoints.len(), 6, "Expected 6 endpoints");
+    println!("Endpoints: {:#?}", endpoints);
+    assert_eq!(endpoints.len(), 6, "Expected 6 endpoints"); //FIXME: Should be 7 endpoints.
 
     let mut sorted_endpoints = endpoints.clone();
     sorted_endpoints.sort_by(|a, b| a.name.cmp(&b.name));
@@ -114,9 +115,3 @@ async fn test_ruby() {
     use crate::lang::graphs::ArrayGraph;
     test_ruby_generic::<ArrayGraph>().await.unwrap();
 }
-
-// #[test(tokio::test)]
-// async fn test_ruby_btree() {
-//     use crate::lang::graphs::BTreeMapGraph;
-//     test_ruby_generic::<BTreeMapGraph>().await.unwrap();
-// }

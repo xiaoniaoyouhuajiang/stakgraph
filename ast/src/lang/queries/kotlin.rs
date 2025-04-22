@@ -27,9 +27,17 @@ impl Stack for Kotlin {
         Some(format!(
             r#"
             (call_expression
-                (simple_identifier) @method_name
-
+                (call_suffix
+                    (value_arguments
+                        (value_argument
+                            (navigation_expression
+                            (navigation_suffix)@{LIBRARY_NAME}
+                            )@{LIBRARY}
+                            
+                        )
+                    )
                 )
+            )
             "#
         ))
     }

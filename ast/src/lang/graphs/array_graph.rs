@@ -104,7 +104,7 @@ impl Graph for ArrayGraph {
                             }
                         }
 
-                        true
+                        return true;
                     }
                     _ => true,
                 }

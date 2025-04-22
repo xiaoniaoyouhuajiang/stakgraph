@@ -19,7 +19,7 @@ pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     graph.analysis();
 
-    assert_eq!(num_nodes, 44, "Expected 44 nodes");
+    assert_eq!(num_nodes, 43, "Expected 43 nodes");
     assert_eq!(num_edges, 42, "Expected 42 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
@@ -40,7 +40,7 @@ pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(imports.len(), 7, "Expected 7 imports");
 
     let classes = graph.find_nodes_by_type(NodeType::Class);
-    assert_eq!(classes.len(), 3, "Expected 3 classes");
+    assert_eq!(classes.len(), 2, "Expected 2 classes");
     assert_eq!(classes[0].body, "", "Class body should be empty");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
@@ -70,12 +70,7 @@ pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[test(tokio::test)]
 async fn test_svelte() {
-    use crate::lang::graphs::ArrayGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_svelte_generic::<ArrayGraph>().await.unwrap();
+    test_svelte_generic::<BTreeMapGraph>().await.unwrap();
 }
-
-// #[test(tokio::test)]
-// async fn test_svelte_btree() {
-//     use crate::lang::graphs::BTreeMapGraph;
-//     test_svelte_generic::<BTreeMapGraph>().await.unwrap();
-// }

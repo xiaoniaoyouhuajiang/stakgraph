@@ -69,11 +69,12 @@ impl Graph for BTreeMapGraph {
     }
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
-        let prefix = format!("{:?}-{}", node_type, name).to_lowercase();
+        let prefix = format!("{:?}", node_type).to_lowercase();
 
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
+            .filter(|(_, node)| node.node_data.name == name)
             .map(|(_, node)| node.node_data.clone())
             .collect()
     }
@@ -83,13 +84,13 @@ impl Graph for BTreeMapGraph {
         name: &str,
         file: &str,
     ) -> Option<NodeData> {
-        let prefix = format!("{:?}-{}-{}", node_type, name, file).to_lowercase();
+        let prefix = format!("{:?}", node_type).to_lowercase();
 
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
+            .find(|(_, node)| node.node_data.name == name && node.node_data.file == file)
             .map(|(_, node)| node.node_data.clone())
-            .next()
     }
 
     fn add_node_with_parent(
