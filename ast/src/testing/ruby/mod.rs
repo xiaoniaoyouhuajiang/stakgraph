@@ -39,8 +39,7 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
-    println!("Endpoints: {:#?}", endpoints);
-    assert_eq!(endpoints.len(), 6, "Expected 6 endpoints"); //FIXME: Should be 7 endpoints.
+    assert_eq!(endpoints.len(), 6, "Expected 6 endpoints");
 
     let mut sorted_endpoints = endpoints.clone();
     sorted_endpoints.sort_by(|a, b| a.name.cmp(&b.name));

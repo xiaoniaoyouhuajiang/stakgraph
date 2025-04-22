@@ -308,7 +308,7 @@ impl Graph for BTreeMapGraph {
         }
     }
 
-    fn find_endpoint(&self, name: &str, file: &str, verb: &str, start: u32) -> Option<NodeData> {
+    fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData> {
         let prefix = format!("{:?}-", NodeType::Endpoint).to_lowercase();
         self.nodes
             .range(prefix.clone()..)
@@ -317,7 +317,6 @@ impl Graph for BTreeMapGraph {
                 node.node_data.name == name
                     && node.node_data.file == file
                     && node.node_data.meta.get("verb") == Some(&verb.to_string())
-                    && (node.node_data.start as u32) == start
             })
             .map(|(_, node)| node.node_data.clone())
     }
@@ -329,12 +328,7 @@ impl Graph for BTreeMapGraph {
                 let verb = endpoint_data.meta.get("verb").unwrap_or(&default_verb);
 
                 if self
-                    .find_endpoint(
-                        &endpoint_data.name,
-                        &endpoint_data.file,
-                        verb,
-                        endpoint_data.start as u32,
-                    )
+                    .find_endpoint(&endpoint_data.name, &endpoint_data.file, verb)
                     .is_some()
                 {
                     continue;

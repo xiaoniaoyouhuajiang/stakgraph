@@ -68,7 +68,7 @@ pub trait Graph: Default + Debug {
     fn prefix_paths(&mut self, root: &str);
 
     //Specific
-    fn find_endpoint(&self, name: &str, file: &str, verb: &str, start: u32) -> Option<NodeData>;
+    fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData>;
 
     fn find_resource_nodes(&self, node_type: NodeType, verb: &str, path: &str) -> Vec<NodeData>;
     fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData>;

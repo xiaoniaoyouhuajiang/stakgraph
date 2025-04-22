@@ -19,78 +19,6 @@ pub mod test_backend;
 pub mod test_frontend;
 pub mod utils;
 
-static TEST_EXPECTATIONS: &[GraphTestExpectations] = &[
-    GraphTestExpectations {
-        lang_id: "go",
-        repo_path: "src/testing/go",
-        expected_nodes: 30,
-        expected_edges: 48,
-        expected_nodes_lsp: Some(64),
-        expected_edges_lsp: Some(92),
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-    GraphTestExpectations {
-        lang_id: "angular",
-        repo_path: "src/testing/angular",
-        expected_nodes: 76,
-        expected_edges: 78,
-        expected_nodes_lsp: None,
-        expected_edges_lsp: None,
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-    GraphTestExpectations {
-        lang_id: "kotlin",
-        repo_path: "src/testing/kotlin",
-        expected_nodes: 98,
-        expected_edges: 103,
-        expected_nodes_lsp: None,
-        expected_edges_lsp: None,
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-    GraphTestExpectations {
-        lang_id: "swift",
-        repo_path: "src/testing/swift",
-        expected_nodes: 55,
-        expected_edges: 73,
-        expected_nodes_lsp: None,
-        expected_edges_lsp: None,
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-    GraphTestExpectations {
-        lang_id: "python",
-        repo_path: "src/testing/python",
-        expected_nodes: 61,
-        expected_edges: 78,
-        expected_nodes_lsp: None,
-        expected_edges_lsp: None,
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-    GraphTestExpectations {
-        lang_id: "svelte",
-        repo_path: "src/testing/svelte",
-        expected_nodes: 44,
-        expected_edges: 42,
-        expected_nodes_lsp: None,
-        expected_edges_lsp: None,
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-    GraphTestExpectations {
-        lang_id: "react",
-        repo_path: "src/testing/react",
-        expected_nodes: 49,
-        expected_edges: 61,
-        expected_nodes_lsp: Some(56),
-        expected_edges_lsp: Some(75),
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-];
 #[cfg(test)]
 fn pre_test() {
     env::set_var("LSP_SKIP_POST_CLONE", "true");
@@ -136,8 +64,8 @@ async fn test_graphs_similarity() {
 
     let use_lsp = get_use_lsp();
 
-    for expectation in TEST_EXPECTATIONS {
-        graphs::run_graph_similarity_test(expectation, use_lsp)
+    for expectation in graphs::get_test_expectations() {
+        graphs::run_graph_similarity_test(&expectation, use_lsp)
             .await
             .unwrap();
     }

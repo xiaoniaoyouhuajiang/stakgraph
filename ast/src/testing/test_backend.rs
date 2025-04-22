@@ -149,7 +149,7 @@ impl<G: Graph> BackendTester<G> {
             let handlers = self.graph.find_handlers_for_endpoint(endpoint);
 
             if handlers.is_empty() {
-                anyhow::bail!("Handler not found for endpoint {}", path);
+                anyhow::bail!("Handler not found for endpoint {}", endpoint.name);
             }
 
             let handler = &handlers[0];

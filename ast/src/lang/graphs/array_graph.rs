@@ -331,13 +331,12 @@ impl Graph for ArrayGraph {
             }
         }
     }
-    fn find_endpoint(&self, name: &str, file: &str, verb: &str, start: u32) -> Option<NodeData> {
+    fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData> {
         self.nodes.iter().find_map(|n| {
             if n.node_type == NodeType::Endpoint
                 && n.node_data.name == name
                 && n.node_data.file == file
                 && n.node_data.meta.get("verb") == Some(&verb.to_string())
-                && (n.node_data.start as u32) == start
             {
                 Some(n.node_data.clone())
             } else {
@@ -351,9 +350,8 @@ impl Graph for ArrayGraph {
             if let Some(_handler) = e.meta.get("handler") {
                 let default_verb = "".to_string();
                 let verb = e.meta.get("verb").unwrap_or(&default_verb);
-                let start = e.start as u32;
 
-                if self.find_endpoint(&e.name, &e.file, verb, start).is_some() {
+                if self.find_endpoint(&e.name, &e.file, verb).is_some() {
                     continue;
                 }
                 self.add_node(NodeType::Endpoint, e);
@@ -548,7 +546,7 @@ impl Graph for ArrayGraph {
                     || node_data.name.contains(path);
 
                 let verb_matches = match node_data.meta.get("verb") {
-                    Some(node_verb) => node_verb.to_uppercase() == verb.to_uppercase(),
+                    Some(node_verb) => node_verb.to_uppercase().contains(&verb.to_uppercase()),
                     None => true,
                 };
 
@@ -558,7 +556,6 @@ impl Graph for ArrayGraph {
             .collect()
     }
     fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData> {
-        // double check if the endpoint is in the graph
         let endpoint_node = self.nodes.iter().find(|n| {
             n.node_type == NodeType::Endpoint
                 && n.node_data.name == endpoint.name

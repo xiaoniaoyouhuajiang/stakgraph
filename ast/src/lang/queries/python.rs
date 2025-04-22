@@ -174,6 +174,44 @@ impl Stack for Python {
         ]
     }
 
+    fn add_endpoint_verb(&self, nd: &mut NodeData, call: &Option<String>) {
+        if nd.meta.get("verb").is_some() {
+            return;
+        }
+
+        if let Some(c) = call {
+            let verb = c.to_uppercase();
+            if !verb.is_empty() {
+                nd.add_verb(&verb);
+                return;
+            }
+        }
+
+        if let Some(handler) = nd.meta.get("handler").cloned() {
+            let method_name = if handler.contains('.') {
+                handler.split('.').last().unwrap_or(&handler)
+            } else {
+                &handler
+            };
+
+            let verb = if method_name.starts_with("get_") || method_name == "index" {
+                "GET"
+            } else if method_name.starts_with("post_") || method_name.starts_with("create_") {
+                "POST"
+            } else if method_name.starts_with("delete_") || method_name.starts_with("remove_") {
+                "DELETE"
+            } else if method_name.starts_with("put_") || method_name.starts_with("update_") {
+                "PUT"
+            } else {
+                // Default to GET if no specific verb can be inferred
+                "GET"
+            };
+
+            nd.add_verb(verb);
+        } else {
+            nd.add_verb("GET");
+        }
+    }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             "(class_definition
