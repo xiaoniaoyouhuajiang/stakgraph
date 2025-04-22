@@ -54,7 +54,7 @@ body {
 
 #editor {
   border: 1px solid var(--border-color);
-  min-height: 120px;
+  min-height: 150px;
   padding: 15px;
   outline: none;
   line-height: 1.6;
@@ -74,13 +74,13 @@ body {
   display: none;
   overflow-y: auto;
   background-color: var(--results-bg);
-  height: 180px; /* Match editor height + its borders */
+  height: 150px; /* Match editor height + its borders */
   color: var(--text-color);
 }
 
 #results-pane h3 {
   margin-top: 0;
-  font-size: 14px;
+  font-size: 11px;
   color: var(--text-color);
   margin-bottom: 10px;
   text-align: center;
@@ -88,14 +88,14 @@ body {
 
 .result-item {
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 5px 10px;
   margin-bottom: 4px;
   border-radius: 20px;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-size: 11px;
   color: white;
   text-align: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -143,7 +143,7 @@ body {
   margin: 0;
   white-space: pre-wrap;
   font-family: "Fira Code", "Consolas", "Monaco", monospace;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -278,7 +278,7 @@ body {
 }
 
 .message-bubble.user {
-  background-color: #0084ff;
+  background-color: #00509b;
   color: white;
   border-top-right-radius: 4px;
 }

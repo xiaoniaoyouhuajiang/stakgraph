@@ -4,11 +4,20 @@ import { html } from "./utils.js";
 import { Prompt } from "./prompt.js";
 import { Messages } from "./messages.js";
 
+let vscode;
 if (window.acquireVsCodeApi) {
-  const vscode = window.acquireVsCodeApi();
+  vscode = window.acquireVsCodeApi();
   console.log("VSCode API is available");
 } else {
   console.log("VSCode API is not available");
+}
+
+function postMessage(message) {
+  if (vscode) {
+    vscode.postMessage(message);
+  } else {
+    window.parent.postMessage(message, "*");
+  }
 }
 
 const App = () => {
@@ -23,6 +32,20 @@ const App = () => {
       content: "Hello! How can I help you today?",
     },
   ]);
+  const [baseUrl, setBaseUrl] = useState("");
+
+  useEffect(() => {
+    window.addEventListener("message", (event) => {
+      console.log("=>>", event.data);
+      if (event.data.type === "msg") {
+        const message = event.data.message;
+        setMessages((prevMessages) => [...prevMessages, message]);
+      } else if (event.data.type === "set-base-url") {
+        console.log("=>> setBaseUrl", event.data.url);
+        setBaseUrl(event.data.url);
+      }
+    });
+  }, []);
 
   // Check for dark mode
   useEffect(() => {
@@ -43,36 +66,23 @@ const App = () => {
 
   const handleSend = (message) => {
     console.log("Message sent:", message);
-
-    // Log the message text and tagged words
-    console.log("Message text:", message.text);
-    console.log("Tagged words:", message.taggedWords);
-
-    // Add user message
     const userMessage = {
       role: "user",
       content: message.text,
       taggedWords: message.taggedWords,
     };
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
 
-    // Example assistant response
-    const assistantResponse = {
-      role: "assistant",
-      content: `I received your message about "${message.text}". Thank you for sharing that with me.`,
-    };
-
-    // Update messages state with both messages
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      userMessage,
-      assistantResponse,
-    ]);
+    postMessage({
+      type: "msg",
+      message: message,
+    });
   };
 
   return html`
     <div class="app-container">
       <${Messages} messages=${messages} />
-      <${Prompt} onSend=${handleSend} />
+      <${Prompt} onSend=${handleSend} baseUrl=${baseUrl} />
     </div>
   `;
 };
