@@ -18,7 +18,7 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 77, "Expected 77 nodes");
+    assert_eq!(num_nodes, 76, "Expected 76 nodes");
     assert_eq!(num_edges, 78, "Expected 78 edges");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
@@ -46,7 +46,7 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     // Test requests
     let requests = graph.find_nodes_by_type(NodeType::Request);
-    assert_eq!(requests.len(), 8, "Expected 8 requests");
+    assert_eq!(requests.len(), 7, "Expected 7 requests");
 
     // Test calls edges
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls(Default::default()));
@@ -57,8 +57,9 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[test(tokio::test)]
 async fn test_angular() {
-    use crate::lang::graphs::ArrayGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_angular_generic::<ArrayGraph>().await.unwrap();
+    test_angular_generic::<BTreeMapGraph>().await.unwrap();
 }
 
 // #[test(tokio::test)]

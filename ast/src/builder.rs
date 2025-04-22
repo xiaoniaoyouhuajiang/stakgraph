@@ -503,6 +503,15 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
     if nodes.is_empty() {
         return Vec::new();
     }
+
+    let file_path = &nodes[0].file;
+    let file_name = file_path.split('/').last().unwrap_or(file_path);
+
+    let import_name = if nodes.len() == 1 {
+        nodes[0].name.clone()
+    } else {
+        format!("imports-{}-{}", file_name, nodes.len())
+    };
     let mut combined_body = String::new();
     let mut current_position = nodes[0].start;
     for (i, node) in nodes.iter().enumerate() {
@@ -529,7 +538,7 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
     };
 
     vec![NodeData {
-        name: "import".to_string(),
+        name: import_name,
         file,
         body: combined_body,
         start: nodes[0].start,

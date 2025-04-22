@@ -62,6 +62,11 @@ impl Graph for BTreeMapGraph {
         let target_key = create_synthetic_key_from_ref(new_edge.target, 0);
         self.edges.insert((source_key, target_key, new_edge.edge));
     }
+    fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
+        let node = Node::new(node_type.clone(), node_data.clone());
+        let node_key = create_node_key(node.clone());
+        self.nodes.insert(node_key.clone(), node);
+    }
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         let prefix = format!("{:?}-{}", node_type, name).to_lowercase();
@@ -94,9 +99,7 @@ impl Graph for BTreeMapGraph {
         parent_type: NodeType,
         parent_file: &str,
     ) {
-        let node = Node::new(node_type.clone(), node_data.clone());
-        let node_key = create_node_key(node.clone());
-        self.nodes.insert(node_key.clone(), node);
+        self.add_node(node_type.clone(), node_data.clone());
 
         let prefix = format!("{:?}-", parent_type).to_lowercase();
         if let Some((_parent_key, parent_node)) = self
@@ -287,9 +290,7 @@ impl Graph for BTreeMapGraph {
 
     fn add_page(&mut self, page: (NodeData, Option<Edge>)) {
         let (page_data, edge_opt) = page;
-        let page_node = Node::new(NodeType::Page, page_data.clone());
-        let page_key = create_node_key(page_node.clone());
-        self.nodes.insert(page_key.clone(), page_node);
+        self.add_node(NodeType::Page, page_data);
 
         if let Some(edge) = edge_opt {
             self.add_edge(edge);
@@ -298,9 +299,7 @@ impl Graph for BTreeMapGraph {
 
     fn add_pages(&mut self, pages: Vec<(NodeData, Vec<Edge>)>) {
         for (page_data, edges) in pages {
-            let page_node = Node::new(NodeType::Page, page_data.clone());
-            let page_key = create_node_key(page_node.clone());
-            self.nodes.insert(page_key.clone(), page_node);
+            self.add_node(NodeType::Page, page_data);
 
             for edge in edges {
                 self.add_edge(edge);
@@ -334,9 +333,7 @@ impl Graph for BTreeMapGraph {
                     continue;
                 }
 
-                let endpoint_node = Node::new(NodeType::Endpoint, endpoint_data.clone());
-                let endpoint_key = create_node_key(endpoint_node.clone());
-                self.nodes.insert(endpoint_key.clone(), endpoint_node);
+                self.add_node(NodeType::Endpoint, endpoint_data);
 
                 if let Some(edge) = handler_edge {
                     self.add_edge(edge);

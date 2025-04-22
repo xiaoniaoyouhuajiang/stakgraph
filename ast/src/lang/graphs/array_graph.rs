@@ -1,6 +1,7 @@
 use super::{graph::Graph, *};
 use crate::lang::linker::normalize_backend_path;
 use crate::lang::{Function, FunctionCall, Lang};
+use crate::utils::create_node_key;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -116,6 +117,19 @@ impl Graph for ArrayGraph {
         }
     }
 
+    fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
+        let new_node = Node::new(node_type, node_data.clone());
+        let key = create_node_key(new_node.clone());
+
+        let is_duplicate = self.nodes.iter().any(|node| {
+            let existing_key = create_node_key(node.clone());
+            existing_key == key
+        });
+        if !is_duplicate {
+            self.nodes.push(new_node);
+        }
+    }
+
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         self.nodes
             .iter()
@@ -164,10 +178,10 @@ impl Graph for ArrayGraph {
             .map(|n| n.node_data.clone())
         {
             let edge = Edge::contains(parent_type, &parent, node_type.clone(), &node_data);
-            self.nodes.push(Node::new(node_type, node_data));
+            self.add_node(node_type, node_data);
             self.add_edge(edge);
         } else {
-            self.nodes.push(Node::new(node_type, node_data));
+            self.add_node(node_type, node_data);
         };
     }
     // NOTE does this need to be per lang on the trait?
@@ -276,7 +290,7 @@ impl Graph for ArrayGraph {
                 let edge = Edge::contains(NodeType::File, &ff, NodeType::Function, &node);
                 self.add_edge(edge);
             }
-            self.nodes.push(Node::new(NodeType::Function, node.clone()));
+            self.add_node(NodeType::Function, node.clone());
             if let Some(p) = method_of {
                 self.add_edge(p.into());
             }
@@ -295,7 +309,7 @@ impl Graph for ArrayGraph {
                     CallsMeta::default(),
                 );
                 self.add_edge(edge);
-                self.nodes.push(Node::new(NodeType::Request, r));
+                self.add_node(NodeType::Request, r);
             }
             for dm in dms {
                 self.add_edge(dm);
@@ -304,14 +318,14 @@ impl Graph for ArrayGraph {
     }
     fn add_page(&mut self, page: (NodeData, Option<Edge>)) {
         let (p, e) = page;
-        self.nodes.push(Node::new(NodeType::Page, p));
+        self.add_node(NodeType::Page, p);
         if let Some(edge) = e {
             self.add_edge(edge);
         }
     }
     fn add_pages(&mut self, pages: Vec<(NodeData, Vec<Edge>)>) {
         for (p, e) in pages {
-            self.nodes.push(Node::new(NodeType::Page, p));
+            self.add_node(NodeType::Page, p);
             for edge in e {
                 self.add_edge(edge);
             }
@@ -340,7 +354,7 @@ impl Graph for ArrayGraph {
                 if self.find_endpoint(&e.name, &e.file, verb).is_some() {
                     continue;
                 }
-                self.nodes.push(Node::new(NodeType::Endpoint, e));
+                self.add_node(NodeType::Endpoint, e);
                 if let Some(edge) = h {
                     self.add_edge(edge);
                 }
@@ -374,7 +388,7 @@ impl Graph for ArrayGraph {
                 if let None =
                     self.find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
                 {
-                    self.nodes.push(Node::new(NodeType::Function, ext_nd));
+                    self.add_node(NodeType::Function, ext_nd);
                 }
             } else {
                 self.add_edge(fc.into())
@@ -387,7 +401,7 @@ impl Graph for ArrayGraph {
                 if let None =
                     self.find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
                 {
-                    self.nodes.push(Node::new(NodeType::Function, ext_nd));
+                    self.add_node(NodeType::Function, ext_nd);
                 }
             } else {
                 self.add_edge(Edge::new_test_call(tc));
