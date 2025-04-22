@@ -39,10 +39,19 @@ const App = () => {
       type: "request-base-url",
     });
     window.addEventListener("message", (event) => {
-      console.log("=>>", event.data);
-      if (event.data.type === "msg") {
+      if (event.data.type === "chat-res") {
         const message = event.data.message;
-        setMessages((prevMessages) => [...prevMessages, message]);
+        setMessages((prevMessages) => {
+          // Check if the last message is a loading message
+          const lastMessage = prevMessages[prevMessages.length - 1];
+          if (lastMessage && lastMessage.loading === true) {
+            // Replace the loading message with the new message
+            return [...prevMessages.slice(0, -1), message];
+          } else {
+            // Otherwise just append the new message
+            return [...prevMessages, message];
+          }
+        });
       } else if (event.data.type === "set-base-url") {
         console.log("=>> setBaseUrl", event.data.url);
         setBaseUrl(event.data.url);
@@ -50,7 +59,6 @@ const App = () => {
     });
   }, []);
 
-  // Check for dark mode
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia(
       "(prefers-color-scheme: dark)"
@@ -74,10 +82,20 @@ const App = () => {
       content: message.text,
       taggedWords: message.taggedWords,
     };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    const loadingMessage = {
+      role: "assistant",
+      content: "Loading...",
+      loading: true,
+    };
+    console.log("=>> loadingMessage", loadingMessage);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      userMessage,
+      loadingMessage,
+    ]);
 
     postMessage({
-      type: "msg",
+      type: "chat-msg",
       message: message,
     });
   };

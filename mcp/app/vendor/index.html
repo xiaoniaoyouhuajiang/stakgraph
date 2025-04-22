@@ -24,16 +24,18 @@
       document.addEventListener("DOMContentLoaded", () => {
         const iframe = document.querySelector("iframe");
         window.addEventListener("message", (event) => {
-          if (event.data.type === "msg") {
+          if (event.data.type === "chat-msg") {
             const message = event.data.message;
             const res = {
               role: "assistant",
               content: `I received your message about "${message.text}". Thank you for sharing that with me.`,
             };
-            iframe.contentWindow.postMessage(
-              { type: "msg", message: res },
-              "*"
-            );
+            setTimeout(() => {
+              iframe.contentWindow.postMessage(
+                { type: "chat-res", message: res },
+                "*"
+              );
+            }, 3000);
           } else if (event.data.type === "request-base-url") {
             iframe.contentWindow.postMessage(
               { type: "set-base-url", url: "http://localhost:3000" },

@@ -308,3 +308,11 @@ body {
 .messages-container::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.loading-indicator {
+  height: 15px;
+}
+
+.loading-indicator svg {
+  height: 15px;
+}
