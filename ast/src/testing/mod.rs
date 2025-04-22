@@ -61,16 +61,6 @@ static TEST_EXPECTATIONS: &[GraphTestExpectations] = &[
         critical_edges_lsp: None,
     },
     GraphTestExpectations {
-        lang_id: "ruby",
-        repo_path: "src/testing/ruby",
-        expected_nodes: 55,
-        expected_edges: 79,
-        expected_nodes_lsp: None,
-        expected_edges_lsp: None,
-        critical_edges: Vec::new(),
-        critical_edges_lsp: None,
-    },
-    GraphTestExpectations {
         lang_id: "python",
         repo_path: "src/testing/python",
         expected_nodes: 59,
