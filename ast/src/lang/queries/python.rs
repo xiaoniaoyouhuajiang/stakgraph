@@ -208,4 +208,53 @@ impl Stack for Python {
     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
         func_name.starts_with("test_")
     }
+    fn handler_finder(
+        &self,
+        endpoint: NodeData,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
+        _handler_params: HandlerParams,
+    ) -> Vec<(NodeData, Option<Edge>)> {
+        if let Some(handler) = endpoint.meta.get("handler") {
+            if handler.contains('.') {
+                //Django Style
+                let parts: Vec<&str> = handler.split('.').collect();
+                let module_name = parts[0];
+                let function_name = parts[1];
+
+                let dir_path = endpoint.file.rsplitn(2, '/').nth(1).unwrap_or("");
+
+                let possible_module_paths = vec![
+                    format!("{}/{}.py", dir_path, module_name), // standard module
+                    format!("{}/{}/views.py", dir_path, module_name), // app views
+                ];
+
+                for module_path in possible_module_paths {
+                    if let Some(nd) = find_fn(function_name, &module_path) {
+                        let edge = Edge::handler(&endpoint, &nd);
+                        return vec![(endpoint, Some(edge))];
+                    }
+                }
+                let py_files = find_fns_in("py");
+                for func in py_files {
+                    if func.name == function_name {
+                        let edge = Edge::handler(&endpoint, &func);
+                        return vec![(endpoint, Some(edge))];
+                    }
+                }
+            } else {
+                // Flask/FastAPI Style
+                if let Some(nd) = find_fn(handler, &endpoint.file) {
+                    let edge = Edge::handler(&endpoint, &nd);
+                    return vec![(endpoint, Some(edge))];
+                }
+            }
+        }
+
+        vec![(endpoint, None)]
+    }
+
+    fn use_handler_finder(&self) -> bool {
+        true
+    }
 }

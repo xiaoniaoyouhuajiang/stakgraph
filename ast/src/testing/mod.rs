@@ -63,7 +63,7 @@ static TEST_EXPECTATIONS: &[GraphTestExpectations] = &[
     GraphTestExpectations {
         lang_id: "python",
         repo_path: "src/testing/python",
-        expected_nodes: 59,
+        expected_nodes: 61,
         expected_edges: 78,
         expected_nodes_lsp: None,
         expected_edges_lsp: None,
