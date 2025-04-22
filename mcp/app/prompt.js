@@ -7,7 +7,7 @@ import {
 import { Editor, Tooltip, ResultsPane } from "./editor.js";
 import { NODE_TYPE_COLORS, html } from "./utils.js";
 
-export const Prompt = ({ onSend }) => {
+export const Prompt = ({ onSend, baseUrl }) => {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipBodyText, setTooltipBodyText] = useState("");
   const [tooltipFilePath, setTooltipFilePath] = useState("");
@@ -130,30 +130,34 @@ export const Prompt = ({ onSend }) => {
   }, [activeTagElement, hideTooltip]);
 
   // Search and results methods
-  const searchForTag = useCallback(async (tag, trigger) => {
-    try {
-      let queryParams = `query=${encodeURIComponent(tag)}`;
+  const searchForTag = useCallback(
+    async (tag, trigger) => {
+      try {
+        let queryParams = `query=${encodeURIComponent(tag)}`;
 
-      // Add node_type param based on trigger
-      if (trigger === "/") {
-        queryParams += "&node_types=Page,Endpoint";
-      } else if (trigger === "@") {
-        queryParams += "&node_types=File";
+        // Add node_type param based on trigger
+        if (trigger === "/") {
+          queryParams += "&node_types=Page,Endpoint";
+        } else if (trigger === "@") {
+          queryParams += "&node_types=File";
+        }
+
+        const response = await fetch(
+          `${baseUrl}/search?${queryParams}&limit=40`
+        );
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+
+        const data = await response.json();
+        setResults(data);
+        setShowResults(data && data.length > 0);
+        setSelectedResultIndex(data && data.length > 0 ? 0 : -1);
+      } catch (error) {
+        console.error("Search error:", error);
+        hideResultsPane();
       }
-
-      const baseUrl = window.BASE_URL || "";
-      const response = await fetch(`${baseUrl}/search?${queryParams}&limit=40`);
-      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-
-      const data = await response.json();
-      setResults(data);
-      setShowResults(data && data.length > 0);
-      setSelectedResultIndex(data && data.length > 0 ? 0 : -1);
-    } catch (error) {
-      console.error("Search error:", error);
-      hideResultsPane();
-    }
-  }, []);
+    },
+    [baseUrl]
+  );
 
   const replaceTagWithStyledSpan = useCallback(
     (result, currentRangeInfo) => {
@@ -370,44 +374,48 @@ export const Prompt = ({ onSend }) => {
                 text,
                 taggedWords,
               });
+              // Clear the editor content
+              editorRef.current.innerHTML = "";
             }
           }
         }
       }
 
-      // Handle keyboard navigation in search results
       if (showResults && results.length > 0) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault(); // Prevent cursor movement
-          const newIndex = (selectedResultIndex + 1) % results.length;
-          setSelectedResultIndex(newIndex);
+        // Handle keyboard navigation in search results
+        if (showResults && results.length > 0) {
+          if (e.key === "ArrowDown") {
+            e.preventDefault(); // Prevent cursor movement
+            const newIndex = (selectedResultIndex + 1) % results.length;
+            setSelectedResultIndex(newIndex);
 
-          // Use newIndex directly
-          if (shiftPressed && results[newIndex]) {
-            const selectedItem = results[newIndex];
-            showTooltip(
-              selectedItem.properties.body,
-              selectedItem.properties.file
-            );
-          }
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault(); // Prevent cursor movement
-          const newIndex =
-            (selectedResultIndex - 1 + results.length) % results.length;
-          setSelectedResultIndex(newIndex);
+            // Use newIndex directly
+            if (shiftPressed && results[newIndex]) {
+              const selectedItem = results[newIndex];
+              showTooltip(
+                selectedItem.properties.body,
+                selectedItem.properties.file
+              );
+            }
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault(); // Prevent cursor movement
+            const newIndex =
+              (selectedResultIndex - 1 + results.length) % results.length;
+            setSelectedResultIndex(newIndex);
 
-          // Use newIndex directly
-          if (shiftPressed && results[newIndex]) {
-            const selectedItem = results[newIndex];
-            showTooltip(
-              selectedItem.properties.body,
-              selectedItem.properties.file
-            );
+            // Use newIndex directly
+            if (shiftPressed && results[newIndex]) {
+              const selectedItem = results[newIndex];
+              showTooltip(
+                selectedItem.properties.body,
+                selectedItem.properties.file
+              );
+            }
+          } else if (e.key === "Enter" && selectedResultIndex >= 0) {
+            e.preventDefault(); // Prevent default Enter behavior
+            const selectedResult = results[selectedResultIndex];
+            handleResultClick(selectedResult);
           }
-        } else if (e.key === "Enter" && selectedResultIndex >= 0) {
-          e.preventDefault(); // Prevent default Enter behavior
-          const selectedResult = results[selectedResultIndex];
-          handleResultClick(selectedResult);
         }
       }
     },

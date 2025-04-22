@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Host</title>
+    <style>
+      body {
+        background-color: #000;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+      }
+      iframe {
+        border: none;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe src="http://localhost:3333"></iframe>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const iframe = document.querySelector("iframe");
+        window.addEventListener("message", (event) => {
+          if (event.data.type === "msg") {
+            const message = event.data.message;
+            const res = {
+              role: "assistant",
+              content: `I received your message about "${message.text}". Thank you for sharing that with me.`,
+            };
+            iframe.contentWindow.postMessage(
+              { type: "msg", message: res },
+              "*"
+            );
+          } else if (event.data.type === "request-base-url") {
+            iframe.contentWindow.postMessage(
+              { type: "set-base-url", url: "http://localhost:3000" },
+              "*"
+            );
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

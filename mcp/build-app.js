@@ -1,4 +1,4 @@
-// build.js
+// build-app.js
 import * as esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
@@ -26,28 +26,20 @@ function copyFile(source, destination) {
 
 // Function to copy an entire directory
 function copyDirectory(source, destination) {
-  // Create destination directory if it doesn't exist
   if (!fs.existsSync(destination)) {
     fs.mkdirSync(destination, { recursive: true });
   }
-
-  // Read all entries in the source directory
   const entries = fs.readdirSync(source, { withFileTypes: true });
-
   for (const entry of entries) {
     const srcPath = path.join(source, entry.name);
     const destPath = path.join(destination, entry.name);
-
     if (entry.isDirectory()) {
-      // Recursively copy subdirectories
       copyDirectory(srcPath, destPath);
     } else {
-      // Copy files
       fs.copyFileSync(srcPath, destPath);
       console.log(`✅ Copied ${srcPath} to ${destPath}`);
     }
   }
-
   console.log(`✅ Copied directory ${source} to ${destination}`);
 }
 
@@ -148,7 +140,6 @@ try {
       ".js": "jsx",
     },
     sourcemap: true,
-    // Add the temp directory to the list of resolve directories
     absWorkingDir: process.cwd(),
     mainFields: ["module", "main"],
   });
