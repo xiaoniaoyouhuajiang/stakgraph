@@ -31,6 +31,7 @@ struct Stop;
 
 pub struct ClientState {
     indexed_tx: Option<oneshot::Sender<()>>,
+    is_ready: bool,
 }
 
 pub type ClientLoop = MainLoop<Tracing<CatchUnwind<Concurrency<Router<ClientState>>>>>;
@@ -191,6 +192,7 @@ fn start(
     let (mainloop, server) = async_lsp::MainLoop::new_client(|_server| {
         let mut router = Router::new(ClientState {
             indexed_tx: Some(indexed_tx),
+            is_ready: false,
         });
         // https://github.com/golang/vscode-go/issues/1153
 
@@ -240,6 +242,47 @@ fn start(
                                     let _: Result<_, _> = tx.send(());
                                 }
                             }
+                        }
+                    }
+                    ControlFlow::Continue(())
+                });
+            }
+
+            Language::React | Language::Typescript => {
+                router.notification::<LogMessage>(|_, params| {
+                    debug!(
+                        "LogMessage (TS/React)::: {:?}: {}",
+                        params.typ, params.message
+                    );
+                    ControlFlow::Continue(())
+                });
+
+                router.notification::<Progress>(|this, params| {
+                    debug!("Progress (TS/React) Received: {:?}", params);
+                    let is_indexing_end = match params.value {
+                        ProgressParamsValue::WorkDone(WorkDoneProgress::End(_)) => {
+                            info!("TS/React LSP Progress End received.");
+                            true
+                        }
+                        ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(begin)) => {
+                            info!("TS/React LSP Progress Begin: {}", begin.title);
+                            // Optional: Check title here if needed
+                            false
+                        }
+                        ProgressParamsValue::WorkDone(WorkDoneProgress::Report(report)) => {
+                            // Optional: Log report messages/percentage
+                            if let Some(msg) = report.message {
+                                info!("TS/React LSP Progress Report: {}", msg);
+                            }
+                            false
+                        }
+                    };
+
+                    if is_indexing_end && !this.is_ready {
+                        if let Some(tx) = this.indexed_tx.take() {
+                            info!("LSP Ready signal sent (TS/React progress end detected)");
+                            let _ = tx.send(());
+                            this.is_ready = true;
                         }
                     }
                     ControlFlow::Continue(())

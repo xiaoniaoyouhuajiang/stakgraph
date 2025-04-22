@@ -88,8 +88,9 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_go() {
-    use crate::lang::graphs::ArrayGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_go_generic::<ArrayGraph>().await.unwrap();
+    test_go_generic::<BTreeMapGraph>().await.unwrap();
 }
 
 // #[test(tokio::test)]

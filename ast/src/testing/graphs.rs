@@ -12,8 +12,8 @@ pub struct GraphTestExpectations {
     pub expected_edges: u32,
     pub expected_nodes_lsp: Option<u32>,
     pub expected_edges_lsp: Option<u32>,
-    pub critical_edges: Vec<CriticalEdgeCheck>,
-    pub critical_edges_lsp: Option<Vec<CriticalEdgeCheck>>,
+    pub _critical_edges: Vec<CriticalEdgeCheck>,
+    pub _critical_edges_lsp: Option<Vec<CriticalEdgeCheck>>,
 }
 
 impl Default for GraphTestExpectations {
@@ -25,8 +25,8 @@ impl Default for GraphTestExpectations {
             expected_edges: 0,
             expected_nodes_lsp: None,
             expected_edges_lsp: None,
-            critical_edges: Vec::new(),
-            critical_edges_lsp: None,
+            _critical_edges: Vec::new(),
+            _critical_edges_lsp: None,
         }
     }
 }
