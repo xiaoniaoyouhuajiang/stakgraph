@@ -23,15 +23,6 @@
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const iframe = document.querySelector("iframe");
-        iframe.onload = () => {
-          console.log("iframe loaded");
-          setTimeout(() => {
-            iframe.contentWindow.postMessage(
-              { type: "set-base-url", url: "http://localhost:3000" },
-              "*"
-            );
-          }, 1000);
-        };
         window.addEventListener("message", (event) => {
           if (event.data.type === "msg") {
             const message = event.data.message;
@@ -41,6 +32,11 @@
             };
             iframe.contentWindow.postMessage(
               { type: "msg", message: res },
+              "*"
+            );
+          } else if (event.data.type === "request-base-url") {
+            iframe.contentWindow.postMessage(
+              { type: "set-base-url", url: "http://localhost:3000" },
               "*"
             );
           }

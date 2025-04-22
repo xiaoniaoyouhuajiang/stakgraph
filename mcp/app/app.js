@@ -35,6 +35,9 @@ const App = () => {
   const [baseUrl, setBaseUrl] = useState("");
 
   useEffect(() => {
+    postMessage({
+      type: "request-base-url",
+    });
     window.addEventListener("message", (event) => {
       console.log("=>>", event.data);
       if (event.data.type === "msg") {
