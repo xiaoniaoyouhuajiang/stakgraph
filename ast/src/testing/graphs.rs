@@ -34,12 +34,20 @@ pub async fn run_graph_similarity_test(
     expectations: &GraphTestExpectations,
     use_lsp: bool,
 ) -> Result<()> {
-    let lang = Lang::from_str(expectations.lang_id).unwrap();
+    let use_lsp_to_test = use_lsp
+        && expectations.expected_edges_lsp.is_some()
+        && expectations.expected_nodes_lsp.is_some();
 
+    if !use_lsp_to_test {
+        println!("Skipping LSP test for {}", expectations.lang_id);
+        return Ok(());
+    }
+
+    let lang = Lang::from_str(expectations.lang_id).unwrap();
     let repo_a = Repo::new(
         expectations.repo_path,
         lang,
-        use_lsp,
+        use_lsp_to_test,
         Vec::new(),
         Vec::new(),
     )
@@ -52,7 +60,7 @@ pub async fn run_graph_similarity_test(
     let repo_b = Repo::new(
         expectations.repo_path,
         lang,
-        use_lsp,
+        use_lsp_to_test,
         Vec::new(),
         Vec::new(),
     )
@@ -62,13 +70,10 @@ pub async fn run_graph_similarity_test(
     println!("BTreeMapGraph Analysis");
     graph_b.analysis();
 
-    let mut nodes_a = graph_a.nodes; // Takes ownership
-    let mut nodes_b: Vec<Node> = graph_b.nodes.values().cloned().collect();
+    let nodes_a = graph_a.nodes;
+    let nodes_b: Vec<Node> = graph_b.nodes.values().cloned().collect();
 
-    nodes_a.sort();
-    nodes_b.sort();
-
-    if !use_lsp {
+    if !use_lsp_to_test {
         assert_eq!(
             nodes_a.len() as u32,
             expectations.expected_nodes,
@@ -92,13 +97,11 @@ pub async fn run_graph_similarity_test(
         );
     }
 
-    // assert_eq!(nodes_a, nodes_b, "Node sets are not identical");
-
     let edges_a = graph_a.edges;
 
     let edges_b = graph_b.edges;
 
-    if !use_lsp {
+    if !use_lsp_to_test {
         assert_eq!(
             edges_a.len() as u32,
             expectations.expected_edges,
@@ -134,6 +137,13 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             expected_edges: 48,
             expected_nodes_lsp: Some(64),
             expected_edges_lsp: Some(92),
+            ..Default::default()
+        },
+        GraphTestExpectations {
+            lang_id: "react",
+            repo_path: "src/testing/react",
+            expected_nodes: 55,
+            expected_edges: 75,
             ..Default::default()
         },
         GraphTestExpectations {

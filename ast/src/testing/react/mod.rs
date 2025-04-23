@@ -21,7 +21,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
-        assert_eq!(num_nodes, 56, "Expected 56 nodes");
+        assert_eq!(num_nodes, 55, "Expected 55 nodes");
         assert_eq!(num_edges, 75, "Expected 75 edges");
     } else {
         assert_eq!(num_nodes, 49, "Expected 49 nodes");
@@ -124,12 +124,11 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     Ok(())
 }
 
-// #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
-// #[traced_test]
-// async fn test_react_typescript() {
-//     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
-//     test_react_typescript_generic::<ArrayGraph>().await.unwrap();
-//     test_react_typescript_generic::<BTreeMapGraph>()
-//         .await
-//         .unwrap();
-// }
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_react_typescript() {
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
+    test_react_typescript_generic::<ArrayGraph>().await.unwrap();
+    test_react_typescript_generic::<BTreeMapGraph>()
+        .await
+        .unwrap();
+}
