@@ -114,9 +114,3 @@ async fn test_ruby() {
     use crate::lang::graphs::ArrayGraph;
     test_ruby_generic::<ArrayGraph>().await.unwrap();
 }
-
-// #[test(tokio::test)]
-// async fn test_ruby_btree() {
-//     use crate::lang::graphs::BTreeMapGraph;
-//     test_ruby_generic::<BTreeMapGraph>().await.unwrap();
-// }

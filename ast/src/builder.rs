@@ -1,7 +1,8 @@
 use super::repo::{check_revs_files, Repo};
 use crate::lang::graphs::Graph;
 use crate::lang::{asg::NodeData, graphs::NodeType};
-use crate::lang::{ArrayGraph, BTreeMapGraph};
+use crate::lang::{ArrayGraph, BTreeMapGraph, Node};
+use crate::utils::create_node_key;
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
@@ -503,6 +504,7 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
     if nodes.is_empty() {
         return Vec::new();
     }
+    let import_name = create_node_key(Node::new(NodeType::Import, nodes[0].clone()));
     let mut combined_body = String::new();
     let mut current_position = nodes[0].start;
     for (i, node) in nodes.iter().enumerate() {
@@ -529,7 +531,7 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
     };
 
     vec![NodeData {
-        name: "import".to_string(),
+        name: import_name,
         file,
         body: combined_body,
         start: nodes[0].start,

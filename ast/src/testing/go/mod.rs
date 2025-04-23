@@ -20,7 +20,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 64, "Expected 64 nodes");
-        assert_eq!(num_edges, 108, "Expected 108 edges");
+        assert_eq!(num_edges, 92, "Expected 92 edges");
     } else {
         assert_eq!(num_nodes, 30, "Expected 30 nodes");
         assert_eq!(num_edges, 48, "Expected 48 edges");
@@ -88,8 +88,9 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_go() {
-    use crate::lang::graphs::ArrayGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_go_generic::<ArrayGraph>().await.unwrap();
+    test_go_generic::<BTreeMapGraph>().await.unwrap();
 }
 
 // #[test(tokio::test)]

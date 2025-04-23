@@ -17,7 +17,7 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 59, "Expected 59 nodes");
+    assert_eq!(num_nodes, 61, "Expected 61 nodes");
     assert_eq!(num_edges, 78, "Expected 78 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
@@ -58,19 +58,14 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(data_models.len(), 3, "Expected 3 data models");
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
-    assert_eq!(endpoints.len(), 4, "Expected 4 endpoints");
+    assert_eq!(endpoints.len(), 6, "Expected 6 endpoints");
 
     Ok(())
 }
 
 #[test(tokio::test)]
 async fn test_python() {
-    use crate::lang::graphs::ArrayGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_python_generic::<ArrayGraph>().await.unwrap();
+    test_python_generic::<BTreeMapGraph>().await.unwrap();
 }
-
-// #[test(tokio::test)]
-// async fn test_python_btree() {
-//     use crate::lang::graphs::BTreeMapGraph;
-//     test_python_generic::<BTreeMapGraph>().await.unwrap();
-// }

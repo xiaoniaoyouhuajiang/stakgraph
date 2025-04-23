@@ -192,7 +192,7 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
     // conn.did_open(&mainrs, &main_text).await?;
 
     info!("waiting.... {:?}", lang);
-    sleep(100).await;
+    sleep(500).await;
     indexed_rx
         .await
         .map_err(|e| anyhow!("bad indexed rx {:?}", e))?;

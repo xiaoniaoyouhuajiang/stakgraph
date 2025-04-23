@@ -18,6 +18,7 @@ pub trait Graph: Default + Debug {
     {
         Self::default()
     }
+    fn analysis(&self);
     fn create_filtered_graph(&self, final_filter: &[String]) -> Self
     where
         Self: Sized;
@@ -37,6 +38,7 @@ pub trait Graph: Default + Debug {
         parent_file: &str,
     );
     fn add_edge(&mut self, edge: Edge);
+    fn add_node(&mut self, node_type: NodeType, node_data: NodeData);
 
     fn find_source_edge_by_name_and_file(
         &self,

@@ -1,0 +1,175 @@
+use crate::lang::graphs::{BTreeMapGraph, Node, NodeType};
+use crate::lang::{ArrayGraph, Graph, Lang};
+use crate::repo::Repo;
+use anyhow::Result;
+use std::str::FromStr;
+
+type CriticalEdgeCheck = (NodeType, &'static str);
+pub struct GraphTestExpectations {
+    pub lang_id: &'static str,
+    pub repo_path: &'static str,
+    pub expected_nodes: u32,
+    pub expected_edges: u32,
+    pub expected_nodes_lsp: Option<u32>,
+    pub expected_edges_lsp: Option<u32>,
+    pub _critical_edges: Vec<CriticalEdgeCheck>,
+    pub _critical_edges_lsp: Option<Vec<CriticalEdgeCheck>>,
+}
+
+impl Default for GraphTestExpectations {
+    fn default() -> Self {
+        GraphTestExpectations {
+            lang_id: "",
+            repo_path: "",
+            expected_nodes: 0,
+            expected_edges: 0,
+            expected_nodes_lsp: None,
+            expected_edges_lsp: None,
+            _critical_edges: Vec::new(),
+            _critical_edges_lsp: None,
+        }
+    }
+}
+pub async fn run_graph_similarity_test(
+    expectations: &GraphTestExpectations,
+    use_lsp: bool,
+) -> Result<()> {
+    let lang = Lang::from_str(expectations.lang_id).unwrap();
+
+    let repo_a = Repo::new(
+        expectations.repo_path,
+        lang,
+        use_lsp,
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let graph_a = repo_a.build_graph_inner::<ArrayGraph>().await?;
+    println!("ArrayGraph Analysis");
+    graph_a.analysis();
+
+    let lang = Lang::from_str(expectations.lang_id).unwrap();
+    let repo_b = Repo::new(
+        expectations.repo_path,
+        lang,
+        use_lsp,
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let graph_b = repo_b.build_graph_inner::<BTreeMapGraph>().await?;
+
+    println!("BTreeMapGraph Analysis");
+    graph_b.analysis();
+
+    let mut nodes_a = graph_a.nodes; // Takes ownership
+    let mut nodes_b: Vec<Node> = graph_b.nodes.values().cloned().collect();
+
+    nodes_a.sort();
+    nodes_b.sort();
+
+    if !use_lsp {
+        assert_eq!(
+            nodes_a.len() as u32,
+            expectations.expected_nodes,
+            "ArrayGraph node count mismatch"
+        );
+        assert_eq!(
+            nodes_b.len() as u32,
+            expectations.expected_nodes,
+            "BTreeMapGraph node count mismatch"
+        );
+    } else {
+        assert_eq!(
+            nodes_a.len() as u32,
+            expectations.expected_nodes_lsp.unwrap(),
+            "ArrayGraph node count mismatch"
+        );
+        assert_eq!(
+            nodes_b.len() as u32,
+            expectations.expected_nodes_lsp.unwrap(),
+            "BTreeMapGraph node count mismatch"
+        );
+    }
+
+    // assert_eq!(nodes_a, nodes_b, "Node sets are not identical");
+
+    let edges_a = graph_a.edges;
+
+    let edges_b = graph_b.edges;
+
+    if !use_lsp {
+        assert_eq!(
+            edges_a.len() as u32,
+            expectations.expected_edges,
+            "ArrayGraph edge count mismatch"
+        );
+        assert_eq!(
+            edges_b.len() as u32,
+            expectations.expected_edges,
+            "BTreeMapGraph edge count mismatch"
+        );
+    } else {
+        assert_eq!(
+            edges_a.len() as u32,
+            expectations.expected_edges_lsp.unwrap(),
+            "ArrayGraph edge count mismatch"
+        );
+        assert_eq!(
+            edges_b.len() as u32,
+            expectations.expected_edges_lsp.unwrap(),
+            "BTreeMapGraph edge count mismatch"
+        );
+    }
+
+    Ok(())
+}
+
+pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
+    vec![
+        GraphTestExpectations {
+            lang_id: "go",
+            repo_path: "src/testing/go",
+            expected_nodes: 30,
+            expected_edges: 48,
+            expected_nodes_lsp: Some(64),
+            expected_edges_lsp: Some(92),
+            ..Default::default()
+        },
+        GraphTestExpectations {
+            lang_id: "angular",
+            repo_path: "src/testing/angular",
+            expected_nodes: 76,
+            expected_edges: 78,
+            ..Default::default()
+        },
+        GraphTestExpectations {
+            lang_id: "kotlin",
+            repo_path: "src/testing/kotlin",
+            expected_nodes: 115,
+            expected_edges: 103,
+            ..Default::default()
+        },
+        GraphTestExpectations {
+            lang_id: "swift",
+            repo_path: "src/testing/swift",
+            expected_nodes: 55,
+            expected_edges: 73,
+            ..Default::default()
+        },
+        GraphTestExpectations {
+            lang_id: "python",
+            repo_path: "src/testing/python",
+            expected_nodes: 61,
+            expected_edges: 78,
+            ..Default::default()
+        },
+        GraphTestExpectations {
+            lang_id: "svelte",
+            repo_path: "src/testing/svelte",
+            expected_nodes: 43,
+            expected_edges: 42,
+            ..Default::default()
+        },
+    ]
+}

@@ -174,6 +174,44 @@ impl Stack for Python {
         ]
     }
 
+    fn add_endpoint_verb(&self, nd: &mut NodeData, call: &Option<String>) {
+        if nd.meta.get("verb").is_some() {
+            return;
+        }
+
+        if let Some(c) = call {
+            let verb = c.to_uppercase();
+            if !verb.is_empty() {
+                nd.add_verb(&verb);
+                return;
+            }
+        }
+
+        if let Some(handler) = nd.meta.get("handler").cloned() {
+            let method_name = if handler.contains('.') {
+                handler.split('.').last().unwrap_or(&handler)
+            } else {
+                &handler
+            };
+
+            let verb = if method_name.starts_with("get_") || method_name == "index" {
+                "GET"
+            } else if method_name.starts_with("post_") || method_name.starts_with("create_") {
+                "POST"
+            } else if method_name.starts_with("delete_") || method_name.starts_with("remove_") {
+                "DELETE"
+            } else if method_name.starts_with("put_") || method_name.starts_with("update_") {
+                "PUT"
+            } else {
+                // Default to GET if no specific verb can be inferred
+                "GET"
+            };
+
+            nd.add_verb(verb);
+        } else {
+            nd.add_verb("GET");
+        }
+    }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             "(class_definition
@@ -207,5 +245,54 @@ impl Stack for Python {
 
     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
         func_name.starts_with("test_")
+    }
+    fn handler_finder(
+        &self,
+        endpoint: NodeData,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
+        _handler_params: HandlerParams,
+    ) -> Vec<(NodeData, Option<Edge>)> {
+        if let Some(handler) = endpoint.meta.get("handler") {
+            if handler.contains('.') {
+                //Django Style
+                let parts: Vec<&str> = handler.split('.').collect();
+                let module_name = parts[0];
+                let function_name = parts[1];
+
+                let dir_path = endpoint.file.rsplitn(2, '/').nth(1).unwrap_or("");
+
+                let possible_module_paths = vec![
+                    format!("{}/{}.py", dir_path, module_name), // standard module
+                    format!("{}/{}/views.py", dir_path, module_name), // app views
+                ];
+
+                for module_path in possible_module_paths {
+                    if let Some(nd) = find_fn(function_name, &module_path) {
+                        let edge = Edge::handler(&endpoint, &nd);
+                        return vec![(endpoint, Some(edge))];
+                    }
+                }
+                let py_files = find_fns_in("py");
+                for func in py_files {
+                    if func.name == function_name {
+                        let edge = Edge::handler(&endpoint, &func);
+                        return vec![(endpoint, Some(edge))];
+                    }
+                }
+            } else {
+                // Flask/FastAPI Style
+                if let Some(nd) = find_fn(handler, &endpoint.file) {
+                    let edge = Edge::handler(&endpoint, &nd);
+                    return vec![(endpoint, Some(edge))];
+                }
+            }
+        }
+
+        vec![(endpoint, None)]
+    }
+
+    fn use_handler_finder(&self) -> bool {
+        true
     }
 }

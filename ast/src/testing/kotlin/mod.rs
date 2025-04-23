@@ -18,8 +18,8 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 145, "Expected 145 nodes");
-    assert_eq!(num_edges, 148, "Expected 148 edges");
+    assert_eq!(num_nodes, 115, "Expected 115 nodes");
+    assert_eq!(num_edges, 103, "Expected 103 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -71,13 +71,13 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
-    assert_eq!(functions.len(), 45, "Expected 45 functions");
+    assert_eq!(functions.len(), 19, "Expected 19 functions");
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     assert_eq!(data_models.len(), 1, "Expected 1 data model");
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
-    assert_eq!(requests.len(), 6, "Expected 6 requests"); // FIXME: Records more than 2 requests
+    assert_eq!(requests.len(), 2, "Expected 2 requests");
 
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls(CallsMeta::default()));
     assert!(calls_edges_count > 0, "Expected at least one calls edge");
@@ -87,12 +87,7 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[test(tokio::test)]
 async fn test_kotlin() {
-    use crate::lang::graphs::ArrayGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_kotlin_generic::<ArrayGraph>().await.unwrap();
+    test_kotlin_generic::<BTreeMapGraph>().await.unwrap();
 }
-
-// #[test(tokio::test)]
-// async fn test_kotlin_btree() {
-//     use crate::lang::graphs::BTreeMapGraph;
-//     test_kotlin_generic::<BTreeMapGraph>().await.unwrap();
-// }

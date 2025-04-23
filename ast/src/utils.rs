@@ -2,7 +2,7 @@ use std::any::Any;
 use std::env;
 
 use crate::lang::graphs::{ArrayGraph, Node};
-use crate::lang::{BTreeMapGraph, Graph};
+use crate::lang::{BTreeMapGraph, Graph, NodeRef};
 use anyhow::Result;
 use serde::Serialize;
 use tracing_subscriber::filter::LevelFilter;
@@ -102,4 +102,26 @@ fn delete_react_testing_node_modules() -> std::io::Result<()> {
         std::fs::remove_dir_all(path)?;
     }
     Ok(())
+}
+pub fn create_synthetic_key_from_ref(node_ref: NodeRef, start: u32) -> String {
+    let node_type = node_ref.node_type.to_string().to_lowercase();
+    let name = node_ref.node_data.name;
+    let file = node_ref.node_data.file;
+    let start = start.to_string();
+
+    let mut parts = vec![node_type, name, file, start];
+    if let Some(v) = node_ref.node_data.verb {
+        parts.push(v.clone());
+    }
+
+    let sanitized_parts: Vec<String> = parts
+        .into_iter()
+        .map(|part| {
+            part.to_lowercase()
+                .trim()
+                .replace(char::is_whitespace, "")
+                .replace(|c: char| !c.is_alphanumeric(), "")
+        })
+        .collect();
+    sanitized_parts.join("-")
 }

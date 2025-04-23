@@ -98,8 +98,9 @@ impl Lang {
                 impy.body = body;
                 impy.start = node.start_position().row;
                 impy.end = node.end_position().row;
+                res.push(impy);
             }
-            res.push(impy);
+
             Ok(())
         })?;
         Ok(res)

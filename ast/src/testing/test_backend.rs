@@ -144,81 +144,91 @@ impl<G: Graph> BackendTester<G> {
             if matching_endpoints.is_empty() {
                 anyhow::bail!("Endpoint {} {} not found", verb, path);
             }
-            let endpoint = &matching_endpoints[0];
 
-            let handlers = self.graph.find_handlers_for_endpoint(endpoint);
+            let mut found_handler = false;
+            let mut last_endpoint_name = String::new();
+            for endpoint in &matching_endpoints {
+                let handlers = self.graph.find_handlers_for_endpoint(endpoint);
 
-            if handlers.is_empty() {
-                anyhow::bail!("Handler not found for endpoint {}", path);
-            }
+                if handlers.is_empty() {
+                    info!("No handler found for endpoint {}", endpoint.name);
+                    last_endpoint_name = endpoint.name.clone();
+                    continue;
+                }
 
-            let handler = &handlers[0];
-            let handler_name = &handler.name;
-            let formatted_handler = normalize_function_name(handler_name);
+                found_handler = true;
 
-            info!("✓ Found handler {}", formatted_handler);
+                let handler = &handlers[0];
+                let handler_name = &handler.name;
+                let formatted_handler = normalize_function_name(handler_name);
 
-            let direct_connection = self
-                .graph
-                .check_direct_data_model_usage(&handler_name, data_model);
+                info!("✓ Found handler {}", formatted_handler);
 
-            if direct_connection {
-                info!(
-                    "✓ Handler {} directly uses data model {}",
-                    formatted_handler, data_model
-                );
-                continue;
-            }
-
-            let triggered_functions = self.graph.find_functions_called_by(handler);
-
-            if triggered_functions.is_empty() {
-                error!("No functions triggered by handler {}", formatted_handler);
-            }
-
-            let mut data_model_found = false;
-            let mut functions_to_check = triggered_functions.clone();
-            functions_to_check.push(handler.clone());
-
-            for func in &functions_to_check {
-                // Check if this function directly uses the data model
-                if self
+                let direct_connection = self
                     .graph
-                    .check_direct_data_model_usage(&func.name, data_model)
-                {
-                    data_model_found = true;
-                    break;
-                }
+                    .check_direct_data_model_usage(&handler_name, data_model);
 
-                let mut visited = Vec::new();
-
-                if self.check_indirect_data_model_usage(&func.name, data_model, &mut visited) {
-                    data_model_found = true;
+                if direct_connection {
                     info!(
-                        "✓ Found function {} that indirectly triggers data model {}",
-                        func.name, data_model
+                        "✓ Handler {} directly uses data model {}",
+                        formatted_handler, data_model
                     );
-                    break;
+                    continue;
                 }
-            }
 
-            if data_model_found {
-                info!(
-                    "✓ Data model {} used by handler {}",
-                    data_model, formatted_handler
-                );
-            } else {
-                error!(
-                    "Data model {} not used by handler {}",
-                    data_model, formatted_handler
+                let triggered_functions = self.graph.find_functions_called_by(handler);
+
+                if triggered_functions.is_empty() {
+                    error!("No functions triggered by handler {}", formatted_handler);
+                }
+
+                let mut data_model_found = false;
+                let mut functions_to_check = triggered_functions.clone();
+                functions_to_check.push(handler.clone());
+
+                for func in &functions_to_check {
+                    // Check if this function directly uses the data model
+                    if self
+                        .graph
+                        .check_direct_data_model_usage(&func.name, data_model)
+                    {
+                        data_model_found = true;
+                        break;
+                    }
+
+                    let mut visited = Vec::new();
+
+                    if self.check_indirect_data_model_usage(&func.name, data_model, &mut visited) {
+                        data_model_found = true;
+                        info!(
+                            "✓ Found function {} that indirectly triggers data model {}",
+                            func.name, data_model
+                        );
+                        break;
+                    }
+                }
+
+                if data_model_found {
+                    info!(
+                        "✓ Data model {} used by handler {}",
+                        data_model, formatted_handler
+                    );
+                } else {
+                    error!(
+                        "Data model {} not used by handler {}",
+                        data_model, formatted_handler
+                    );
+                }
+
+                assert!(
+                    data_model_found,
+                    "No function triggers data model {}",
+                    data_model
                 );
             }
-
-            assert!(
-                data_model_found,
-                "No function triggers data model {}",
-                data_model
-            );
+            if !found_handler {
+                error!("No handler found for endpoint {}", last_endpoint_name);
+            }
         }
 
         Ok(())
