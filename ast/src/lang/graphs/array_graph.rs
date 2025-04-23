@@ -556,20 +556,20 @@ impl Graph for ArrayGraph {
             .collect()
     }
     fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData> {
-        let endpoint_node = self.nodes.iter().find(|n| {
+        let endp_node = self.nodes.iter().find(|n| {
             n.node_type == NodeType::Endpoint
                 && n.node_data.name == endpoint.name
                 && n.node_data.file == endpoint.file
         });
 
-        if let Some(_endpoint_node) = endpoint_node {
+        if let Some(endpoint) = endp_node {
             self.edges
                 .iter()
                 .filter(|edge| {
                     edge.edge == EdgeType::Handler
                         && edge.source.node_type == NodeType::Endpoint
-                        && edge.source.node_data.name == endpoint.name
-                        && edge.source.node_data.file == endpoint.file
+                        && edge.source.node_data.name == endpoint.node_data.name
+                        && edge.source.node_data.file == endpoint.node_data.file
                 })
                 .filter_map(|edge| {
                     let handler_nodes = self.find_nodes_by_name(
