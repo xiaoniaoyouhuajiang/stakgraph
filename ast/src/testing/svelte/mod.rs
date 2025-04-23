@@ -17,8 +17,6 @@ pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
     let (num_nodes, num_edges) = graph.get_graph_size();
 
-    graph.analysis();
-
     assert_eq!(num_nodes, 43, "Expected 43 nodes");
     assert_eq!(num_edges, 42, "Expected 42 edges");
 

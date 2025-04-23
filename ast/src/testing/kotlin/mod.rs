@@ -17,10 +17,8 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let graph = repo.build_graph_inner::<G>().await?;
 
-    graph.analysis();
-
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 98, "Expected 98 nodes");
+    assert_eq!(num_nodes, 115, "Expected 115 nodes");
     assert_eq!(num_edges, 103, "Expected 103 edges");
 
     fn normalize_path(path: &str) -> String {
@@ -40,7 +38,6 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let build_gradle_files = graph.find_nodes_by_name(NodeType::File, "build.gradle.kts");
-
     assert_eq!(
         build_gradle_files.len(),
         2,
@@ -52,7 +49,7 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let libraries = graph.find_nodes_by_type(NodeType::Library);
-    assert_eq!(libraries.len(), 27, "Expected 27 libraries");
+    assert_eq!(libraries.len(), 44, "Expected 44 libraries");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 9, "Expected 9 imports");

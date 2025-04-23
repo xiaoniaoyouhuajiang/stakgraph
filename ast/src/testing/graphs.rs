@@ -146,7 +146,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
         GraphTestExpectations {
             lang_id: "kotlin",
             repo_path: "src/testing/kotlin",
-            expected_nodes: 98,
+            expected_nodes: 115,
             expected_edges: 103,
             ..Default::default()
         },

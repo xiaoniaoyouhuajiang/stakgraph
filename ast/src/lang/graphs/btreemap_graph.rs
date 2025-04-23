@@ -55,8 +55,6 @@ impl Graph for BTreeMapGraph {
             return;
         }
 
-        //handle case when LSP is introduced
-        println!("LSP found : {:?}", edge);
         let new_edge = edge;
         let source_key = create_synthetic_key_from_ref(new_edge.source, 0);
         let target_key = create_synthetic_key_from_ref(new_edge.target, 0);
