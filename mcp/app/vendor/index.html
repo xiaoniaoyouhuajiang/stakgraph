@@ -19,7 +19,7 @@
     </style>
   </head>
   <body>
-    <iframe src="http://localhost:3333"></iframe>
+    <iframe src="http://localhost:3000/app"></iframe>
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const iframe = document.querySelector("iframe");
@@ -35,7 +35,13 @@
                 { type: "chat-res", message: res },
                 "*"
               );
-            }, 3000);
+            }, 800);
+            setTimeout(() => {
+              iframe.contentWindow.postMessage(
+                { type: "done", message: {} },
+                "*"
+              );
+            }, 3500);
           } else if (event.data.type === "request-base-url") {
             iframe.contentWindow.postMessage(
               { type: "set-base-url", url: "http://localhost:3000" },

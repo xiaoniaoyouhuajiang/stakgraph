@@ -45,8 +45,12 @@ const App = () => {
           // Check if the last message is a loading message
           const lastMessage = prevMessages[prevMessages.length - 1];
           if (lastMessage && lastMessage.loading === true) {
-            // Replace the loading message with the new message
-            return [...prevMessages.slice(0, -1), message];
+            // Insert the new message before the loading message
+            return [
+              ...prevMessages.slice(0, prevMessages.length - 1),
+              message,
+              lastMessage,
+            ];
           } else {
             // Otherwise just append the new message
             return [...prevMessages, message];
@@ -55,6 +59,11 @@ const App = () => {
       } else if (event.data.type === "set-base-url") {
         console.log("=>> setBaseUrl", event.data.url);
         setBaseUrl(event.data.url);
+      } else if (event.data.type === "done") {
+        // Remove all messages with loading: true
+        setMessages((prevMessages) =>
+          prevMessages.filter((message) => !message.loading)
+        );
       }
     });
   }, []);
