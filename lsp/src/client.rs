@@ -19,7 +19,7 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use tokio::sync::oneshot;
 use tower::ServiceBuilder;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 pub struct LspClient {
     root: PathBuf,
@@ -266,11 +266,9 @@ fn start(
                         }
                         ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(begin)) => {
                             info!("TS/React LSP Progress Begin: {}", begin.title);
-                            // Optional: Check title here if needed
                             false
                         }
                         ProgressParamsValue::WorkDone(WorkDoneProgress::Report(report)) => {
-                            // Optional: Log report messages/percentage
                             if let Some(msg) = report.message {
                                 info!("TS/React LSP Progress Report: {}", msg);
                             }
@@ -278,11 +276,20 @@ fn start(
                         }
                     };
 
+                    debug!(
+                        "TS/React Progress Check: is_indexing_end={}, this.is_ready={}",
+                        is_indexing_end, this.is_ready
+                    );
+
                     if is_indexing_end && !this.is_ready {
                         if let Some(tx) = this.indexed_tx.take() {
-                            info!("LSP Ready signal sent (TS/React progress end detected)");
-                            let _ = tx.send(());
+                            info!("LSP Ready signal SENT (TS/React progress end detected)");
+                            if tx.send(()).is_err() {
+                                error!("LSP Ready signal FAILED to send (TS/React)");
+                            }
                             this.is_ready = true;
+                        } else {
+                            debug!("LSP Ready signal already taken/sent (TS/React)");
                         }
                     }
                     ControlFlow::Continue(())

@@ -195,13 +195,16 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
     info!("LSP Task: Initialized: {:?}", init_ret.server_info);
 
     // conn.did_open(&mainrs, &main_text).await?;
-
-    info!("LSP Task: waiting.... {:?}", lang);
-    //sleep(500).await; //for gopls for now
     indexed_rx
         .await
         .map_err(|e| anyhow!("LSP ready signal channel closed unexpectedly: {:?}", e))?;
     info!("LSP Task: Ready signal received!");
+    let delay_ms = match lang {
+        Language::Typescript | Language::React => 1000,
+        _ => 500,
+    };
+
+    sleep(delay_ms).await; // Wait for the LSP to be ready
 
     while let Ok((cmd, res_tx)) = cmd_rx.recv() {
         //info!("got cmd: {:?}", cmd);
