@@ -1,6 +1,6 @@
 use super::{graph::Graph, *};
 use crate::lang::{Function, FunctionCall, Lang};
-use crate::utils::{create_node_key, create_synthetic_key_from_ref};
+use crate::utils::{create_node_key, create_synthetic_key_from_ref, sanitize_string};
 use anyhow::Result;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -67,7 +67,11 @@ impl Graph for BTreeMapGraph {
     }
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
-        let prefix = format!("{:?}", node_type).to_lowercase();
+        let prefix = format!(
+            "{}-{}",
+            sanitize_string(&node_type.to_string()),
+            sanitize_string(&name)
+        );
 
         self.nodes
             .range(prefix.clone()..)
@@ -82,13 +86,18 @@ impl Graph for BTreeMapGraph {
         name: &str,
         file: &str,
     ) -> Option<NodeData> {
-        let prefix = format!("{:?}", node_type).to_lowercase();
+        let prefix = format!(
+            "{}-{}-{}",
+            sanitize_string(&node_type.to_string()),
+            sanitize_string(&name),
+            sanitize_string(&file)
+        );
 
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, node)| node.node_data.name == name && node.node_data.file == file)
             .map(|(_, node)| node.node_data.clone())
+            .next()
     }
 
     fn add_node_with_parent(
@@ -167,11 +176,15 @@ impl Graph for BTreeMapGraph {
         name: &str,
         suffix: &str,
     ) -> Option<NodeData> {
-        let prefix = format!("{:?}-", node_type).to_lowercase();
+        let prefix = format!(
+            "{}-{}-",
+            sanitize_string(&node_type.to_string()),
+            sanitize_string(&name)
+        );
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, node)| node.node_data.name == name && node.node_data.file.ends_with(suffix))
+            .find(|(_, node)| node.node_data.file.ends_with(suffix))
             .map(|(_, node)| node.node_data.clone())
     }
 
@@ -307,15 +320,16 @@ impl Graph for BTreeMapGraph {
     }
 
     fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData> {
-        let prefix = format!("{:?}-", NodeType::Endpoint).to_lowercase();
+        let prefix = format!(
+            "{}-{}-{}",
+            &sanitize_string(&format!("{:?}", NodeType::Endpoint)),
+            sanitize_string(&name),
+            sanitize_string(&file)
+        );
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, node)| {
-                node.node_data.name == name
-                    && node.node_data.file == file
-                    && node.node_data.meta.get("verb") == Some(&verb.to_string())
-            })
+            .find(|(_, node)| node.node_data.meta.get("verb") == Some(&verb.to_string()))
             .map(|(_, node)| node.node_data.clone())
     }
 
@@ -422,7 +436,8 @@ impl Graph for BTreeMapGraph {
 
                         for end in endpoints_in_group {
                             let prefix =
-                                format!("{:?}-{}", NodeType::Endpoint, end.name).to_lowercase();
+                                format!("{:?}-{}", NodeType::Endpoint, sanitize_string(&end.name))
+                                    .to_lowercase();
                             if let Some((key, node)) = self
                                 .nodes
                                 .range(prefix.clone()..)
@@ -558,14 +573,12 @@ impl Graph for BTreeMapGraph {
                 }
             }
         }
-
+        let parent_prefix = format!("{:?}-", parent_type).to_lowercase();
         let nodes_to_remove: Vec<_> = self
             .nodes
-            .iter()
-            .filter(|(_, node)| {
-                node.node_type == parent_type
-                    && !has_children.get(&node.node_data.name).unwrap_or(&true)
-            })
+            .range(parent_prefix.clone()..)
+            .take_while(|(k, _)| k.starts_with(&parent_prefix))
+            .filter(|(_, node)| !has_children.get(&node.node_data.name).unwrap_or(&true))
             .map(|(k, _)| k.clone())
             .collect();
 
@@ -593,7 +606,7 @@ impl Graph for BTreeMapGraph {
     }
 
     fn find_nodes_by_name_contains(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
-        let prefix = format!("{:?}-{}", node_type, name).to_lowercase();
+        let prefix = format!("{:?}-", node_type).to_lowercase();
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, n)| k.starts_with(&prefix) && n.node_data.name.contains(name))
@@ -664,8 +677,8 @@ impl Graph for BTreeMapGraph {
         let function_prefix = format!(
             "{:?}-{}-{}",
             NodeType::Function,
-            function.name,
-            function.file
+            sanitize_string(&function.name),
+            sanitize_string(&function.file)
         )
         .to_lowercase();
         let mut called_functions = Vec::new();
@@ -730,26 +743,31 @@ impl Graph for BTreeMapGraph {
 
 impl BTreeMapGraph {
     fn find_node_from_node_ref(&self, node_ref: NodeRef) -> Option<Node> {
-        let prefix = format!("{:?}-", &node_ref.node_type).to_lowercase();
+        let prefix = format!(
+            "{}-{}-{}",
+            sanitize_string(&node_ref.node_type.to_string()),
+            sanitize_string(&node_ref.node_data.name),
+            sanitize_string(&node_ref.node_data.file)
+        );
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, node)| {
-                node.node_data.file == node_ref.node_data.file
-                    && node.node_data.name == node_ref.node_data.name
-            })
             .map(|(_, node)| node.clone())
+            .next()
     }
 
     fn find_node_from_node_key(&self, node_type: NodeType, node_key: NodeKeys) -> Option<Node> {
-        let prefix = format!("{:?}-", &node_type).to_lowercase();
+        let prefix = format!(
+            "{}-{}-{}",
+            sanitize_string(&node_type.to_string()),
+            sanitize_string(&node_key.name),
+            sanitize_string(&node_key.file)
+        );
         self.nodes
             .range(prefix.clone()..)
             .take_while(|(k, _)| k.starts_with(&prefix))
-            .find(|(_, node)| {
-                node.node_data.file == node_key.file && node.node_data.name == node_key.name
-            })
             .map(|(_, node)| node.clone())
+            .next()
     }
 }
 impl Default for BTreeMapGraph {
