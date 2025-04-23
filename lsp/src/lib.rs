@@ -5,7 +5,6 @@ mod utils;
 
 pub use client::strip_root;
 pub use language::Language;
-use tokio::sync::oneshot;
 pub use utils::*;
 
 use anyhow::{anyhow, Context, Result};
@@ -161,7 +160,7 @@ pub fn spawn_analyzer(
 
 async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -> Result<()> {
     let executable = lang.lsp_exec();
-    info!("LSP Task: child process starting: {}", executable);
+    info!("child process starting: {}", executable);
     let mut child_config = async_process::Command::new(executable);
     child_config
         .current_dir(&root_dir)
@@ -175,39 +174,32 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
     let child = child_config
         .spawn()
         .map_err(|e| anyhow!("spawn error: {:?}, {:#?}", e, child_config))?;
-    info!("LSP Task: child process started");
+    info!("child process started");
     let stdout = child.stdout.context("no stdout")?;
     let stdin = child.stdin.context("no stdin")?;
 
-    info!("LSP Task: start {:?} LSP client", lang);
-    let (mut conn, mainloop, indexed_rx): (client::LspClient, _, oneshot::Receiver<()>) =
-        client::LspClient::new(&root_dir, &lang);
+    info!("start {:?} LSP client", lang);
+    let (mut conn, mainloop, indexed_rx) = client::LspClient::new(&root_dir, &lang);
 
     let mainloop_task = tokio::spawn(async move {
-        if let Err(e) = mainloop.run_buffered(stdout, stdin).await {
-            error!("mainloop error: {:?}", e);
-        }
-        info!("LSP mainloop finished.");
+        mainloop.run_buffered(stdout, stdin).await.unwrap();
     });
 
-    info!("LSP Task: initializing {:?}...", lang);
+    info!("initializing {:?}...", lang);
     let init_ret = conn.init().await?;
-    info!("LSP Task: Initialized: {:?}", init_ret.server_info);
+    info!("Initialized: {:?}", init_ret.server_info);
 
     // conn.did_open(&mainrs, &main_text).await?;
+
+    info!("waiting.... {:?}", lang);
+    sleep(100).await;
     indexed_rx
         .await
-        .map_err(|e| anyhow!("LSP ready signal channel closed unexpectedly: {:?}", e))?;
-    info!("LSP Task: Ready signal received!");
-    let delay_ms = match lang {
-        Language::Typescript | Language::React => 1000,
-        _ => 500,
-    };
-
-    sleep(delay_ms).await; // Wait for the LSP to be ready
+        .map_err(|e| anyhow!("bad indexed rx {:?}", e))?;
+    info!("indexed!!! {:?}", lang);
 
     while let Ok((cmd, res_tx)) = cmd_rx.recv() {
-        //info!("got cmd: {:?}", cmd);
+        // debug!("got cmd: {:?}", cmd);
         match conn.handle(cmd).await {
             Ok(res) => {
                 if let Res::Stopping = res {
@@ -222,17 +214,9 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
         }
     }
     // Shutdown.
-    sleep(500).await;
-    if let Err(e) = conn.stop().await {
-        error!("LSP connection stop error: {:?}", e);
-    } else {
-        info!("LSP Task: LSP connection stopped.");
-    }
-    if let Err(e) = mainloop_task.await {
-        error!("LSP mainloop stop error: {:?}", e);
-    } else {
-        info!("LSP Task: LSP mainloop stopped.");
-    }
+    sleep(1_000).await;
+    conn.stop().await.unwrap();
+    mainloop_task.await.unwrap();
     Ok(())
 }
 

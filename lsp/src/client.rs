@@ -19,7 +19,7 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use tokio::sync::oneshot;
 use tower::ServiceBuilder;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 pub struct LspClient {
     root: PathBuf,
@@ -31,7 +31,6 @@ struct Stop;
 
 pub struct ClientState {
     indexed_tx: Option<oneshot::Sender<()>>,
-    is_ready: bool,
 }
 
 pub type ClientLoop = MainLoop<Tracing<CatchUnwind<Concurrency<Router<ClientState>>>>>;
@@ -192,7 +191,6 @@ fn start(
     let (mainloop, server) = async_lsp::MainLoop::new_client(|_server| {
         let mut router = Router::new(ClientState {
             indexed_tx: Some(indexed_tx),
-            is_ready: false,
         });
         // https://github.com/golang/vscode-go/issues/1153
 
@@ -242,54 +240,6 @@ fn start(
                                     let _: Result<_, _> = tx.send(());
                                 }
                             }
-                        }
-                    }
-                    ControlFlow::Continue(())
-                });
-            }
-
-            Language::React | Language::Typescript => {
-                router.notification::<LogMessage>(|_, params| {
-                    debug!(
-                        "LogMessage (TS/React)::: {:?}: {}",
-                        params.typ, params.message
-                    );
-                    ControlFlow::Continue(())
-                });
-
-                router.notification::<Progress>(|this, params| {
-                    debug!("Progress (TS/React) Received: {:?}", params);
-                    let is_indexing_end = match params.value {
-                        ProgressParamsValue::WorkDone(WorkDoneProgress::End(_)) => {
-                            info!("TS/React LSP Progress End received.");
-                            true
-                        }
-                        ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(begin)) => {
-                            info!("TS/React LSP Progress Begin: {}", begin.title);
-                            false
-                        }
-                        ProgressParamsValue::WorkDone(WorkDoneProgress::Report(report)) => {
-                            if let Some(msg) = report.message {
-                                info!("TS/React LSP Progress Report: {}", msg);
-                            }
-                            false
-                        }
-                    };
-
-                    debug!(
-                        "TS/React Progress Check: is_indexing_end={}, this.is_ready={}",
-                        is_indexing_end, this.is_ready
-                    );
-
-                    if is_indexing_end && !this.is_ready {
-                        if let Some(tx) = this.indexed_tx.take() {
-                            info!("LSP Ready signal SENT (TS/React progress end detected)");
-                            if tx.send(()).is_err() {
-                                error!("LSP Ready signal FAILED to send (TS/React)");
-                            }
-                            this.is_ready = true;
-                        } else {
-                            debug!("LSP Ready signal already taken/sent (TS/React)");
                         }
                     }
                     ControlFlow::Continue(())
