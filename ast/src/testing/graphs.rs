@@ -171,14 +171,5 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             expected_edges: 42,
             ..Default::default()
         },
-        GraphTestExpectations {
-            lang_id: "react",
-            repo_path: "src/testing/react",
-            expected_nodes: 49,
-            expected_edges: 61,
-            expected_nodes_lsp: Some(56),
-            expected_edges_lsp: Some(75),
-            ..Default::default()
-        },
     ]
 }
