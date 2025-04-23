@@ -2,6 +2,7 @@ use crate::lang::{ArrayGraph, Lang};
 use lsp::Language;
 use std::env;
 use std::str::FromStr;
+use tracing_test::traced_test;
 
 pub mod angular;
 pub mod go;
@@ -20,13 +21,13 @@ fn pre_test() {
     env::set_var("LSP_SKIP_POST_CLONE", "true");
 }
 
-// #[test(tokio::test)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-
+#[traced_test]
 async fn run_server_tests() {
     pre_test();
     let implemented_servers = ["go", "python", "ruby", "rust", "typescript", "java"];
     for server in implemented_servers.iter() {
+        tracing::info!("Running server tests for {}", server);
         let repo = Some(server.to_string());
         let language = Lang::from_language(Language::from_str(server).unwrap());
 
