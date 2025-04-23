@@ -39,20 +39,9 @@ impl Stack for TypeScript {
     }
     fn imports_query(&self) -> Option<String> {
         Some(format!(
-            r#"(import_statement
-                    (import_clause
-                        (identifier) ? @{IMPORTS}
-                        (namespace_import
-                            (identifier) @{IMPORTS}
-                        )?
-                        (named_imports
-                            (import_specifier
-                                (identifier) @{IMPORTS}
-                            )
-                        )?
-                    
-                    ) 
-                )"#,
+            r#"(program
+                (import_statement)+ @{IMPORTS}
+            )"#,
         ))
     }
 

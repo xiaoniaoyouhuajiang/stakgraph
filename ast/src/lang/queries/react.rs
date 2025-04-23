@@ -38,20 +38,9 @@ impl Stack for ReactTs {
     }
     fn imports_query(&self) -> Option<String> {
         Some(format!(
-            r#"(import_statement
-                    (import_clause
-                        (identifier) ? @{IMPORTS}
-                        (namespace_import
-                            (identifier) @{IMPORTS}
-                        )?
-                        (named_imports
-                            (import_specifier
-                                (identifier) @{IMPORTS}
-                            )
-                        )?
-                    
-                    ) 
-                )"#,
+            r#"(program
+                (import_statement)+ @{IMPORTS}
+            )"#,
         ))
     }
     fn is_component(&self, func_name: &str) -> bool {
@@ -293,7 +282,7 @@ impl Stack for ReactTs {
             inst.add_verb("GET");
         }
     }
-    fn is_router_file(&self, file_name: &str, _code: &str) -> bool {
+    fn is_router_file(&self, file_name: &str, code: &str) -> bool {
         // next.js or react-router-dom
         // file_name.contains("src/pages/") || code.contains("react-router-dom")
         !file_name.contains("__tests__") && !file_name.contains("test")
