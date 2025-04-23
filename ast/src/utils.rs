@@ -74,12 +74,7 @@ pub fn create_node_key(node: Node) -> String {
 
     let sanitized_parts: Vec<String> = parts
         .into_iter()
-        .map(|part| {
-            part.to_lowercase()
-                .trim()
-                .replace(char::is_whitespace, "")
-                .replace(|c: char| !c.is_alphanumeric(), "")
-        })
+        .map(|part| sanitize_string(&part))
         .collect();
 
     sanitized_parts.join("-")
@@ -116,12 +111,15 @@ pub fn create_synthetic_key_from_ref(node_ref: NodeRef, start: u32) -> String {
 
     let sanitized_parts: Vec<String> = parts
         .into_iter()
-        .map(|part| {
-            part.to_lowercase()
-                .trim()
-                .replace(char::is_whitespace, "")
-                .replace(|c: char| !c.is_alphanumeric(), "")
-        })
+        .map(|part| sanitize_string(&part))
         .collect();
     sanitized_parts.join("-")
+}
+
+pub fn sanitize_string(input: &str) -> String {
+    input
+        .to_lowercase()
+        .trim()
+        .replace(char::is_whitespace, "")
+        .replace(|c: char| !c.is_alphanumeric(), "")
 }
