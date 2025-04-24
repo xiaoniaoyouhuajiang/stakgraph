@@ -44,13 +44,13 @@ impl Graph for BTreeMapGraph {
         (self.nodes.len() as u32, self.edges.len() as u32)
     }
     fn add_edge(&mut self, edge: Edge) {
-        let source_key = create_node_key_from_ref(edge.source.clone());
-        let target_key = create_node_key_from_ref(edge.target.clone());
+        let source_key = create_node_key_from_ref(&edge.source);
+        let target_key = create_node_key_from_ref(&edge.target);
         self.edges.insert((source_key, target_key, edge.edge));
     }
     fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
         let node = Node::new(node_type.clone(), node_data.clone());
-        let node_key = create_node_key(node.clone());
+        let node_key = create_node_key(&node);
         self.nodes.insert(node_key.clone(), node);
     }
 
@@ -227,8 +227,9 @@ impl Graph for BTreeMapGraph {
 
     fn add_functions(&mut self, functions: Vec<Function>) {
         for (node, method_of, reqs, dms, trait_operand, return_types) in functions {
-            let func_node = Node::new(NodeType::Function, node.clone());
-            let func_key = create_node_key(func_node.clone());
+            let node_clone = node.clone();
+            let func_node = Node::new(NodeType::Function, node);
+            let func_key = create_node_key(&func_node);
             if !self.nodes.contains_key(&func_key) {
                 self.nodes.insert(func_key.clone(), func_node);
             }
@@ -238,13 +239,13 @@ impl Graph for BTreeMapGraph {
             if let Some((_, file_node)) = self
                 .nodes
                 .range(file_prefix..)
-                .find(|(_, n)| n.node_data.file == node.file)
+                .find(|(_, n)| n.node_data.file == node_clone.file)
             {
                 let edge = Edge::contains(
                     NodeType::File,
                     &file_node.node_data,
                     NodeType::Function,
-                    &node,
+                    &node_clone,
                 );
                 self.add_edge(edge);
             }
@@ -263,14 +264,14 @@ impl Graph for BTreeMapGraph {
 
             for r in reqs {
                 let req_node = Node::new(NodeType::Request, r.clone());
-                let req_key = create_node_key(req_node.clone());
+                let req_key = create_node_key(&req_node);
                 if !self.nodes.contains_key(&req_key) {
                     self.nodes.insert(req_key, req_node);
                 }
 
                 let edge = Edge::calls(
                     NodeType::Function,
-                    &node,
+                    &node_clone,
                     NodeType::Request,
                     &r,
                     CallsMeta {
@@ -361,7 +362,7 @@ impl Graph for BTreeMapGraph {
         for (fc, ext_func) in funcs {
             if let Some(ext_nd) = ext_func {
                 let ext_node = Node::new(NodeType::Function, ext_nd.clone());
-                let ext_key = create_node_key(ext_node.clone());
+                let ext_key = create_node_key(&ext_node);
                 if !self.nodes.contains_key(&ext_key) {
                     self.nodes.insert(ext_key, ext_node);
                 }
@@ -378,7 +379,7 @@ impl Graph for BTreeMapGraph {
                 let edge = Edge::uses(tc.source, &ext_nd);
                 self.add_edge(edge);
                 let ext_node = Node::new(NodeType::Function, ext_nd.clone());
-                let ext_key = create_node_key(ext_node.clone());
+                let ext_key = create_node_key(&ext_node);
                 if !self.nodes.contains_key(&ext_key) {
                     self.nodes.insert(ext_key, ext_node);
                 }
@@ -438,7 +439,7 @@ impl Graph for BTreeMapGraph {
 
         // Apply all updates at once
         for (old_key, updated_node, edges) in updates {
-            let new_key = create_node_key(updated_node.clone());
+            let new_key = create_node_key(&updated_node);
 
             // Update node
             self.nodes.remove(&old_key);
@@ -611,7 +612,7 @@ impl Graph for BTreeMapGraph {
 
     fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData> {
         let endpoint = Node::new(NodeType::Endpoint, endpoint.clone());
-        let endpoint_key = create_node_key(endpoint.clone());
+        let endpoint_key = create_node_key(&endpoint);
 
         let mut handlers = Vec::new();
 

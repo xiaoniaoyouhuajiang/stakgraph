@@ -78,9 +78,9 @@ impl Graph for ArrayGraph {
         ((self.nodes.len() as u32), (self.edges.len() as u32))
     }
     fn add_edge(&mut self, edge: Edge) {
-        let key = self.create_edge_key(edge.clone());
+        let key = self.create_edge_key(&edge);
         let is_duplicate = self.edges.iter().any(|existing_edge| {
-            let existing_key = self.create_edge_key(existing_edge.clone());
+            let existing_key = self.create_edge_key(existing_edge);
             existing_key == key
         });
         if !is_duplicate {
@@ -89,11 +89,11 @@ impl Graph for ArrayGraph {
     }
 
     fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
-        let new_node = Node::new(node_type, node_data.clone());
-        let key = create_node_key(new_node.clone());
+        let new_node = Node::new(node_type, node_data);
+        let key = create_node_key(&new_node);
 
         let is_duplicate = self.nodes.iter().any(|node| {
-            let existing_key = create_node_key(node.clone());
+            let existing_key = create_node_key(node);
             existing_key == key
         });
         if !is_duplicate {
@@ -663,9 +663,9 @@ impl ArrayGraph {
         None
     }
 
-    fn create_edge_key(&self, edge: Edge) -> String {
-        let source_key = create_node_key_from_ref(edge.source);
-        let target_key = create_node_key_from_ref(edge.target);
+    fn create_edge_key(&self, edge: &Edge) -> String {
+        let source_key = create_node_key_from_ref(&edge.source);
+        let target_key = create_node_key_from_ref(&edge.target);
         let edge_type = &format!("{:?}", edge.edge).to_lowercase();
         format!("{}-{}-{}", source_key, target_key, edge_type,)
     }
