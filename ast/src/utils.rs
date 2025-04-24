@@ -98,11 +98,11 @@ fn delete_react_testing_node_modules() -> std::io::Result<()> {
     }
     Ok(())
 }
-pub fn create_synthetic_key_from_ref(node_ref: NodeRef, start: u32) -> String {
+pub fn create_node_key_from_ref(node_ref: NodeRef) -> String {
     let node_type = node_ref.node_type.to_string().to_lowercase();
     let name = node_ref.node_data.name;
     let file = node_ref.node_data.file;
-    let start = start.to_string();
+    let start = node_ref.node_data.start.to_string();
 
     let mut parts = vec![node_type, name, file, start];
     if let Some(v) = node_ref.node_data.verb {

@@ -3,7 +3,6 @@ use crate::lang::Graph;
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
-use tracing_test::traced_test;
 pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let use_lsp = get_use_lsp();
     let repo = Repo::new(
@@ -17,12 +16,12 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
     let graph = repo.build_graph_inner::<G>().await?;
 
-    graph.analysis();
+    //graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 55, "Expected 55 nodes");
-        assert_eq!(num_edges, 75, "Expected 75 edges");
+        assert_eq!(num_edges, 77, "Expected 77 edges");
     } else {
         assert_eq!(num_nodes, 49, "Expected 49 nodes");
         assert_eq!(num_edges, 61, "Expected 61 edges");
