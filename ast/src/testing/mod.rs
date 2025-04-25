@@ -3,7 +3,7 @@ use crate::utils::get_use_lsp;
 use lsp::Language;
 use std::env;
 use std::str::FromStr;
-use tracing_test::traced_test;
+// use tracing_test::traced_test;
 
 pub mod angular;
 pub mod go;
@@ -58,7 +58,7 @@ async fn run_client_tests() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[traced_test]
+// #[traced_test]
 async fn test_graphs_similarity() {
     pre_test();
 
