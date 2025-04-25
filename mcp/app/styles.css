@@ -45,7 +45,7 @@ body {
 .app-header {
   display: flex;
   justify-content: flex-end;
-  padding: 10px;
+  padding: 2px;
   position: relative;
 }
 
@@ -328,8 +328,8 @@ body {
 
 .bot-selector-container {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 2px;
+  right: 2px;
 }
 
 .bot-icon-button {
@@ -343,6 +343,7 @@ body {
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
+  margin: 5px;
 }
 
 .bot-icon-button:hover {
@@ -356,9 +357,9 @@ body {
 
 .bot-selector-dropdown {
   position: absolute;
-  top: 40px;
+  top: 1px;
   right: 0;
-  width: 280px;
+  width: 240px;
   background-color: var(--editor-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px;
