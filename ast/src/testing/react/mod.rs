@@ -20,11 +20,11 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
-        assert_eq!(num_nodes, 55, "Expected 55 nodes");
-        assert_eq!(num_edges, 77, "Expected 77 edges");
+        assert_eq!(num_nodes, 60, "Expected 60 nodes");
+        assert_eq!(num_edges, 82, "Expected 82 edges");
     } else {
-        assert_eq!(num_nodes, 49, "Expected 49 nodes");
-        assert_eq!(num_edges, 61, "Expected 61 edges");
+        assert_eq!(num_nodes, 56, "Expected 56 nodes");
+        assert_eq!(num_edges, 68, "Expected 68 edges");
     }
 
     fn normalize_path(path: &str) -> String {
@@ -51,13 +51,13 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     );
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
-    assert_eq!(imports.len(), 4, "Expected 4 imports");
+    assert_eq!(imports.len(), 5, "Expected 5 imports");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
     if use_lsp == true {
-        assert_eq!(functions.len(), 17, "Expected 17 functions/components");
+        assert_eq!(functions.len(), 22, "Expected 22 functions/components");
     } else {
-        assert_eq!(functions.len(), 11, "Expected 11 functions/components");
+        assert_eq!(functions.len(), 16, "Expected 16 functions/components");
     }
 
     let mut sorted_functions = functions.clone();
@@ -73,14 +73,54 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
         "App component file path is incorrect"
     );
 
+    let function_component = functions
+        .iter()
+        .find(|f| f.name == "FunctionComponent")
+        .expect("FunctionComponent not found");
     assert_eq!(
-        sorted_functions[1].name, "FormContainer",
-        "FormContainer component name is incorrect"
+        normalize_path(&function_component.file),
+        "src/testing/react/src/ComponentPatterns.tsx",
+        "FunctionComponent file path is incorrect"
     );
+
+    let arrow_component = functions
+        .iter()
+        .find(|f| f.name == "ArrowComponent")
+        .expect("ArrowComponent not found");
     assert_eq!(
-        normalize_path(&sorted_functions[1].file),
-        "src/testing/react/src/components/NewPerson.tsx",
-        "FormContainer component file path is incorrect"
+        normalize_path(&arrow_component.file),
+        "src/testing/react/src/ComponentPatterns.tsx",
+        "ArrowComponent file path is incorrect"
+    );
+
+    let export_arrow_component = functions
+        .iter()
+        .find(|f| f.name == "ExportArrowComponent")
+        .expect("ExportArrowComponent not found");
+    assert_eq!(
+        normalize_path(&export_arrow_component.file),
+        "src/testing/react/src/ComponentPatterns.tsx",
+        "ExportArrowComponent file path is incorrect"
+    );
+
+    let direct_assignment_component = functions
+        .iter()
+        .find(|f| f.name == "DirectAssignmentComponent")
+        .expect("DirectAssignmentComponent not found");
+    assert_eq!(
+        normalize_path(&direct_assignment_component.file),
+        "src/testing/react/src/ComponentPatterns.tsx",
+        "DirectAssignmentComponent file path is incorrect"
+    );
+
+    let export_direct_assignment_component = functions
+        .iter()
+        .find(|f| f.name == "ExportDirectAssignmentComponent")
+        .expect("ExportDirectAssignmentComponent not found");
+    assert_eq!(
+        normalize_path(&export_direct_assignment_component.file),
+        "src/testing/react/src/ComponentPatterns.tsx",
+        "ExportDirectAssignmentComponent file path is incorrect"
     );
 
     let submit_button = functions
