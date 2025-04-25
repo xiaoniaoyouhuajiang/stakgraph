@@ -7,7 +7,19 @@ const clipboard = require("clipboardy").default;
 // Parse command line arguments
 const args = process.argv.slice(2);
 const jsonFlag = args.includes("--json");
-const dirPath = args.filter((arg) => !arg.startsWith("--"))[0];
+
+// Extract ignore patterns
+const ignorePatterns = [];
+for (let i = 0; i < args.length - 1; i++) {
+  if (args[i] === "--ignore") {
+    ignorePatterns.push(args[i + 1]);
+  }
+}
+
+// Extract the directory path (first non-flag argument)
+const dirPath = args.filter(
+  (arg) => !arg.startsWith("--") && !ignorePatterns.includes(arg)
+)[0];
 
 // Check if path was provided
 if (!dirPath) {
@@ -21,8 +33,33 @@ if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
   process.exit(1);
 }
 
-// Directories to skip
+// Default directories to skip
 const dirsToSkip = ["node_modules", "vendor"];
+
+// Function to check if a path should be ignored
+function shouldIgnore(filePath) {
+  const relativePath = path.relative(dirPath, filePath);
+  const fileName = path.basename(filePath);
+
+  // Check if file name or any parent directory matches an ignore pattern
+  for (const pattern of ignorePatterns) {
+    // Check for exact filename match
+    if (fileName === pattern) return true;
+
+    // Check if the relative path starts with or equals the pattern
+    if (
+      relativePath === pattern ||
+      relativePath.startsWith(pattern + path.sep) ||
+      relativePath.startsWith(pattern + "/")
+    ) {
+      return true;
+    }
+  }
+
+  // Also check the default dirs to skip
+  const pathParts = relativePath.split(path.sep);
+  return pathParts.some((part) => dirsToSkip.includes(part));
+}
 
 // Function to recursively walk a directory
 function walkDirectory(dir) {
@@ -35,8 +72,8 @@ function walkDirectory(dir) {
     // Skip file_contents.txt to avoid including it in the output
     if (entry.name === "file_contents.txt") continue;
 
-    // Skip node_modules and vendor directories
-    if (entry.isDirectory() && dirsToSkip.includes(entry.name)) continue;
+    // Skip files that match ignore patterns
+    if (shouldIgnore(fullPath)) continue;
 
     if (entry.isDirectory()) {
       // Recursively walk subdirectories
@@ -89,6 +126,11 @@ try {
     console.log("Copied to clipboard");
     console.log(`Total files copied: ${allFiles.length}`);
     console.log(`Total lines copied: ${lineCount}`);
+  }
+
+  // Log the ignore patterns that were applied
+  if (ignorePatterns.length > 0) {
+    console.log(`Ignored patterns: ${ignorePatterns.join(", ")}`);
   }
 } catch (err) {
   console.error(`Error: ${err.message}`);
