@@ -59,6 +59,9 @@ const App = () => {
     postMessage({
       type: "request-base-url",
     });
+    postMessage({
+      type: "init-api-keys",
+    });
     window.addEventListener("message", (event) => {
       if (event.data.type === "chat-res") {
         const message = event.data.message;
