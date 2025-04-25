@@ -14,7 +14,6 @@ export const Prompt = ({ onSend, baseUrl }) => {
   const [results, setResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [selectedResultIndex, setSelectedResultIndex] = useState(-1);
-  const [shiftPressed, setShiftPressed] = useState(false);
   const [rangeInfo, setRangeInfo] = useState(null);
   const [activeTagElement, setActiveTagElement] = useState(null);
   const [isHoveringResult, setIsHoveringResult] = useState(false);
@@ -32,39 +31,43 @@ export const Prompt = ({ onSend, baseUrl }) => {
   useEffect(() => {
     const handleGlobalKeydown = (e) => {
       if (e.key === "Shift") {
-        setShiftPressed(true);
-        if (
-          showResults &&
-          selectedResultIndex >= 0 &&
-          selectedResultIndex < results.length
-        ) {
-          const selectedItem = results[selectedResultIndex];
-          showTooltip(
-            selectedItem.properties.body,
-            selectedItem.properties.file
-          );
-        }
-      }
-    };
-
-    const handleGlobalKeyup = (e) => {
-      if (e.key === "Shift") {
-        setShiftPressed(false);
-        // Hide tooltip on shift release unless actively hovering something
-        if (!isHoveringResult) {
+        // Toggle tooltip visibility using the existing tooltipVisible state
+        if (tooltipVisible) {
           hideTooltip();
+        } else {
+          // Show tooltip for the appropriate element (selected result or active tag)
+          if (
+            showResults &&
+            selectedResultIndex >= 0 &&
+            selectedResultIndex < results.length
+          ) {
+            const selectedItem = results[selectedResultIndex];
+            showTooltip(
+              selectedItem.properties.body,
+              selectedItem.properties.file
+            );
+          } else if (activeTagElement) {
+            showTooltip(
+              activeTagElement.dataset.body,
+              activeTagElement.dataset.file
+            );
+          }
         }
       }
     };
 
     document.addEventListener("keydown", handleGlobalKeydown);
-    document.addEventListener("keyup", handleGlobalKeyup);
 
     return () => {
       document.removeEventListener("keydown", handleGlobalKeydown);
-      document.removeEventListener("keyup", handleGlobalKeyup);
     };
-  }, [showResults, selectedResultIndex, results, isHoveringResult]);
+  }, [
+    showResults,
+    selectedResultIndex,
+    results,
+    isHoveringResult,
+    tooltipVisible,
+  ]);
 
   // Global click handler
   useEffect(() => {
@@ -290,8 +293,9 @@ export const Prompt = ({ onSend, baseUrl }) => {
     (result) => {
       replaceTagWithStyledSpan(result, rangeInfo);
       hideResultsPane();
+      hideTooltip();
     },
-    [replaceTagWithStyledSpan, rangeInfo, hideResultsPane]
+    [replaceTagWithStyledSpan, rangeInfo, hideResultsPane, hideTooltip]
   );
 
   const handleResultMouseEnter = useCallback(
@@ -317,12 +321,12 @@ export const Prompt = ({ onSend, baseUrl }) => {
       const isHoveringAnyResult = document.querySelector(".result-item:hover");
       const isHoveringTooltip = document.querySelector(".tooltip:hover");
 
-      if (!isHoveringAnyResult && !isHoveringTooltip && !shiftPressed) {
+      if (!isHoveringAnyResult && !isHoveringTooltip) {
         setIsHoveringResult(false);
         hideTooltip();
       }
     }, 50);
-  }, [shiftPressed, hideTooltip]);
+  }, [hideTooltip]);
 
   const handleTagClick = useCallback(
     (tagElement) => {
@@ -392,7 +396,7 @@ export const Prompt = ({ onSend, baseUrl }) => {
             setSelectedResultIndex(newIndex);
 
             // Use newIndex directly
-            if (shiftPressed && results[newIndex]) {
+            if (results[newIndex]) {
               const selectedItem = results[newIndex];
               showTooltip(
                 selectedItem.properties.body,
@@ -406,7 +410,7 @@ export const Prompt = ({ onSend, baseUrl }) => {
             setSelectedResultIndex(newIndex);
 
             // Use newIndex directly
-            if (shiftPressed && results[newIndex]) {
+            if (results[newIndex]) {
               const selectedItem = results[newIndex];
               showTooltip(
                 selectedItem.properties.body,
@@ -425,7 +429,6 @@ export const Prompt = ({ onSend, baseUrl }) => {
       showResults,
       results,
       selectedResultIndex,
-      shiftPressed,
       showTooltip,
       hideResultsPane,
       hideTooltip,
