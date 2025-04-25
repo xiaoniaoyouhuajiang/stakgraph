@@ -148,7 +148,8 @@ pub async fn run_graph_similarity_test(
     } else {
         &expectations.nodes
     };
-
+    array_graph.analysis();
+    btree_map_graph.analysis();
     for NodeCheck {
         node_type,
         names,
@@ -343,6 +344,51 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             repo_path: "src/testing/angular",
             expected_nodes: 76,
             expected_edges: 78,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["angular"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["package.json"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec![],
+                    count: 5,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["Person"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec!["constructor"],
+                    count: 8,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Request,
+                    names: vec![],
+                    count: 7,
+                    attributes: vec![("verb", "GET")],
+                },
+            ],
+            edges: vec![EdgeCheck {
+                edge_type: EdgeType::Calls(Default::default()),
+                source_type: NodeType::Function,
+                target_type: NodeType::Function,
+                count: 8,
+                specific_pairs: vec![],
+            }],
             ..Default::default()
         },
         GraphTestExpectations {
@@ -350,6 +396,72 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             repo_path: "src/testing/kotlin",
             expected_nodes: 115,
             expected_edges: 125,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["kotlin"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["build.gradle.kts"],
+                    count: 2,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Library,
+                    names: vec![],
+                    count: 44,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Import,
+                    names: vec![],
+                    count: 9,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec!["MainActivity", "ExampleInstrumentedTest"],
+                    count: 6,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec!["onCreate", "useAppContext"],
+                    count: 19,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["Person"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Request,
+                    names: vec!["/people", "/person"],
+                    count: 2,
+                    attributes: vec![("verb", "GET")],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Class,
+                    count: 112,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Calls(Default::default()),
+                    source_type: NodeType::Function,
+                    target_type: NodeType::Function,
+                    count: 13,
+                    specific_pairs: vec![],
+                },
+            ],
             ..Default::default()
         },
         GraphTestExpectations {
@@ -357,6 +469,72 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             repo_path: "src/testing/swift",
             expected_nodes: 55,
             expected_edges: 81,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["swift"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["Podfile"],
+                    count: 8,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec![],
+                    count: 8,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Import,
+                    names: vec![],
+                    count: 7,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec!["API"],
+                    count: 7,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec!["application"],
+                    count: 26,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["Person"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Request,
+                    names: vec!["/people"],
+                    count: 2,
+                    attributes: vec![("verb", "GET")],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Class,
+                    count: 53,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Calls(Default::default()),
+                    source_type: NodeType::Function,
+                    target_type: NodeType::Function,
+                    count: 2,
+                    specific_pairs: vec![],
+                },
+            ],
             ..Default::default()
         },
         GraphTestExpectations {
@@ -364,6 +542,73 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             repo_path: "src/testing/python",
             expected_nodes: 61,
             expected_edges: 78,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["python"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["requirements.txt"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec!["Person"],
+                    count: 3,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec![],
+                    count: 8,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["Person"],
+                    count: 3,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Endpoint,
+                    names: vec![],
+                    count: 6,
+                    attributes: vec![("verb", "GET")],
+                },
+                NodeCheck {
+                    node_type: NodeType::Import,
+                    names: vec![],
+                    count: 12,
+                    attributes: vec![],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Class,
+                    count: 60,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Calls(Default::default()),
+                    source_type: NodeType::Function,
+                    target_type: NodeType::Function,
+                    count: 12,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Handler,
+                    source_type: NodeType::Endpoint,
+                    target_type: NodeType::Function,
+                    count: 4,
+                    specific_pairs: vec![],
+                },
+            ],
             ..Default::default()
         },
         GraphTestExpectations {
@@ -371,6 +616,66 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             repo_path: "src/testing/svelte",
             expected_nodes: 43,
             expected_edges: 42,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["svelte"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["package.json"],
+                    count: 7,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Import,
+                    names: vec![],
+                    count: 7,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec![],
+                    count: 2,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec!["addPerson"],
+                    count: 6,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["Person"],
+                    count: 13,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Request,
+                    names: vec!["fetchPeople"],
+                    count: 1,
+                    attributes: vec![],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Function,
+                    count: 41,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Calls(Default::default()),
+                    source_type: NodeType::Function,
+                    target_type: NodeType::Function,
+                    count: 1,
+                    specific_pairs: vec![],
+                },
+            ],
             ..Default::default()
         },
         GraphTestExpectations {
@@ -378,6 +683,87 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             repo_path: "src/testing/ruby",
             expected_nodes: 55,
             expected_edges: 79,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["ruby"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["Gemfile"],
+                    count: 1,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["routes.rb"],
+                    count: 9,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec![],
+                    count: 14,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec![],
+                    count: 3,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Endpoint,
+                    names: vec![
+                        "person/:id",
+                        "person",
+                        "/people/:id",
+                        "/people/articles",
+                        "/people/:id/articles",
+                        "/countries/:country_id/process",
+                    ],
+                    count: 6,
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["people"],
+                    count: 1,
+                    attributes: vec![],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Class,
+                    count: 55,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::Class,
+                    target_type: NodeType::Function,
+                    count: 55,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Handler,
+                    source_type: NodeType::Endpoint,
+                    target_type: NodeType::Function,
+                    count: 6,
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Calls(Default::default()),
+                    source_type: NodeType::Function,
+                    target_type: NodeType::Function,
+                    count: 4,
+                    specific_pairs: vec![],
+                },
+            ],
             ..Default::default()
         },
         GraphTestExpectations {
