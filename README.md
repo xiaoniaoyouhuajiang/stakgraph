@@ -31,9 +31,22 @@ cargo run --bin index
 - [ ] C
 - [ ] C#
 
+### contributing
+
+To verify locally that all tests pass before making a PR:
+
+- `cargo test`
+- `USE_LSP=1 cargo test`
+
+You may need to install LSPs first:
+
 ### LSP
 
 This project uses the Language Server Protocol to connect nodes in the graph.
+
+##### typescript
+
+`npm install -g typescript-language-server`
 
 ##### go
 
@@ -42,10 +55,6 @@ This project uses the Language Server Protocol to connect nodes in the graph.
 ##### rust
 
 https://github.com/rust-lang/rust-analyzer/releases
-
-##### typescript
-
-`npm install -g typescript-language-server`
 
 ##### python
 

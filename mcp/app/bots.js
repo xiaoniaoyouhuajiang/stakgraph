@@ -76,7 +76,7 @@ export const BotSelector = ({
       html`
         <div class="bot-selector-dropdown">
           <div class="bot-selector-header">
-            <h3>Select AI Model</h3>
+            <h3>Select Model</h3>
             <button class="close-button" onClick=${() => setIsOpen(false)}>
               ×
             </button>
