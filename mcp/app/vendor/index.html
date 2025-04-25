@@ -47,6 +47,16 @@
               { type: "set-base-url", url: "http://localhost:3000" },
               "*"
             );
+          } else if (event.data.type === "request-api-key") {
+            const key = window.prompt(
+              `Enter your ${event.data.model} API key:`
+            );
+            if (key !== null) {
+              iframe.contentWindow.postMessage(
+                { type: "set-api-key", model: event.data.model },
+                "*"
+              );
+            }
           }
         });
       });

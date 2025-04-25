@@ -3,6 +3,7 @@ import { useState, useEffect } from "https://esm.sh/preact/hooks";
 import { html } from "./utils.js";
 import { Prompt } from "./prompt.js";
 import { Messages } from "./messages.js";
+import { BotSelector } from "./bots.js"; // Import the new component
 
 let vscode;
 if (window.acquireVsCodeApi) {
@@ -33,6 +34,26 @@ const App = () => {
     },
   ]);
   const [baseUrl, setBaseUrl] = useState("");
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [apiKeys, setApiKeys] = useState({});
+
+  const handleModelSelect = (model) => {
+    setSelectedModel(model);
+    console.log(`Selected model: ${model}`);
+    postMessage({
+      type: "set-model",
+      model: model,
+    });
+  };
+
+  // Request API key
+  const requestApiKey = (model) => {
+    console.log("=>> requestApiKey", model);
+    postMessage({
+      type: "request-api-key",
+      model: model,
+    });
+  };
 
   useEffect(() => {
     postMessage({
@@ -64,6 +85,12 @@ const App = () => {
         setMessages((prevMessages) =>
           prevMessages.filter((message) => !message.loading)
         );
+      } else if (event.data.type === "set-api-key") {
+        console.log("=>> setApiKey", event.data.model);
+        setApiKeys((prevApiKeys) => ({
+          ...prevApiKeys,
+          [event.data.model]: true,
+        }));
       }
     });
   }, []);
@@ -111,6 +138,14 @@ const App = () => {
 
   return html`
     <div class="app-container">
+      <div class="app-header">
+        <${BotSelector}
+          onModelSelect=${handleModelSelect}
+          requestApiKey=${requestApiKey}
+          selectedModel=${selectedModel}
+          apiKeys=${apiKeys}
+        />
+      </div>
       <${Messages} messages=${messages} />
       <${Prompt} onSend=${handleSend} baseUrl=${baseUrl} />
     </div>

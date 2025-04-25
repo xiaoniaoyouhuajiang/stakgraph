@@ -42,6 +42,13 @@ body {
   color: var(--text-color);
 }
 
+.app-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px;
+  position: relative;
+}
+
 .content-container {
   display: flex;
   position: relative;
@@ -315,4 +322,129 @@ body {
 
 .loading-indicator svg {
   height: 15px;
+}
+
+/* Bot Selector Styles */
+
+.bot-selector-container {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.bot-icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.bot-icon-button:hover {
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
+.bot-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.bot-selector-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  width: 280px;
+  background-color: var(--editor-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.bot-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bot-selector-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 0 5px;
+}
+
+.bot-selector-models {
+  padding: 12px;
+}
+
+.model-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  transition: background-color 0.2s;
+  font-size: 12px;
+}
+
+.model-option:hover {
+  background-color: rgba(128, 128, 128, 0.1);
+}
+
+.model-option.selected {
+  background-color: rgba(0, 120, 215, 0.1);
+}
+
+.model-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.key-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  position: relative;
+}
+
+.key-button:hover {
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
+.key-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-color);
+}
+
+.key-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  background-color: #4caf50;
+  border-radius: 50%;
 }
