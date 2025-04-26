@@ -116,6 +116,12 @@ impl Graph for ArrayGraph {
         }
     }
 
+    fn get_graph_keys(&self) -> (HashSet<&str>, HashSet<&str>) {
+        let node_keys: HashSet<&str> = self.node_keys.iter().map(|s| s.as_str()).collect();
+        let edge_keys: HashSet<&str> = self.edge_keys.iter().map(|s| s.as_str()).collect();
+        (node_keys, edge_keys)
+    }
+
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         self.nodes
             .iter()

@@ -273,7 +273,7 @@ impl<G: Graph> BackendTester<G> {
     }
 }
 
-fn normalize_path(path: &str) -> String {
+pub fn normalize_path(path: &str) -> String {
     let path_with_slash = if path.starts_with("/") {
         path.to_string()
     } else {

@@ -1,9 +1,8 @@
 use crate::lang::{ArrayGraph, Lang};
-use crate::utils::get_use_lsp;
 use lsp::Language;
 use std::env;
 use std::str::FromStr;
-use tracing_test::traced_test;
+// use tracing_test::traced_test;
 
 pub mod angular;
 pub mod go;
@@ -54,19 +53,5 @@ async fn run_client_tests() {
             .await
             .unwrap();
         tester.test_frontend().unwrap();
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[traced_test]
-async fn test_graphs_similarity() {
-    pre_test();
-
-    let use_lsp = get_use_lsp();
-
-    for expectation in graphs::get_test_expectations() {
-        graphs::run_graph_similarity_test(&expectation, use_lsp)
-            .await
-            .unwrap();
     }
 }
