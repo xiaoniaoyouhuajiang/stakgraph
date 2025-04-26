@@ -68,10 +68,42 @@ impl Stack for ReactTs {
                     name: (property_identifier) @{FUNCTION_NAME} (#not-eq? @{FUNCTION_NAME} "render")
                     parameters: (formal_parameters) @{ARGUMENTS}
                 )
+                (lexical_declaration
+                    (variable_declarator
+                        name: (identifier) @{FUNCTION_NAME}
+                        value: (arrow_function
+                            parameters: (formal_parameters) @{ARGUMENTS}
+                        )
+                    )
+                )
+                (export_statement
+                    (lexical_declaration
+                        (variable_declarator
+                            name: (identifier) @{FUNCTION_NAME}
+                            value: (arrow_function
+                                parameters: (formal_parameters) @{ARGUMENTS}
+                            )
+                        )
+                    )
+                )
+                (export_statement
+                    (function_declaration
+                        name: (identifier) @{FUNCTION_NAME}
+                        parameters: (formal_parameters) @{ARGUMENTS}
+                    )
+                )
                 (variable_declarator
                     name: (identifier) @{FUNCTION_NAME}
                     value: (arrow_function
                         parameters: (formal_parameters) @{ARGUMENTS}
+                    )
+                )
+                (expression_statement
+                    (assignment_expression
+                        left: (identifier) @{FUNCTION_NAME}
+                        right: (arrow_function
+                            parameters: (formal_parameters) @{ARGUMENTS}
+                        )
                     )
                 )
                 (public_field_definition
