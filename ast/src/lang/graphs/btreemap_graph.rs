@@ -2,14 +2,16 @@ use super::{graph::Graph, *};
 use crate::lang::{Function, FunctionCall, Lang};
 use crate::utils::{create_node_key, create_node_key_from_ref, sanitize_string};
 use anyhow::Result;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde::Serialize;
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct BTreeMapGraph {
     pub nodes: BTreeMap<String, Node>,
     pub edges: BTreeSet<(String, String, EdgeType)>,
+    #[serde(skip)]
+    edge_keys: HashSet<String>,
 }
 
 impl Graph for BTreeMapGraph {
@@ -17,6 +19,7 @@ impl Graph for BTreeMapGraph {
         BTreeMapGraph {
             nodes: BTreeMap::new(),
             edges: BTreeSet::new(),
+            edge_keys: HashSet::new(),
         }
     }
 
@@ -46,12 +49,20 @@ impl Graph for BTreeMapGraph {
     fn add_edge(&mut self, edge: Edge) {
         let source_key = create_node_key_from_ref(&edge.source);
         let target_key = create_node_key_from_ref(&edge.target);
+        let edge_key = format!("{}-{}-{:?}", source_key, target_key, edge.edge);
+        self.edge_keys.insert(edge_key);
         self.edges.insert((source_key, target_key, edge.edge));
     }
     fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
         let node = Node::new(node_type.clone(), node_data.clone());
         let node_key = create_node_key(&node);
         self.nodes.insert(node_key.clone(), node);
+    }
+
+    fn get_graph_keys(&self) -> (HashSet<&str>, HashSet<&str>) {
+        let node_keys: HashSet<&str> = self.nodes.keys().map(|k| k.as_str()).collect();
+        let edge_keys: HashSet<&str> = self.edge_keys.iter().map(|s| s.as_str()).collect();
+        (node_keys, edge_keys)
     }
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
@@ -717,6 +728,21 @@ impl Default for BTreeMapGraph {
         BTreeMapGraph {
             nodes: BTreeMap::new(),
             edges: BTreeSet::new(),
+            edge_keys: HashSet::new(),
+        }
+    }
+}
+impl PartialOrd for BTreeMapGraph {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BTreeMapGraph {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.nodes.cmp(&other.nodes) {
+            std::cmp::Ordering::Equal => self.edges.cmp(&other.edges),
+            other_ordering => other_ordering,
         }
     }
 }

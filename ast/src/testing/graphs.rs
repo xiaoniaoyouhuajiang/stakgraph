@@ -2,9 +2,10 @@ use crate::lang::graphs::{BTreeMapGraph, Node, NodeType};
 use crate::lang::{ArrayGraph, EdgeType, Graph, Lang};
 use crate::repo::Repo;
 use anyhow::Result;
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::vec;
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(Clone, Debug)]
 pub struct NodeCheck {
@@ -73,7 +74,6 @@ pub async fn run_graph_similarity_test(
     .unwrap();
     let graph_a = repo_a.build_graph_inner::<ArrayGraph>().await?;
     info!("ArrayGraph Analysis for {}", expectations.lang_id);
-    //graph_a.analysis();
     let array_graph = graph_a.clone();
 
     let lang = Lang::from_str(expectations.lang_id).unwrap();
@@ -89,58 +89,104 @@ pub async fn run_graph_similarity_test(
     let btree_map_graph = graph_b.clone();
 
     info!("BTreeMapGraph Analysis for {}", expectations.lang_id);
-    //graph_b.analysis();
-
-    let nodes_a = graph_a.nodes;
-    let nodes_b: Vec<Node> = graph_b.nodes.values().cloned().collect();
 
     if use_lsp_to_test {
         assert_eq!(
-            nodes_a.len() as u32,
+            array_graph.nodes.len() as u32,
             expectations.expected_lsp_nodes.unwrap(),
             "ArrayGraph node count mismatch"
         );
         assert_eq!(
-            nodes_b.len() as u32,
+            btree_map_graph.nodes.len() as u32,
             expectations.expected_lsp_nodes.unwrap(),
             "BTreeMapGraph node count mismatch"
         );
-    } else {
         assert_eq!(
-            nodes_a.len() as u32,
-            expectations.expected_nodes,
-            "ArrayGraph node count mismatch"
-        );
-        assert_eq!(
-            nodes_b.len() as u32,
-            expectations.expected_nodes,
-            "BTreeMapGraph node count mismatch"
-        );
-    }
-
-    let edges_a = graph_a.edges;
-
-    let edges_b = graph_b.edges;
-
-    if use_lsp_to_test {
-        assert_eq!(
-            edges_a.len() as u32,
+            array_graph.edges.len() as u32,
             expectations.expected_lsp_edges.unwrap(),
             "ArrayGraph edge count mismatch"
         );
         assert_eq!(
-            edges_b.len() as u32,
+            btree_map_graph.edges.len() as u32,
             expectations.expected_lsp_edges.unwrap(),
             "BTreeMapGraph edge count mismatch"
         );
     } else {
         assert_eq!(
-            edges_a.len() as u32,
+            array_graph.nodes.len() as u32,
+            expectations.expected_nodes,
+            "ArrayGraph node count mismatch"
+        );
+        assert_eq!(
+            array_graph.nodes.len() as u32,
+            expectations.expected_nodes,
+            "BTreeMapGraph node count mismatch"
+        );
+        assert_eq!(
+            array_graph.edges.len() as u32,
+            expectations.expected_edges,
+            "ArrayGraph edge count mismatch"
+        );
+
+        assert_eq!(
+            array_graph.edges.len() as u32,
+            expectations.expected_edges,
+            "BTreeMapGraph edge count mismatch"
+        );
+    }
+
+    //Graph difference
+    let (array_graph_nodes, array_graph_edges) = array_graph.get_graph_keys();
+    let (btree_map_graph_nodes, btree_map_graph_edges) = btree_map_graph.get_graph_keys();
+
+    let nodes_only_in_array_graph: HashSet<_> = array_graph_nodes
+        .difference(&btree_map_graph_nodes)
+        .collect();
+    let nodes_only_in_btree_map_graph: HashSet<_> = btree_map_graph_nodes
+        .difference(&array_graph_nodes)
+        .collect();
+
+    let edges_only_in_array_graph: HashSet<_> = array_graph_edges
+        .difference(&btree_map_graph_edges)
+        .collect();
+    let edges_only_in_btree_map_graph: HashSet<_> = btree_map_graph_edges
+        .difference(&array_graph_edges)
+        .collect();
+
+    if !nodes_only_in_array_graph.is_empty() {
+        debug!("Nodes only in ArrayGraph: {:#?}", nodes_only_in_array_graph);
+        debug!(
+            "Nodes only in BTreeMapGraph: {:#?}",
+            nodes_only_in_btree_map_graph
+        );
+    }
+    if !edges_only_in_array_graph.is_empty() {
+        debug!("Edges only in ArrayGraph: {:#?}", edges_only_in_array_graph);
+        debug!(
+            "Edges only in BTreeMapGraph: {:#?}",
+            edges_only_in_btree_map_graph
+        );
+    }
+
+    if use_lsp_to_test {
+        assert_eq!(
+            array_graph.edges.len() as u32,
+            expectations.expected_lsp_edges.unwrap(),
+            "ArrayGraph edge count mismatch"
+        );
+        assert_eq!(
+            btree_map_graph.edges.len() as u32,
+            expectations.expected_lsp_edges.unwrap(),
+            "BTreeMapGraph edge count mismatch"
+        );
+    } else {
+        assert_eq!(
+            array_graph.edges.len() as u32,
             expectations.expected_edges,
             "ArrayGraph edge count mismatch"
         );
         assert_eq!(
-            edges_b.len() as u32,
+            array_graph.edges.len() as u32,
             expectations.expected_edges,
             "BTreeMapGraph edge count mismatch"
         );
@@ -151,8 +197,8 @@ pub async fn run_graph_similarity_test(
     } else {
         &expectations.nodes
     };
-    array_graph.analysis();
-    btree_map_graph.analysis();
+    //array_graph.analysis();
+    //btree_map_graph.analysis();
     for NodeCheck {
         node_type,
         names,
@@ -307,11 +353,6 @@ pub async fn run_graph_similarity_test(
     }
 
     Ok(())
-}
-
-fn print_graph_diff(array_graph_keys: Vec<&str>, btree_graph_keys: Vec<&str>) -> String {
-    let diff = String::new();
-    diff
 }
 
 pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
