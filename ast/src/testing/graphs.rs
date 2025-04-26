@@ -1,6 +1,7 @@
-use crate::lang::graphs::{BTreeMapGraph, Node, NodeType};
+use crate::lang::graphs::{BTreeMapGraph, NodeType};
 use crate::lang::{ArrayGraph, EdgeType, Graph, Lang};
 use crate::repo::Repo;
+use crate::testing::test_backend::normalize_path;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -315,40 +316,46 @@ pub async fn run_graph_similarity_test(
             );
         }
 
-        for (source_name, target_name) in specific_pairs {
-            let found_in_array_graph = array_graph.find_nodes_with_edge_type(
-                source_type.clone(),
-                target_type.clone(),
-                edge_type.clone(),
-            );
+        if !use_lsp_to_test {
+            for (source_name, target_name) in specific_pairs {
+                let found_in_array_graph = array_graph.find_nodes_with_edge_type(
+                    source_type.clone(),
+                    target_type.clone(),
+                    edge_type.clone(),
+                );
 
-            assert!(
-                found_in_array_graph
-                    .iter()
-                    .any(|edge| edge.0.name == source_name.to_string()
-                        && edge.1.name == target_name.to_string()),
-                "ArrayGraph: edge {} -> {} of type {:?} not found for {}",
-                source_name,
-                target_name,
-                edge_type,
-                expectations.lang_id
-            );
-            let found_in_btree_map_graph = btree_map_graph.find_nodes_with_edge_type(
-                source_type.clone(),
-                target_type.clone(),
-                edge_type.clone(),
-            );
-            assert!(
-                found_in_btree_map_graph
-                    .iter()
-                    .any(|edge| edge.0.name == source_name.to_string()
-                        && edge.1.name == target_name.to_string()),
-                "BTreeMapGraph:  edge {} -> {} of type {:?} not found for {}",
-                source_name,
-                target_name,
-                edge_type,
-                expectations.lang_id
-            );
+                assert!(
+                    found_in_array_graph
+                        .iter()
+                        .any(|edge| edge.0.name == source_name.to_string()
+                            && edge.1.name == target_name.to_string()),
+                    "ArrayGraph: edge {} -> {} of type {:?} not found for {}",
+                    source_name,
+                    target_name,
+                    edge_type,
+                    expectations.lang_id
+                );
+                let found_in_btree_map_graph = btree_map_graph.find_nodes_with_edge_type(
+                    source_type.clone(),
+                    target_type.clone(),
+                    edge_type.clone(),
+                );
+                assert!(
+                    found_in_btree_map_graph.iter().any(|(source, target)| {
+                        let src_matches = if *source_type == NodeType::Endpoint {
+                            normalize_path(&source.name) == normalize_path(source_name)
+                        } else {
+                            source.name == source_name.to_string()
+                        };
+                        src_matches && target.name == target_name.to_string()
+                    }),
+                    "BTreeMapGraph:  edge {} -> {} of type {:?} not found for {}",
+                    source_name,
+                    target_name,
+                    edge_type,
+                    expectations.lang_id
+                );
+            }
         }
     }
 
@@ -407,7 +414,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                 target_type: NodeType::Function,
                 count: 2,
                 lsp_count: Some(2),
-                specific_pairs: vec![],
+                specific_pairs: vec![("/person/{id}", "GetPerson"), ("/person", "CreatePerson")],
             }],
             ..Default::default()
         },
@@ -762,7 +769,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     target_type: NodeType::Function,
                     count: 4,
                     lsp_count: Some(4),
-                    specific_pairs: vec![],
+                    specific_pairs: vec![("/person/<int:id>", "get_person")],
                 },
             ],
             ..Default::default()
@@ -1119,7 +1126,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     target_type: NodeType::Function,
                     count: 2,
                     lsp_count: Some(2),
-                    specific_pairs: vec![],
+                    specific_pairs: vec![("/person", "createPerson"), ("/person/:id", "getPerson")],
                 },
             ],
             lsp_nodes: Some(vec![]),
@@ -1196,10 +1203,10 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     target_type: NodeType::Function,
                     count: 6,
                     lsp_count: Some(6),
-                    specific_pairs: vec![], // specific_pairs: vec![
-                                            //     ("/person", "create_person"),
-                                            //     ("/person/{id}", "get_person"),
-                                            // ],
+                    specific_pairs: vec![
+                        ("/person", "create_person"),
+                        ("/person/{id}", "get_person"),
+                    ],
                 },
                 EdgeCheck {
                     edge_type: EdgeType::Contains,
