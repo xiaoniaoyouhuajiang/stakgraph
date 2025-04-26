@@ -436,15 +436,15 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["package.json"],
-                    count: 7,
-                    lsp_count: Some(7),
+                    count: 8,
+                    lsp_count: Some(8),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec!["App", "FormContainer", "FormTitle"],
-                    count: 11,
-                    lsp_count: Some(17),
+                    count: 16,
+                    lsp_count: Some(22),
                     attributes: vec![],
                 },
                 NodeCheck {
