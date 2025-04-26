@@ -1,15 +1,17 @@
 use crate::lang::graphs::{BTreeMapGraph, Node, NodeType};
-use crate::lang::{array_graph, ArrayGraph, EdgeType, Graph, Lang};
+use crate::lang::{ArrayGraph, EdgeType, Graph, Lang};
 use crate::repo::Repo;
 use anyhow::Result;
 use std::str::FromStr;
-use tracing::{debug, info};
+use std::vec;
+use tracing::info;
 
 #[derive(Clone, Debug)]
 pub struct NodeCheck {
     pub node_type: NodeType,
     pub names: Vec<&'static str>,
     pub count: u32,
+    pub lsp_count: Option<u32>,
     pub attributes: Vec<(&'static str, &'static str)>,
 }
 
@@ -19,6 +21,7 @@ pub struct EdgeCheck {
     pub source_type: NodeType,
     pub target_type: NodeType,
     pub count: u32,
+    pub lsp_count: Option<u32>,
     pub specific_pairs: Vec<(&'static str, &'static str)>, // for specific edges
 }
 
@@ -153,25 +156,64 @@ pub async fn run_graph_similarity_test(
     for NodeCheck {
         node_type,
         names,
-        count: _,
+        count,
+        lsp_count,
         attributes: _,
     } in nodes
     {
+        let nodes_count_array_graph = array_graph.find_nodes_by_type(node_type.clone()).len();
+        let nodes_count_btree_map_graph =
+            btree_map_graph.find_nodes_by_type(node_type.clone()).len();
+
+        if use_lsp_to_test {
+            assert_eq!(
+                nodes_count_array_graph as u32,
+                lsp_count.unwrap() as u32,
+                "ArrayGraph: Expected {} nodes of type {:?}, found {} for {}",
+                lsp_count.unwrap(),
+                node_type,
+                nodes_count_array_graph,
+                expectations.lang_id
+            );
+            assert_eq!(
+                nodes_count_btree_map_graph as u32,
+                lsp_count.unwrap() as u32,
+                "BTreeMapGraph: Expected {} nodes of type {:?}, found {} for {}",
+                lsp_count.unwrap(),
+                node_type,
+                nodes_count_btree_map_graph,
+                expectations.lang_id
+            );
+        } else {
+            assert_eq!(
+                nodes_count_array_graph as u32, *count,
+                "ArrayGraph: Expected {} nodes of type {:?}, found {} for {}",
+                count, node_type, nodes_count_array_graph, expectations.lang_id
+            );
+            assert_eq!(
+                nodes_count_btree_map_graph as u32, *count,
+                "BTreeMapGraph: Expected {} nodes of type {:?}, found {} for {}",
+                count, node_type, nodes_count_btree_map_graph, expectations.lang_id
+            );
+        }
+
         for name in names {
             let found_in_array_graph = array_graph.find_nodes_by_name(node_type.clone(), name);
             assert!(
                 found_in_array_graph[0].name == name.to_string(),
-                "ArrayGraph: Node {} of type {:?} not found",
+                "ArrayGraph: Node {} of type {:?} not found for {}",
                 name,
-                node_type
+                node_type,
+                expectations.lang_id
             );
             let found_in_btree_map_graph =
                 btree_map_graph.find_nodes_by_name(node_type.clone(), name);
             assert!(
                 found_in_btree_map_graph[0].name == name.to_string(),
-                "BTreeMapGraph: Node {} of type {:?} not found",
+                "BTreeMapGraph: Node {} of type {:?} not found for {}",
                 name,
-                node_type
+                node_type,
+                expectations.lang_id
             );
         }
     }
@@ -187,6 +229,7 @@ pub async fn run_graph_similarity_test(
         source_type,
         target_type,
         count,
+        lsp_count,
         specific_pairs,
     } in edges
     {
@@ -194,17 +237,37 @@ pub async fn run_graph_similarity_test(
 
         let btree_edges_count = btree_map_graph.count_edges_of_type(edge_type.clone());
 
-        assert_eq!(
-            array_edges_count as u32, *count,
-            "ArrayGraph: Expected {} edges of type {:?}, found {}",
-            count, edge_type, array_edges_count
-        );
-
-        assert_eq!(
-            btree_edges_count as u32, *count,
-            "BTreeMapGraph: Expected {} edges of type {:?}, found {}",
-            count, edge_type, btree_edges_count
-        );
+        if use_lsp_to_test {
+            assert_eq!(
+                array_edges_count as u32,
+                lsp_count.unwrap() as u32,
+                "ArrayGraph: Expected {} edges of type {:?}, found {} for {}",
+                lsp_count.unwrap(),
+                edge_type,
+                array_edges_count,
+                expectations.lang_id
+            );
+            assert_eq!(
+                btree_edges_count as u32,
+                lsp_count.unwrap() as u32,
+                "BTreeMapGraph: Expected {} edges of type {:?}, found {} for {}",
+                lsp_count.unwrap(),
+                edge_type,
+                btree_edges_count,
+                expectations.lang_id
+            );
+        } else {
+            assert_eq!(
+                array_edges_count as u32, *count,
+                "ArrayGraph: Expected {} edges of type {:?}, found {} for {}",
+                count, edge_type, array_edges_count, expectations.lang_id
+            );
+            assert_eq!(
+                btree_edges_count as u32, *count,
+                "BTreeMapGraph: Expected {} edges of type {:?}, found {} for {}",
+                count, edge_type, btree_edges_count, expectations.lang_id
+            );
+        }
 
         for (source_name, target_name) in specific_pairs {
             let found_in_array_graph = array_graph.find_nodes_with_edge_type(
@@ -218,10 +281,11 @@ pub async fn run_graph_similarity_test(
                     .iter()
                     .any(|edge| edge.0.name == source_name.to_string()
                         && edge.1.name == target_name.to_string()),
-                "ArrayGraph: edge {} -> {} of type {:?} not found",
+                "ArrayGraph: edge {} -> {} of type {:?} not found for {}",
                 source_name,
                 target_name,
-                edge_type
+                edge_type,
+                expectations.lang_id
             );
             let found_in_btree_map_graph = btree_map_graph.find_nodes_with_edge_type(
                 source_type.clone(),
@@ -229,22 +293,25 @@ pub async fn run_graph_similarity_test(
                 edge_type.clone(),
             );
             assert!(
-                found_in_btree_map_graph.iter().any(|edge| {
-                    println!(
-                        "{:?} -> {:?} vs {:?} -> {:?}",
-                        edge.0.name, edge.1.name, source_name, target_name
-                    );
-                    edge.0.name == source_name.to_string() && edge.1.name == target_name.to_string()
-                }),
-                "BTreeMapGraph:  edge {} -> {} of type {:?} not found",
+                found_in_btree_map_graph
+                    .iter()
+                    .any(|edge| edge.0.name == source_name.to_string()
+                        && edge.1.name == target_name.to_string()),
+                "BTreeMapGraph:  edge {} -> {} of type {:?} not found for {}",
                 source_name,
                 target_name,
-                edge_type
+                edge_type,
+                expectations.lang_id
             );
         }
     }
 
     Ok(())
+}
+
+fn print_graph_diff(array_graph_keys: Vec<&str>, btree_graph_keys: Vec<&str>) -> String {
+    let diff = String::new();
+    diff
 }
 
 pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
@@ -261,30 +328,35 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["go"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["go.mod"],
-                    count: 1,
+                    count: 4,
+                    lsp_count: Some(4),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Class,
                     names: vec!["database"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::DataModel,
                     names: vec!["Person"],
-                    count: 1,
+                    count: 2,
+                    lsp_count: Some(2),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Endpoint,
                     names: vec!["/person", "/person/{id}"],
                     count: 2,
+                    lsp_count: Some(2),
                     attributes: vec![],
                 },
             ],
@@ -293,7 +365,8 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                 source_type: NodeType::Endpoint,
                 target_type: NodeType::Function,
                 count: 2,
-                specific_pairs: vec![], //TODO: Add Enpoints and Handler
+                lsp_count: Some(2),
+                specific_pairs: vec![],
             }],
             ..Default::default()
         },
@@ -309,24 +382,28 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["react"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["package.json"],
-                    count: 1,
+                    count: 7,
+                    lsp_count: Some(7),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec!["App", "FormContainer", "FormTitle"],
                     count: 11,
+                    lsp_count: Some(17),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Page,
                     names: vec!["/people", "/new-person"],
                     count: 2,
+                    lsp_count: Some(2),
                     attributes: vec![("renders", "App")],
                 },
             ],
@@ -335,6 +412,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                 source_type: NodeType::Page,
                 target_type: NodeType::Function,
                 count: 2,
+                lsp_count: Some(2),
                 specific_pairs: vec![("/people", "People"), ("/new-person", "NewPerson")],
             }],
             ..Default::default()
@@ -349,36 +427,42 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["angular"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["package.json"],
-                    count: 1,
+                    count: 12,
+                    lsp_count: Some(12),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Class,
                     names: vec![],
                     count: 5,
+                    lsp_count: Some(5),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::DataModel,
                     names: vec!["Person"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec!["constructor"],
                     count: 8,
+                    lsp_count: Some(8),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Request,
                     names: vec![],
                     count: 7,
+                    lsp_count: Some(7),
                     attributes: vec![("verb", "GET")],
                 },
             ],
@@ -387,6 +471,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                 source_type: NodeType::Function,
                 target_type: NodeType::Function,
                 count: 8,
+                lsp_count: Some(8),
                 specific_pairs: vec![],
             }],
             ..Default::default()
@@ -401,48 +486,56 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["kotlin"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["build.gradle.kts"],
-                    count: 2,
+                    count: 13,
+                    lsp_count: Some(13),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Library,
                     names: vec![],
                     count: 44,
+                    lsp_count: Some(44),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Import,
                     names: vec![],
                     count: 9,
+                    lsp_count: Some(9),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Class,
                     names: vec!["MainActivity", "ExampleInstrumentedTest"],
                     count: 6,
+                    lsp_count: Some(6),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec!["onCreate", "useAppContext"],
                     count: 19,
+                    lsp_count: Some(19),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::DataModel,
                     names: vec!["Person"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Request,
                     names: vec!["/people", "/person"],
                     count: 2,
+                    lsp_count: Some(2),
                     attributes: vec![("verb", "GET")],
                 },
             ],
@@ -452,6 +545,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::File,
                     target_type: NodeType::Class,
                     count: 112,
+                    lsp_count: Some(112),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -459,6 +553,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Function,
                     target_type: NodeType::Function,
                     count: 13,
+                    lsp_count: Some(13),
                     specific_pairs: vec![],
                 },
             ],
@@ -474,48 +569,56 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["swift"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["Podfile"],
                     count: 8,
+                    lsp_count: Some(8),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec![],
                     count: 8,
+                    lsp_count: Some(8),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Import,
                     names: vec![],
                     count: 7,
+                    lsp_count: Some(7),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Class,
                     names: vec!["API"],
                     count: 7,
+                    lsp_count: Some(7),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec!["application"],
                     count: 26,
+                    lsp_count: Some(26),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::DataModel,
                     names: vec!["Person"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Request,
                     names: vec!["/people"],
                     count: 2,
+                    lsp_count: Some(2),
                     attributes: vec![("verb", "GET")],
                 },
             ],
@@ -525,6 +628,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::File,
                     target_type: NodeType::Class,
                     count: 53,
+                    lsp_count: Some(53),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -532,6 +636,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Function,
                     target_type: NodeType::Function,
                     count: 2,
+                    lsp_count: Some(2),
                     specific_pairs: vec![],
                 },
             ],
@@ -547,42 +652,49 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["python"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["requirements.txt"],
-                    count: 1,
+                    count: 16,
+                    lsp_count: Some(16),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Class,
                     names: vec!["Person"],
                     count: 3,
+                    lsp_count: Some(3),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec![],
-                    count: 8,
+                    count: 16,
+                    lsp_count: Some(16),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::DataModel,
                     names: vec!["Person"],
                     count: 3,
+                    lsp_count: Some(3),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Endpoint,
                     names: vec![],
                     count: 6,
+                    lsp_count: Some(6),
                     attributes: vec![("verb", "GET")],
                 },
                 NodeCheck {
                     node_type: NodeType::Import,
                     names: vec![],
                     count: 12,
+                    lsp_count: Some(12),
                     attributes: vec![],
                 },
             ],
@@ -592,6 +704,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::File,
                     target_type: NodeType::Class,
                     count: 60,
+                    lsp_count: Some(60),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -599,6 +712,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Function,
                     target_type: NodeType::Function,
                     count: 12,
+                    lsp_count: Some(12),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -606,6 +720,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Endpoint,
                     target_type: NodeType::Function,
                     count: 4,
+                    lsp_count: Some(4),
                     specific_pairs: vec![],
                 },
             ],
@@ -621,42 +736,49 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["svelte"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
                     names: vec!["package.json"],
                     count: 7,
+                    lsp_count: Some(7),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Import,
                     names: vec![],
                     count: 7,
+                    lsp_count: Some(7),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Class,
                     names: vec![],
                     count: 2,
+                    lsp_count: Some(2),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec!["addPerson"],
                     count: 6,
+                    lsp_count: Some(6),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::DataModel,
                     names: vec!["Person"],
                     count: 13,
+                    lsp_count: Some(13),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Request,
                     names: vec!["fetchPeople"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
             ],
@@ -666,6 +788,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::File,
                     target_type: NodeType::Function,
                     count: 41,
+                    lsp_count: Some(41),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -673,6 +796,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Function,
                     target_type: NodeType::Function,
                     count: 1,
+                    lsp_count: Some(1),
                     specific_pairs: vec![],
                 },
             ],
@@ -688,30 +812,28 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     node_type: NodeType::Language,
                     names: vec!["ruby"],
                     count: 1,
+                    lsp_count: Some(1),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::File,
-                    names: vec!["Gemfile"],
-                    count: 1,
-                    attributes: vec![],
-                },
-                NodeCheck {
-                    node_type: NodeType::File,
-                    names: vec!["routes.rb"],
-                    count: 9,
+                    names: vec!["Gemfile", "routes.rb"],
+                    count: 15,
+                    lsp_count: Some(15),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Function,
                     names: vec![],
-                    count: 14,
+                    count: 12,
+                    lsp_count: Some(12),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::Class,
                     names: vec![],
-                    count: 3,
+                    count: 7,
+                    lsp_count: Some(7),
                     attributes: vec![],
                 },
                 NodeCheck {
@@ -725,12 +847,14 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                         "/countries/:country_id/process",
                     ],
                     count: 6,
+                    lsp_count: Some(6),
                     attributes: vec![],
                 },
                 NodeCheck {
                     node_type: NodeType::DataModel,
                     names: vec!["people"],
-                    count: 1,
+                    count: 2,
+                    lsp_count: Some(2),
                     attributes: vec![],
                 },
             ],
@@ -740,6 +864,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::File,
                     target_type: NodeType::Class,
                     count: 55,
+                    lsp_count: Some(55),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -747,6 +872,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Class,
                     target_type: NodeType::Function,
                     count: 55,
+                    lsp_count: Some(55),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -754,6 +880,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Endpoint,
                     target_type: NodeType::Function,
                     count: 6,
+                    lsp_count: Some(6),
                     specific_pairs: vec![],
                 },
                 EdgeCheck {
@@ -761,6 +888,7 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
                     source_type: NodeType::Function,
                     target_type: NodeType::Function,
                     count: 4,
+                    lsp_count: Some(4),
                     specific_pairs: vec![],
                 },
             ],
@@ -771,6 +899,94 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             repo_path: "src/testing/java",
             expected_nodes: 37,
             expected_edges: 42,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["java"],
+                    count: 1,
+                    lsp_count: Some(1),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["pom.xml"],
+                    count: 5,
+                    lsp_count: Some(5),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec!["PersonController", "Person"],
+                    count: 3,
+                    lsp_count: Some(3),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec!["getPerson", "createPerson", "main"],
+                    count: 11,
+                    lsp_count: Some(11),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Import,
+                    names: vec![],
+                    count: 4,
+                    lsp_count: Some(4),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["Person"],
+                    count: 1,
+                    lsp_count: Some(1),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Endpoint,
+                    names: vec!["/person", "/person/{id}"],
+                    count: 2,
+                    lsp_count: Some(2),
+                    attributes: vec![("verb", "GET")],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Class,
+                    count: 38,
+                    lsp_count: Some(38),
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::Class,
+                    target_type: NodeType::Function,
+                    count: 38,
+                    lsp_count: Some(38),
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Calls(Default::default()),
+                    source_type: NodeType::Function,
+                    target_type: NodeType::Function,
+                    count: 2,
+                    lsp_count: Some(2),
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Handler,
+                    source_type: NodeType::Endpoint,
+                    target_type: NodeType::Function,
+                    count: 2,
+                    lsp_count: Some(2),
+                    specific_pairs: vec![
+                        ("/person", "createPerson"),
+                        ("/person/{id}", "getPerson"),
+                    ],
+                },
+            ],
             ..Default::default()
         },
         GraphTestExpectations {
@@ -780,13 +996,179 @@ pub fn get_test_expectations() -> Vec<GraphTestExpectations> {
             expected_edges: 47,
             expected_lsp_nodes: Some(45),
             expected_lsp_edges: Some(52),
-            ..Default::default()
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["typescript"],
+                    count: 1,
+                    lsp_count: Some(1),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["package.json"],
+                    count: 6,
+                    lsp_count: Some(6),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Import,
+                    names: vec![],
+                    count: 5,
+                    lsp_count: Some(5),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec![],
+                    count: 6,
+                    lsp_count: Some(9),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec!["SequelizePerson"],
+                    count: 5,
+                    lsp_count: Some(5),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["SequelizePerson", "TypeORMPerson"],
+                    count: 4,
+                    lsp_count: Some(4),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Endpoint,
+                    names: vec!["/person", "/person/:id"],
+                    count: 2,
+                    lsp_count: Some(2),
+                    attributes: vec![("verb", "GET")],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Function,
+                    count: 43,
+                    lsp_count: Some(43),
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Calls(Default::default()),
+                    source_type: NodeType::Function,
+                    target_type: NodeType::Function,
+                    count: 2,
+                    lsp_count: Some(2),
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::Class,
+                    target_type: NodeType::Function,
+                    count: 43,
+                    lsp_count: Some(43),
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Handler,
+                    source_type: NodeType::Endpoint,
+                    target_type: NodeType::Function,
+                    count: 2,
+                    lsp_count: Some(2),
+                    specific_pairs: vec![],
+                },
+            ],
+            lsp_nodes: Some(vec![]),
+            lsp_edges: Some(vec![]),
         },
         GraphTestExpectations {
             lang_id: "rust",
             repo_path: "src/testing/rust",
             expected_nodes: 44,
             expected_edges: 56,
+            nodes: vec![
+                NodeCheck {
+                    node_type: NodeType::Language,
+                    names: vec!["rust"],
+                    count: 1,
+                    lsp_count: Some(1),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::File,
+                    names: vec!["Cargo.toml"],
+                    count: 7,
+                    lsp_count: Some(7),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Import,
+                    names: vec![],
+                    count: 5,
+                    lsp_count: Some(5),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Function,
+                    names: vec!["main"],
+                    count: 19,
+                    lsp_count: Some(19),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::DataModel,
+                    names: vec!["Person"],
+                    count: 2,
+                    lsp_count: Some(2),
+                    attributes: vec![],
+                },
+                NodeCheck {
+                    node_type: NodeType::Endpoint,
+                    names: vec!["/person", "/person/{id}"],
+                    count: 6,
+                    lsp_count: Some(6),
+                    attributes: vec![("verb", "GET")],
+                },
+                NodeCheck {
+                    node_type: NodeType::Class,
+                    names: vec![],
+                    count: 0,
+                    lsp_count: Some(0),
+                    attributes: vec![],
+                },
+            ],
+            edges: vec![
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::Function,
+                    count: 50,
+                    lsp_count: Some(50),
+                    specific_pairs: vec![],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Handler,
+                    source_type: NodeType::Endpoint,
+                    target_type: NodeType::Function,
+                    count: 6,
+                    lsp_count: Some(6),
+                    specific_pairs: vec![], // specific_pairs: vec![
+                                            //     ("/person", "create_person"),
+                                            //     ("/person/{id}", "get_person"),
+                                            // ],
+                },
+                EdgeCheck {
+                    edge_type: EdgeType::Contains,
+                    source_type: NodeType::File,
+                    target_type: NodeType::DataModel,
+                    count: 50,
+                    lsp_count: Some(50),
+                    specific_pairs: vec![],
+                },
+            ],
             ..Default::default()
         },
     ]
