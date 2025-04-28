@@ -94,6 +94,9 @@ const App = () => {
           ...prevApiKeys,
           [event.data.model]: true,
         }));
+      } else if (event.data.type === "init-model-choice") {
+        console.log("=>> initModelChoice", event.data.model);
+        setSelectedModel(event.data.model);
       }
     });
   }, []);
