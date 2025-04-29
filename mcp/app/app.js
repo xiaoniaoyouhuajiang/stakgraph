@@ -36,7 +36,7 @@ const App = () => {
   const [baseUrl, setBaseUrl] = useState("");
   const [selectedModel, setSelectedModel] = useState(null);
   const [apiKeys, setApiKeys] = useState({});
-
+  const [apiToken, setApiToken] = useState(null);
   const handleModelSelect = (model) => {
     setSelectedModel(model);
     console.log(`Selected model: ${model}`);
@@ -83,6 +83,9 @@ const App = () => {
       } else if (event.data.type === "set-base-url") {
         console.log("=>> setBaseUrl", event.data.url);
         setBaseUrl(event.data.url);
+      } else if (event.data.type === "set-api-token") {
+        console.log("=>> setApiToken", event.data.token);
+        setApiToken(event.data.token);
       } else if (event.data.type === "done") {
         // Remove all messages with loading: true
         setMessages((prevMessages) =>
@@ -153,7 +156,7 @@ const App = () => {
         />
       </div>
       <${Messages} messages=${messages} />
-      <${Prompt} onSend=${handleSend} baseUrl=${baseUrl} />
+      <${Prompt} onSend=${handleSend} baseUrl=${baseUrl} apiToken=${apiToken} />
     </div>
   `;
 };

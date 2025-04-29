@@ -7,7 +7,7 @@ import {
 import { Editor, Tooltip, ResultsPane } from "./editor.js";
 import { NODE_TYPE_COLORS, html } from "./utils.js";
 
-export const Prompt = ({ onSend, baseUrl }) => {
+export const Prompt = ({ onSend, baseUrl, apiToken }) => {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipBodyText, setTooltipBodyText] = useState("");
   const [tooltipFilePath, setTooltipFilePath] = useState("");
@@ -145,8 +145,15 @@ export const Prompt = ({ onSend, baseUrl }) => {
           queryParams += "&node_types=File";
         }
 
+        const headers = {};
+        if (apiToken) {
+          headers["x-api-token"] = apiToken;
+        }
         const response = await fetch(
-          `${baseUrl}/search?${queryParams}&limit=40`
+          `${baseUrl}/search?${queryParams}&limit=40`,
+          {
+            headers,
+          }
         );
         if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
@@ -159,7 +166,7 @@ export const Prompt = ({ onSend, baseUrl }) => {
         hideResultsPane();
       }
     },
-    [baseUrl]
+    [baseUrl, apiToken]
   );
 
   const replaceTagWithStyledSpan = useCallback(

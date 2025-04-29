@@ -15,7 +15,11 @@ export function schema(_req: Request, res: Response) {
 }
 
 export function logEndpoint(req: Request, res: Response, next: NextFunction) {
-  console.log(`=> ${req.method} ${req.url}`);
+  if (req.headers["x-api-token"]) {
+    console.log(`=> ${req.method} ${req.url} ${req.headers["x-api-token"]}`);
+  } else {
+    console.log(`=> ${req.method} ${req.url}`);
+  }
   next();
 }
 
