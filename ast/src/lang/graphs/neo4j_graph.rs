@@ -19,9 +19,9 @@ pub struct Neo4jConfig {
 impl Default for Neo4jConfig {
     fn default() -> Self {
         Neo4jConfig {
-            uri: std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string()),
+            uri: std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://neo4j:7687".to_string()),
             username: std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string()),
-            password: std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string()),
+            password: std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string()),
             connection_timeout: Duration::from_secs(30),
             max_connections: 10,
         }
@@ -36,6 +36,13 @@ pub struct Neo4jGraph {
 }
 
 impl Neo4jGraph {
+    pub fn default() -> Self {
+        Neo4jGraph {
+            connection: None,
+            config: Neo4jConfig::default(),
+            connected: Arc::new(Mutex::new(false)),
+        }
+    }
     pub fn with_config(config: Neo4jConfig) -> Self {
         Neo4jGraph {
             connection: None,
