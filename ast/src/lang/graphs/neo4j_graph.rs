@@ -128,3 +128,31 @@ impl Neo4jGraph {
         }
     }
 }
+
+impl Graph for Neo4jGraph {
+    fn new() -> Self {
+        Neo4jGraph {
+            connection: None,
+            config: Neo4jConfig::default(),
+            connected: Arc::new(Mutex::new(false)),
+        }
+    }
+
+    fn with_capacity(_nodes: usize, _edges: usize) -> Self {
+        Neo4jGraph::default()
+    }
+}
+
+//to handle async code in blocking context - sync
+fn block_in_place<F, T>(future: F) -> T
+where
+    F: std::future::Future<Output = T>,
+{
+    match Handle::try_current() {
+        Ok(handle) => tokio::task::block_in_place(|| handle.block_on(future)),
+        Err(_) => {
+            let r = tokio::runtime::Runtime::new().expect("Failed to create runtime");
+            r.block_on(future)
+        }
+    }
+}
