@@ -277,7 +277,8 @@ WHERE file.file IN fileNames
 RETURN startNode,
        allNodes,
        relationships,
-       COLLECT(DISTINCT import) AS imports
+       COLLECT(DISTINCT import) AS imports,
+       COLLECT(DISTINCT file) AS files
 `;
 
 export const PATH_QUERY = `
