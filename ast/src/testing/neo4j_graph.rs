@@ -2,7 +2,6 @@
 use crate::lang::graphs::{neo4j_graph::Neo4jConfig, Neo4jGraph};
 use anyhow::Result;
 
-#[cfg(feature = "neo4j")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 pub async fn test_neo4j() -> Result<()> {

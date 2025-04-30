@@ -8,6 +8,7 @@ pub mod angular;
 pub mod go;
 pub mod graphs;
 pub mod kotlin;
+#[cfg(feature = "neo4j")]
 pub mod neo4j_graph;
 pub mod python;
 pub mod react;
