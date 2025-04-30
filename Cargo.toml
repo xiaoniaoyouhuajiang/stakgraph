@@ -1,3 +1,6 @@
 [workspace]
 
 members = ["ast", "lsp", "skill", "standalone"]
+
+[workspace.features]
+neo4j = ["ast/neo4j"]

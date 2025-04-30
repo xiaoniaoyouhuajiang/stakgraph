@@ -2,9 +2,15 @@ pub mod array_graph;
 pub mod btreemap_graph;
 pub mod graph;
 
+#[cfg(feature = "neo4j")]
+pub mod neo4j_graph;
+
 pub use array_graph::*;
 pub use btreemap_graph::*;
 pub use graph::*;
+
+#[cfg(feature = "neo4j")]
+pub use neo4j_graph::*;
 
 use crate::lang::asg::*;
 use serde::{Deserialize, Serialize};
