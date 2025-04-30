@@ -48,6 +48,7 @@ regex = "1.11.1"
 test-log = "0.*"
 inflection-rs = "0.2.0"
 url = "2.5.4"
+neo4rs = "0.8.0"
 
 
 [[example]]
