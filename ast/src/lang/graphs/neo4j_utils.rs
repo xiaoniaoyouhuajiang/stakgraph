@@ -5,11 +5,25 @@ use tracing::debug;
 
 use crate::{
     lang::{
-        asg::NodeData,
-        graphs::{Edge, EdgeType, Node, NodeType},
+        asg::{NodeData, Operand},
+        graphs::{Edge, EdgeType, Node, NodeType}, FunctionCall,
     },
     utils::create_node_key,
 };
+
+pub async fn execute_query(
+    conn: &Neo4jConnection,
+    query_str: String,
+    params: HashMap<String, String>,
+) -> Result<()> {
+    match conn.execute(query(query_str).with_parameters(params)).await {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            debug!("Neo4j query error: {}", e);
+            Err(anyhow::anyhow!("Neo4j query error: {}", e))
+        }
+    }
+}
 
 pub fn row_to_node_data(
     name: String,
@@ -230,16 +244,523 @@ pub fn find_node_by_key_query(node_key: &str) -> (String, HashMap<String, String
     (query.to_string(), params)
 }
 
-pub async fn execute_query(
-    conn: &Neo4jConnection,
-    query_str: String,
-    params: HashMap<String, String>,
-) -> Result<()> {
-    match conn.execute(query(query_str).with_parameters(params)).await {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            debug!("Neo4j query error: {}", e);
-            Err(anyhow::anyhow!("Neo4j query error: {}", e))
+pub fn node_exists_query(node_key: &str) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("key".to_string(), node_key.to_string());
+
+    let query = "MATCH (n {key: $key}) 
+                       RETURN COUNT(n) > 0 AS exists";
+
+    (query.to_string(), params)
+}
+
+pub fn count_nodes_edges_query() -> String {
+    "MATCH (n) 
+     OPTIONAL MATCH ()-[r]->() 
+     RETURN COUNT(DISTINCT n) as nodes, COUNT(DISTINCT r) as edges"
+        .to_string()
+}
+pub fn graph_analysis_query() -> String {
+    "MATCH (n) 
+     WITH labels(n) as node_type, count(n) as count 
+     RETURN node_type, count ORDER BY count DESC"
+        .to_string()
+}
+pub fn count_edges_by_type_query(edge_type: &EdgeType) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("edge_type".to_string(), edge_type.to_string());
+
+    let query = "MATCH ()-[r]->() 
+                WHERE type(r) = $edge_type 
+                RETURN COUNT(r) as count";
+
+    (query.to_string(), params)
+}
+
+pub fn find_nodes_by_type_query(node_type: &NodeType) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("node_type".to_string(), node_type.to_string());
+
+    let query = format!(
+        "MATCH (n:{}) 
+         RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+pub fn find_nodes_by_name_query(
+    node_type: &NodeType,
+    name: &str,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("name".to_string(), name.to_string());
+
+    let query = format!(
+        "MATCH (n:{}) 
+                       WHERE n.name = $name 
+                       RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_node_by_name_file_query(
+    node_type: &NodeType,
+    name: &str,
+    file: &str,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("name".to_string(), name.to_string());
+    params.insert("file".to_string(), file.to_string());
+
+    let query = format!(
+        "MATCH (n:{}) 
+                       WHERE n.name = $name AND n.file = $file 
+                       RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_nodes_by_file_pattern_query(
+    node_type: &NodeType,
+    file_pattern: &str,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("file_pattern".to_string(), file_pattern.to_string());
+    let query = format!(
+        "MATCH (n:{}) 
+                       WHERE n.file CONTAINS $file_pattern 
+                       RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_nodes_by_name_contains_query(
+    node_type: &NodeType,
+    name_part: &str,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("name_part".to_string(), name_part.to_string());
+
+    let query = format!(
+        "MATCH (n:{}) 
+         WHERE n.name CONTAINS $name_part 
+         RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_nodes_in_range_query(
+    node_type: &NodeType,
+    file: &str,
+    row: u32,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("file".to_string(), file.to_string());
+    params.insert("row".to_string(), row.to_string());
+
+    let query = format!(
+        "MATCH (n:{})
+         WHERE n.file = $file AND 
+               toInteger(n.start) <= toInteger($row) AND 
+               toInteger(n.end) >= toInteger($row)
+         RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_source_edge_by_name_and_file_query(
+    edge_type: &EdgeType,
+    target_name: &str,
+    target_file: &str,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("edge_type".to_string(), edge_type.to_string());
+    params.insert("target_name".to_string(), target_name.to_string());
+    params.insert("target_file".to_string(), target_file.to_string());
+
+    let query = format!(
+        "MATCH (source)-[r:{}]->(target {{name: $target_name, file: $target_file}})
+         RETURN source, labels(source)[0] as node_type
+         LIMIT 1",
+        edge_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_nodes_with_edge_type_query(
+    source_type: &NodeType,
+    target_type: &NodeType,
+    edge_type: &EdgeType,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("edge_type".to_string(), edge_type.to_string());
+
+    let query = format!(
+        "MATCH (source:{})-[r:{}]->(target:{})
+         RETURN source, target",
+        source_type.to_string(),
+        edge_type.to_string(),
+        target_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_resource_nodes_query(
+    node_type: &NodeType,
+    verb: &str,
+    path: &str,
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("path".to_string(), path.to_string());
+    params.insert("verb".to_string(), verb.to_uppercase());
+
+    let query = format!(
+        "MATCH (n:{})
+         WHERE n.name CONTAINS $path AND 
+               (n.verb IS NULL OR toUpper(n.verb) CONTAINS $verb)
+         RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_handlers_for_endpoint_query(endpoint: &NodeData) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("endpoint_name".to_string(), endpoint.name.clone());
+    params.insert("endpoint_file".to_string(), endpoint.file.clone());
+    
+    let query = 
+        "MATCH (endpoint:Endpoint {name: $endpoint_name, file: $endpoint_file})-[:HANDLER]->(handler)
+         RETURN handler";
+    
+    (query.to_string(), params)
+}
+
+pub fn check_direct_data_model_usage_query(
+    function_name: &str, 
+    data_model: &str
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("function_name".to_string(), function_name.to_string());
+    params.insert("data_model".to_string(), data_model.to_string());
+    
+    let query = 
+        "MATCH (f:Function {name: $function_name})-[:CONTAINS]->(n:Datamodel)
+         WHERE n.name CONTAINS $data_model
+         RETURN COUNT(n) > 0 as exists";
+    
+    (query.to_string(), params)
+}
+
+pub fn find_functions_called_by_query(function: &NodeData) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("function_name".to_string(), function.name.clone());
+    params.insert("function_file".to_string(), function.file.clone());
+    params.insert("function_start".to_string(), function.start.to_string());
+    
+    let query = 
+        "MATCH (source:Function {name: $function_name, file: $function_file, start: $function_start})-[:CALLS]->(target:Function)
+         RETURN target";
+    
+    (query.to_string(), params)
+}
+
+pub fn class_inherits_query() -> String {
+    "MATCH (c:Class)
+     WHERE c.parent IS NOT NULL
+     MATCH (parent:Class {name: c.parent})
+     MERGE (parent)-[:PARENT_OF]->(c)"
+        .to_string()
+}
+
+pub fn class_includes_query() -> String {
+    "MATCH (c:Class)
+     WHERE c.includes IS NOT NULL
+     WITH c, split(c.includes, ',') AS modules
+     UNWIND modules AS module
+     MATCH (m:Class {name: trim(module)})
+     MERGE (c)-[:CLASS_IMPORTS]->(m)"
+        .to_string()
+}
+
+pub fn filter_nodes_without_children_query(
+    parent_type: &NodeType,
+    child_type: &NodeType,
+    child_meta_key: &str
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("meta_key".to_string(), child_meta_key.to_string());
+    
+    let query = format!(
+        "MATCH (parent:{})
+         WHERE NOT EXISTS {{
+             MATCH (child:{})
+             WHERE child.{} = parent.name
+         }}
+         DETACH DELETE parent",
+        parent_type.to_string(),
+        child_type.to_string(),
+        child_meta_key
+    );
+    
+    (query, params)
+}
+
+pub fn prefix_paths_query(root: &str) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("root".to_string(), root.to_string());
+    
+    let query = "MATCH (n)
+                WHERE n.file IS NOT NULL AND NOT n.file STARTS WITH $root
+                SET n.file = $root + n.file";
+    
+    (query.to_string(), params)
+}
+
+pub fn create_filtered_graph_query(final_filter: &[String]) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    
+    let files = final_filter.join("','");
+    params.insert("files".to_string(), format!("'{}'", files));
+    
+   
+    let query = 
+        "MATCH (n)
+         WHERE n.file IN [$files] OR labels(n)[0] = 'Repository'
+         RETURN n";
+
+         //TODO: Add edges to the query
+         //TODO: New Graph is to be created with the filtered nodes and edges
+    
+    (query.to_string(), params)
+}
+
+
+
+
+pub fn add_node_with_parent_query(
+    node_type: &NodeType,
+    node_data: &NodeData,
+    parent_type: &NodeType,
+    parent_file: &str,
+) -> Vec<(String, HashMap<String, String>)> {
+    let mut queries = Vec::new();
+
+    queries.push(add_node_query(node_type, node_data));
+
+    let mut params = HashMap::new();
+    params.insert("name".to_string(), node_data.name.clone());
+    params.insert("file".to_string(), node_data.file.clone());
+    params.insert("start".to_string(), node_data.start.to_string());
+    params.insert("parent_file".to_string(), parent_file.to_string());
+
+    let query_str = format!(
+        "MATCH (parent:{} {{file: $parent_file}}),
+               (node:{} {{name: $name, file: $file, start: $start}})
+         MERGE (parent)-[:CONTAINS]->(node)",
+        parent_type.to_string(),
+        node_type.to_string()
+    );
+    queries.push((query_str, params));
+    queries
+}
+
+pub fn add_functions_query(
+    function_node: &NodeData,
+    method_of: Option<&Operand>,
+    reqs: &[NodeData],
+    dms: &[Edge],
+    trait_operand: Option<&Edge>,
+    return_types: &[Edge],
+) -> Vec<(String, HashMap<String, String>)> {
+    let mut queries = Vec::new();
+
+    queries.push(add_node_query(&NodeType::Function, function_node));
+
+    let mut params = HashMap::new();
+    params.insert("function_name".to_string(), function_node.name.clone());
+    params.insert("function_file".to_string(), function_node.file.clone());
+    params.insert(
+        "function_start".to_string(),
+        function_node.start.to_string(),
+    );
+
+    let query_str = format!(
+        "MATCH (function:Function {{name: $function_name, file: $function_file, start: $function_start}}),
+               (file:File {{file: $function_file}})
+         MERGE (file)-[:CONTAINS]->(function)"
+    );
+    queries.push((query_str, params));
+
+    if let Some(operand) = method_of {
+        let edge = (*operand).clone().into();
+        queries.push(add_edge_query(&edge));
+    }
+
+    if let Some(edge) = trait_operand {
+        queries.push(add_edge_query(edge));
+    }
+
+    for edge in return_types {
+        queries.push(add_edge_query(edge));
+    }
+
+    for req in reqs {
+        queries.push(add_node_query(&NodeType::Request, req));
+
+        let mut params = HashMap::new();
+        params.insert("function_name".to_string(), function_node.name.clone());
+        params.insert("function_file".to_string(), function_node.file.clone());
+        params.insert(
+            "function_start".to_string(),
+            function_node.start.to_string(),
+        );
+        params.insert("req_name".to_string(), req.name.clone());
+        params.insert("req_file".to_string(), req.file.clone());
+        params.insert("req_start".to_string(), req.start.to_string());
+        params.insert("call_start".to_string(), req.start.to_string());
+        params.insert("call_end".to_string(), req.end.to_string());
+
+        let query_str = format!(
+            "MATCH (function:Function {{name: $function_name, file: $function_file, start: $function_start}}),
+                   (request:Request {{name: $req_name, file: $req_file, start: $req_start}})
+             MERGE (function)-[:CALLS {{call_start: $call_start, call_end: $call_end}}]->(request)"
+        );
+        queries.push((query_str, params));
+    }
+
+    for dm_edge in dms {
+        queries.push(add_edge_query(dm_edge));
+    }
+    queries
+}
+
+pub fn add_test_node_query(
+    test_data: &NodeData,
+    test_type: &NodeType,
+    test_edge: &Option<Edge>
+) -> Vec<(String, HashMap<String, String>)> {
+    let mut queries = Vec::new();
+   
+    queries.push(add_node_query(test_type, test_data));
+    
+    let mut params = HashMap::new();
+    params.insert("test_name".to_string(), test_data.name.clone());
+    params.insert("test_file".to_string(), test_data.file.clone());
+    params.insert("test_start".to_string(), test_data.start.to_string());
+    
+    let query_str = format!(
+        "MATCH (test:{} {{name: $test_name, file: $test_file, start: $test_start}}),
+               (file:File {{file: $test_file}})
+         MERGE (file)-[:CONTAINS]->(test)",
+        test_type.to_string()
+    );
+    queries.push((query_str, params));
+ 
+    if let Some(edge) = test_edge {
+        queries.push(add_edge_query(edge));
+    }
+    queries
+}
+
+pub fn add_page_query(
+    page_data: &NodeData,
+    edge_opt: &Option<Edge>
+) -> Vec<(String, HashMap<String, String>)> {
+    let mut queries = Vec::new();
+
+    queries.push(add_node_query(&NodeType::Page, page_data));
+  
+    if let Some(edge) = edge_opt {
+        queries.push(add_edge_query(edge));
+    }
+    
+    queries
+}
+
+pub fn add_pages_query(
+    pages: &[(NodeData, Vec<Edge>)]
+) -> Vec<(String, HashMap<String, String>)> {
+    let mut queries = Vec::new();
+    
+    for (page_data, edges) in pages {
+        queries.push(add_node_query(&NodeType::Page, page_data));
+        
+
+        for edge in edges {
+            queries.push(add_edge_query(edge));
         }
     }
+    
+    queries
+}
+
+pub fn add_endpoints_query(
+    endpoints: &[(NodeData, Option<Edge>)]
+) -> Vec<(String, HashMap<String, String>)> {
+    let mut queries = Vec::new();
+
+    for (endpoint_data, handler_edge) in endpoints {
+      
+        queries.push(add_node_query(&NodeType::Endpoint, endpoint_data));
+        
+        if let Some(edge) = handler_edge {
+            queries.push(add_edge_query(edge));
+        }
+    }
+    
+    queries
+}
+
+pub fn add_calls_query(
+    funcs: &[FunctionCall],
+    tests: &[FunctionCall],
+    int_tests: &[Edge]
+) -> Vec<(String, HashMap<String, String>)> {
+    let mut queries = Vec::new();
+    
+    for (func_call, ext_func) in funcs {
+        if let Some(ext_nd) = ext_func {
+            queries.push(add_node_query(&NodeType::Function, ext_nd));
+            let edge = Edge::uses(func_call.source.clone(), ext_nd);
+            queries.push(add_edge_query(&edge));
+        } else {
+           
+            let edge = func_call.clone().into();
+            queries.push(add_edge_query(&edge));
+        }
+    }
+    
+    for (test_call, ext_func) in tests {
+        if let Some(ext_nd) = ext_func {
+            
+            queries.push(add_node_query(&NodeType::Function, ext_nd));
+            
+            let edge = Edge::uses(test_call.source.clone(), ext_nd);
+            queries.push(add_edge_query(&edge));
+        } else {
+            let edge = Edge::new_test_call(test_call.clone());
+            queries.push(add_edge_query(&edge));
+        }
+    }
+   
+    for edge in int_tests {
+        queries.push(add_edge_query(edge));
+    }
+    
+    queries
 }
