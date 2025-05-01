@@ -61,6 +61,7 @@ async fn main() -> Result<()> {
     });
     println!("{}", name);
 
+    //let graph = repos.build_graphs_btree().await?;
     let graph = repos.build_graphs().await?;
 
     if std::env::var("OUTPUT_FORMAT")
