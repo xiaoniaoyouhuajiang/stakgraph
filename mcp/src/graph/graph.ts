@@ -1,7 +1,7 @@
 import { db, Direction, Data_Bank } from "./neo4j.js";
 import archy from "archy";
 import { buildTree, alphabetizeNodeLabels } from "./codemap.js";
-import { extractNodesFromRecord } from "./codebody.js";
+import { extractNodesFromRecord } from "./codebody_files.js";
 import { Neo4jNode, NodeType } from "./types.js";
 import { nameFileOnly, toReturnNode, formatNode } from "./utils.js";
 import { createByModelName } from "@microsoft/tiktokenizer";
