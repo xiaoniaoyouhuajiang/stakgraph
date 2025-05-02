@@ -95,10 +95,10 @@ export async function search(req: Request, res: Response) {
       limit,
       node_types,
       concise,
+      maxTokens || 100000,
       method,
       output || "json",
-      tests,
-      maxTokens || 100000
+      tests
     );
     if (output === "snippet") {
       res.send(result);
