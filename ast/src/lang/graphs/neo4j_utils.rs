@@ -1,15 +1,55 @@
-use anyhow::Result;
-use neo4rs::{query, Graph as Neo4jConnection};
-use std::collections::{BTreeMap, HashMap};
-use tracing::debug;
-
-use crate::{
-    lang::{
-        asg::{NodeData, Operand},
-        graphs::{Edge, EdgeType, Node, NodeType}, FunctionCall,
-    },
-    utils::create_node_key,
+use anyhow::{Context, Result};
+use neo4rs::{query, ConfigBuilder, Graph as Neo4jConnection};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    sync::{Arc, Mutex, Once},
+    time::Duration,
 };
+use tokio::runtime::Handle;
+use tracing::{debug, info};
+
+use super::*;
+
+lazy_static::lazy_static! {
+    static ref CONNECTION: Mutex<Option<Arc<Neo4jConnection>>> = Mutex::new(None);
+    static ref INIT: Once = Once::new();
+}
+
+pub struct Neo4jConnectionManager;
+
+impl Neo4jConnectionManager {
+    pub async fn initialize(uri: &str, username: &str, password: &str) -> Result<()> {
+        let mut conn_guard = CONNECTION.lock().unwrap();
+        if conn_guard.is_some() {
+            return Ok(());
+        }
+        
+        info!("Connecting to Neo4j at {}", uri);
+        let config = ConfigBuilder::new()
+            .uri(uri)
+            .user(username)
+            .password(password)
+            .build()?;
+            
+        match Neo4jConnection::connect(config).await {
+            Ok(connection) => {
+                info!("Successfully connected to Neo4j");
+                *conn_guard = Some(Arc::new(connection));
+                Ok(())
+            },
+            Err(e) => Err(anyhow::anyhow!("Failed to connect to Neo4j: {}", e))
+        }
+    }
+    
+    pub fn get_connection() -> Option<Arc<Neo4jConnection>> {
+        CONNECTION.lock().unwrap().clone()
+    }
+    
+    pub fn clear_connection() {
+        let mut conn = CONNECTION.lock().unwrap();
+        *conn = None;
+    }
+}
 
 pub async fn execute_query(
     conn: &Neo4jConnection,

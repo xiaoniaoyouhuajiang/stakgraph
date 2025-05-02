@@ -14,6 +14,8 @@ use std::{
 use tokio::runtime::Handle;
 use tracing::{debug, info};
 
+use super::neo4j_utils::Neo4jConnectionManager;
+
 #[derive(Clone, Debug)]
 pub struct Neo4jConfig {
     pub uri: String,
@@ -52,6 +54,14 @@ impl Neo4jGraph {
     }
 
     pub async fn connect(&mut self) -> Result<()> {
+        if let Some(conn) = Neo4jConnectionManager::get_connection() {
+            self.connection = Some(conn);
+            if let Ok(mut conn_status) = self.connected.lock() {
+                *conn_status = true;
+            };
+            debug!("Using existing connection from connection manager");
+            return Ok(());
+        }
         if let Ok(conn_status) = self.connected.lock() {
             if *conn_status && self.connection.is_some() {
                 debug!("Already connected to Neo4j database");
@@ -61,25 +71,30 @@ impl Neo4jGraph {
 
         info!("Connecting to Neo4j database at {}", self.config.uri);
 
-        let config = ConfigBuilder::new()
-            .uri(&self.config.uri)
-            .user(&self.config.username)
-            .password(&self.config.password)
-            .max_connections(self.config.max_connections)
-            .build()
-            .context("Failed to build Neo4j configurations")?;
+        // Initialize the connection manager with our config
+        match Neo4jConnectionManager::initialize(
+            &self.config.uri,
+            &self.config.username,
+            &self.config.password,
+        )
+        .await
+        {
+            Ok(_) => {
+                if let Some(conn) = Neo4jConnectionManager::get_connection() {
+                    self.connection = Some(conn);
 
-        match Neo4jConnection::connect(config).await {
-            Ok(graph) => {
-                info!("Successfully connected to Neo4j database");
-                self.connection = Some(Arc::new(graph));
+                    if let Ok(mut conn_status) = self.connected.lock() {
+                        *conn_status = true;
+                    };
 
-                if let Ok(mut conn_status) = self.connected.lock() {
-                    *conn_status = true;
-                };
-
-                //TODO: initialize schema
-                Ok(())
+                    info!("Successfully connected to Neo4j database");
+                    Ok(())
+                } else {
+                    let error_message =
+                        "Failed to get Neo4j connection after initialization".to_string();
+                    debug!("{}", error_message);
+                    Err(anyhow::anyhow!(error_message))
+                }
             }
             Err(e) => {
                 let error_message = format!("Failed to connect to Neo4j database: {}", e);
@@ -91,7 +106,7 @@ impl Neo4jGraph {
 
     pub fn disconnect(&mut self) -> Result<()> {
         if self.connection.is_none() {
-            debug!("Not connnected to Neo4j database");
+            debug!("Not connected to Neo4j database");
             return Ok(());
         }
 
@@ -100,6 +115,8 @@ impl Neo4jGraph {
         if let Ok(mut conn_status) = self.connected.lock() {
             *conn_status = false;
         };
+
+        Neo4jConnectionManager::clear_connection();
 
         info!("Disconnected from Neo4j database");
         Ok(())
@@ -112,18 +129,27 @@ impl Neo4jGraph {
             false
         }
     }
+
     pub async fn ensure_connected(&mut self) -> Result<Arc<Neo4jConnection>> {
+        if let Some(conn) = &self.connection {
+            return Ok(conn.clone());
+        }
+
+        if let Some(conn) = Neo4jConnectionManager::get_connection() {
+            self.connection = Some(conn.clone());
+            if let Ok(mut conn_status) = self.connected.lock() {
+                *conn_status = true;
+            };
+            return Ok(conn);
+        }
+
+        self.connect().await?;
+
         match &self.connection {
             Some(conn) => Ok(conn.clone()),
             None => {
-                self.connect().await?;
-                match &self.connection {
-                    Some(conn) => Ok(conn.clone()),
-                    None => {
-                        debug!("Failed to connect to Neo4j database");
-                        Err(anyhow::anyhow!("Failed to connect to Neo4j database"))
-                    }
-                }
+                debug!("Failed to connect to Neo4j database");
+                Err(anyhow::anyhow!("Failed to connect to Neo4j database"))
             }
         }
     }
@@ -142,41 +168,81 @@ impl Neo4jGraph {
         }
     }
 
+    fn get_connection(&self) -> Arc<Neo4jConnection> {
+        if let Some(conn) = &self.connection {
+            return conn.clone();
+        }
+
+        if let Some(conn) = Neo4jConnectionManager::get_connection() {
+            return conn;
+        }
+
+        debug!("No connection available, creating a fallback connection");
+        self.graph_fallback()
+    }
+
     fn graph_fallback(&self) -> Arc<Neo4jConnection> {
         let config = ConfigBuilder::new()
             .uri(&self.config.uri)
             .user(&self.config.username)
             .password(&self.config.password)
             .build()
-            .expect("Failed to build Neo4j configurations");
+            .expect("Failed to build Neo4j config");
 
         match block_in_place(Neo4jConnection::connect(config)) {
-            Ok(graph) => Arc::new(graph),
-            Err(e) => {
-                debug!("Error connecting to Neo4j: {}", e);
-                panic!("Failed to connect to Neo4j")
+            Ok(graph) => {
+                debug!("Successfully created fallback connection");
+                Arc::new(graph)
             }
-        }
-    }
-    fn get_connection(&self) -> Arc<Neo4jConnection> {
-        if let Some(conn) = &self.connection {
-            conn.clone()
-        } else {
-            debug!("No connection found, creating a new one");
-            self.graph_fallback()
+            Err(e) => {
+                panic!(
+                    "Failed to connect to Neo4j: {}. Please ensure Neo4j is running at {}.",
+                    e, self.config.uri
+                );
+            }
         }
     }
 
     pub fn clear(&mut self) {
-        if let Some(connection) = &self.connection {
-            let query: String = "MATCH (n) DETACH DELETE n".to_string();
-            let params = HashMap::new();
-            if let Err(e) = block_in_place(execute_query(connection, query, params)) {
-                debug!("Error clearing Neo4j graph: {}", e);
-            }
+        let connection = self.get_connection();
+
+        let delete_relationships = "MATCH ()-[r]-() DELETE r";
+        let params1 = HashMap::new();
+
+        if let Err(e) = block_in_place(execute_query(
+            &connection,
+            delete_relationships.to_string(),
+            params1,
+        )) {
+            debug!("Error deleting relationships: {}", e);
         }
+
+        let delete_nodes = "MATCH (n) DELETE n";
+        let params2 = HashMap::new();
+
+        if let Err(e) = block_in_place(execute_query(
+            &connection,
+            delete_nodes.to_string(),
+            params2,
+        )) {
+            debug!("Error deleting nodes: {}", e);
+        }
+
+        info!("Neo4j database cleared");
+    }
+    pub async fn execute_batch(
+        &self,
+        queries: Vec<(String, HashMap<String, String>)>,
+    ) -> Result<()> {
+        if queries.is_empty() {
+            return Ok(());
+        }
+
+        let connection = self.get_connection();
+        execute_batch(&connection, queries).await
     }
 }
+
 impl Default for Neo4jGraph {
     fn default() -> Self {
         Neo4jGraph {
@@ -186,6 +252,7 @@ impl Default for Neo4jGraph {
         }
     }
 }
+
 impl std::fmt::Debug for Neo4jGraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Neo4jGraph")
@@ -195,6 +262,7 @@ impl std::fmt::Debug for Neo4jGraph {
             .finish()
     }
 }
+
 impl Graph for Neo4jGraph {
     fn new() -> Self {
         Neo4jGraph {
