@@ -71,7 +71,8 @@ export async function check_status(req: Request, res: Response) {
 async function processFiles(requestId: string, node_file: any, edge_file: any) {
   jobStatus.set(requestId, { status: "processing" });
   await db.build_graph_from_files(node_file, edge_file);
-  console.log("Graph built and code embedded");
+  await db.update_all_token_counts();
+  console.log("Graph built and token counts updated");
   jobStatus.set(requestId, { status: "completed" });
 }
 
