@@ -46,7 +46,7 @@ impl Stack for Ruby {
             r#"
             (
                 (class
-                    name: (_) @c{CLASS_NAME}
+                    name: (_) @{CLASS_NAME}
                     superclass: (superclass (_) @{CLASS_PARENT})?
                     body: (_)? 
                 ) @{CLASS_DEFINITION}
