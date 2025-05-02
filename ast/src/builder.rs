@@ -27,21 +27,15 @@ impl Repo {
             use crate::lang::graphs::{
                 neo4j_graph::Neo4jGraph, neo4j_utils::Neo4jConnectionManager,
             };
-            use std::any::TypeId;
+            info!("Initializing Neo4j connection pool for graph building");
+            let uri =
+                std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
+            let username = std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
+            let password =
+                std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string());
 
-            if TypeId::of::<G>() == TypeId::of::<Neo4jGraph>() {
-                info!("Initializing Neo4j connection pool for graph building");
-                let uri = std::env::var("NEO4J_URI")
-                    .unwrap_or_else(|_| "bolt://localhost:7687".to_string());
-                let username =
-                    std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
-                let password =
-                    std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string());
-
-                if let Err(e) = Neo4jConnectionManager::initialize(&uri, &username, &password).await
-                {
-                    info!("Failed to initialize Neo4j connection: {}", e);
-                }
+            if let Err(e) = Neo4jConnectionManager::initialize(&uri, &username, &password).await {
+                info!("Failed to initialize Neo4j connection: {}", e);
             }
         }
 

@@ -7,10 +7,12 @@ use std::{
 };
 use tokio::runtime::Handle;
 use tracing::{debug, info};
+use lazy_static::lazy_static;
+use crate::{lang::FunctionCall, utils::create_node_key};
 
 use super::*;
 
-lazy_static::lazy_static! {
+lazy_static! {
     static ref CONNECTION: Mutex<Option<Arc<Neo4jConnection>>> = Mutex::new(None);
     static ref INIT: Once = Once::new();
 }
@@ -158,34 +160,33 @@ pub fn add_edge_query(edge: &Edge) -> (String, HashMap<String, String>) {
 
     let rel_type = edge.edge.to_string();
 
-    let props_clause = match &edge.edge {
+       let props_clause = match &edge.edge {
         EdgeType::Calls(meta) => {
             params.insert("call_start".to_string(), meta.call_start.to_string());
             params.insert("call_end".to_string(), meta.call_end.to_string());
 
             if let Some(operand) = &meta.operand {
                 params.insert("operand".to_string(), operand.clone());
-                "{call_start: $call_start, call_end: $call_end, operand: $operand}"
+                "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
             } else {
-                "{call_start: $call_start, call_end: $call_end}"
+                "r.call_start = $call_start, r.call_end = $call_end"
             }
         }
         _ => "",
     };
 
     let query = format!(
-        "MATCH (source: {} {{name: $source_name, file: $source_file, start: $source_start, verb: $source_verb}}), (target: {} {{name: $target_name, file: $target_file, start: $target_start, verb: $target_verb}})
-        MERGE (source)-[r:{} {}]->(target)
-        ON CREATE SET r = {}
-        ON MATCH SET r = {}",
+        "MATCH (source: {} {{name: $source_name, file: $source_file, start: $source_start}}), (target: {} {{name: $target_name, file: $target_file, start: $target_start}})
+        MERGE (source)-[r:{}]->(target)
+        ON CREATE SET {}
+        ON MATCH SET {}",
         edge.source.node_type.to_string(),
         edge.target.node_type.to_string(),
         rel_type,
-        props_clause,
-        props_clause,
-        props_clause
+        if props_clause.is_empty() { "r.updated = true" } else { props_clause },
+        if props_clause.is_empty() { "r.updated = true" } else { props_clause }
     );
-
+    
     (query, params)
 }
 

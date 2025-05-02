@@ -230,17 +230,6 @@ impl Neo4jGraph {
 
         info!("Neo4j database cleared");
     }
-    pub async fn execute_batch(
-        &self,
-        queries: Vec<(String, HashMap<String, String>)>,
-    ) -> Result<()> {
-        if queries.is_empty() {
-            return Ok(());
-        }
-
-        let connection = self.get_connection();
-        execute_batch(&connection, queries).await
-    }
 }
 
 impl Default for Neo4jGraph {
