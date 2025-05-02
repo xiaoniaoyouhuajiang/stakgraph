@@ -40,31 +40,34 @@ impl Stack for Ruby {
             ) @{LIBRARY}"#
         ))
     }
+
     fn class_definition_query(&self) -> String {
         format!(
-            r#"[
+            r#"
+            (
                 (class
-                    name: [
-                        (constant)
-                        (scope_resolution)
-                    ] @{CLASS_NAME}
-                    (superclass
-                        (constant) @{CLASS_PARENT}
-                    )?
-                    (body_statement
-                        (call
-                            method: (identifier) @call (#eq? @call "include")
-                            arguments: (argument_list) @{INCLUDED_MODULES}
-                        )
-                    )?
+                    name: (_) @c{CLASS_NAME}
+                    superclass: (superclass (_) @{CLASS_PARENT})?
+                    body: (_)? 
+                ) @{CLASS_DEFINITION}
                 )
                 (module
-                    name: [
-                        (constant)
-                        (scope_resolution)
-                    ] @{CLASS_NAME}
+                    name: (constant) @{MODULE_NAME}
+                    (body_statement
+                    (class
+                        name: (constant)@{CLASS_NAME}
+                        superclass: (superclass
+                            (constant)@{CLASS_PARENT}
+                        )?
+                        (body_statement
+                        (call
+                            (argument_list (_)* @{INCLUDED_MODULES} )
+                        )?
+                        )
+                    )@{CLASS_DEFINITION}
+                    )
                 )
-            ] @{CLASS_DEFINITION}"#
+            "#
         )
     }
     fn function_definition_query(&self) -> String {
