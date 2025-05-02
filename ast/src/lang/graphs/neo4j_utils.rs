@@ -1,5 +1,5 @@
 use anyhow::Result;
-use noe4rs::{query, Graph as Neo4jConnection};
+use neo4rs::{query, Graph as Neo4jConnection};
 use std::collections::{BTreeMap, HashMap};
 use tracing::debug;
 
@@ -16,7 +16,14 @@ pub async fn execute_query(
     query_str: String,
     params: HashMap<String, String>,
 ) -> Result<()> {
-    match conn.execute(query(query_str).with_parameters(params)).await {
+    let mut query_obj = query(&query_str);
+    
+    
+    for (key, value) in params {
+        query_obj = query_obj.param(&key, value);
+    }
+    
+    match conn.execute(query_obj).await {
         Ok(_) => Ok(()),
         Err(e) => {
             debug!("Neo4j query error: {}", e);
@@ -172,56 +179,39 @@ pub fn add_edge_query(edge: &Edge) -> (String, HashMap<String, String>) {
 }
 
 pub async fn execute_node_query(
-    connection: &Neo4jConnection,
+    conn: &Neo4jConnection,
     query_str: String,
     params: HashMap<String, String>,
 ) -> Result<Vec<NodeData>> {
-    match connection
-        .execute(query(query_str).with_parameters(params))
-        .await
-    {
+   let mut query_obj = query(&query_str);
+    
+    for (key, value) in params {
+        query_obj = query_obj.param(&key, value);
+    }
+    
+    match conn.execute(query_obj).await {
         Ok(mut result) => {
             let mut nodes = Vec::new();
 
             while let Some(row) = result.next().await? {
-                if let (Ok(name), Ok(file), Ok(start)) = (
-                    row.get::<String>("n.name"),
-                    row.get::<String>("n.file"),
-                    row.get::<i32>("n.start"),
-                ) {
-                    let end = row.get::<i32>("n.end").unwrap_or(0);
-                    let body = row.get::<String>("n.body").unwrap_or_default();
-                    let data_type = row.get::<String>("n.data_type").ok();
-                    let docs = row.get::<String>("n.docs").ok();
-                    let hash = row.get::<String>("n.hash").ok();
-
-                    let props = match row.get::<HashMap<String, String>>("props") {
-                        Ok(p) => p,
-                        Err(_) => HashMap::new(),
-                    };
-
-                    let mut node_data = NodeData {
-                        name,
-                        file,
-                        body,
-                        start: start as usize,
-                        end: end as usize,
-                        data_type,
-                        docs,
-                        hash,
-                        meta: BTreeMap::new(),
-                    };
-
-                    for (key, value) in props {
-                        match key.as_str() {
-                            "name" | "file" | "start" | "end" | "body" | "data_type" | "docs"
-                            | "hash" | "key" => {}
-                            _ => {
-                                node_data.meta.insert(key, value);
-                            }
+                if let Ok(node) = row.get::<neo4rs::Node>("n") {
+                    let props = node.properties;
+                      let name = props.get("name").and_then(|v| v.as_string()).unwrap_or_default();
+                    let file = props.get("file").and_then(|v| v.as_string()).unwrap_or_default();
+                    let start = props.get("start").and_then(|v| v.as_int()).unwrap_or(0) as i32;
+                    
+                  
+                    let mut prop_map = HashMap::new();
+                    for (key, value) in props.iter() {
+                        if let Some(str_val) = value.as_string() {
+                            prop_map.insert(key.to_string(), str_val.to_string());
+                        } else if let Some(int_val) = value.as_int() {
+                            prop_map.insert(key.to_string(), int_val.to_string());
                         }
                     }
-
+                    
+                   
+                    let node_data = row_to_node_data(name, file, start, prop_map);
                     nodes.push(node_data);
                 }
             }
@@ -391,7 +381,7 @@ pub fn find_source_edge_by_name_and_file_query(
 
     let query = format!(
         "MATCH (source)-[r:{}]->(target {{name: $target_name, file: $target_file}})
-         RETURN source, labels(source)[0] as node_type
+         RETURN source.name as name, source.file as file, source.start as start, source.verb as verb
          LIMIT 1",
         edge_type.to_string()
     );
@@ -409,7 +399,7 @@ pub fn find_nodes_with_edge_type_query(
 
     let query = format!(
         "MATCH (source:{})-[r:{}]->(target:{})
-         RETURN source, target",
+         RETURN source.key as source_key, target.key as target_key",
         source_type.to_string(),
         edge_type.to_string(),
         target_type.to_string()
@@ -747,7 +737,7 @@ pub fn add_calls_query(
     
     for (test_call, ext_func) in tests {
         if let Some(ext_nd) = ext_func {
-            
+
             queries.push(add_node_query(&NodeType::Function, ext_nd));
             
             let edge = Edge::uses(test_call.source.clone(), ext_nd);
@@ -763,4 +753,22 @@ pub fn add_calls_query(
     }
     
     queries
+}
+
+pub fn find_endpoint_query(
+    name: &str,
+    file: &str,
+    verb: &str
+) -> (String, HashMap<String, String>) {
+    let mut params = HashMap::new();
+    params.insert("name".to_string(), name.to_string());
+    params.insert("file".to_string(), file.to_string());
+    params.insert("verb".to_string(), verb.to_uppercase());
+
+    let query = 
+        "MATCH (n:Endpoint {name: $name, file: $file})
+         WHERE n.verb IS NULL OR toUpper(n.verb) CONTAINS $verb
+         RETURN n";
+    
+    (query.to_string(), params)
 }
