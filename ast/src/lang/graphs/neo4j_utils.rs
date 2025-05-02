@@ -32,35 +32,6 @@ pub async fn execute_query(
     }
 }
 
-pub fn row_to_node_data(
-    name: String,
-    file: String,
-    start: i32,
-    props: HashMap<String, String>,
-) -> NodeData {
-    let mut node_data = NodeData {
-        name,
-        file,
-        start: start as usize,
-        end: props.get("end").map_or(0, |s| s.parse().unwrap_or(0)),
-        body: props.get("body").map_or(String::new(), |s| s.to_string()),
-        data_type: props.get("data_type").cloned(),
-        docs: props.get("docs").cloned(),
-        hash: props.get("hash").cloned(),
-        meta: BTreeMap::new(),
-    };
-
-    for (key, value) in props {
-        match key.as_str() {
-            "name" | "file" | "start" | "end" | "body" | "data_type" | "docs" | "hash" | "key" => {}
-            _ => {
-                node_data.meta.insert(key, value);
-            }
-        }
-    }
-
-    node_data
-}
 
 pub fn add_node_query(
     node_type: &NodeType,
@@ -195,23 +166,27 @@ pub async fn execute_node_query(
 
             while let Some(row) = result.next().await? {
                 if let Ok(node) = row.get::<neo4rs::Node>("n") {
-                    let props = node.properties;
-                      let name = props.get("name").and_then(|v| v.as_string()).unwrap_or_default();
-                    let file = props.get("file").and_then(|v| v.as_string()).unwrap_or_default();
-                    let start = props.get("start").and_then(|v| v.as_int()).unwrap_or(0) as i32;
-                    
-                  
-                    let mut prop_map = HashMap::new();
-                    for (key, value) in props.iter() {
-                        if let Some(str_val) = value.as_string() {
-                            prop_map.insert(key.to_string(), str_val.to_string());
-                        } else if let Some(int_val) = value.as_int() {
-                            prop_map.insert(key.to_string(), int_val.to_string());
-                        }
-                    }
-                    
+                    let name = node.get::<String>("name").unwrap_or_default();
+                    let file = node.get::<String>("file").unwrap_or_default();
+                    let start = node.get::<i32>("start").unwrap_or_default();
+                    let end = node.get::<i32>("end").unwrap_or_default();
+                    let body = node.get::<String>("body").unwrap_or_default();
+                    let data_type = node.get::<String>("data_type").unwrap_or_default();
+                    let docs = node.get::<String>("docs").unwrap_or_default();
+                    let hash = node.get::<String>("hash").unwrap_or_default();
+                    let meta = node.get::<BTreeMap<String, String>>("meta").unwrap_or_default();
+                    let mut node_data = NodeData {
+                        name,
+                        file,
+                        start: start as usize,
+                        end: end as usize,
+                        body,
+                        data_type: Some(data_type),
+                        docs: Some(docs),
+                        hash: Some(hash),
+                        meta : meta,
+                    };
                    
-                    let node_data = row_to_node_data(name, file, start, prop_map);
                     nodes.push(node_data);
                 }
             }

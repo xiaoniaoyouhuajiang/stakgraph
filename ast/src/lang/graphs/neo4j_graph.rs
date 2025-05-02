@@ -26,7 +26,7 @@ pub struct Neo4jConfig {
 impl Default for Neo4jConfig {
     fn default() -> Self {
         Neo4jConfig {
-            uri: std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://neo4j:7687".to_string()),
+            uri: std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string()),
             username: std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string()),
             password: std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string()),
             connection_timeout: Duration::from_secs(30),
@@ -162,7 +162,18 @@ impl Neo4jGraph {
         if let Some(conn) = &self.connection {
             conn.clone()
         } else {
+            debug!("No connection found, creating a new one");
             self.graph_fallback()
+        }
+    }
+
+    pub fn clear(&mut self) {
+        if let Some(connection) = &self.connection {
+            let query: String = "MATCH (n) DETACH DELETE n".to_string();
+            let params = HashMap::new();
+            if let Err(e) = block_in_place(execute_query(connection, query, params)) {
+                debug!("Error clearing Neo4j graph: {}", e);
+            }
         }
     }
 }

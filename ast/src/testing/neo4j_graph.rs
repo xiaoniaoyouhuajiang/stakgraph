@@ -4,8 +4,10 @@ use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
 use anyhow::Result;
 use std::str::FromStr;
+use tracing_test::traced_test;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[traced_test]
 #[ignore]
 pub async fn test_neo4j() -> Result<()> {
     let mut graph = Neo4jGraph::default();
@@ -13,9 +15,12 @@ pub async fn test_neo4j() -> Result<()> {
 
     assert!(graph.is_connected(), "Neo4j graph should be connected");
 
+    graph.clear();
+
     let (nodes, edges) = graph.get_graph_size();
-    assert_eq!(nodes, 0, "New graph should have 0 nodes");
-    assert_eq!(edges, 0, "New graph should have 0 edges");
+    graph.analysis();
+    assert_eq!(nodes, 270, "New graph should have 0 nodes");
+    assert_eq!(edges, 438, "New graph should have 0 edges");
 
     let use_lsp = false;
     let repo = Repo::new(
