@@ -285,7 +285,7 @@ class Db {
       }));
       console.log(`Found ${data_bank.length} nodes without token counts`);
       for (const node of data_bank) {
-        const tokens = tokenizer.encode(node.body, []);
+        const tokens = tokenizer.encode(node.body || "", []);
         const token_count = tokens.length;
         await session.run(Q.UPDATE_TOKEN_COUNT_QUERY, {
           node_key: node.node_key,
