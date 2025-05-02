@@ -324,7 +324,7 @@ class Db {
     limit: number,
     node_types: NodeType[],
     skip_node_types: NodeType[],
-    maxTokens?: number // Optional parameter for token limit
+    maxTokens: number // Optional parameter for token limit
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
 

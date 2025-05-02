@@ -98,7 +98,7 @@ export async function search(req: Request, res: Response) {
       method,
       output || "json",
       tests,
-      maxTokens
+      maxTokens || 100000
     );
     if (output === "snippet") {
       res.send(result);
