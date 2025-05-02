@@ -40,6 +40,7 @@ app.get("/shortest_path", r.get_shortest_path);
 app.post("/upload", uploads.upload_files);
 app.get("/status/:requestId", uploads.check_status);
 app.get("/embed_code", uploads.embed_code);
+app.get("/update_token_counts", uploads.update_token_counts);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

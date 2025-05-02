@@ -6,6 +6,7 @@ import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
 import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
 import { v4 as uuidv4 } from "uuid";
+import { createByModelName } from "@microsoft/tiktokenizer";
 
 export type Direction = "up" | "down" | "both";
 
@@ -176,7 +177,7 @@ class Db {
   async embed_all_data_bank_bodies() {
     const session = this.driver.session();
     try {
-      const result = await session.run(Q.DATA_BANK_BODIES_QUERY);
+      const result = await session.run(Q.DATA_BANK_BODIES_QUERY_NO_EMBEDDINGS);
       const data_bank = result.records.map((record) => ({
         node_key: record.get("node_key"),
         body: record.get("body"),
@@ -205,11 +206,14 @@ class Db {
       const session = this.driver.session();
       try {
         // Fetch a batch of nodes
-        const result = await session.run(Q.DATA_BANK_BODIES_QUERY, {
-          skip: skip,
-          limit: embed_batch_size,
-          do_files,
-        });
+        const result = await session.run(
+          Q.DATA_BANK_BODIES_QUERY_NO_EMBEDDINGS,
+          {
+            skip: skip,
+            limit: embed_batch_size,
+            do_files,
+          }
+        );
         const nodes = result.records.map((record) => ({
           node_key: record.get("node_key"),
           body: record.get("body"),
@@ -263,6 +267,36 @@ class Db {
     console.log(
       `Embedding process completed. Processed ${batchIndex} batches (${skip} nodes).`
     );
+  }
+
+  async update_all_token_counts() {
+    const session = this.driver.session();
+    try {
+      const tokenizer = await createByModelName("gpt-4");
+      const result = await session.run(
+        Q.DATA_BANK_BODIES_QUERY_NO_TOKEN_COUNT,
+        {
+          do_files: true,
+        }
+      );
+      const data_bank = result.records.map((record) => ({
+        node_key: record.get("node_key"),
+        body: record.get("body"),
+      }));
+      console.log(`Found ${data_bank.length} nodes without token counts`);
+      for (const node of data_bank) {
+        const tokens = tokenizer.encode(node.body, []);
+        const token_count = tokens.length;
+        await session.run(Q.UPDATE_TOKEN_COUNT_QUERY, {
+          node_key: node.node_key,
+          token_count,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating token counts:", error);
+    } finally {
+      await session.close();
+    }
   }
 
   // Main function to process both nodes and edges

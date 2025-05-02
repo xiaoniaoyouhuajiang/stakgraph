@@ -52,7 +52,7 @@ ${COSINE}`;
 
 export const DATA_BANK_QUERY = `MATCH (n:${Data_Bank}) RETURN n`;
 
-export const DATA_BANK_BODIES_QUERY = `
+export const DATA_BANK_BODIES_QUERY_NO_EMBEDDINGS = `
   MATCH (n:${Data_Bank})
   WHERE n.embeddings IS NULL
     AND (($do_files = true) OR NOT n:File)
@@ -69,6 +69,18 @@ export const BULK_UPDATE_EMBEDDINGS_QUERY = `
 UNWIND $batch as item
 MATCH (n:${Data_Bank} {node_key: item.node_key})
 SET n.embeddings = item.embeddings
+`;
+
+export const DATA_BANK_BODIES_QUERY_NO_TOKEN_COUNT = `
+  MATCH (n:${Data_Bank})
+  WHERE n.token_count IS NULL
+    AND (($do_files = true) OR NOT n:File)
+  RETURN n.node_key as node_key, n.body as body
+`;
+
+export const UPDATE_TOKEN_COUNT_QUERY = `
+MATCH (n:${Data_Bank} {node_key: $node_key})
+SET n.token_count = $token_count
 `;
 
 export const PKGS_QUERY = `

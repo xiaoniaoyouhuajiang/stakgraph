@@ -80,3 +80,8 @@ export async function embed_code(req: Request, res: Response) {
   await db.embed_data_bank_bodies(do_files);
   res.json({ status: "completed" });
 }
+
+export async function update_token_counts(req: Request, res: Response) {
+  await db.update_all_token_counts();
+  res.json({ status: "completed" });
+}
