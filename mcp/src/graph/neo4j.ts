@@ -323,14 +323,15 @@ class Db {
     query: string,
     limit: number,
     node_types: NodeType[],
-    skip_node_types: NodeType[]
+    skip_node_types: NodeType[],
+    maxTokens?: number // Optional parameter for token limit
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
 
-    // const compositeQuery = `${query}^8 OR ${query}*`;
     const q = `name:${query}^10 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
     console.log("search query:", q);
     console.log(Q.SEARCH_QUERY_COMPOSITE);
+
     try {
       const result = await session.run(Q.SEARCH_QUERY_COMPOSITE, {
         query: q,
@@ -338,7 +339,7 @@ class Db {
         node_types,
         skip_node_types,
       });
-      return result.records.map((record) => {
+      const nodes = result.records.map((record) => {
         const node = record.get("node");
         return {
           properties: node.properties,
@@ -346,6 +347,24 @@ class Db {
           score: record.get("score"),
         };
       });
+      if (!maxTokens) {
+        return nodes;
+      }
+      // Apply token count filtering if maxTokens is specified
+      let totalTokens = 0;
+      const filteredNodes: Neo4jNode[] = [];
+      for (const node of nodes) {
+        const tokenCount = node.properties.token_count
+          ? parseInt(node.properties.token_count.toString(), 10)
+          : 0;
+        if (totalTokens + tokenCount <= maxTokens) {
+          totalTokens += tokenCount;
+          filteredNodes.push(node);
+        } else {
+          break;
+        }
+      }
+      return filteredNodes;
     } finally {
       await session.close();
     }

@@ -39,7 +39,8 @@ export async function search(
   concise: boolean,
   method: SearchMethod = "fulltext",
   output: OutputFormat = "json",
-  tests: boolean = false
+  tests: boolean = false,
+  maxTokens?: number
 ) {
   if (method === "vector") {
     const result = await db.vectorSearch(query, limit, node_types);
@@ -50,7 +51,8 @@ export async function search(
       query,
       limit,
       node_types,
-      skip_node_types as NodeType[]
+      skip_node_types as NodeType[],
+      maxTokens
     );
     return toNodes(result, concise, output);
   }
