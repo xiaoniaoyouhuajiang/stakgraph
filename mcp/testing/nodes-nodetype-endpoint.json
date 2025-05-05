@@ -4,6 +4,7 @@
     "ref_id": "test_ref_id",
     "properties": {
       "handler": "GetPerson",
+      "token_count": 10,
       "file": "stakwork/demo-repo/routes.go",
       "node_key": "endpoint-personid-stakworkdemoreporoutesgo-21-get",
       "name": "/person/{id}",
@@ -18,6 +19,7 @@
     "ref_id": "test_ref_id",
     "properties": {
       "handler": "CreatePerson",
+      "token_count": 8,
       "file": "stakwork/demo-repo/routes.go",
       "node_key": "endpoint-person-stakworkdemoreporoutesgo-22-post",
       "start": 22,
@@ -32,11 +34,12 @@
     "ref_id": "test_ref_id",
     "properties": {
       "handler": "GetPeople",
+      "token_count": 8,
       "file": "stakwork/demo-repo/routes.go",
       "node_key": "endpoint-people-stakworkdemoreporoutesgo-23-get",
-      "verb": "GET",
-      "name": "/people",
       "start": 23,
+      "name": "/people",
+      "verb": "GET",
       "end": 23,
       "body": "r.Get(\"/people\", GetPeople)"
     }

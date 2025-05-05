@@ -6,6 +6,7 @@ import { create_node_key } from "./utils.js";
 import * as Q from "./queries.js";
 import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
 import { v4 as uuidv4 } from "uuid";
+import { createByModelName } from "@microsoft/tiktokenizer";
 
 export type Direction = "up" | "down" | "both";
 
@@ -176,7 +177,7 @@ class Db {
   async embed_all_data_bank_bodies() {
     const session = this.driver.session();
     try {
-      const result = await session.run(Q.DATA_BANK_BODIES_QUERY);
+      const result = await session.run(Q.DATA_BANK_BODIES_QUERY_NO_EMBEDDINGS);
       const data_bank = result.records.map((record) => ({
         node_key: record.get("node_key"),
         body: record.get("body"),
@@ -205,11 +206,14 @@ class Db {
       const session = this.driver.session();
       try {
         // Fetch a batch of nodes
-        const result = await session.run(Q.DATA_BANK_BODIES_QUERY, {
-          skip: skip,
-          limit: embed_batch_size,
-          do_files,
-        });
+        const result = await session.run(
+          Q.DATA_BANK_BODIES_QUERY_NO_EMBEDDINGS,
+          {
+            skip: skip,
+            limit: embed_batch_size,
+            do_files,
+          }
+        );
         const nodes = result.records.map((record) => ({
           node_key: record.get("node_key"),
           body: record.get("body"),
@@ -265,6 +269,36 @@ class Db {
     );
   }
 
+  async update_all_token_counts() {
+    const session = this.driver.session();
+    try {
+      const tokenizer = await createByModelName("gpt-4");
+      const result = await session.run(
+        Q.DATA_BANK_BODIES_QUERY_NO_TOKEN_COUNT,
+        {
+          do_files: true,
+        }
+      );
+      const data_bank = result.records.map((record) => ({
+        node_key: record.get("node_key"),
+        body: record.get("body"),
+      }));
+      console.log(`Found ${data_bank.length} nodes without token counts`);
+      for (const node of data_bank) {
+        const tokens = tokenizer.encode(node.body || "", []);
+        const token_count = tokens.length;
+        await session.run(Q.UPDATE_TOKEN_COUNT_QUERY, {
+          node_key: node.node_key,
+          token_count,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating token counts:", error);
+    } finally {
+      await session.close();
+    }
+  }
+
   // Main function to process both nodes and edges
   async build_graph_from_files(node_file: string, edge_file: string) {
     const session = this.driver.session();
@@ -289,14 +323,15 @@ class Db {
     query: string,
     limit: number,
     node_types: NodeType[],
-    skip_node_types: NodeType[]
+    skip_node_types: NodeType[],
+    maxTokens: number // Optional parameter for token limit
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
 
-    // const compositeQuery = `${query}^8 OR ${query}*`;
     const q = `name:${query}^10 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
     console.log("search query:", q);
     console.log(Q.SEARCH_QUERY_COMPOSITE);
+
     try {
       const result = await session.run(Q.SEARCH_QUERY_COMPOSITE, {
         query: q,
@@ -304,7 +339,7 @@ class Db {
         node_types,
         skip_node_types,
       });
-      return result.records.map((record) => {
+      const nodes = result.records.map((record) => {
         const node = record.get("node");
         return {
           properties: node.properties,
@@ -312,6 +347,24 @@ class Db {
           score: record.get("score"),
         };
       });
+      if (!maxTokens) {
+        return nodes;
+      }
+      // Apply token count filtering if maxTokens is specified
+      let totalTokens = 0;
+      const filteredNodes: Neo4jNode[] = [];
+      for (const node of nodes) {
+        const tokenCount = node.properties.token_count
+          ? parseInt(node.properties.token_count.toString(), 10)
+          : 0;
+        if (totalTokens + tokenCount <= maxTokens) {
+          totalTokens += tokenCount;
+          filteredNodes.push(node);
+        } else {
+          break;
+        }
+      }
+      return filteredNodes;
     } finally {
       await session.close();
     }

@@ -723,6 +723,33 @@ impl Graph for BTreeMapGraph {
     }
 }
 
+impl BTreeMapGraph {
+    pub fn to_array_graph_edges(&self) -> Vec<Edge> {
+        let mut formatted_edges = Vec::with_capacity(self.edges.len());
+
+        for (src_key, dst_key, edge_type) in &self.edges {
+            if let (Some(src_node), Some(dst_node)) =
+                (self.nodes.get(src_key), self.nodes.get(dst_key))
+            {
+                let edge = Edge {
+                    edge: edge_type.clone(),
+                    source: NodeRef {
+                        node_type: src_node.node_type.clone(),
+                        node_data: NodeKeys::from(&src_node.node_data),
+                    },
+                    target: NodeRef {
+                        node_type: dst_node.node_type.clone(),
+                        node_data: NodeKeys::from(&dst_node.node_data),
+                    },
+                };
+
+                formatted_edges.push(edge);
+            }
+        }
+
+        formatted_edges
+    }
+}
 impl Default for BTreeMapGraph {
     fn default() -> Self {
         BTreeMapGraph {

@@ -22,9 +22,11 @@ pub fn print_json<G: Graph + Serialize + 'static>(graph: &G, name: &str) -> Resu
                 write_json_lines(edgepath, &array_graph.edges)?;
             } else if let Some(btreemap_graph) = as_btreemap_graph(graph) {
                 let nodepath = format!("ast/examples/{}-nodes.jsonl", name);
-                write_json_lines(nodepath, &btreemap_graph.nodes)?;
+                let node_values: Vec<_> = btreemap_graph.nodes.values().collect();
+                write_json_lines(nodepath, &node_values)?;
                 let edgepath = format!("ast/examples/{}-edges.jsonl", name);
-                write_json_lines(edgepath, &btreemap_graph.edges)?;
+                let edge_values = btreemap_graph.to_array_graph_edges();
+                write_json_lines(edgepath, &edge_values)?;
             } else {
                 //seriolize the whole graph otherwise
                 let pretty = serde_json::to_string_pretty(&graph)?;
