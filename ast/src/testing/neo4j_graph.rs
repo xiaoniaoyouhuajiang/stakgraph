@@ -19,8 +19,9 @@ pub async fn test_neo4j() -> Result<()> {
 
     let (nodes, edges) = graph.get_graph_size();
     graph.analysis();
-    assert_eq!(nodes, 270, "New graph should have 0 nodes");
-    assert_eq!(edges, 438, "New graph should have 0 edges");
+    // Fix contradictory assertion
+    assert_eq!(nodes, 0, "Graph should have 0 nodes after clearing");
+    assert_eq!(edges, 0, "Graph should have 0 edges after clearing");
 
     let use_lsp = false;
     let repo = Repo::new(
@@ -36,8 +37,8 @@ pub async fn test_neo4j() -> Result<()> {
 
     graph.analysis();
 
-    assert_eq!(num_nodes, 30, "Expected 64 nodes");
-    assert_eq!(num_edges, 48, "Expected 108 edges");
+    assert_eq!(num_nodes, 30, "Expected 30 nodes");
+    assert_eq!(num_edges, 48, "Expected 48 edges");
 
     graph.disconnect()?;
     assert!(!graph.is_connected(), "Neo4j graph should be disconnected");

@@ -22,7 +22,7 @@ pub struct Neo4jConnectionManager;
 impl Neo4jConnectionManager {
     pub async fn initialize(uri: &str, username: &str, password: &str) -> Result<()> {
         let mut conn_guard = CONNECTION.lock().unwrap();
-        if conn_guard.is_some() {
+        if (conn_guard.is_some()) {
             return Ok(());
         }
         
@@ -53,19 +53,49 @@ impl Neo4jConnectionManager {
     }
 }
 
-pub async fn execute_query(
-    conn: &Neo4jConnection,
-    query_str: String,
+pub struct QueryBuilder {
+    query: String,
     params: HashMap<String, String>,
-) -> Result<()> {
-    let mut query_obj = query(&query_str);
-    
-    
-    for (key, value) in params {
-        query_obj = query_obj.param(&key, value);
+}
+
+impl QueryBuilder {
+ pub fn new(query_string: &str) -> Self {
+        Self {
+            query: query_string.to_string(),
+            params: HashMap::new(),
+        }
     }
     
-    match conn.execute(query_obj).await {
+    pub fn with_param(mut self, key: &str, value: &str) -> Self {
+        self.params.insert(key.to_string(), value.to_string());
+        self
+    }
+    
+    pub fn with_params(mut self, params: HashMap<String, String>) -> Self {
+        self.params.extend(params);
+        self
+    }
+    
+    pub fn build(&self) -> (String, HashMap<String, String>) {
+        (self.query.clone(), self.params.clone())
+    }
+    
+    pub fn to_neo4j_query(&self) -> neo4rs::Query {
+        let mut query_obj = query(&self.query);
+        
+        for (key, value) in &self.params {
+            query_obj = query_obj.param(key, value.as_str());
+        }
+        
+        query_obj
+    }
+}
+
+pub async fn execute_query(
+    conn: &Neo4jConnection,
+    builder: &QueryBuilder,
+) -> Result<()> {
+    match conn.execute(builder.to_neo4j_query()).await {
         Ok(_) => Ok(()),
         Err(e) => {
             debug!("Neo4j query error: {}", e);
@@ -74,120 +104,215 @@ pub async fn execute_query(
     }
 }
 
+pub struct NodeQueryBuilder {
+    node_type: NodeType,
+    node_data: NodeData,
+}
+
+impl NodeQueryBuilder {
+    pub fn new(node_type: &NodeType, node_data: &NodeData) -> Self {
+        Self {
+            node_type: node_type.clone(),
+            node_data: node_data.clone(),
+        }
+    }
+    
+    pub fn build_params(&self) -> HashMap<String, String> {
+        let mut params = HashMap::new();
+
+        params.insert("name".to_string(), self.node_data.name.clone());
+        params.insert("file".to_string(), self.node_data.file.clone());
+        params.insert("start".to_string(), self.node_data.start.to_string());
+        params.insert("end".to_string(), self.node_data.end.to_string());
+        params.insert("body".to_string(), self.node_data.body.clone());
+
+        if let Some(data_type) = &self.node_data.data_type {
+            params.insert("data_type".to_string(), data_type.clone());
+        }
+        if let Some(docs) = &self.node_data.docs {
+            params.insert("docs".to_string(), docs.clone());
+        }
+        if let Some(hash) = &self.node_data.hash {
+            params.insert("hash".to_string(), hash.clone());
+        }
+
+        for (key, value) in &self.node_data.meta {
+            params.insert(key.clone(), value.clone());
+        }
+        
+        let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
+        params.insert("key".to_string(), node_key.clone());
+        
+        params
+    }
+    
+    pub fn build(&self) -> (String, HashMap<String, String>) {
+        let params = self.build_params();
+        
+        let property_list = params
+            .keys()
+            .filter(|k| k != &"key")
+            .map(|k| format!("n.{} = ${}", k, k))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let query = format!(
+            "MERGE (n:{} {{key: $key}})
+            ON CREATE SET {}
+            ON MATCH SET {}",
+            self.node_type.to_string(),
+            property_list,
+            property_list
+        );
+
+        (query, params)
+    }
+}
+pub struct EdgeQueryBuilder {
+    edge: Edge,
+}
+
+impl EdgeQueryBuilder {
+    pub fn new(edge: &Edge) -> Self {
+        Self {
+            edge: edge.clone(),
+        }
+    }
+    
+    pub fn build_params(&self) -> HashMap<String, String> {
+        let mut params = HashMap::new();
+
+        params.insert("source_name".to_string(), self.edge.source.node_data.name.clone());
+        params.insert("source_file".to_string(), self.edge.source.node_data.file.clone());
+        params.insert("source_start".to_string(), self.edge.source.node_data.start.to_string());
+
+        if let Some(verb) = &self.edge.source.node_data.verb {
+            params.insert("source_verb".to_string(), verb.clone());
+        }
+
+        params.insert("target_name".to_string(), self.edge.target.node_data.name.clone());
+        params.insert("target_file".to_string(), self.edge.target.node_data.file.clone());
+        params.insert("target_start".to_string(), self.edge.target.node_data.start.to_string());
+
+        if let Some(verb) = &self.edge.target.node_data.verb {
+            params.insert("target_verb".to_string(), verb.clone());
+        }
+        
+        // Adding edge-specific properties
+        match &self.edge.edge {
+            EdgeType::Calls(meta) => {
+                params.insert("call_start".to_string(), meta.call_start.to_string());
+                params.insert("call_end".to_string(), meta.call_end.to_string());
+
+                if let Some(operand) = &meta.operand {
+                    params.insert("operand".to_string(), operand.clone());
+                }
+            }
+            _ => {}
+        };
+        
+        params
+    }
+    
+    pub fn build(&self) -> (String, HashMap<String, String>) {
+        let params = self.build_params();
+        let rel_type = self.edge.edge.to_string();
+
+        let props_clause = match &self.edge.edge {
+            EdgeType::Calls(_) if params.contains_key("operand") => {
+                "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
+            }
+            EdgeType::Calls(_) => {
+                "r.call_start = $call_start, r.call_end = $call_end"
+            }
+            _ => "",
+        };
+
+        let query = format!(
+            "MATCH (source: {} {{name: $source_name, file: $source_file, start: $source_start}}), (target: {} {{name: $target_name, file: $target_file, start: $target_start}})
+            MERGE (source)-[r:{}]->(target)
+            ON CREATE SET {}
+            ON MATCH SET {}",
+            self.edge.source.node_type.to_string(),
+            self.edge.target.node_type.to_string(),
+            rel_type,
+            if props_clause.is_empty() { "r.updated = true" } else { props_clause },
+            if props_clause.is_empty() { "r.updated = true" } else { props_clause }
+        );
+
+        (query, params)
+    }
+}
+pub async fn execute_batch(
+    conn: &Neo4jConnection,
+    queries: Vec<(String, HashMap<String, String>)>,
+) -> Result<()> {
+    let mut txn = conn.start_txn().await?;
+    
+    for (query_str, params) in queries {
+        let mut query_obj = query(&query_str);
+        for (k, v) in params {
+            query_obj = query_obj.param(&k, v.as_str());
+        }
+        
+        if let Err(e) = txn.run(query_obj).await {
+            debug!("Neo4j query error in batch: {}", e);
+            txn.rollback().await?;
+            return Err(anyhow::anyhow!("Neo4j batch query error: {}", e));
+        }
+    }
+    
+    txn.commit().await?;
+    Ok(())
+}
+pub struct TransactionManager<'a> {
+    conn: &'a Neo4jConnection,
+    queries: Vec<(String, HashMap<String, String>)>,
+}
+
+impl<'a> TransactionManager<'a> {
+    pub fn new(conn: &'a Neo4jConnection) -> Self {
+        Self {
+            conn,
+            queries: Vec::new(),
+        }
+    }
+    
+    pub fn add_query(&mut self, query: (String, HashMap<String, String>)) -> &mut Self {
+        self.queries.push(query);
+        self
+    }
+    
+    pub fn add_queries(&mut self, mut queries: Vec<(String, HashMap<String, String>)>) -> &mut Self {
+        self.queries.append(&mut queries);
+        self
+    }
+    
+    pub fn add_node(&mut self, node_type: &NodeType, node_data: &NodeData) -> &mut Self {
+        self.queries.push(add_node_query(node_type, node_data));
+        self
+    }
+    
+    pub fn add_edge(&mut self, edge: &Edge) -> &mut Self {
+        self.queries.push(add_edge_query(edge));
+        self
+    }
+    
+    pub async fn execute(self) -> Result<()> {
+        execute_batch(self.conn, self.queries).await
+    }
+}
+
 
 pub fn add_node_query(
     node_type: &NodeType,
     node_data: &NodeData,
 ) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-
-    params.insert("name".to_string(), node_data.name.clone());
-    params.insert("file".to_string(), node_data.file.clone());
-    params.insert("start".to_string(), node_data.start.to_string());
-    params.insert("end".to_string(), node_data.end.to_string());
-    params.insert("body".to_string(), node_data.body.clone());
-
-    if let Some(data_type) = &node_data.data_type {
-        params.insert("data_type".to_string(), data_type.clone());
-    }
-    if let Some(docs) = &node_data.docs {
-        params.insert("docs".to_string(), docs.clone());
-    }
-    if let Some(hash) = &node_data.hash {
-        params.insert("hash".to_string(), hash.clone());
-    }
-
-    for (key, value) in &node_data.meta {
-        params.insert(key.clone(), value.clone());
-    }
-    let node_key = create_node_key(&Node::new(node_type.clone(), node_data.clone()));
-    params.insert("key".to_string(), node_key.clone());
-    let property_list = params
-        .keys()
-        .filter(|k| k != &"key")
-        .map(|k| format!("n.{} = ${}", k, k))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let query = format!(
-        "MERGE (n:{} {{key: $key}})
-        ON CREATE SET {}
-        ON MATCH SET {}",
-        node_type.to_string(),
-        property_list,
-        property_list
-    );
-
-    (query, params)
+   NodeQueryBuilder::new(node_type, node_data).build()
 }
 
 pub fn add_edge_query(edge: &Edge) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-
-    params.insert(
-        "source_name".to_string(),
-        edge.source.node_data.name.clone(),
-    );
-    params.insert(
-        "source_file".to_string(),
-        edge.source.node_data.file.clone(),
-    );
-    params.insert(
-        "source_start".to_string(),
-        edge.source.node_data.start.to_string(),
-    );
-
-    if let Some(verb) = &edge.source.node_data.verb {
-        params.insert("source_verb".to_string(), verb.clone());
-    }
-
-    params.insert(
-        "target_name".to_string(),
-        edge.target.node_data.name.clone(),
-    );
-    params.insert(
-        "target_file".to_string(),
-        edge.target.node_data.file.clone(),
-    );
-    params.insert(
-        "target_start".to_string(),
-        edge.target.node_data.start.to_string(),
-    );
-
-    if let Some(verb) = &edge.target.node_data.verb {
-        params.insert("target_verb".to_string(), verb.clone());
-    }
-
-    let rel_type = edge.edge.to_string();
-
-       let props_clause = match &edge.edge {
-        EdgeType::Calls(meta) => {
-            params.insert("call_start".to_string(), meta.call_start.to_string());
-            params.insert("call_end".to_string(), meta.call_end.to_string());
-
-            if let Some(operand) = &meta.operand {
-                params.insert("operand".to_string(), operand.clone());
-                "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
-            } else {
-                "r.call_start = $call_start, r.call_end = $call_end"
-            }
-        }
-        _ => "",
-    };
-
-    let query = format!(
-        "MATCH (source: {} {{name: $source_name, file: $source_file, start: $source_start}}), (target: {} {{name: $target_name, file: $target_file, start: $target_start}})
-        MERGE (source)-[r:{}]->(target)
-        ON CREATE SET {}
-        ON MATCH SET {}",
-        edge.source.node_type.to_string(),
-        edge.target.node_type.to_string(),
-        rel_type,
-        if props_clause.is_empty() { "r.updated = true" } else { props_clause },
-        if props_clause.is_empty() { "r.updated = true" } else { props_clause }
-    );
-    
-    (query, params)
+    EdgeQueryBuilder::new(edge).build()
 }
 
 pub async fn execute_node_query(
@@ -216,7 +341,7 @@ pub async fn execute_node_query(
                     let docs = node.get::<String>("docs").unwrap_or_default();
                     let hash = node.get::<String>("hash").unwrap_or_default();
                     let meta = node.get::<BTreeMap<String, String>>("meta").unwrap_or_default();
-                    let mut node_data = NodeData {
+                    let node_data = NodeData {
                         name,
                         file,
                         start: start as usize,
