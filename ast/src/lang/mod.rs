@@ -140,6 +140,14 @@ impl Lang {
             Ok(Vec::new())
         }
     }
+    pub fn get_varables<G: Graph>(&self, code: &str, file: &str) -> Result<Vec<NodeData>> {
+        if let Some(qo) = self.lang.variables_query() {
+            let qo = self.q(&qo, &NodeType::Var);
+            Ok(self.collect::<G>(&qo, code, file, NodeType::Var)?)
+        } else {
+            Ok(Vec::new())
+        }
+    }
     pub fn get_pages<G: Graph>(
         &self,
         code: &str,

@@ -43,6 +43,45 @@ impl Stack for ReactTs {
             )"#,
         ))
     }
+
+    fn variables_query(&self) -> Option<String> {
+        Some(format!(
+            r#"(program
+                    [
+                        (variable_declaration
+                            (variable_declarator
+                                name: (identifier) @{IDENTIFIER}
+                                value: (_)? @variable_value
+                                type: (_)? @variable_type
+                            )
+                        )
+                        (lexical_declaration
+                            (variable_declarator
+                                name: (identifier) @{IDENTIFIER}
+                                value: (_)? @variable_value
+                                type: (_)? @variable_type
+                            )
+                        )
+                        (export_statement
+                            declaration: (lexical_declaration
+                                (variable_declarator
+                                    name: (identifier) @{IDENTIFIER}
+                                    value: (_)? @variable_value
+                                    type: (_)? @variable_type
+                                )
+                            )
+                        )
+                        (expression_statement
+                            (assignment_expression
+                                left: (identifier) @{IDENTIFIER}
+                                right: (_) @variable_value
+                            )
+                        )
+                    ]+ @{VARIABLE_DECLARATION}
+                )"#,
+        ))
+    }
+
     fn is_component(&self, func_name: &str) -> bool {
         if func_name.len() < 1 {
             return false;

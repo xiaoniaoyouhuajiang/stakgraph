@@ -69,6 +69,9 @@ pub trait Stack {
     fn imports_query(&self) -> Option<String> {
         None
     }
+    fn variables_query(&self) -> Option<String> {
+        None
+    }
     fn trait_query(&self) -> Option<String> {
         None
     }

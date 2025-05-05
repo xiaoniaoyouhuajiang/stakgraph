@@ -208,6 +208,7 @@ impl ToString for NodeType {
             NodeType::DataModel => "Datamodel".to_string(),
             NodeType::Feature => "Feature".to_string(),
             NodeType::Page => "Page".to_string(),
+            NodeType::Var => "Var".to_string(),
         }
     }
 }
