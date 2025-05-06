@@ -45,7 +45,7 @@ impl Stack for ReactTs {
     }
 
     fn variables_query(&self) -> Option<String> {
-        let types = "(string)(number)(object)(array)(true)(false)(new_expression)";
+        let types = "(string)(template_string)(number)(object)(array)(true)(false)(new_expression)";
         Some(format!(
             r#"(program
                     [
