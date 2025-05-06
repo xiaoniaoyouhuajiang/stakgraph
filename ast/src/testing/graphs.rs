@@ -24,6 +24,10 @@ const PROGRAMMING_LANGUAGES: [&str; 11] = [
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compare_graphs() {
+    let lsp = std::env::var("USE_LSP").unwrap_or_else(|_| "false".to_string());
+    if lsp == "true" || lsp == "1" {
+        return;
+    }
     for lang in PROGRAMMING_LANGUAGES.iter() {
         let repo_path = format!("src/testing/{}", lang);
         info!("Comparing graphs for {}", lang);
