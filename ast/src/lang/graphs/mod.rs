@@ -35,6 +35,7 @@ pub enum NodeType {
     DataModel,
     Feature,
     Page,
+    Var,
 }
 
 // pub enum TestType {

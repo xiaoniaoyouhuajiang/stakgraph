@@ -31,6 +31,7 @@ impl Lang {
                     .map(|(nd, _e)| nd)
                     .collect(),
                 NodeType::DataModel => vec![self.format_data_model(&m, code, file, q)?],
+                NodeType::Var => self.format_variables(&m, code, file, q)?,
                 _ => return Err(anyhow::anyhow!("collect: {nt:?} not implemented")),
             };
             res.extend(another);
@@ -94,6 +95,28 @@ impl Lang {
         Self::loop_captures_multi(q, &m, code, |body, node, o| {
             let mut impy = NodeData::in_file(file);
             if o == IMPORTS {
+                impy.name = body.to_string();
+                impy.body = body;
+                impy.start = node.start_position().row;
+                impy.end = node.end_position().row;
+                res.push(impy);
+            }
+
+            Ok(())
+        })?;
+        Ok(res)
+    }
+    pub fn format_variables(
+        &self,
+        m: &QueryMatch,
+        code: &str,
+        file: &str,
+        q: &Query,
+    ) -> Result<Vec<NodeData>> {
+        let mut res = Vec::new();
+        Self::loop_captures_multi(q, &m, code, |body, node, o| {
+            let mut impy = NodeData::in_file(file);
+            if o == IDENTIFIER {
                 impy.name = body.to_string();
                 impy.body = body;
                 impy.start = node.start_position().row;

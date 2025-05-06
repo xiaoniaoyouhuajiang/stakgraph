@@ -207,6 +207,23 @@ impl Repo {
         info!("=> got {} import sections", i);
 
         i = 0;
+        info!("=> get_varables...");
+        for (filename, code) in &filez {
+            let variables = self.lang.get_varables::<G>(&code, &filename)?;
+
+            i += variables.len();
+            for variable in variables {
+                graph.add_node_with_parent(
+                    NodeType::Var,
+                    variable.clone(),
+                    NodeType::File,
+                    &variable.file,
+                );
+            }
+        }
+        info!("=> got {} all variables", i);
+
+        i = 0;
         info!("=> get_classes...");
         for (filename, code) in &filez {
             let classes = self.lang.get_classes::<G>(&code, &filename)?;
