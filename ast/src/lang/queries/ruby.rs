@@ -444,6 +444,9 @@ impl Stack for Ruby {
             None
         }
     }
+    fn direct_class_calls(&self) -> bool {
+        true
+    }
 }
 
 fn remove_all_extensions(path: &Path) -> String {

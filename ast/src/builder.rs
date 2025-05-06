@@ -419,7 +419,6 @@ impl Repo {
                     .get_function_calls(&code, &filename, &graph, &self.lsp_tx)
                     .await?;
                 i += all_calls.0.len();
-
                 graph.add_calls(all_calls);
             }
             info!("=> got {} function calls", i);

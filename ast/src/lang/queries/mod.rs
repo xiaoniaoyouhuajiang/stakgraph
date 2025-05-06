@@ -242,6 +242,9 @@ pub trait Stack {
         None
     }
     fn clean_graph(&self, _callback: &mut dyn FnMut(NodeType, NodeType, &str)) {}
+    fn direct_class_calls(&self) -> bool {
+        false
+    }
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {
