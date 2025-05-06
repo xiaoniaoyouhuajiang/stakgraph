@@ -114,18 +114,23 @@ impl Lang {
         q: &Query,
     ) -> Result<Vec<NodeData>> {
         let mut res = Vec::new();
-        Self::loop_captures_multi(q, &m, code, |body, node, o| {
-            let mut impy = NodeData::in_file(file);
-            if o == IDENTIFIER {
-                impy.name = body.to_string();
-                impy.body = body;
-                impy.start = node.start_position().row;
-                impy.end = node.end_position().row;
-                res.push(impy);
+        let mut v = NodeData::in_file(file);
+        Self::loop_captures(q, &m, code, |body, node, o| {
+            if o == VARIABLE_NAME {
+                v.name = body.to_string();
+            } else if o == VARIABLE_DECLARATION {
+                v.body = body;
+                v.start = node.start_position().row;
+                v.end = node.end_position().row;
+            } else if o == VARIABLE_TYPE {
+                v.data_type = Some(body);
             }
 
             Ok(())
         })?;
+        if !v.name.is_empty() && !v.body.is_empty() {
+            res.push(v);
+        }
         Ok(res)
     }
     pub fn collect_pages<G: Graph>(

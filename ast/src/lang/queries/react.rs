@@ -45,36 +45,37 @@ impl Stack for ReactTs {
     }
 
     fn variables_query(&self) -> Option<String> {
+        let types = "(string)(number)(object)(array)(true)(false)(new_expression)";
         Some(format!(
             r#"(program
                     [
                         (variable_declaration
                             (variable_declarator
-                                name: (identifier) @{IDENTIFIER}
-                                value: (_)? @variable_value
-                                type: (_)? @variable_type
+                                name: (identifier) @{VARIABLE_NAME}
+                                value: [{types}] @variable_value
+                                type: (_)? @{VARIABLE_TYPE}
                             )
                         )
                         (lexical_declaration
                             (variable_declarator
-                                name: (identifier) @{IDENTIFIER}
-                                value: (_)? @variable_value
-                                type: (_)? @variable_type
+                                name: (identifier) @{VARIABLE_NAME}
+                                value: [{types}] @variable_value
+                                type: (_)? @{VARIABLE_TYPE}
                             )
                         )
                         (export_statement
                             declaration: (lexical_declaration
                                 (variable_declarator
-                                    name: (identifier) @{IDENTIFIER}
-                                    value: (_)? @variable_value
-                                    type: (_)? @variable_type
+                                    name: (identifier) @{VARIABLE_NAME}
+                                    value: [{types}] @variable_value
+                                    type: (_)? @{VARIABLE_TYPE}
                                 )
                             )
                         )
                         (expression_statement
                             (assignment_expression
-                                left: (identifier) @{IDENTIFIER}
-                                right: (_) @variable_value
+                                left: (identifier) @{VARIABLE_NAME}
+                                right: [{types}] @variable_value
                             )
                         )
                     ]+ @{VARIABLE_DECLARATION}
