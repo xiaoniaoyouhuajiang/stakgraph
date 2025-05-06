@@ -51,6 +51,13 @@ impl Neo4jConnectionManager {
         let mut conn = CONNECTION.lock().unwrap();
         *conn = None;
     }
+    pub async fn initialize_from_env() -> Result<()> {
+        let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
+        let username = std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
+        let password = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string());
+
+        Self::initialize(&uri, &username, &password).await
+    }
 }
 
 pub struct QueryBuilder {

@@ -24,17 +24,8 @@ impl Repo {
     pub async fn build_graph_inner<G: Graph>(&self) -> Result<G> {
         #[cfg(feature = "neo4j")]
         {
-            use crate::lang::graphs::{
-                neo4j_graph::Neo4jGraph, neo4j_utils::Neo4jConnectionManager,
-            };
-            info!("Initializing Neo4j connection pool for graph building");
-            let uri =
-                std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
-            let username = std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
-            let password =
-                std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string());
-
-            if let Err(e) = Neo4jConnectionManager::initialize(&uri, &username, &password).await {
+            use crate::lang::graphs::neo4j_utils::Neo4jConnectionManager;
+            if let Err(e) = Neo4jConnectionManager::initialize_from_env().await {
                 info!("Failed to initialize Neo4j connection: {}", e);
             }
         }
