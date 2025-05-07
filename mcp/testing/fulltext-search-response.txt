@@ -97,60 +97,6 @@ func main() {
 ```
 </snippet>
 <snippet>
-name: Import: import-importcontextfmtosossignalsyscalltimeadddotenvgithubcomjohogodotenvautoload-maingo-2
-ref_id: test_ref_id
-file: stakwork/demo-repo/main.go
-start: 2, end: 12
-```
-import (
-	"context"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	// add dotenv
-	_ "github.com/joho/godotenv/autoload"
-)
-```
-</snippet>
-<snippet>
-name: Import: import-importosgormiodriverpostgresgormiogorm-dbgo-2
-ref_id: test_ref_id
-file: stakwork/demo-repo/db.go
-start: 2, end: 7
-```
-import (
-	"os"
-
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-)
-```
-</snippet>
-<snippet>
-name: Import: import-importencodingjsonfmtionethttposstrconvtimegithubcomgochichigithubcomgochichimiddlewaregithubcomrscors-routesgo-2
-ref_id: test_ref_id
-file: stakwork/demo-repo/routes.go
-start: 2, end: 14
-```
-import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"strconv"
-	"time"
-
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	"github.com/rs/cors"
-)
-```
-</snippet>
-<snippet>
 name: File: routes.go
 ref_id: test_ref_id
 file: stakwork/demo-repo/routes.go

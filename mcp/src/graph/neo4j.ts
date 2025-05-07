@@ -330,8 +330,11 @@ class Db {
 
     const q = `name:${query}^10 OR file:*${query}^5 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
     console.log("===> search query:", q, `node_types: ${node_types}`);
-    // console.log(Q.SEARCH_QUERY_COMPOSITE);
 
+    // skip Import nodes
+    if (!skip_node_types.includes("Import")) {
+      skip_node_types.push("Import");
+    }
     try {
       const result = await session.run(Q.SEARCH_QUERY_COMPOSITE, {
         query: escapeLuceneQuery(q),
