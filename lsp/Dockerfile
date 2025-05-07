@@ -27,6 +27,7 @@ RUN curl -O https://dl.google.com/go/go1.23.2.linux-amd64.tar.gz
 RUN tar xvf go1.23.2.linux-amd64.tar.gz
 RUN chown -R root:root ./go
 RUN mv go /root
+ENV GOROOT=/root/go
 ENV GOPATH=/root/go
 ENV PATH=$PATH:$GOROOT/bin:/root/go/bin
 RUN go install -v golang.org/x/tools/gopls@v0.16.2
