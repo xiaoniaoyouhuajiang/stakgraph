@@ -328,8 +328,10 @@ class Db {
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
 
-    const q = `name:${query}^10 OR file:*${query}^5 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
+    const q = `name:${query}^10 OR file:*${query}^4 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
     console.log("===> search query:", q, `node_types: ${node_types}`);
+    const q_escaped = prepareFulltextSearchQuery(q);
+    console.log("===> search query escaped:", q_escaped);
 
     // skip Import nodes
     if (!skip_node_types.includes("Import")) {
@@ -337,7 +339,7 @@ class Db {
     }
     try {
       const result = await session.run(Q.SEARCH_QUERY_COMPOSITE, {
-        query: escapeLuceneQuery(q),
+        query: q_escaped,
         limit,
         node_types,
         skip_node_types,
@@ -526,20 +528,70 @@ async function execute_batch(session: Session, batch: MergeQuery[]) {
     throw error;
   }
 }
+/**
+ * Prepares a fulltext search query for Neo4j by properly handling special characters
+ *
+ * @param searchQuery - The original search query
+ * @returns A properly formatted search query for Neo4j fulltext search
+ */
+export function prepareFulltextSearchQuery(searchQuery: string): string {
+  // If the query is very simple (no special operators), return it as is
+  if (!/[:^*]/.test(searchQuery)) {
+    return searchQuery;
+  }
+
+  // For queries with field specifications and boosting, handle with care
+  const parts = searchQuery.split(/ OR /);
+
+  const processedParts = parts.map((part) => {
+    // Check if this part has a field specification (contains a colon)
+    const colonIndex = part.indexOf(":");
+    if (colonIndex === -1) {
+      return escapeSearchTerm(part);
+    }
+
+    // Extract field name and search value
+    const fieldName = part.substring(0, colonIndex);
+    let remaining = part.substring(colonIndex + 1);
+
+    // Handle boosting factor if present
+    let boostFactor = "";
+    const boostMatch = remaining.match(/\^(\d+)$/);
+    if (boostMatch) {
+      boostFactor = boostMatch[0]; // e.g., "^10"
+      remaining = remaining.substring(0, remaining.length - boostFactor.length);
+    }
+
+    // Handle wildcards carefully
+    if (remaining.includes("*")) {
+      // Preserve the wildcards, but escape other special characters
+      const segments = remaining.split("*");
+      const escapedSegments = segments.map((seg) => escapeSearchTerm(seg));
+      remaining = escapedSegments.join("*");
+    } else {
+      // No wildcards, just escape the term
+      remaining = escapeSearchTerm(remaining);
+    }
+
+    // Reconstruct the part
+    return `${fieldName}:${remaining}${boostFactor}`;
+  });
+
+  return processedParts.join(" OR ");
+}
 
 /**
- * Escapes special characters in a Lucene query string for Neo4j fulltext search
- *
- * @param queryString - The original query string to escape
- * @returns The escaped query string safe for Neo4j fulltext search
+ * Escapes only the characters that need escaping in search terms
+ * (not field names, operators, or wildcards)
  */
-export function escapeLuceneQuery(queryString: string): string {
-  // First, create a regex pattern with all special characters that need escaping
-  const specialChars = [
+function escapeSearchTerm(term: string): string {
+  // Characters that should be escaped in the actual search term
+  // Note: * is handled separately to preserve wildcards
+  const charsToEscape = [
     "+",
     "-",
-    "&&",
-    "||",
+    "&",
+    "|",
     "!",
     "(",
     ")",
@@ -550,50 +602,19 @@ export function escapeLuceneQuery(queryString: string): string {
     "^",
     '"',
     "~",
-    "*",
     "?",
     ":",
     "\\",
     "/",
   ];
-  // We'll build a regex to match any of these characters
-  const pattern = new RegExp(
-    specialChars
-      .map((char) =>
-        // Escape regex special chars in our pattern
-        char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-      )
-      .join("|"),
-    "g"
-  );
-  // Replace all matches with escaped versions
-  return queryString.replace(pattern, "\\$&");
-}
 
-/**
- * Processes a fulltext search parameter for Neo4j, handling all escaping properly
- *
- * @param searchParams - The original search parameter string
- * @returns The properly escaped search parameter ready for Neo4j fulltext search
- */
-export function prepareFulltextSearchParam(searchParams: string): string {
-  // Split the search param by "OR" to handle each part individually
-  const parts = searchParams.split(/ OR /);
+  let result = term;
+  for (const char of charsToEscape) {
+    // Create a regex that globally matches the character
+    const regex = new RegExp(`\\${char}`, "g");
+    // Replace with escaped version
+    result = result.replace(regex, `\\${char}`);
+  }
 
-  // Process each part
-  const processedParts = parts.map((part) => {
-    // Find field name and search term
-    const matches = part.match(/([^:]+):(.*)/);
-    if (!matches) return part; // If no colon, return as is
-
-    const [, fieldName, searchTerm] = matches;
-    // Escape the search term
-    const escapedTerm = escapeLuceneQuery(searchTerm);
-
-    // Return the field name with the escaped search term
-    return `${fieldName}:${escapedTerm}`;
-  });
-
-  // Join the processed parts back with "OR"
-  return processedParts.join(" OR ");
+  return result;
 }
