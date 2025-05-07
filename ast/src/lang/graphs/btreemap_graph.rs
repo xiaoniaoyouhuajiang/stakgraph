@@ -31,7 +31,7 @@ impl Graph for BTreeMapGraph {
     }
     fn analysis(&self) {
         for (src_key, dst_key, edge_type) in &self.edges {
-            println!("Edge: {:?} -> {:?} type: {:?}", src_key, dst_key, edge_type);
+            println!("Edge: {:?}: {:?} -> {:?}", edge_type, src_key, dst_key);
         }
         for (node_key, node) in &self.nodes {
             println!("Node: {:?} type: {:?}", node_key, node.node_type);
@@ -377,6 +377,9 @@ impl Graph for BTreeMapGraph {
                     NodeRef::from(fc.source.clone(), NodeType::Function),
                     NodeRef::from(class_call.into(), NodeType::Class),
                 ));
+            }
+            if fc.target.is_empty() {
+                continue; // might have empty target if it's a class call only
             }
             if let Some(ext_nd) = ext_func {
                 let ext_node = Node::new(NodeType::Function, ext_nd.clone());

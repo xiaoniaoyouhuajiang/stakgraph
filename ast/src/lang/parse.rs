@@ -877,8 +877,9 @@ impl Lang {
             }
             Ok(())
         })?;
-        // target must be found
-        if fc.target.is_empty() {
+        // target must be found OR class call
+        if fc.target.is_empty() && class_call.is_none() {
+            // NOTE should we only do the class call if there is no direct function target?
             return Ok(None);
         }
         Ok(Some((fc, external_func, class_call)))
