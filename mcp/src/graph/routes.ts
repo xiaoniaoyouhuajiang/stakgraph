@@ -89,7 +89,9 @@ export async function search(req: Request, res: Response) {
     const output = req.query.output as G.OutputFormat;
     let tests = isTrue(req.query.tests as string);
     const maxTokens = parseInt(req.query.max_tokens as string);
-    console.log("search with max tokens", maxTokens);
+    if (maxTokens) {
+      console.log("search with max tokens", maxTokens);
+    }
     const result = await G.search(
       query,
       limit,

@@ -4,7 +4,7 @@ export const Data_Bank = "Data_Bank";
 export const KEY_INDEX = "data_bank_node_key_index";
 export const FULLTEXT_BODY_INDEX = "bodyIndex";
 export const FULLTEXT_NAME_INDEX = "nameIndex";
-export const FULLTEXT_COMPOSITE_INDEX = "compositeIndex";
+export const FULLTEXT_COMPOSITE_INDEX = "nameBodyFileIndex";
 export const VECTOR_INDEX = "vectorIndex";
 
 export const KEY_INDEX_QUERY = `CREATE INDEX ${KEY_INDEX} IF NOT EXISTS FOR (n:${Data_Bank}) ON (n.node_key)`;
@@ -42,7 +42,7 @@ ${STANDARD_ANALYZER}`;
 export const FULLTEXT_COMPOSITE_INDEX_QUERY = `
 CREATE FULLTEXT INDEX ${FULLTEXT_COMPOSITE_INDEX}
   IF NOT EXISTS FOR (f:${Data_Bank})
-  ON EACH [f.name, f.body]
+  ON EACH [f.name, f.body, f.file]
 ${STANDARD_ANALYZER}`;
 
 export const VECTOR_INDEX_QUERY = `CREATE VECTOR INDEX ${VECTOR_INDEX}
