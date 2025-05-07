@@ -381,6 +381,9 @@ impl Graph for ArrayGraph {
                     NodeRef::from(class_call.into(), NodeType::Class),
                 ));
             }
+            if fc.target.is_empty() {
+                continue; // might have empty target if it's a class call only
+            }
             if let Some(ext_nd) = ext_func {
                 self.add_edge(Edge::uses(fc.source, &ext_nd));
                 // don't add if it's already in the graph
