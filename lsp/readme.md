@@ -15,3 +15,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t stakgraph-lsp -f lsp/D
 in top level dir of this repo:
 
 docker run --rm -it --entrypoint "/bin/bash" -v .:/root/stakgraph stakgraph-lsp
+
+cd /root/stakgraph
+
+cargo test ruby_test
