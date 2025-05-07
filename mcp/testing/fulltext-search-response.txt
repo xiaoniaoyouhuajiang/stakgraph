@@ -43,6 +43,206 @@ func main() {
 
 	router := NewRouter()
 
+	shutdownSignal := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
+	<-shutdownSignal
+
+	// shutdown web server
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := router.Shutdown(ctx); err != nil {
+		fmt.Printf("error shutting down server: %s", err.Error())
+	}
+}
+```
+</snippet>
+<snippet>
+name: File: main.go
+ref_id: test_ref_id
+file: stakwork/demo-repo/main.go
+start: N/A, end: N/A
+```
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	// add dotenv
+	_ "github.com/joho/godotenv/autoload"
+)
+
+func main() {
+	fmt.Println("Hello, World!")
+	InitDB()
+
+	router := NewRouter()
+
+	shutdownSignal := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
+	<-shutdownSignal
+
+	// shutdown web server
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := router.Shutdown(ctx); err != nil {
+		fmt.Printf("error shutting down server: %s", err.Error())
+	}
+}
+
+```
+</snippet>
+<snippet>
+name: Import: import-importcontextfmtosossignalsyscalltimeadddotenvgithubcomjohogodotenvautoload-maingo-2
+ref_id: test_ref_id
+file: stakwork/demo-repo/main.go
+start: 2, end: 12
+```
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	// add dotenv
+	_ "github.com/joho/godotenv/autoload"
+)
+```
+</snippet>
+<snippet>
+name: Import: import-importosgormiodriverpostgresgormiogorm-dbgo-2
+ref_id: test_ref_id
+file: stakwork/demo-repo/db.go
+start: 2, end: 7
+```
+import (
+	"os"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
+```
+</snippet>
+<snippet>
+name: Import: import-importencodingjsonfmtionethttposstrconvtimegithubcomgochichigithubcomgochichimiddlewaregithubcomrscors-routesgo-2
+ref_id: test_ref_id
+file: stakwork/demo-repo/routes.go
+start: 2, end: 14
+```
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/rs/cors"
+)
+```
+</snippet>
+<snippet>
+name: File: routes.go
+ref_id: test_ref_id
+file: stakwork/demo-repo/routes.go
+start: N/A, end: N/A
+```
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/rs/cors"
+)
+
+// NewRouter creates a chi router
+func NewRouter() *http.Server {
+	r := initChi()
+
+	r.Group(func(r chi.Router) {
+		r.Get("/person/{id}", GetPerson)
+		r.Post("/person", CreatePerson)
+		r.Get("/people", GetPeople)
+	})
+
+	PORT := os.Getenv("PORT")
+	if PORT == "" {
+		PORT = "5002"
+	}
+
+	server := &http.Server{Addr: ":" + PORT, Handler: r}
+
+	go func() {
+		fmt.Printf("Listening on port %s\n", PORT)
+		if err := server.ListenAndServe(); err != nil {
+			fmt.Printf("server err: %s\n", err.Error())
+		}
+	}()
+
+	return server
+}
+
+func GetPerson(w http.ResponseWriter, r *http.Request) {
+	idstr := chi.URLParam(r, "id")
+	id, _ := strconv.Atoi(idstr)
+	p, err := DB.GetPersonById(uint(id))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(p)
+}
+
+func CreatePerson(w http.ResponseWriter, r *http.Request) {
+	p := Person{}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusNotAcceptable)
+		return
+	}
+	r.Body.Close()
+	err = json.Unmarshal(body, &p)
+	if err != nil {
+		w.WriteHeader(http.StatusNotAcceptable)
+		return
+	}
+	err = DB.NewPerson(p)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(p)
+}
+
+func GetPeople(w http.ResponseWriter, r *http.Request) {
+	people, err := DB.GetAllPeople()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(people)

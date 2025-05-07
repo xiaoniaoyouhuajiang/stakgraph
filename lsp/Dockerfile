@@ -24,12 +24,15 @@ RUN npm install -g typescript typescript-language-server
 
 # go
 RUN curl -O https://dl.google.com/go/go1.23.2.linux-amd64.tar.gz
-RUN tar xvf go1.23.2.linux-amd64.tar.gz
-RUN chown -R root:root ./go
-RUN mv go /root
-ENV GOROOT=/root/go
+RUN tar -xzf go1.23.2.linux-amd64.tar.gz
+RUN mv go /usr/local
+ENV GOROOT=/usr/local/go
 ENV GOPATH=/root/go
-ENV PATH=$PATH:$GOROOT/bin:/root/go/bin
+ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+RUN mkdir -p $GOPATH/bin
+# Verify Go installation
+RUN go version
+# Then install gopls
 RUN go install -v golang.org/x/tools/gopls@v0.16.2
 
 # ruby
