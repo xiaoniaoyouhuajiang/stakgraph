@@ -8,9 +8,13 @@ RUN apt update
 RUN apt-get update
 RUN apt install -y sed curl
 RUN apt install -y git
-RUN apt install -y rustc
 RUN apt install -y npm nodejs
 RUN apt install -y python3-full python3-pip
+
+# rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup.sh
+RUN chmod +x rustup.sh
+RUN ./rustup.sh -y
 
 # python
 RUN pip install python-lsp-server --break-system-packages
