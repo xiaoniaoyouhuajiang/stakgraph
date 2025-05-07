@@ -18,4 +18,4 @@ docker run --rm -it --entrypoint "/bin/bash" -v .:/root/stakgraph stakgraph-lsp
 
 cd /root/stakgraph
 
-cargo test ruby_test
+cargo test test_ruby
