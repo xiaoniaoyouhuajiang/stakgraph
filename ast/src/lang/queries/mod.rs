@@ -96,6 +96,9 @@ pub trait Stack {
     fn string_node_name(&self) -> String {
         "string".to_string()
     }
+    fn program_node_name(&self) -> String {
+        "program".to_string()
+    }
     // data model definitions
     fn data_model_query(&self) -> Option<String> {
         None
