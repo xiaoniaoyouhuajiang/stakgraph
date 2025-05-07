@@ -129,6 +129,8 @@ jobs:
           ACTUAL_FULLTEXT_FILE="./testing/actual-fulltext-search.txt"
           EXPECTED_FULLTEXT_FILE="./testing/fulltext-search-response.txt"
 
+          diff -u "$ACTUAL_FULLTEXT_FILE" "$EXPECTED_FULLTEXT_FILE"
+
           if diff -q "$ACTUAL_FULLTEXT_FILE" "$EXPECTED_FULLTEXT_FILE"; then
             echo "Response matches expected output ✅"
           else
