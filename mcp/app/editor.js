@@ -29,32 +29,33 @@ export const Editor = ({
 
     const text = textNode.textContent;
     const cursorPos = range.startOffset;
-
-    // Find the start of the triggered text
-    let triggerStart = -1;
-    let triggerChar = "";
-
-    // Check for #, /, or @ triggers
+    // Find the start of the current word or expression
+    let wordStart = cursorPos;
+    // Go backward until we find a space or beginning of text
     for (let i = cursorPos - 1; i >= 0; i--) {
-      if (text[i] === "#" || text[i] === "/" || text[i] === "@") {
-        triggerStart = i;
-        triggerChar = text[i];
-        break;
-      } else if (!/[\w\.-]/.test(text[i])) {
-        // Allow . and -
+      // If we find a space, we've reached the beginning of the current word
+      if (/\s/.test(text[i])) {
         break;
       }
+      wordStart = i;
+    }
+    // Now check if this word starts with a trigger character
+    if (
+      wordStart < text.length &&
+      (text[wordStart] === "#" ||
+        text[wordStart] === "/" ||
+        text[wordStart] === "@")
+    ) {
+      const triggerChar = text[wordStart];
+      const tagText = text.substring(wordStart + 1, cursorPos);
+
+      // Make sure the tag contains only valid characters
+      return tagText && /^[\w\.-\/]+$/.test(tagText)
+        ? { text: tagText, trigger: triggerChar }
+        : null;
     }
 
-    if (triggerStart === -1) return null;
-
-    // Extract the text without the trigger symbol
-    const tagText = text.substring(triggerStart + 1, cursorPos);
-
-    // Return if valid . and -
-    return tagText && /^[\w\.-]+$/.test(tagText)
-      ? { text: tagText, trigger: triggerChar }
-      : null;
+    return null;
   };
 
   const cleanupEmptyTaggedSpans = () => {
