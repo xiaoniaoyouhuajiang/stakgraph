@@ -105,14 +105,30 @@ export function extractNodesFromRecord(
       }
     });
 
+    // Track which files have component nodes
+    const filesWithComponentNodes = new Set<string>();
+
     // Add individual component nodes for large files
     allNodes.forEach((node, key) => {
       const filePath = node.properties.file;
 
-      // Only add individual nodes if we're showing this file by components
-      // or if the file wasn't in our file nodes list at all
-      if (filesToShowByComponents.has(filePath) || !fileNodes.has(filePath)) {
+      // If this is a component node for a large file, track it
+      if (filesToShowByComponents.has(filePath)) {
         finalNodeMap.set(key, node);
+        filesWithComponentNodes.add(filePath);
+      }
+      // For files not in our file list, always add the component nodes
+      else if (!fileNodes.has(filePath)) {
+        finalNodeMap.set(key, node);
+      }
+    });
+
+    // Add whole file nodes for large files that have no component nodes
+    filesToShowByComponents.forEach((filePath) => {
+      if (!filesWithComponentNodes.has(filePath) && fileNodes.has(filePath)) {
+        const fileNode = fileNodes.get(filePath)!;
+        const key = `${filePath}:File:0`;
+        finalNodeMap.set(key, fileNode);
       }
     });
 
