@@ -42,6 +42,11 @@ body {
   color: var(--text-color);
 }
 
+.content-container {
+  display: flex;
+  position: relative;
+}
+
 .app-header {
   display: flex;
   justify-content: flex-end;
@@ -49,9 +54,30 @@ body {
   position: relative;
 }
 
-.content-container {
+.header-buttons {
   display: flex;
-  position: relative;
+  align-items: center;
+  width: 87px;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  margin: 5px;
+}
+
+.icon-button:hover {
+  background-color: rgba(128, 128, 128, 0.2);
 }
 
 #editor-container {

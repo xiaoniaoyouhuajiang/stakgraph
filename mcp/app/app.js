@@ -145,15 +145,58 @@ const App = () => {
     });
   };
 
+  const handleNewChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content: "Hello! How can I help you today?",
+      },
+    ]);
+    postMessage({ type: "new-chat" });
+  };
+
+  const IconButton = ({ onClick, title, children }) => {
+    return html`
+      <button class="icon-button" onClick=${onClick} title=${title}>
+        ${children}
+      </button>
+    `;
+  };
+
+  // Define a PlusIcon component for the new chat button
+  const PlusIcon = () => {
+    return html`
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    `;
+  };
+
   return html`
     <div class="app-container">
       <div class="app-header">
-        <${BotSelector}
-          onModelSelect=${handleModelSelect}
-          requestApiKey=${requestApiKey}
-          selectedModel=${selectedModel}
-          apiKeys=${apiKeys}
-        />
+        <div class="header-buttons">
+          <${IconButton} onClick=${handleNewChat} title="New Chat">
+            <${PlusIcon} />
+          </${IconButton}>
+          <${BotSelector}
+            onModelSelect=${handleModelSelect}
+            requestApiKey=${requestApiKey}
+            selectedModel=${selectedModel}
+            apiKeys=${apiKeys}
+          />
+        </div>
       </div>
       <${Messages} messages=${messages} />
       <${Prompt} onSend=${handleSend} baseUrl=${baseUrl} apiToken=${apiToken} />
