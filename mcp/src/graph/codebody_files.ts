@@ -1,7 +1,7 @@
 import { formatNode } from "./utils.js";
 import { Neo4jNode } from "./types.js";
 
-const FILE_SIZE_THRESHOLD = 3000;
+const FILE_SIZE_THRESHOLD = 5000;
 
 export function extractNodesFromRecord(
   record: any,
