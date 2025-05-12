@@ -44,4 +44,3 @@ export interface StakworkResponse {
     project_id: number;
   };
 }
-2;

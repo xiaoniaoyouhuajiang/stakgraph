@@ -43,6 +43,13 @@ export class StakworkService {
     messages: Message[],
     webhookUrl: string
   ): StakworkChatPayload {
+    /*
+    codeGraph
+    codeGraphAlias
+    codeSpaceURL
+    2b_base_url
+    secret
+    */
     return {
       name: "Hive Chat Processor",
       workflow_id: this.workflowId,
