@@ -403,8 +403,9 @@ pub fn node_exists_query(node_key: &str) -> (String, HashMap<String, String>) {
 
 pub fn count_nodes_edges_query() -> String {
     "MATCH (n) 
+     WITH COUNT(n) as nodes
      OPTIONAL MATCH ()-[r]->() 
-     RETURN COUNT(DISTINCT n) as nodes, COUNT(DISTINCT r) as edges"
+     RETURN nodes, COUNT(r) as edges"
         .to_string()
 }
 pub fn graph_node_analysis_query() -> String {

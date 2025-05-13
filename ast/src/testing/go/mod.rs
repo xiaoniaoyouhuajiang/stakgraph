@@ -24,7 +24,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
         assert_eq!(num_nodes, 64, "Expected 64 nodes");
         assert_eq!(num_edges, 108, "Expected 108 edges");
     } else {
-        assert_eq!(num_nodes, 38, "Expected 30 nodes");
+        assert_eq!(num_nodes, 30, "Expected 30 nodes");
         assert_eq!(num_edges, 48, "Expected 48 edges");
     }
 
