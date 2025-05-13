@@ -2,10 +2,12 @@ import { Request, Response } from "express";
 import { ChatAdapter } from "../adapters/adapter.interface";
 import { WebhookPayload } from "../types";
 
-export class WebhookController {
-  private adapters: Record<string, ChatAdapter>;
+export type Adapter = "github" | "default";
 
-  constructor(adapters: Record<string, ChatAdapter>) {
+export class WebhookController {
+  private adapters: Record<Adapter, ChatAdapter>;
+
+  constructor(adapters: Record<Adapter, ChatAdapter>) {
     this.adapters = adapters;
   }
 
@@ -23,11 +25,10 @@ export class WebhookController {
       }
 
       // Determine which adapter to use based on chatId prefix
-      let adapterKey = "default";
+      let adapterKey: Adapter = "default";
       if (chatId.startsWith("github-")) {
         adapterKey = "github";
       }
-      // Add more adapter key determinations as needed
 
       const adapter = this.adapters[adapterKey];
       if (!adapter) {
@@ -39,7 +40,7 @@ export class WebhookController {
       }
 
       // Send message to the appropriate platform
-      await adapter.sendMessage(chatId, payload.message);
+      await adapter.sendResponse(chatId, payload.message);
 
       res.status(200).json({
         success: true,

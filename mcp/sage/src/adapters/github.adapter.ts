@@ -136,7 +136,7 @@ export class GitHubIssueAdapter extends BaseAdapter {
     }
   }
 
-  async sendMessage(chatId: string, message: Message): Promise<void> {
+  async sendResponse(chatId: string, message: Message): Promise<void> {
     // Extract issue number from chatId
     const issueNumber = parseInt(chatId.replace("github-issue-", ""), 10);
 

@@ -4,20 +4,20 @@ import { StakworkService } from "./services/stakwork.service";
 import { GitHubIssueAdapter } from "./adapters/github.adapter";
 import { ChatAdapter } from "./adapters/adapter.interface";
 import { MessagesController } from "./controllers/messages.controller";
-import { WebhookController } from "./controllers/webhook.controller";
+import { WebhookController, Adapter } from "./controllers/webhook.controller";
 import { Message } from "./types";
 
 export class App {
   public app: express.Application;
   private stakworkService!: StakworkService;
-  private adapters: Record<string, ChatAdapter> = {};
+  private adapters: Record<Adapter, ChatAdapter>;
   private messagesController!: MessagesController;
   private webhookController!: WebhookController;
 
   constructor() {
     this.app = express();
     this.configureMiddleware();
-    this.initializeServices();
+    this.adapters = this.initializeAdapters();
     this.setupControllers();
     this.setupRoutes();
   }
@@ -26,7 +26,7 @@ export class App {
     this.app.use(bodyParser.json());
   }
 
-  private initializeServices(): void {
+  private initializeAdapters(): Record<Adapter, ChatAdapter> {
     // Initialize Stakwork service
     const STAKWORK_API_KEY = process.env.STAKWORK_API_KEY || "";
     const WORKFLOW_ID = parseInt(process.env.WORKFLOW_ID || "38842", 10);
@@ -37,7 +37,6 @@ export class App {
     const GITHUB_OWNER = process.env.GITHUB_OWNER || "";
     const GITHUB_REPO = process.env.GITHUB_REPO || "";
 
-    // In the initializeServices method of App class
     if (GITHUB_TOKEN && GITHUB_OWNER && GITHUB_REPO) {
       const DATA_DIR = process.env.DATA_DIR || "./data";
       const githubAdapter = new GitHubIssueAdapter(
@@ -70,6 +69,7 @@ export class App {
         "GitHub adapter not initialized due to missing configuration"
       );
     }
+    return this.adapters;
   }
 
   private setupControllers(): void {

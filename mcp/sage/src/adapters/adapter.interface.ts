@@ -2,7 +2,7 @@ import { Message } from "../types";
 
 export interface ChatAdapter {
   initialize(): Promise<void>;
-  sendMessage(chatId: string, message: Message): Promise<void>;
+  sendResponse(chatId: string, message: Message): Promise<void>;
   onMessageReceived(
     callback: (chatId: string, message: Message) => Promise<void>
   ): void;
@@ -18,7 +18,7 @@ export abstract class BaseAdapter implements ChatAdapter {
   };
 
   abstract initialize(): Promise<void>;
-  abstract sendMessage(chatId: string, message: Message): Promise<void>;
+  abstract sendResponse(chatId: string, message: Message): Promise<void>;
 
   onMessageReceived(
     callback: (chatId: string, message: Message) => Promise<void>
