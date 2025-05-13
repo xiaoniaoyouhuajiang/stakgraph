@@ -44,11 +44,17 @@ export class StakworkService {
     webhookUrl: string
   ): StakworkChatPayload {
     /*
-    codeGraph
-    codeGraphAlias
+    (find the stakwork secret too and add in a header)
     codeSpaceURL
     2b_base_url
     secret
+    history: [
+      {
+        role: "user",
+        content: "message",
+      },
+    ]
+    source "github"
     */
     return {
       name: "Hive Chat Processor",
