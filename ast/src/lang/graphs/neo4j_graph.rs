@@ -236,16 +236,6 @@ impl Neo4jGraph {
             debug!("Error clearing graph: {:?}", e);
         }
     }
-
-    pub fn force_refresh(&self) -> Result<()> {
-        let connection = self.get_connection();
-        let refresh_query = "MATCH () RETURN count(*) LIMIT 1";
-        if let Err(e) = block_in_place(connection.execute(query(refresh_query))) {
-            println!("Error refreshing connection: {:?}", e);
-            return Err(anyhow::anyhow!("Error refreshing connection: {:?}", e));
-        }
-        Ok(())
-    }
 }
 
 impl Default for Neo4jGraph {
@@ -654,8 +644,6 @@ impl Graph for Neo4jGraph {
                 return Err(e);
             }
 
-            self.force_refresh();
-
             Ok(())
         }) {
             println!("Error in add_calls: {:?}", e);
@@ -758,21 +746,44 @@ impl Graph for Neo4jGraph {
         &mut self,
         parent_type: NodeType,
         child_type: NodeType,
-        child_meta_key: &str,
+        _child_meta_key: &str,
     ) {
         if let Err(e) = block_in_place(async {
-            let connection = self.ensure_connected().await?;
+            let connection = match self.ensure_connected().await {
+                Ok(conn) => conn,
+                Err(e) => return Err(anyhow::anyhow!("Connection error: {}", e)),
+            };
 
-            let (query, params) =
-                filter_nodes_without_children_query(&parent_type, &child_type, child_meta_key);
-            let query_builder = QueryBuilder::new(&query).with_params(params);
+            let mut txn_manager = TransactionManager::new(&connection);
 
-            execute_query(&connection, &query_builder).await
+            let query = format!(
+                "MATCH (parent:{}) 
+                 WHERE NOT EXISTS {{
+                     MATCH (parent)<-[:OPERAND]-(child:{})
+                 }}
+                 AND NOT EXISTS {{
+                     MATCH (instance:Instance)-[:OF]->(parent)
+                 }}
+                 DETACH DELETE parent",
+                parent_type.to_string(),
+                child_type.to_string()
+            );
+
+            txn_manager.add_query((query, HashMap::new()));
+
+            if let Err(e) = txn_manager.execute().await {
+                println!(
+                    "Transaction failed in filter_out_nodes_without_children: {:?}",
+                    e
+                );
+                return Err(e);
+            }
+
+            Ok(())
         }) {
             debug!("Error filtering nodes without children: {:?}", e);
         }
     }
-
     fn class_includes(&mut self) {
         if let Err(e) = block_in_place(async {
             let connection = self.ensure_connected().await?;
@@ -891,35 +902,53 @@ impl Graph for Neo4jGraph {
         }
     }
     fn add_instances(&mut self, instances: Vec<NodeData>) {
-        let connection = self.get_connection();
+        if let Err(e) = block_in_place(async {
+            let connection = match self.ensure_connected().await {
+                Ok(conn) => conn,
+                Err(e) => return Err(anyhow::anyhow!("Connection error: {}", e)),
+            };
 
-        for inst in instances {
-            if let Some(of) = &inst.data_type {
-                let mut class_params = HashMap::new();
-                class_params.insert("class_name".to_string(), of.clone());
+            let mut txn_manager = TransactionManager::new(&connection);
 
-                let class_query = format!(
-                    "MATCH (c:Class {{name: $class_name}})
-                     RETURN c
-                     LIMIT 1"
-                );
+            for inst in &instances {
+                if let Some(of) = &inst.data_type {
+                    txn_manager.add_node(&NodeType::Instance, inst);
 
-                let class_nodes =
-                    block_in_place(execute_node_query(&connection, class_query, class_params))
-                        .unwrap_or_default();
-
-                if let Some(class_node_data) = class_nodes.first() {
-                    self.add_node_with_parent(
-                        NodeType::Instance,
-                        inst.clone(),
-                        NodeType::File,
-                        &inst.file,
+                    let contains_query = format!(
+                        "MATCH (file:File {{file: $file}}), 
+                               (instance:Instance {{name: $name, file: $file}}) 
+                         MERGE (file)-[:CONTAINS]->(instance)"
                     );
 
-                    let edge = Edge::of(&inst, class_node_data);
-                    self.add_edge(edge);
+                    let mut contains_params = HashMap::new();
+                    contains_params.insert("name".to_string(), inst.name.clone());
+                    contains_params.insert("file".to_string(), inst.file.clone());
+
+                    txn_manager.add_query((contains_query, contains_params));
+
+                    let of_query = format!(
+                        "MATCH (instance:Instance {{name: $name, file: $file}}), 
+                               (class:Class {{name: $class_name}}) 
+                         MERGE (instance)-[:OF]->(class)"
+                    );
+
+                    let mut of_params = HashMap::new();
+                    of_params.insert("name".to_string(), inst.name.clone());
+                    of_params.insert("file".to_string(), inst.file.clone());
+                    of_params.insert("class_name".to_string(), of.clone());
+
+                    txn_manager.add_query((of_query, of_params));
                 }
             }
+
+            if let Err(e) = txn_manager.execute().await {
+                println!("Transaction failed in add_instances: {:?}", e);
+                return Err(e);
+            }
+
+            Ok(())
+        }) {
+            println!("Error adding instances: {:?}", e);
         }
     }
     fn get_data_models_within(&mut self, lang: &Lang) {

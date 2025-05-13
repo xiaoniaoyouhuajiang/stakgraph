@@ -221,40 +221,49 @@ impl EdgeQueryBuilder {
         params
     }
     
-pub fn build(&self) -> (String, HashMap<String, String>) {
-    let mut params = self.build_params();
-    let rel_type = self.edge.edge.to_string();
-
-    let source_key = create_node_key_from_ref(&self.edge.source);
-    let target_key = create_node_key_from_ref(&self.edge.target);
-
-    println!("Creating edge: {} -> {} of type {} ", source_key, target_key, rel_type);
+    pub fn build(&self) -> (String, HashMap<String, String>) {
+        let mut params = self.build_params();
+        let rel_type = self.edge.edge.to_string();
+        
+        let source_type = self.edge.source.node_type.to_string();
+        let target_type = self.edge.target.node_type.to_string();
+        
+        println!("Creating edge: {}:{} -> {}:{} of type {} ", 
+            self.edge.source.node_data.name, source_type, 
+            self.edge.target.node_data.name, target_type, rel_type);
+        
+       
+        params.insert("source_name".to_string(), self.edge.source.node_data.name.clone());
+        params.insert("source_file".to_string(), self.edge.source.node_data.file.clone());
+        params.insert("target_name".to_string(), self.edge.target.node_data.name.clone());
+        params.insert("target_file".to_string(), self.edge.target.node_data.file.clone());
     
-    params.insert("source_key".to_string(), source_key);
-    params.insert("target_key".to_string(), target_key);
-
-    let props_clause = match &self.edge.edge {
-        EdgeType::Calls(meta) if params.contains_key("operand") => {
-            "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
-        }
-        EdgeType::Calls(meta) => {
-            "r.call_start = $call_start, r.call_end = $call_end"
-        }
-        _ => "",
-    };
-
-    let query = format!(
-        "MATCH (source {{key: $source_key}}), (target {{key: $target_key}})
-         MERGE (source)-[r:{}]->(target)
-         ON CREATE SET {}
-         ON MATCH SET {}",
-        rel_type,
-        if props_clause.is_empty() { "r.updated = true" } else { props_clause },
-        if props_clause.is_empty() { "r.updated = true" } else { props_clause }
-    );
-
-    (query, params)
-}
+        let props_clause = match &self.edge.edge {
+            EdgeType::Calls(meta) if params.contains_key("operand") => {
+                "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
+            }
+            EdgeType::Calls(meta) => {
+                "r.call_start = $call_start, r.call_end = $call_end"
+            }
+            _ => "",
+        };
+    
+        
+        let query = format!(
+            "MATCH (source:{} {{name: $source_name, file: $source_file}}), 
+                   (target:{} {{name: $target_name, file: $target_file}})
+             MERGE (source)-[r:{}]->(target)
+             ON CREATE SET {}
+             ON MATCH SET {}",
+            source_type,
+            target_type,
+            rel_type,
+            if props_clause.is_empty() { "r.updated = true" } else { props_clause },
+            if props_clause.is_empty() { "r.updated = true" } else { props_clause }
+        );
+    
+        (query, params)
+    }
 }
 pub async fn execute_batch(
     conn: &Neo4jConnection,
@@ -654,28 +663,6 @@ pub fn class_includes_query() -> String {
         .to_string()
 }
 
-pub fn filter_nodes_without_children_query(
-    parent_type: &NodeType,
-    child_type: &NodeType,
-    child_meta_key: &str
-) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-    params.insert("meta_key".to_string(), child_meta_key.to_string());
-    
-    let query = format!(
-        "MATCH (parent:{})
-         WHERE NOT EXISTS {{
-             MATCH (child:{})
-             WHERE child.{} = parent.name
-         }}
-         DETACH DELETE parent",
-        parent_type.to_string(),
-        child_type.to_string(),
-        child_meta_key
-    );
-    
-    (query, params)
-}
 
 pub fn prefix_paths_query(root: &str) -> (String, HashMap<String, String>) {
     let mut params = HashMap::new();
