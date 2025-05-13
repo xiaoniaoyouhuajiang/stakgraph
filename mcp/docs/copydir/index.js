@@ -16,9 +16,20 @@ for (let i = 0; i < args.length - 1; i++) {
   }
 }
 
+// Extract extra gitignore path
+let extraGitignorePath = null;
+for (let i = 0; i < args.length - 1; i++) {
+  if (args[i] === "--gitignore") {
+    extraGitignorePath = args[i + 1];
+  }
+}
+
 // Extract the directory path (first non-flag argument)
 const dirPath = args.filter(
-  (arg) => !arg.startsWith("--") && !ignorePatterns.includes(arg)
+  (arg) =>
+    !arg.startsWith("--") &&
+    !ignorePatterns.includes(arg) &&
+    arg !== extraGitignorePath
 )[0];
 
 // Check if path was provided
@@ -35,6 +46,125 @@ if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
 
 // Default directories to skip
 const dirsToSkip = ["node_modules", "vendor"];
+
+// Cache for .gitignore patterns to avoid re-reading files
+const gitignoreCache = new Map();
+// Store extra gitignore patterns separately
+const extraGitignorePatterns = [];
+
+// Function to parse gitignore content into patterns
+function parseGitignoreContent(content) {
+  const patterns = [];
+  const lines = content.split("\n");
+
+  for (let line of lines) {
+    // Remove comments and trim whitespace
+    line = line.split("#")[0].trim();
+
+    // Skip empty lines and negation patterns (for simplicity)
+    if (!line || line.startsWith("!")) continue;
+
+    patterns.push(line);
+  }
+
+  return patterns;
+}
+
+// Load extra gitignore if specified
+if (extraGitignorePath) {
+  try {
+    const absGitignorePath = path.resolve(extraGitignorePath);
+    let gitignoreFilePath;
+
+    if (fs.existsSync(absGitignorePath)) {
+      if (fs.statSync(absGitignorePath).isDirectory()) {
+        // If it's a directory, look for .gitignore inside it
+        gitignoreFilePath = path.join(absGitignorePath, ".gitignore");
+      } else {
+        // If it's a file, use it directly
+        gitignoreFilePath = absGitignorePath;
+      }
+
+      if (fs.existsSync(gitignoreFilePath)) {
+        const content = fs.readFileSync(gitignoreFilePath, "utf8");
+        const patterns = parseGitignoreContent(content);
+        extraGitignorePatterns.push(...patterns);
+      } else {
+        console.error(`No .gitignore found at ${gitignoreFilePath}`);
+      }
+    } else {
+      console.error(
+        `Extra gitignore path does not exist: ${extraGitignorePath}`
+      );
+    }
+  } catch (err) {
+    console.error(`Error processing extra gitignore: ${err.message}`);
+  }
+}
+
+// Function to read .gitignore patterns from a directory
+function getGitignorePatterns(dir) {
+  if (gitignoreCache.has(dir)) {
+    return gitignoreCache.get(dir);
+  }
+
+  const patterns = [];
+  const gitignorePath = path.join(dir, ".gitignore");
+
+  if (fs.existsSync(gitignorePath)) {
+    try {
+      const content = fs.readFileSync(gitignorePath, "utf8");
+      patterns.push(...parseGitignoreContent(content));
+    } catch (err) {
+      console.error(`Error reading .gitignore in ${dir}: ${err.message}`);
+    }
+  }
+
+  gitignoreCache.set(dir, patterns);
+  return patterns;
+}
+
+// Function to match a path against a gitignore pattern
+function matchPattern(pattern, filePath, fileName, basePath) {
+  // Simple exact match for the filename
+  if (!pattern.includes("/") && pattern === fileName) {
+    return true;
+  }
+
+  // Get path relative to the base directory
+  const relativePath = path.relative(basePath, filePath);
+
+  // Simple exact match
+  if (pattern === relativePath) return true;
+
+  // Directory pattern (ends with /)
+  if (pattern.endsWith("/")) {
+    const dirPattern = pattern.slice(0, -1);
+    if (
+      relativePath === dirPattern ||
+      relativePath.startsWith(dirPattern + path.sep) ||
+      relativePath.startsWith(dirPattern + "/")
+    ) {
+      return true;
+    }
+  }
+
+  // Basic wildcard pattern matching
+  if (pattern.includes("*")) {
+    try {
+      const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, ".*");
+
+      const regex = new RegExp(`^${regexPattern}$`);
+      if (regex.test(relativePath) || regex.test(fileName)) {
+        return true;
+      }
+    } catch (e) {
+      // If regex fails, continue with other patterns
+    }
+  }
+
+  return false;
+}
 
 // Function to check if a path should be ignored
 function shouldIgnore(filePath) {
@@ -54,6 +184,35 @@ function shouldIgnore(filePath) {
     ) {
       return true;
     }
+  }
+
+  // First check extra gitignore patterns (applied to all files)
+  const resolvedDirPath = path.resolve(dirPath);
+  for (const pattern of extraGitignorePatterns) {
+    if (matchPattern(pattern, filePath, fileName, resolvedDirPath)) {
+      return true;
+    }
+  }
+
+  // Check .gitignore patterns in all parent directories
+  let currentDir = path.dirname(filePath);
+  const rootDir = path.resolve(dirPath);
+
+  // Check all parent directories up to the root directory
+  while (currentDir && currentDir.startsWith(rootDir)) {
+    const gitignorePatterns = getGitignorePatterns(currentDir);
+
+    for (const pattern of gitignorePatterns) {
+      if (matchPattern(pattern, filePath, fileName, currentDir)) {
+        return true;
+      }
+    }
+
+    // Stop if we've reached the root directory
+    if (currentDir === rootDir) break;
+
+    // Move up to parent directory
+    currentDir = path.dirname(currentDir);
   }
 
   // Also check the default dirs to skip
@@ -115,6 +274,14 @@ try {
     }
   }
 
+  // Log the ignore patterns that were applied
+  if (ignorePatterns.length > 0) {
+    console.log(`Ignored patterns: ${ignorePatterns.join(", ")}`);
+  }
+  if (extraGitignorePatterns.length > 0) {
+    console.log(`Extra gitignore patterns: ${extraGitignorePatterns.length}`);
+  }
+
   // Write the output to the clipboard
   if (jsonFlag) {
     clipboard.write(JSON.stringify(jsonOutput, null, 2));
@@ -126,11 +293,6 @@ try {
     console.log("Copied to clipboard");
     console.log(`Total files copied: ${allFiles.length}`);
     console.log(`Total lines copied: ${lineCount}`);
-  }
-
-  // Log the ignore patterns that were applied
-  if (ignorePatterns.length > 0) {
-    console.log(`Ignored patterns: ${ignorePatterns.join(", ")}`);
   }
 } catch (err) {
   console.error(`Error: ${err.message}`);
