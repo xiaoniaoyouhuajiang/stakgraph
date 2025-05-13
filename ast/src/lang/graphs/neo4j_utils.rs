@@ -243,7 +243,6 @@ pub fn build(&self) -> (String, HashMap<String, String>) {
         _ => "",
     };
 
-    // Fixed query format with proper line breaks
     let query = format!(
         "MATCH (source {{key: $source_key}}), (target {{key: $target_key}})
          MERGE (source)-[r:{}]->(target)
@@ -268,13 +267,15 @@ pub async fn execute_batch(
         for (k, v) in params {
             query_obj = query_obj.param(&k, v.as_str());
         }
+
         
-        if let Err(e) = txn.run(query_obj).await {
-            debug!("Neo4j query #{} failed: {}", i, e);
-            debug!("Query: {}", query_str);
-            debug!("Params: {:?}", params);
+        match txn.run(query_obj).await {
+            Ok(_) => println!("Neo4j query #{} executed successfully: {}", i, query_str),
+            Err(e) => {
+            println!("Neo4j query #{} {} failed: {}", i, query_str, e);
             txn.rollback().await?;
             return Err(anyhow::anyhow!("Neo4j batch query error: {}", e));
+            }
         }
     }
     
@@ -404,7 +405,7 @@ pub fn node_exists_query(node_key: &str) -> (String, HashMap<String, String>) {
 pub fn count_nodes_edges_query() -> String {
     "MATCH (n) 
      WITH COUNT(n) as nodes
-     OPTIONAL MATCH ()-[r]->() 
+     MATCH ()-[r]->() 
      RETURN nodes, COUNT(r) as edges"
         .to_string()
 }

@@ -236,6 +236,16 @@ impl Neo4jGraph {
             debug!("Error clearing graph: {:?}", e);
         }
     }
+
+    pub fn force_refresh(&self) -> Result<()> {
+        let connection = self.get_connection();
+        let refresh_query = "MATCH () RETURN count(*) LIMIT 1";
+        if let Err(e) = block_in_place(connection.execute(query(refresh_query))) {
+            println!("Error refreshing connection: {:?}", e);
+            return Err(anyhow::anyhow!("Error refreshing connection: {:?}", e));
+        }
+        Ok(())
+    }
 }
 
 impl Default for Neo4jGraph {
@@ -374,6 +384,26 @@ impl Graph for Neo4jGraph {
 
     fn get_graph_size(&self) -> (u32, u32) {
         let connection = self.get_connection();
+
+        let edge_types_query = "MATCH ()-[r]->() RETURN type(r) as type, COUNT(r) as count";
+        match block_in_place(connection.execute(query(edge_types_query))) {
+            Ok(mut result) => {
+                let mut total = 0;
+                println!("Edge counts by type:");
+                while let Ok(Some(row)) = block_in_place(result.next()) {
+                    if let (Ok(edge_type), Ok(count)) =
+                        (row.get::<String>("type"), row.get::<u32>("count"))
+                    {
+                        println!("  {}: {}", edge_type, count);
+                        total += count;
+                    }
+                }
+                println!("Total edges from type count: {}", total);
+            }
+            Err(e) => {
+                println!("Error getting edge counts by type: {}", e);
+            }
+        }
 
         let query_str = count_nodes_edges_query();
 
@@ -577,8 +607,7 @@ impl Graph for Neo4jGraph {
                 Err(e) => return Err(anyhow::anyhow!("Connection error: {}", e)),
             };
 
-            let mut node_queries = Vec::new();
-            let mut edge_queries = Vec::new();
+            let mut txn_manager = TransactionManager::new(&connection);
 
             for (func_call, ext_func, class_call) in &funcs {
                 if let Some(cls_call) = &class_call {
@@ -587,7 +616,7 @@ impl Graph for Neo4jGraph {
                         NodeRef::from(func_call.source.clone(), NodeType::Function),
                         NodeRef::from(cls_call.into(), NodeType::Class),
                     );
-                    edge_queries.push(add_edge_query(&edge));
+                    txn_manager.add_edge(&edge);
                 }
 
                 if func_call.target.is_empty() {
@@ -595,55 +624,43 @@ impl Graph for Neo4jGraph {
                 }
 
                 if let Some(ext_nd) = ext_func {
-                    node_queries.push(add_node_query(&NodeType::Function, ext_nd));
+                    txn_manager.add_node(&NodeType::Function, ext_nd);
 
                     let edge = Edge::uses(func_call.source.clone(), ext_nd);
-                    edge_queries.push(add_edge_query(&edge));
+                    txn_manager.add_edge(&edge);
                 } else {
                     let edge = func_call.clone().into();
-                    edge_queries.push(add_edge_query(&edge));
+                    txn_manager.add_edge(&edge);
                 }
             }
+
             for (test_call, ext_func, _class_call) in &tests {
                 if let Some(ext_nd) = ext_func {
-                    node_queries.push(add_node_query(&NodeType::Function, ext_nd));
+                    txn_manager.add_node(&NodeType::Function, ext_nd);
 
                     let edge = Edge::uses(test_call.source.clone(), ext_nd);
-                    edge_queries.push(add_edge_query(&edge));
+                    txn_manager.add_edge(&edge);
                 } else {
                     let edge = test_call.clone().into();
-                    edge_queries.push(add_edge_query(&edge));
+                    txn_manager.add_edge(&edge);
                 }
             }
 
             for edge in int_tests {
-                edge_queries.push(add_edge_query(&edge));
+                txn_manager.add_edge(&edge);
+            }
+            if let Err(e) = txn_manager.execute().await {
+                println!("Transaction failed: {:?}", e);
+                return Err(e);
             }
 
-            if !node_queries.is_empty() {
-                println!("Creating {} nodes for function calls", node_queries.len());
-                if let Err(e) = execute_batch(&connection, node_queries).await {
-                    println!("Error creating function nodes: {:?}", e);
-                }
-            }
-
-            for (i, (query_str, params)) in edge_queries.iter().enumerate() {
-                let query_builder = QueryBuilder::new(query_str).with_params(params.clone());
-
-                if let Err(e) = execute_query(&connection, &query_builder).await {
-                    println!("Failed Edge query #{} failed: {:?}", i, e);
-                    println!("Failed Query: {}", query_str);
-                    println!("Failed Params: {:?}", params);
-                    // Continue execution despite errors
-                }
-            }
+            self.force_refresh();
 
             Ok(())
         }) {
-            debug!("Error in add_calls: {:?}", e);
+            println!("Error in add_calls: {:?}", e);
         }
     }
-
     fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData> {
         let connection = self.get_connection();
 

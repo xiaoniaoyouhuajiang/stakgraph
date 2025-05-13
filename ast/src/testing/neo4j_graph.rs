@@ -33,6 +33,8 @@ pub async fn test_neo4j() -> Result<()> {
     )?;
 
     let mut graph = repo.build_graph_inner::<Neo4jGraph>().await?;
+    graph.force_refresh();
+
     let (num_nodes, num_edges) = graph.get_graph_size();
 
     graph.analysis();
