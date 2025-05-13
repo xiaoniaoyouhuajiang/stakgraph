@@ -228,11 +228,6 @@ impl EdgeQueryBuilder {
         let source_type = self.edge.source.node_type.to_string();
         let target_type = self.edge.target.node_type.to_string();
         
-        println!("Creating edge: {}:{} -> {}:{} of type {} ", 
-            self.edge.source.node_data.name, source_type, 
-            self.edge.target.node_data.name, target_type, rel_type);
-        
-       
         params.insert("source_name".to_string(), self.edge.source.node_data.name.clone());
         params.insert("source_file".to_string(), self.edge.source.node_data.file.clone());
         params.insert("target_name".to_string(), self.edge.target.node_data.name.clone());
@@ -277,15 +272,12 @@ pub async fn execute_batch(
             query_obj = query_obj.param(&k, v.as_str());
         }
 
-        
-        match txn.run(query_obj).await {
-            Ok(_) => println!("Neo4j query #{} executed successfully: {}", i, query_str),
-            Err(e) => {
+            if let Err(e) = txn.run(query_obj).await  {
             println!("Neo4j query #{} {} failed: {}", i, query_str, e);
             txn.rollback().await?;
             return Err(anyhow::anyhow!("Neo4j batch query error: {}", e));
             }
-        }
+        
     }
     
     txn.commit().await?;
@@ -675,26 +667,6 @@ pub fn prefix_paths_query(root: &str) -> (String, HashMap<String, String>) {
     (query.to_string(), params)
 }
 
-pub fn create_filtered_graph_query(final_filter: &[String]) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-    
-    let files = final_filter.join("','");
-    params.insert("files".to_string(), format!("'{}'", files));
-    
-   
-    let query = 
-        "MATCH (n)
-         WHERE n.file IN [$files] OR labels(n)[0] = 'Repository'
-         RETURN n";
-
-         //TODO: Add edges to the query
-         //TODO: New Graph is to be created with the filtered nodes and edges
-    
-    (query.to_string(), params)
-}
-
-
-
 
 pub fn add_node_with_parent_query(
     node_type: &NodeType,
@@ -937,4 +909,29 @@ pub fn find_endpoint_query(
          RETURN n";
     
     (query.to_string(), params)
+}
+
+pub fn extract_node_data_from_neo4j_node(node: &neo4rs::Node) -> NodeData {
+    let name = node.get::<String>("name").unwrap_or_default();
+    let file = node.get::<String>("file").unwrap_or_default();
+    let start = node.get::<i32>("start").unwrap_or_default() as usize;
+    let end = node.get::<i32>("end").unwrap_or_default() as usize;
+    let body = node.get::<String>("body").unwrap_or_default();
+    let data_type = node.get::<String>("data_type").ok();
+    let docs = node.get::<String>("docs").ok();
+    let hash = node.get::<String>("hash").ok();
+    let meta = node.get::<BTreeMap<String, String>>("meta").unwrap_or_default();
+   
+    
+    NodeData {
+        name,
+        file,
+        start,
+        end,
+        body,
+        data_type,
+        docs,
+        hash,
+        meta,
+    }
 }
