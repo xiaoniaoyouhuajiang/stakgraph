@@ -4,10 +4,10 @@ use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
 use anyhow::Result;
 use std::str::FromStr;
-use tracing_test::traced_test;
+// use tracing_test::traced_test;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[traced_test]
+// #[traced_test]
 #[ignore]
 pub async fn test_neo4j() -> Result<()> {
     let mut graph = Neo4jGraph::default();
@@ -33,12 +33,13 @@ pub async fn test_neo4j() -> Result<()> {
     )?;
 
     let mut graph = repo.build_graph_inner::<Neo4jGraph>().await?;
+
     let (num_nodes, num_edges) = graph.get_graph_size();
 
     graph.analysis();
 
     assert_eq!(num_nodes, 30, "Expected 30 nodes");
-    assert_eq!(num_edges, 48, "Expected 48 edges");
+    assert_eq!(num_edges, 47, "Expected 47 edges");
 
     graph.disconnect()?;
     assert!(!graph.is_connected(), "Neo4j graph should be disconnected");

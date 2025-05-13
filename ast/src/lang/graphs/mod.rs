@@ -8,6 +8,8 @@ pub mod neo4j_graph;
 #[cfg(feature = "neo4j")]
 pub mod neo4j_utils;
 
+use std::str::FromStr;
+
 pub use array_graph::*;
 pub use btreemap_graph::*;
 pub use graph::*;
@@ -275,5 +277,25 @@ impl ToString for CallsMeta {
         }
         result.push_str(&format!("({}-{})", self.call_start, self.call_end));
         result
+    }
+}
+
+impl FromStr for EdgeType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "CALLS" => Ok(EdgeType::Calls(CallsMeta::default())),
+            "USES" => Ok(EdgeType::Uses),
+            "OPERAND" => Ok(EdgeType::Operand),
+            "ARG_OF" => Ok(EdgeType::ArgOf),
+            "CONTAINS" => Ok(EdgeType::Contains),
+            "IMPORTS" => Ok(EdgeType::Imports),
+            "OF" => Ok(EdgeType::Of),
+            "HANDLER" => Ok(EdgeType::Handler),
+            "RENDERS" => Ok(EdgeType::Renders),
+            "PARENT_OF" => Ok(EdgeType::ParentOf),
+            _ => Err(anyhow::anyhow!("Invalid EdgeType: {}", s)),
+        }
     }
 }

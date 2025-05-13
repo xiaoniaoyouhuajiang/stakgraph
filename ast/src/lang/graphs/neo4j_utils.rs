@@ -8,7 +8,7 @@ use std::{
 use tokio::runtime::Handle;
 use tracing::{debug, info};
 use lazy_static::lazy_static;
-use crate::{lang::FunctionCall, utils::create_node_key};
+use crate::{lang::FunctionCall, utils::{create_node_key, create_node_key_from_ref}};
 
 use super::*;
 
@@ -22,7 +22,7 @@ pub struct Neo4jConnectionManager;
 impl Neo4jConnectionManager {
     pub async fn initialize(uri: &str, username: &str, password: &str) -> Result<()> {
         let mut conn_guard = CONNECTION.lock().unwrap();
-        if (conn_guard.is_some()) {
+        if conn_guard.is_some() {
             return Ok(());
         }
         
@@ -222,31 +222,41 @@ impl EdgeQueryBuilder {
     }
     
     pub fn build(&self) -> (String, HashMap<String, String>) {
-        let params = self.build_params();
+        let mut params = self.build_params();
         let rel_type = self.edge.edge.to_string();
-
+        
+        let source_type = self.edge.source.node_type.to_string();
+        let target_type = self.edge.target.node_type.to_string();
+        
+        params.insert("source_name".to_string(), self.edge.source.node_data.name.clone());
+        params.insert("source_file".to_string(), self.edge.source.node_data.file.clone());
+        params.insert("target_name".to_string(), self.edge.target.node_data.name.clone());
+        params.insert("target_file".to_string(), self.edge.target.node_data.file.clone());
+    
         let props_clause = match &self.edge.edge {
-            EdgeType::Calls(_) if params.contains_key("operand") => {
+            EdgeType::Calls(meta) if params.contains_key("operand") => {
                 "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
             }
-            EdgeType::Calls(_) => {
+            EdgeType::Calls(meta) => {
                 "r.call_start = $call_start, r.call_end = $call_end"
             }
             _ => "",
         };
-
+    
+        
         let query = format!(
-            "MATCH (source: {} {{name: $source_name, file: $source_file, start: $source_start}}), (target: {} {{name: $target_name, file: $target_file, start: $target_start}})
-            MERGE (source)-[r:{}]->(target)
-            ON CREATE SET {}
-            ON MATCH SET {}",
-            self.edge.source.node_type.to_string(),
-            self.edge.target.node_type.to_string(),
+            "MATCH (source:{} {{name: $source_name, file: $source_file}}), 
+                   (target:{} {{name: $target_name, file: $target_file}})
+             MERGE (source)-[r:{}]->(target)
+             ON CREATE SET {}
+             ON MATCH SET {}",
+            source_type,
+            target_type,
             rel_type,
             if props_clause.is_empty() { "r.updated = true" } else { props_clause },
             if props_clause.is_empty() { "r.updated = true" } else { props_clause }
         );
-
+    
         (query, params)
     }
 }
@@ -256,17 +266,18 @@ pub async fn execute_batch(
 ) -> Result<()> {
     let mut txn = conn.start_txn().await?;
     
-    for (query_str, params) in queries {
+     for (i, (query_str, params)) in queries.iter().enumerate() {
         let mut query_obj = query(&query_str);
         for (k, v) in params {
             query_obj = query_obj.param(&k, v.as_str());
         }
-        
-        if let Err(e) = txn.run(query_obj).await {
-            debug!("Neo4j query error in batch: {}", e);
+
+            if let Err(e) = txn.run(query_obj).await  {
+            println!("Neo4j query #{} {} failed: {}", i, query_str, e);
             txn.rollback().await?;
             return Err(anyhow::anyhow!("Neo4j batch query error: {}", e));
-        }
+            }
+        
     }
     
     txn.commit().await?;
@@ -394,14 +405,23 @@ pub fn node_exists_query(node_key: &str) -> (String, HashMap<String, String>) {
 
 pub fn count_nodes_edges_query() -> String {
     "MATCH (n) 
-     OPTIONAL MATCH ()-[r]->() 
-     RETURN COUNT(DISTINCT n) as nodes, COUNT(DISTINCT r) as edges"
+     WITH COUNT(n) as nodes
+     MATCH ()-[r]->() 
+     RETURN nodes, COUNT(r) as edges"
         .to_string()
 }
-pub fn graph_analysis_query() -> String {
+pub fn graph_node_analysis_query() -> String {
     "MATCH (n) 
-     WITH labels(n) as node_type, count(n) as count 
-     RETURN node_type, count ORDER BY count DESC"
+     RETURN labels(n)[0] as node_type, n.name as name, n.file as file 
+     ORDER BY node_type, name"
+        .to_string()
+}
+pub fn graph_edges_analysis_query() -> String {
+    "MATCH (source)-[r]->(target) 
+     RETURN labels(source)[0] as source_type, source.name as source_name, 
+            type(r) as edge_type, labels(target)[0] as target_type, 
+            target.name as target_name, r.operand as operand 
+     ORDER BY source_type, source_name, edge_type, target_type, target_name"
         .to_string()
 }
 pub fn count_edges_by_type_query(edge_type: &EdgeType) -> (String, HashMap<String, String>) {
@@ -635,28 +655,6 @@ pub fn class_includes_query() -> String {
         .to_string()
 }
 
-pub fn filter_nodes_without_children_query(
-    parent_type: &NodeType,
-    child_type: &NodeType,
-    child_meta_key: &str
-) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-    params.insert("meta_key".to_string(), child_meta_key.to_string());
-    
-    let query = format!(
-        "MATCH (parent:{})
-         WHERE NOT EXISTS {{
-             MATCH (child:{})
-             WHERE child.{} = parent.name
-         }}
-         DETACH DELETE parent",
-        parent_type.to_string(),
-        child_type.to_string(),
-        child_meta_key
-    );
-    
-    (query, params)
-}
 
 pub fn prefix_paths_query(root: &str) -> (String, HashMap<String, String>) {
     let mut params = HashMap::new();
@@ -668,26 +666,6 @@ pub fn prefix_paths_query(root: &str) -> (String, HashMap<String, String>) {
     
     (query.to_string(), params)
 }
-
-pub fn create_filtered_graph_query(final_filter: &[String]) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-    
-    let files = final_filter.join("','");
-    params.insert("files".to_string(), format!("'{}'", files));
-    
-   
-    let query = 
-        "MATCH (n)
-         WHERE n.file IN [$files] OR labels(n)[0] = 'Repository'
-         RETURN n";
-
-         //TODO: Add edges to the query
-         //TODO: New Graph is to be created with the filtered nodes and edges
-    
-    (query.to_string(), params)
-}
-
-
 
 
 pub fn add_node_with_parent_query(
@@ -871,7 +849,19 @@ pub fn add_calls_query(
 ) -> Vec<(String, HashMap<String, String>)> {
     let mut queries = Vec::new();
     
-    for (func_call, ext_func) in funcs {
+    for (func_call, ext_func, class_call) in funcs {
+        if let Some(class_call) = class_call{
+            let edge = Edge::new(
+                EdgeType::Calls(CallsMeta::default()),
+                NodeRef::from(func_call.source.clone(), NodeType::Function),
+                NodeRef::from(class_call.into(), NodeType::Class)
+            );
+            queries.push(add_edge_query(&edge));
+        }
+
+         if func_call.target.is_empty() {
+            continue;
+        }
         if let Some(ext_nd) = ext_func {
             queries.push(add_node_query(&NodeType::Function, ext_nd));
             let edge = Edge::uses(func_call.source.clone(), ext_nd);
@@ -883,7 +873,7 @@ pub fn add_calls_query(
         }
     }
     
-    for (test_call, ext_func) in tests {
+    for (test_call, ext_func,_class_call) in tests {
         if let Some(ext_nd) = ext_func {
 
             queries.push(add_node_query(&NodeType::Function, ext_nd));
@@ -919,4 +909,29 @@ pub fn find_endpoint_query(
          RETURN n";
     
     (query.to_string(), params)
+}
+
+pub fn extract_node_data_from_neo4j_node(node: &neo4rs::Node) -> NodeData {
+    let name = node.get::<String>("name").unwrap_or_default();
+    let file = node.get::<String>("file").unwrap_or_default();
+    let start = node.get::<i32>("start").unwrap_or_default() as usize;
+    let end = node.get::<i32>("end").unwrap_or_default() as usize;
+    let body = node.get::<String>("body").unwrap_or_default();
+    let data_type = node.get::<String>("data_type").ok();
+    let docs = node.get::<String>("docs").ok();
+    let hash = node.get::<String>("hash").ok();
+    let meta = node.get::<BTreeMap<String, String>>("meta").unwrap_or_default();
+   
+    
+    NodeData {
+        name,
+        file,
+        start,
+        end,
+        body,
+        data_type,
+        docs,
+        hash,
+        meta,
+    }
 }
