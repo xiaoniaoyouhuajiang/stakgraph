@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { StakworkService } from "../services/stakwork";
 import { ChatRequest, Message } from "../types";
+import { getAdapterFromChatId } from "../utils/chatId";
 
 export class MessagesController {
   private stakworkService: StakworkService;
@@ -15,12 +15,27 @@ export class MessagesController {
   async handleMessage(req: Request, res: Response): Promise<void> {
     try {
       const { chat_id, messages } = req.body as ChatRequest;
+      if (!chat_id) {
+        res.status(400).json({
+          success: false,
+          message: `Error processing message: Chat ID is required`,
+        });
+        return;
+      }
+      const provider = getAdapterFromChatId(chat_id);
+      if (provider === "none") {
+        res.status(400).json({
+          success: false,
+          message: `Error processing message: Invalid chat ID`,
+        });
+        return;
+      }
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         res.status(400).json({
           success: false,
           message: "Invalid or missing messages array",
-          chat_id: chat_id || "",
+          chat_id: chat_id,
         });
         return;
       }
@@ -42,22 +57,13 @@ export class MessagesController {
     }
   }
 
-  async processMessages(
-    chatId: string | undefined,
-    messages: Message[]
-  ): Promise<string> {
-    const finalChatId = chatId || uuidv4();
-
-    // Build stakwork payload
+  async processMessages(chatId: string, messages: Message[]): Promise<string> {
     const payload = this.stakworkService.buildStakworkPayload(
-      finalChatId,
+      chatId,
       messages,
-      `${this.webhookBaseUrl}?chat_id=${finalChatId}`
+      `${this.webhookBaseUrl}?chat_id=${chatId}`
     );
-
-    // Send to stakwork
     await this.stakworkService.sendToStakwork(payload);
-
-    return finalChatId;
+    return chatId;
   }
 }

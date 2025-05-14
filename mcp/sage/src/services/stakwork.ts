@@ -1,5 +1,6 @@
 import axios from "axios";
 import { Message, StakworkChatPayload, StakworkResponse } from "../types";
+import { getAdapterFromChatId } from "../utils/chatId";
 
 export class StakworkService {
   private apiKey: string;
@@ -24,6 +25,12 @@ export class StakworkService {
   }
 
   async sendToStakwork(payload: StakworkChatPayload): Promise<number> {
+    if (process.env.DRY_RUN === "true") {
+      console.log("Dry run, not sending to Stakwork");
+      console.log(JSON.stringify(payload, null, 2));
+      return 0;
+    }
+
     try {
       console.log("Sending payload to Stakwork");
 
@@ -56,6 +63,7 @@ export class StakworkService {
     messages: Message[],
     webhookUrl: string
   ): StakworkChatPayload {
+    const source = getAdapterFromChatId(chatId);
     /*
     (find the stakwork secret too and add in a header)
     history: [
@@ -79,7 +87,7 @@ export class StakworkService {
               codeSpaceURL: this.codeSpaceURL,
               "2b_base_url": this.twoBBaseUrl,
               secret: this.secret,
-              source: "github",
+              source,
             },
           },
         },
