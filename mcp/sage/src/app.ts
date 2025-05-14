@@ -2,10 +2,11 @@ import express from "express";
 import bodyParser from "body-parser";
 import { StakworkService } from "./services/stakwork";
 import { GitHubIssueAdapter } from "./adapters/github";
-import { ChatAdapter } from "./adapters/adapter";
+import { ChatAdapter, Adapter, EmptyAdapters } from "./adapters/adapter";
 import { MessagesController } from "./controllers/messages";
-import { WebhookController, Adapter } from "./controllers/webhook";
+import { WebhookController } from "./controllers/webhook";
 import { Message } from "./types";
+import { loadConfig, Config } from "./utils/config";
 
 export class App {
   public app: express.Application;
@@ -13,12 +14,15 @@ export class App {
   private adapters: Record<Adapter, ChatAdapter>;
   private messagesController!: MessagesController;
   private webhookController!: WebhookController;
+  private config: Config;
 
-  constructor() {
+  constructor(configPath: string = "config.json") {
     this.app = express();
+    this.config = loadConfig(configPath);
     this.configureMiddleware();
-    this.adapters = this.initializeAdapters();
+    this.initializeServices();
     this.setupControllers();
+    this.adapters = this.initializeAdapters();
     this.setupRoutes();
   }
 
@@ -26,26 +30,44 @@ export class App {
     this.app.use(bodyParser.json());
   }
 
-  private initializeAdapters(): Record<Adapter, ChatAdapter> {
+  private initializeServices(): void {
     // Initialize Stakwork service
     const STAKWORK_API_KEY = process.env.STAKWORK_API_KEY || "";
     const WORKFLOW_ID = parseInt(process.env.WORKFLOW_ID || "38842", 10);
-    this.stakworkService = new StakworkService(STAKWORK_API_KEY, WORKFLOW_ID);
+    this.stakworkService = new StakworkService(
+      STAKWORK_API_KEY,
+      WORKFLOW_ID,
+      this.config.codeSpaceURL,
+      this.config["2b_base_url"],
+      this.config.secret
+    );
+  }
 
-    // Initialize GitHub adapter
+  private initializeAdapters(): Record<Adapter, ChatAdapter> {
+    const adapters = EmptyAdapters();
+    // Initialize Stakwork service
+    const STAKWORK_API_KEY = process.env.STAKWORK_API_KEY || "";
+    const WORKFLOW_ID = parseInt(process.env.WORKFLOW_ID || "38842", 10);
+    this.stakworkService = new StakworkService(
+      STAKWORK_API_KEY,
+      WORKFLOW_ID,
+      this.config.codeSpaceURL,
+      this.config["2b_base_url"],
+      this.config.secret
+    );
+
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
-    const GITHUB_OWNER = process.env.GITHUB_OWNER || "";
-    const GITHUB_REPO = process.env.GITHUB_REPO || "";
+    const { owner, repo } = this.config.github;
 
-    if (GITHUB_TOKEN && GITHUB_OWNER && GITHUB_REPO) {
+    if (GITHUB_TOKEN && owner && repo) {
       const DATA_DIR = process.env.DATA_DIR || "./data";
       const githubAdapter = new GitHubIssueAdapter(
         GITHUB_TOKEN,
-        GITHUB_OWNER,
-        GITHUB_REPO,
+        owner,
+        repo,
         DATA_DIR
       );
-      this.adapters["github"] = githubAdapter;
+      adapters["github"] = githubAdapter;
 
       // Initialize adapter and set up callback
       githubAdapter.initialize().catch((error: any) => {
@@ -69,7 +91,8 @@ export class App {
         "GitHub adapter not initialized due to missing configuration"
       );
     }
-    return this.adapters;
+
+    return adapters;
   }
 
   private setupControllers(): void {

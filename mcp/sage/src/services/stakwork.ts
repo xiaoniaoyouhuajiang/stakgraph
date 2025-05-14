@@ -5,10 +5,22 @@ export class StakworkService {
   private apiKey: string;
   private baseUrl: string = "https://api.stakwork.com/api/v1/projects";
   private workflowId: number;
+  private codeSpaceURL: string;
+  private twoBBaseUrl: string;
+  private secret: string;
 
-  constructor(apiKey: string, workflowId: number = 38842) {
+  constructor(
+    apiKey: string,
+    workflowId: number = 38842,
+    codeSpaceURL: string = "",
+    twoBBaseUrl: string = "",
+    secret: string = ""
+  ) {
     this.apiKey = apiKey;
     this.workflowId = workflowId;
+    this.codeSpaceURL = codeSpaceURL;
+    this.twoBBaseUrl = twoBBaseUrl;
+    this.secret = secret;
   }
 
   async sendToStakwork(payload: StakworkChatPayload): Promise<number> {
@@ -22,6 +34,7 @@ export class StakworkService {
           headers: {
             Authorization: `Token token=${this.apiKey}`,
             "Content-Type": "application/json",
+            "X-Secret": this.secret,
           },
         }
       );
@@ -45,9 +58,6 @@ export class StakworkService {
   ): StakworkChatPayload {
     /*
     (find the stakwork secret too and add in a header)
-    codeSpaceURL
-    2b_base_url
-    secret
     history: [
       {
         role: "user",
@@ -65,7 +75,11 @@ export class StakworkService {
             vars: {
               chatId,
               messages,
-              query: messages[messages.length - 1].content, // Assuming last message is the query
+              query: messages[messages.length - 1].content,
+              codeSpaceURL: this.codeSpaceURL,
+              "2b_base_url": this.twoBBaseUrl,
+              secret: this.secret,
+              source: "github",
             },
           },
         },

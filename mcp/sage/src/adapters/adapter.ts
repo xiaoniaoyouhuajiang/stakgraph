@@ -1,5 +1,7 @@
 import { Message } from "../types";
 
+export type Adapter = "github" | "none";
+
 export interface ChatAdapter {
   initialize(): Promise<void>;
   sendResponse(chatId: string, message: Message): Promise<void>;
@@ -25,4 +27,16 @@ export abstract class BaseAdapter implements ChatAdapter {
   ): void {
     this.messageCallback = callback;
   }
+}
+
+export class NoAdapter extends BaseAdapter {
+  async initialize(): Promise<void> {}
+  async sendResponse(_: string, __: Message): Promise<void> {}
+}
+
+export function EmptyAdapters(): Record<Adapter, ChatAdapter> {
+  return {
+    github: new NoAdapter(),
+    none: new NoAdapter(),
+  };
 }

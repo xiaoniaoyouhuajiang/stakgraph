@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
-import { ChatAdapter } from "../adapters/adapter";
+import { Adapter, ChatAdapter } from "../adapters/adapter";
 import { WebhookPayload } from "../types";
-
-export type Adapter = "github" | "default";
 
 export class WebhookController {
   private adapters: Record<Adapter, ChatAdapter>;
@@ -25,7 +23,7 @@ export class WebhookController {
       }
 
       // Determine which adapter to use based on chatId prefix
-      let adapterKey: Adapter = "default";
+      let adapterKey: Adapter = "none";
       if (chatId.startsWith("github-")) {
         adapterKey = "github";
       }
