@@ -6,7 +6,6 @@ use std::env;
 /*
 
 export REPO_URL="https://github.com/stakwork/sphinx-tribes.git,https://github.com/stakwork/sphinx-tribes-frontend.git"
-export OUTPUT_FORMAT=jsonl
 export OUTPUT_NAME=tribes
 cargo run --bin index
 
@@ -67,7 +66,7 @@ async fn main() -> Result<()> {
     let graph = repos.build_graphs().await?;
 
     if std::env::var("OUTPUT_FORMAT")
-        .unwrap_or_else(|_| "json".to_string())
+        .unwrap_or_else(|_| "jsonl".to_string())
         .as_str()
         == "jsonl"
     {

@@ -409,7 +409,10 @@ impl Stack for Ruby {
         true
     }
     fn is_extra_page(&self, file_name: &str) -> bool {
-        let is_good_ext = file_name.ends_with(".erb") || file_name.ends_with(".haml");
+        let is_good_ext = file_name.ends_with(".erb")
+            || file_name.ends_with(".haml")
+            || file_name.ends_with(".slim")
+            || file_name.ends_with(".html");
         let pagename = get_page_name(file_name);
         if pagename.is_none() {
             return false;

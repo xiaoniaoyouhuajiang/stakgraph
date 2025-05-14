@@ -11,7 +11,7 @@ use tracing_subscriber::EnvFilter;
 pub fn print_json<G: Graph + Serialize + 'static>(graph: &G, name: &str) -> Result<()> {
     use serde_jsonlines::write_json_lines;
     match std::env::var("OUTPUT_FORMAT")
-        .unwrap_or_else(|_| "json".to_string())
+        .unwrap_or_else(|_| "jsonl".to_string())
         .as_str()
     {
         "jsonl" => {

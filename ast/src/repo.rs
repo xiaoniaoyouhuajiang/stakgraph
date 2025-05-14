@@ -326,8 +326,11 @@ impl Repo {
             Err(_) => None,
         }
     }
-    pub fn collect_extra_pages(&self, is_extra_page: impl Fn(&str) -> bool) -> Result<Vec<String>> {
-        let source_files = walk_files_arbitrary(&self.root, is_extra_page)?;
+    pub fn collect_extra_pages(
+        &self,
+        yes_extra_page: impl Fn(&str) -> bool,
+    ) -> Result<Vec<String>> {
+        let source_files = walk_files_arbitrary(&self.root, yes_extra_page)?;
         Ok(source_files)
     }
 }
