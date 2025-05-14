@@ -48,6 +48,23 @@ export class GitHubIssueAdapter extends BaseAdapter {
     }, 60000); // Check every minute
   }
 
+  async sendResponse(chatId: string, message: Message): Promise<void> {
+    // Extract issue number from chatId
+    const issueNumber = parseInt(chatId.replace("github-issue-", ""), 10);
+
+    if (isNaN(issueNumber)) {
+      throw new Error(`Invalid GitHub issue chat ID: ${chatId}`);
+    }
+
+    console.log(`Sending message to GitHub issue #${issueNumber}`);
+    await this.octokit.issues.createComment({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      body: message.content,
+    });
+  }
+
   private async ensureDataDirExists(): Promise<void> {
     if (!fs.existsSync(this.dataDir)) {
       await fs.promises.mkdir(this.dataDir, { recursive: true });
@@ -134,22 +151,5 @@ export class GitHubIssueAdapter extends BaseAdapter {
     if (newIssuesProcessed) {
       await this.saveProcessedIssues();
     }
-  }
-
-  async sendResponse(chatId: string, message: Message): Promise<void> {
-    // Extract issue number from chatId
-    const issueNumber = parseInt(chatId.replace("github-issue-", ""), 10);
-
-    if (isNaN(issueNumber)) {
-      throw new Error(`Invalid GitHub issue chat ID: ${chatId}`);
-    }
-
-    console.log(`Sending message to GitHub issue #${issueNumber}`);
-    await this.octokit.issues.createComment({
-      owner: this.owner,
-      repo: this.repo,
-      issue_number: issueNumber,
-      body: message.content,
-    });
   }
 }
