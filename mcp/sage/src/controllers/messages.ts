@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
-import { StakworkService } from "../services/stakwork.service";
+import { StakworkService } from "../services/stakwork";
 import { ChatRequest, Message } from "../types";
 
 export class MessagesController {

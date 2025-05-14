@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import { BaseAdapter } from "./adapter.interface";
+import { BaseAdapter } from "./adapter";
 import { Message } from "../types";
 import * as fs from "fs";
 import * as path from "path";

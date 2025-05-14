@@ -1,10 +1,10 @@
 import express from "express";
 import bodyParser from "body-parser";
-import { StakworkService } from "./services/stakwork.service";
-import { GitHubIssueAdapter } from "./adapters/github.adapter";
-import { ChatAdapter } from "./adapters/adapter.interface";
-import { MessagesController } from "./controllers/messages.controller";
-import { WebhookController, Adapter } from "./controllers/webhook.controller";
+import { StakworkService } from "./services/stakwork";
+import { GitHubIssueAdapter } from "./adapters/github";
+import { ChatAdapter } from "./adapters/adapter";
+import { MessagesController } from "./controllers/messages";
+import { WebhookController, Adapter } from "./controllers/webhook";
 import { Message } from "./types";
 
 export class App {

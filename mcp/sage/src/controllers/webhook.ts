@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ChatAdapter } from "../adapters/adapter.interface";
+import { ChatAdapter } from "../adapters/adapter";
 import { WebhookPayload } from "../types";
 
 export type Adapter = "github" | "default";
