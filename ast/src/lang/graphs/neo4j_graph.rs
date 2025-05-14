@@ -370,6 +370,7 @@ impl Graph for Neo4jGraph {
     fn get_graph_size(&self) -> (u32, u32) {
         let connection = self.get_connection();
 
+        //TODO: For debugging, remove later
         let edge_types_query = "MATCH ()-[r]->() RETURN type(r) as type, COUNT(r) as count";
         match block_in_place(connection.execute(query(edge_types_query))) {
             Ok(mut result) => {
