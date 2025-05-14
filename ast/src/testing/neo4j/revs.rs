@@ -7,7 +7,6 @@ use tracing::{debug, info};
 
 #[cfg(feature = "neo4j")]
 use crate::lang::graphs::Neo4jGraph;
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_neo4j_revs() -> Result<()> {
     logger();
@@ -18,93 +17,138 @@ async fn test_neo4j_revs() -> Result<()> {
         return Err(anyhow::anyhow!("no REPO_PATH or REPO_URL"));
     }
 
-    let actual_path = match &repo_path {
-        Some(path) => path.clone(),
-        None => {
-            let first_url = repo_urls
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("no REPO_URL"))?
-                .split(',')
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("Empty REPO_URL"))?;
+    let repos_without_filter = if let Some(path) = &repo_path {
+        info!("Using local repository at {}", path);
+        Repo::new_multi_detect(path, None, Vec::new(), Vec::new())
+            .await
+            .context("Failed to create repo without filter")?
+    } else {
+        let urls = repo_urls.as_ref().unwrap();
+        info!("Using remote repositories: {}", urls);
 
-            Repo::get_path_from_url(first_url)?
-        }
+        let username = env::var("USERNAME").ok();
+        let pat = env::var("PAT").ok();
+        Repo::new_clone_multi_detect(urls, username, pat, Vec::new(), Vec::new())
+            .await
+            .context("Failed to clone repository")?
     };
 
-    let revs = match env::var("REV").ok().filter(|v| !v.is_empty()) {
-        Some(rev_str) => {
-            info!("Using revisions from env: {}", rev_str);
-            let revs: Vec<String> = rev_str.split(',').map(String::from).collect();
-            revs
-        }
-        None => match Repo::get_last_revisions(&actual_path, 2) {
-            Ok(revs) => revs,
-            Err(_) => {
-                debug!("Using default HEAD revisions");
-                vec!["HEAD~1".to_string(), "HEAD".to_string()]
+    if repos_without_filter.0.is_empty() {
+        return Err(anyhow::anyhow!("No repositories detected"));
+    }
+
+    info!(
+        "Found {} repositories to analyze",
+        repos_without_filter.0.len()
+    );
+
+    let mut all_changed_files = Vec::new();
+    let mut repo_info = Vec::new();
+
+    for (idx, repo) in repos_without_filter.0.iter().enumerate() {
+        let path = repo
+            .root
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("Invalid repository path"))?;
+
+        let revs = match env::var("REV").ok().filter(|v| !v.is_empty()) {
+            Some(rev_str) => {
+                info!("Using revisions from env: {}", rev_str);
+                rev_str.split(',').map(String::from).collect::<Vec<_>>()
             }
-        },
-    };
-    if revs.len() < 2 {
-        return Err(anyhow::anyhow!(
-            "Need at least two revisions for comparison"
-        ));
-    }
+            None => match Repo::get_last_revisions(path, 2) {
+                Ok(revs) => revs,
+                Err(_) => {
+                    debug!("Using default HEAD revisions for {}", path);
+                    vec!["HEAD~1".to_string(), "HEAD".to_string()]
+                }
+            },
+        };
 
-    info!("{} : {} -> {}", actual_path, revs[0], revs[1]);
-
-    if let Some(changed_files) = check_revs_files(&actual_path, revs.clone()) {
-        info!("\n==== Files changed between revisions ====");
-        for file in &changed_files {
-            info!("  -> {}", file);
+        if revs.len() < 2 {
+            info!(
+                "Repository {} has fewer than 2 revisions, skipping",
+                idx + 1
+            );
+            continue;
         }
-        info!("\n==== Total: {} files ====", changed_files.len());
+
+        repo_info.push((path.to_string(), revs.clone()));
+
+        info!(
+            "Repository {}: {} -> {}",
+            path.to_string(),
+            revs[0],
+            revs[1]
+        );
+
+        if let Some(changed_files) = check_revs_files(path, revs.clone()) {
+            for file in &changed_files {
+                info!("  -> {}", file);
+                all_changed_files.push(file.clone());
+            }
+        }
     }
 
-    let repo_without_filter = Repo::new_multi_detect(&actual_path, None, Vec::new(), Vec::new())
-        .await
-        .context("Failed to create repo without filter")?;
+    info!(
+        "=> {} files changed across all repositories",
+        all_changed_files.len()
+    );
 
     let mut complete_graph = Neo4jGraph::default();
     complete_graph.connect().await?;
     complete_graph.clear();
 
-    info!("=====Building complete graph=====");
-    let complete_graph = repo_without_filter
+    println!("=====Building complete graph=====");
+    let complete_graph = repos_without_filter
         .build_graphs_inner::<Neo4jGraph>()
         .await
         .context("Failed to build complete graph")?;
 
     let (complete_nodes, complete_edges) = complete_graph.get_graph_size();
-    info!(
+    println!(
         "Complete graph: \n {} nodes \n{} edges",
-        complete_nodes, complete_edges,
+        complete_nodes, complete_edges
     );
 
-    let repo_with_filter = Repo::new_multi_detect(&actual_path, None, Vec::new(), revs.clone())
-        .await
-        .context("Failed to create repo with filter")?;
+    let mut all_revs = Vec::new();
+    for (_, revs) in &repo_info {
+        all_revs.extend(revs.clone());
+    }
+
+    let repos_with_filter = if let Some(path) = &repo_path {
+        Repo::new_multi_detect(path, None, Vec::new(), all_revs)
+            .await
+            .context("Failed to create repo with filter")?
+    } else {
+        let urls = repo_urls.as_ref().unwrap();
+        let username = env::var("USERNAME").ok();
+        let pat = env::var("PAT").ok();
+
+        Repo::new_clone_multi_detect(urls, username, pat, Vec::new(), all_revs)
+            .await
+            .context("Failed to create repo with filter")?
+    };
 
     let mut filtered_graph = Neo4jGraph::default();
     filtered_graph.connect().await?;
     filtered_graph.clear();
 
-    info!("=====Building filtered graph with revs=====");
-    let filtered_graph = repo_with_filter
+    println!("=====Building filtered graph with revs=====");
+    let filtered_graph = repos_with_filter
         .build_graphs_inner::<Neo4jGraph>()
         .await
         .context("Failed to build filtered graph")?;
 
     let (filtered_nodes, filtered_edges) = filtered_graph.get_graph_size();
-    info!(
+    println!(
         "Filtered graph: \n{} nodes \n{} edges",
         filtered_nodes, filtered_edges
     );
 
     assert!(
         filtered_nodes <= complete_nodes,
-        "Expected filtered graph to have fewer or equal nodes, but found {} vs {}",
+        " {} Filtered Nodes vs {} Complete Nodes",
         filtered_nodes,
         complete_nodes
     );
