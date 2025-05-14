@@ -183,28 +183,6 @@ impl Neo4jGraph {
         }
     }
 
-    fn graph_fallback(&self) -> Arc<Neo4jConnection> {
-        let config = ConfigBuilder::new()
-            .uri(&self.config.uri)
-            .user(&self.config.username)
-            .password(&self.config.password)
-            .build()
-            .expect("Failed to build Neo4j config");
-
-        match block_in_place(Neo4jConnection::connect(config)) {
-            Ok(graph) => {
-                debug!("Successfully created fallback connection");
-                Arc::new(graph)
-            }
-            Err(e) => {
-                panic!(
-                    "Failed to connect to Neo4j: {}. Please ensure Neo4j is running at {}.",
-                    e, self.config.uri
-                );
-            }
-        }
-    }
-
     pub fn clear(&mut self) {
         if let Err(e) = block_in_place(async {
             let connection = match self.ensure_connected().await {
@@ -447,7 +425,7 @@ impl Graph for Neo4jGraph {
                         row.get::<String>("name"),
                         row.get::<String>("file"),
                     ) {
-                        println!("Node: \"{}\"-{}", name, node_type);
+                        println!("Node: \"{}\"-{}-{}", node_type, name, file);
                     }
                 }
             }
@@ -929,14 +907,12 @@ impl Graph for Neo4jGraph {
                     if let (
                         Ok(source_node),
                         Ok(edge_type_str),
-                        Ok(rel),
                         Ok(target_node),
                         Ok(source_type_str),
                         Ok(target_type_str),
                     ) = (
                         row.get::<neo4rs::Node>("source"),
                         row.get::<String>("edge_type"),
-                        row.get::<neo4rs::Relation>("r"),
                         row.get::<neo4rs::Node>("target"),
                         row.get::<String>("source_type"),
                         row.get::<String>("target_type"),
@@ -1013,14 +989,12 @@ impl Graph for Neo4jGraph {
                     if let (
                         Ok(source_node),
                         Ok(edge_type_str),
-                        Ok(rel),
                         Ok(target_node),
                         Ok(source_type_str),
                         Ok(target_type_str),
                     ) = (
                         row.get::<neo4rs::Node>("source"),
                         row.get::<String>("edge_type"),
-                        row.get::<neo4rs::Relation>("r"),
                         row.get::<neo4rs::Node>("target"),
                         row.get::<String>("source_type"),
                         row.get::<String>("target_type"),
@@ -1231,8 +1205,64 @@ impl Graph for Neo4jGraph {
         }
     }
 
-    fn process_endpoint_groups(&mut self, _eg: Vec<NodeData>, _lang: &Lang) -> Result<()> {
-        //TODO: Implement this function
+    fn process_endpoint_groups(&mut self, eg: Vec<NodeData>, lang: &Lang) -> Result<()> {
+        // Pre-process the data we need before entering the transaction
+        let mut group_data = Vec::new();
+
+        for group in &eg {
+            if let Some(group_function_name) = group.meta.get("group") {
+                if let Some(group_function) = self
+                    .find_nodes_by_name(NodeType::Function, group_function_name)
+                    .first()
+                {
+                    for finder_query in lang.lang().endpoint_finders() {
+                        if let Ok(endpoints) = lang.get_query_opt::<Self>(
+                            Some(finder_query),
+                            &group_function.body,
+                            &group_function.file,
+                            NodeType::Endpoint,
+                        ) {
+                            group_data.push((group.clone(), endpoints));
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Err(e) = block_in_place(async {
+            self.execute_with_transaction(|txn_manager| {
+                for (group, endpoints) in &group_data {
+                    for endpoint in endpoints {
+                        let update_node_query = format!(
+                            "MATCH (n:Endpoint {{name: $old_name, file: $file}})
+                             SET n.name = $new_name
+                             RETURN n"
+                        );
+                        let mut node_params = HashMap::new();
+                        node_params.insert("old_name".to_string(), endpoint.name.clone());
+                        node_params.insert("file".to_string(), endpoint.file.clone());
+                        node_params.insert(
+                            "new_name".to_string(),
+                            format!("{}{}", group.name, endpoint.name),
+                        );
+                        txn_manager.add_query((update_node_query, node_params.clone()));
+                        let update_rels_query = format!(
+                            "MATCH (source:Endpoint {{name: $old_name, file: $file}})-[r]->(target)
+                             SET source.name = $new_name
+                             RETURN r"
+                        );
+                        txn_manager.add_query((update_rels_query, node_params));
+                    }
+                }
+
+                Ok(())
+            })
+            .await
+        }) {
+            debug!("Error processing endpoint groups: {:?}", e);
+            return Err(anyhow::anyhow!("Error processing endpoint groups: {}", e));
+        }
+
         Ok(())
     }
 }

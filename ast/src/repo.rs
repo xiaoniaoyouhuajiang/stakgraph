@@ -39,7 +39,7 @@ impl Repos {
     pub async fn build_graphs_btree(&self) -> Result<BTreeMapGraph> {
         self.build_graphs_inner::<BTreeMapGraph>().await
     }
-    async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
+    pub async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
         let mut graph = G::new();
         for repo in &self.0 {
             info!("building graph for {:?}", repo);

@@ -7,8 +7,6 @@ use std::str::FromStr;
 // use tracing_test::traced_test;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-// #[traced_test]
-#[ignore]
 pub async fn test_neo4j() -> Result<()> {
     let mut graph = Neo4jGraph::default();
     graph.connect().await?;
@@ -19,7 +17,6 @@ pub async fn test_neo4j() -> Result<()> {
 
     let (nodes, edges) = graph.get_graph_size();
     graph.analysis();
-    // Fix contradictory assertion
     assert_eq!(nodes, 0, "Graph should have 0 nodes after clearing");
     assert_eq!(edges, 0, "Graph should have 0 edges after clearing");
 

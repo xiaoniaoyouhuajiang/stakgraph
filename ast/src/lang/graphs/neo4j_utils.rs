@@ -1,14 +1,12 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use neo4rs::{query, ConfigBuilder, Graph as Neo4jConnection};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     sync::{Arc, Mutex, Once},
-    time::Duration,
 };
-use tokio::runtime::Handle;
 use tracing::{debug, info};
 use lazy_static::lazy_static;
-use crate::{lang::FunctionCall, utils::{create_node_key, create_node_key_from_ref}};
+use crate::{lang::FunctionCall, utils::create_node_key};
 
 use super::*;
 
@@ -234,10 +232,10 @@ impl EdgeQueryBuilder {
         params.insert("target_file".to_string(), self.edge.target.node_data.file.clone());
     
         let props_clause = match &self.edge.edge {
-            EdgeType::Calls(meta) if params.contains_key("operand") => {
+            EdgeType::Calls(_) if params.contains_key("operand") => {
                 "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
             }
-            EdgeType::Calls(meta) => {
+            EdgeType::Calls(_) => {
                 "r.call_start = $call_start, r.call_end = $call_end"
             }
             _ => "",
