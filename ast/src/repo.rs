@@ -39,7 +39,7 @@ impl Repos {
     pub async fn build_graphs_btree(&self) -> Result<BTreeMapGraph> {
         self.build_graphs_inner::<BTreeMapGraph>().await
     }
-    async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
+    pub async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
         let mut graph = G::new();
         for repo in &self.0 {
             info!("building graph for {:?}", repo);
@@ -332,6 +332,33 @@ impl Repo {
     ) -> Result<Vec<String>> {
         let source_files = walk_files_arbitrary(&self.root, yes_extra_page)?;
         Ok(source_files)
+    }
+    pub fn get_last_revisions(path: &str, count: usize) -> Result<Vec<String>> {
+        let repo = git2::Repository::open(path)?;
+        let mut revwalk = repo.revwalk()?;
+        revwalk.push_head()?;
+        revwalk.set_sorting(git2::Sort::TIME)?;
+
+        let mut commits = Vec::new();
+        for oid_result in revwalk.take(count) {
+            if let Ok(oid) = oid_result {
+                if let Ok(commit) = repo.find_commit(oid) {
+                    commits.push(commit.id().to_string());
+                }
+            }
+        }
+
+        commits.reverse();
+
+        if commits.is_empty() {
+            return Err(anyhow::anyhow!("No commits found in repository"));
+        }
+
+        Ok(commits)
+    }
+    pub fn get_path_from_url(url: &str) -> Result<String> {
+        let gurl = GitUrl::parse(url)?;
+        Ok(format!("/tmp/{}", gurl.fullname))
     }
 }
 
