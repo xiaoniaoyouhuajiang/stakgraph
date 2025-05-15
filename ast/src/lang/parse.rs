@@ -95,7 +95,7 @@ impl Lang {
         Self::loop_captures_multi(q, &m, code, |body, node, o| {
             let mut impy = NodeData::in_file(file);
             if o == IMPORTS {
-                impy.name = body.to_string();
+                impy.name = "imports".to_string();
                 impy.body = body;
                 impy.start = node.start_position().row;
                 impy.end = node.end_position().row;
