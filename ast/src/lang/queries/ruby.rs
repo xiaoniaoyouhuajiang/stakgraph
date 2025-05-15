@@ -417,9 +417,9 @@ impl Stack for Ruby {
         if pagename.is_none() {
             return false;
         }
-        let is_underscore = pagename.as_ref().unwrap().starts_with("_");
+        // let is_underscore = pagename.as_ref().unwrap().starts_with("_");
         let is_view = file_name.contains("/views/");
-        is_view && is_good_ext && !is_underscore
+        is_view && is_good_ext
     }
     fn extra_page_finder(
         &self,
