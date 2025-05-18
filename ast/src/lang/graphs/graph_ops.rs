@@ -1,4 +1,5 @@
-use crate::lang::graphs::{Graph, Neo4jGraph};
+use crate::lang::graphs::neo4j_graph::Neo4jGraph;
+use crate::lang::graphs::Graph;
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
 use tracing::info;
