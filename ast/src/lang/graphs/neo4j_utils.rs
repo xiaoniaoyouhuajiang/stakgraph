@@ -381,15 +381,6 @@ pub async fn execute_node_query(
     }
 }
 
-pub fn find_node_by_key_query(node_key: &str) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-    params.insert("key".to_string(), node_key.to_string());
-
-    let query = "MATCH (n {key: $key}) 
-                       RETURN n";
-
-    (query.to_string(), params)
-}
 
 pub fn node_exists_query(node_key: &str) -> (String, HashMap<String, String>) {
     let mut params = HashMap::new();
@@ -565,7 +556,8 @@ pub fn find_nodes_with_edge_type_query(
 
     let query = format!(
         "MATCH (source:{})-[r:{}]->(target:{})
-         RETURN source.key as source_key, target.key as target_key",
+         RETURN source.name as source_name, source.file as source_file, source.start as source_start, \
+                target.name as target_name, target.file as target_file, target.start as target_start",
         source_type.to_string(),
         edge_type.to_string(),
         target_type.to_string()

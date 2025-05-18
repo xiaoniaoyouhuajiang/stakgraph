@@ -155,19 +155,6 @@ impl Neo4jGraph {
         }
     }
 
-    fn find_node_by_key(&self, key: &str) -> Option<NodeData> {
-        let connection = self.get_connection();
-
-        let (query, params) = find_node_by_key_query(key);
-
-        match block_in_place(async { execute_node_query(&connection, query, params).await }) {
-            Ok(nodes) => nodes.into_iter().next(),
-            Err(e) => {
-                debug!("Error finding node by key: {}", e);
-                None
-            }
-        }
-    }
     fn get_connection(&self) -> Arc<Neo4jConnection> {
         match &self.connection {
             Some(conn) => conn.clone(),
@@ -1326,8 +1313,6 @@ impl Graph for Neo4jGraph {
     ) -> Vec<(NodeData, NodeData)> {
         let connection = self.get_connection();
 
-        let pairs = Vec::new();
-
         let (query_str, params) =
             find_nodes_with_edge_type_query(&source_type, &target_type, &edge_type);
 
@@ -1335,29 +1320,37 @@ impl Graph for Neo4jGraph {
         for (key, value) in params {
             query_obj = query_obj.param(&key, value);
         }
+        let mut node_pairs = Vec::new();
         match block_in_place(connection.execute(query_obj)) {
             Ok(mut result) => {
-                let mut node_pairs = Vec::new();
-
                 while let Ok(Some(row)) = block_in_place(result.next()) {
-                    let source_key: String = row.get("source_key").unwrap_or_default();
-                    let target_key: String = row.get("target_key").unwrap_or_default();
-                    if let (Some(source_node), Some(target_node)) = (
-                        self.find_node_by_key(&source_key),
-                        self.find_node_by_key(&target_key),
-                    ) {
-                        node_pairs.push((source_node, target_node));
-                    }
+                    let source_name: String = row.get("source_name").unwrap_or_default();
+                    let source_file: String = row.get("source_file").unwrap_or_default();
+                    let source_start: i32 = row.get("source_start").unwrap_or_default();
+                    let target_name: String = row.get("target_name").unwrap_or_default();
+                    let target_file: String = row.get("target_file").unwrap_or_default();
+                    let target_start: i32 = row.get("target_start").unwrap_or_default();
+
+                    let source_node = NodeData {
+                        name: source_name,
+                        file: source_file,
+                        start: source_start as usize,
+                        ..Default::default()
+                    };
+                    let target_node = NodeData {
+                        name: target_name,
+                        file: target_file,
+                        start: target_start as usize,
+                        ..Default::default()
+                    };
+                    node_pairs.push((source_node, target_node));
                 }
-                node_pairs
             }
             Err(e) => {
                 debug!("Error finding nodes with edge type: {}", e);
-                Vec::new()
             }
-        };
-
-        pairs
+        }
+        node_pairs
     }
     fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData> {
         let connection = self.get_connection();

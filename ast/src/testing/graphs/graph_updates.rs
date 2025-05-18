@@ -3,7 +3,7 @@ use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::graph_ops::GraphOps;
 use crate::lang::{graphs::EdgeType, NodeType};
 use lsp::git::{checkout_commit, get_changed_files_between, git_pull_or_clone};
-
+use tracing::{debug, info};
 #[cfg(feature = "neo4j")]
 fn clear_neo4j() {
     let mut graph_ops = GraphOps::new();
@@ -26,7 +26,7 @@ fn assert_edge_exists(graph: &GraphOps, src: &str, tgt: &str) -> bool {
 #[cfg(feature = "neo4j")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_update() {
-    use tracing::info;
+    use crate::lang::graph;
 
     let repo_url = "https://github.com/fayekelmith/demorepo.git";
     let repo_path = "/tmp/demorepo";
@@ -51,6 +51,8 @@ async fn test_graph_update() {
 
     info!("Before: {} nodes and {} edges", nodes_before, edges_before);
 
+    graph_ops.graph.analysis();
+
     // --- Assert initial state ---
     assert!(
         assert_edge_exists(&graph_ops, "Alpha", "Beta"),
@@ -71,6 +73,7 @@ async fn test_graph_update() {
     let changed_files = get_changed_files_between(repo_path, before_commit, after_commit)
         .await
         .unwrap();
+    println!("Changed files: {:?}", changed_files);
 
     let (nodes_after, edges_after) = graph_ops
         .update_incremental(repo_url, repo_path, after_commit, before_commit)
@@ -78,6 +81,7 @@ async fn test_graph_update() {
 
     info!("After: {} nodes and {} edges", nodes_after, edges_after);
 
+    graph_ops.graph.analysis();
     // --- Assert updated state ---
     // Alpha should now call Delta, not Beta or Gamma
     assert!(
