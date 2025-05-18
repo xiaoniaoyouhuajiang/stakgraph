@@ -105,6 +105,7 @@ name = "ast"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures",
  "git-url-parse",
  "git2",
  "inflection-rs",
