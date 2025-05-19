@@ -13,23 +13,26 @@ export class StakworkService {
   private codeSpaceURL: string;
   private twoBBaseUrl: string;
   private secret: string;
+  private dryRun: boolean;
 
   constructor(
     apiKey: string,
     workflowId: number = 38842,
     codeSpaceURL: string = "",
     twoBBaseUrl: string = "",
-    secret: string = ""
+    secret: string = "",
+    dryRun: boolean = false
   ) {
     this.apiKey = apiKey;
     this.workflowId = workflowId;
     this.codeSpaceURL = codeSpaceURL;
     this.twoBBaseUrl = twoBBaseUrl;
     this.secret = secret;
+    this.dryRun = dryRun;
   }
 
   async sendToStakwork(payload: StakworkChatPayload): Promise<number> {
-    if (process.env.DRY_RUN === "true") {
+    if (this.dryRun) {
       console.log("Dry run, not sending to Stakwork");
       console.log(JSON.stringify(payload, null, 2));
       return 0;

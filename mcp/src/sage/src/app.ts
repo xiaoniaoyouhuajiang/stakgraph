@@ -16,8 +16,9 @@ export class App {
   private webhookController!: WebhookController;
   private config: Config;
 
-  constructor(parentApp?: any, configPath: string = "sage_config.json") {
+  constructor(parentApp?: any) {
     this.app = parentApp || express();
+    const configPath = process.env.SAGE_CONFIG_PATH || "sage_config.json";
     this.config = loadConfig(configPath);
     if (!parentApp) {
       this.configureMiddleware();
@@ -33,36 +34,25 @@ export class App {
   }
 
   private initializeServices(): void {
-    // Initialize Stakwork service
-    const STAKWORK_API_KEY = process.env.STAKWORK_API_KEY || "";
-    const WORKFLOW_ID = parseInt(process.env.WORKFLOW_ID || "38842", 10);
+    const workflow_id = parseInt(this.config.workflow_id || "38842", 10);
     this.stakworkService = new StakworkService(
-      STAKWORK_API_KEY,
-      WORKFLOW_ID,
+      this.config.stakwork_api_key,
+      workflow_id,
       this.config.codeSpaceURL,
       this.config["2b_base_url"],
-      this.config.secret
+      this.config.secret,
+      this.config.dry_run
     );
   }
 
   private initializeAdapters(): Record<Adapter, ChatAdapter> {
     const adapters = EmptyAdapters();
-    // Initialize Stakwork service
-    const STAKWORK_API_KEY = process.env.STAKWORK_API_KEY || "";
-    const WORKFLOW_ID = parseInt(process.env.WORKFLOW_ID || "38842", 10);
-    this.stakworkService = new StakworkService(
-      STAKWORK_API_KEY,
-      WORKFLOW_ID,
-      this.config.codeSpaceURL,
-      this.config["2b_base_url"],
-      this.config.secret
-    );
 
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+    const GITHUB_TOKEN = this.config.github.token;
     const { owner, repo } = this.config.github;
 
     if (GITHUB_TOKEN && owner && repo) {
-      const DATA_DIR = process.env.DATA_DIR || "./data";
+      const DATA_DIR = this.config.data_dir || "./data";
       const githubAdapter = new GitHubIssueAdapter(
         GITHUB_TOKEN,
         owner,
