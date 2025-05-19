@@ -48,13 +48,12 @@ export class App {
   private initializeAdapters(): Record<Adapter, ChatAdapter> {
     const adapters = EmptyAdapters();
 
-    const GITHUB_TOKEN = this.config.github.token;
-    const { owner, repo } = this.config.github;
+    const { owner, repo, token } = this.config.github;
 
-    if (GITHUB_TOKEN && owner && repo) {
+    if (token && owner && repo) {
       const DATA_DIR = this.config.data_dir || "./data";
       const githubAdapter = new GitHubIssueAdapter(
-        GITHUB_TOKEN,
+        token,
         owner,
         repo,
         DATA_DIR
