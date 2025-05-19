@@ -65,15 +65,14 @@ export class StakworkService {
   ): StakworkChatPayload {
     const source = getAdapterFromChatId(chatId);
     /*
-    (find the stakwork secret too and add in a header)
     history: [
       {
         role: "user",
         content: "message",
       },
     ]
-    source "github"
     */
+    const history: { role: string; content: string }[] = [];
     return {
       name: "Hive Chat Processor",
       workflow_id: this.workflowId,
@@ -88,6 +87,7 @@ export class StakworkService {
               "2b_base_url": this.twoBBaseUrl,
               secret: this.secret,
               source,
+              history,
             },
           },
         },
