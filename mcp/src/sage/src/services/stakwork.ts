@@ -1,6 +1,10 @@
 import axios from "axios";
-import { Message, StakworkChatPayload, StakworkResponse } from "../types";
-import { getAdapterFromChatId } from "../utils/chatId";
+import {
+  Message,
+  StakworkChatPayload,
+  StakworkResponse,
+} from "../types/index.js";
+import { getAdapterFromChatId } from "../utils/chatId.js";
 
 export class StakworkService {
   private apiKey: string;

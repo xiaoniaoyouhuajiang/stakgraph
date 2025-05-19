@@ -414,11 +414,11 @@ class Db {
     try {
       session = this.driver.session();
       console.log("Creating indexes...");
-      console.log(Q.KEY_INDEX_QUERY);
-      console.log(Q.FULLTEXT_BODY_INDEX_QUERY);
-      console.log(Q.FULLTEXT_NAME_INDEX_QUERY);
-      console.log(Q.FULLTEXT_COMPOSITE_INDEX_QUERY);
-      console.log(Q.VECTOR_INDEX_QUERY);
+      // console.log(Q.KEY_INDEX_QUERY);
+      // console.log(Q.FULLTEXT_BODY_INDEX_QUERY);
+      // console.log(Q.FULLTEXT_NAME_INDEX_QUERY);
+      // console.log(Q.FULLTEXT_COMPOSITE_INDEX_QUERY);
+      // console.log(Q.VECTOR_INDEX_QUERY);
       await session.run(Q.KEY_INDEX_QUERY);
       await session.run(Q.FULLTEXT_BODY_INDEX_QUERY);
       await session.run(Q.FULLTEXT_NAME_INDEX_QUERY);

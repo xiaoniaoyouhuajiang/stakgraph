@@ -1,12 +1,12 @@
 import express from "express";
 import bodyParser from "body-parser";
-import { StakworkService } from "./services/stakwork";
-import { GitHubIssueAdapter } from "./adapters/github";
-import { ChatAdapter, Adapter, EmptyAdapters } from "./adapters/adapter";
-import { MessagesController } from "./controllers/messages";
-import { WebhookController } from "./controllers/webhook";
-import { Message } from "./types";
-import { loadConfig, Config } from "./utils/config";
+import { StakworkService } from "./services/stakwork.js";
+import { GitHubIssueAdapter } from "./adapters/github.js";
+import { ChatAdapter, Adapter, EmptyAdapters } from "./adapters/adapter.js";
+import { MessagesController } from "./controllers/messages.js";
+import { WebhookController } from "./controllers/webhook.js";
+import { Message } from "./types/index.js";
+import { loadConfig, Config } from "./utils/config.js";
 
 export class App {
   public app: express.Application;
@@ -16,10 +16,12 @@ export class App {
   private webhookController!: WebhookController;
   private config: Config;
 
-  constructor(configPath: string = "config.json") {
-    this.app = express();
+  constructor(parentApp?: any, configPath: string = "sage_config.json") {
+    this.app = parentApp || express();
     this.config = loadConfig(configPath);
-    this.configureMiddleware();
+    if (!parentApp) {
+      this.configureMiddleware();
+    }
     this.initializeServices();
     this.setupControllers();
     this.adapters = this.initializeAdapters();

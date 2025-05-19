@@ -11,7 +11,7 @@ export interface Config {
   secret: string;
 }
 
-export function loadConfig(configPath: string = "config.json"): Config {
+export function loadConfig(configPath: string = "sage_config.json"): Config {
   try {
     const configFilePath = path.resolve(process.cwd(), configPath);
     const configData = fs.readFileSync(configFilePath, "utf8");
