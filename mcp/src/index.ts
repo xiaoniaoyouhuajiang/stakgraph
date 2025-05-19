@@ -24,8 +24,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
 
-// init sage
-new SageApp(app);
+try {
+  new SageApp(app);
+} catch (e) {
+  console.error(e);
+}
 
 app.get("/", swagger);
 app.use("/textarea", express.static(path.join(__dirname, "../textarea")));

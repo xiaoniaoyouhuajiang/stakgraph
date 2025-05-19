@@ -413,7 +413,7 @@ class Db {
     let session: Session | null = null;
     try {
       session = this.driver.session();
-      console.log("Creating indexes...");
+      // console.log("Creating indexes...");
       // console.log(Q.KEY_INDEX_QUERY);
       // console.log(Q.FULLTEXT_BODY_INDEX_QUERY);
       // console.log(Q.FULLTEXT_NAME_INDEX_QUERY);
