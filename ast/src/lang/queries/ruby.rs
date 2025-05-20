@@ -4,6 +4,7 @@ use crate::builder::get_page_name;
 use crate::lang::parse::trim_quotes;
 use crate::lang::queries::rails_routes;
 use anyhow::{Context, Result};
+use convert_case::{Case, Casing};
 use inflection_rs::inflection;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -464,9 +465,10 @@ impl Stack for Ruby {
         if let Some(h) = controller_handler {
             return Some(Edge::renders(&page, &h));
         }
+        let parent_name_no_mailer = parent_name.strip_suffix("_mailer").unwrap_or(parent_name);
         let mailer_handler = find_fn(
             &func_name,
-            &format!("{}{}", parent_name, MAILER_FILE_SUFFIX),
+            &format!("{}{}", parent_name_no_mailer, MAILER_FILE_SUFFIX),
         );
         if let Some(h) = mailer_handler {
             return Some(Edge::renders(&page, &h));
@@ -476,6 +478,10 @@ impl Stack for Ruby {
     }
     fn direct_class_calls(&self) -> bool {
         true
+    }
+    fn convert_association_to_name(&self, name: &str) -> String {
+        let target_class = inflection_rs::inflection::singularize(name);
+        target_class.to_case(Case::Pascal)
     }
 }
 
