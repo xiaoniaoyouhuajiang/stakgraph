@@ -142,7 +142,13 @@ impl Repo {
             if graph.find_nodes_by_name(NodeType::File, &path).len() > 0 {
                 continue;
             }
-            if path.ends_with(self.lang.kind.pkg_file()) {
+            if self
+                .lang
+                .kind
+                .pkg_files()
+                .iter()
+                .any(|pkg_file| path.ends_with(pkg_file))
+            {
                 continue;
             }
             let file_data = self.prepare_file_data(&path, &code);
@@ -173,9 +179,13 @@ impl Repo {
         }
 
         i = 0;
-        let pkg_files = filez
-            .iter()
-            .filter(|(f, _)| f.ends_with(self.lang.kind.pkg_file()));
+        let pkg_files = filez.iter().filter(|(f, _)| {
+            self.lang
+                .kind
+                .pkg_files()
+                .iter()
+                .any(|pkg_file| f.ends_with(pkg_file))
+        });
         for (pkg_file, code) in pkg_files {
             info!("=> get_packages in... {:?}", pkg_file);
 
