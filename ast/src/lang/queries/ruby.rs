@@ -13,6 +13,7 @@ use tree_sitter::{Language, Parser, Query, Tree};
 pub struct Ruby(Language);
 
 const CONTROLLER_FILE_SUFFIX: &str = "_controller.rb";
+const MAILER_FILE_SUFFIX: &str = "_mailer.rb";
 
 impl Ruby {
     pub fn new() -> Self {
@@ -45,22 +46,26 @@ impl Stack for Ruby {
         format!(
             r#"
             (
+              (class
+                name: (_) @class-name
+                superclass: (superclass (_) @class-parent)?
+                body: (body_statement)?
+              ) @class-definition
+            )
+            (
                 (class
                     name: (_) @{CLASS_NAME}
                     superclass: (superclass (_) @{CLASS_PARENT})?
                     body:  (body_statement
                                 (call
-                                    method: [
-                                        (identifier) @{ASSOCIATION_TYPE} (#not-match? @{ASSOCIATION_TYPE} "^validates$|^presence$|^uniqueness$|^length$|^numericality$")
-                                        (constant) @{ASSOCIATION_TYPE} (#not-match? @{ASSOCIATION_TYPE} "^validates$|^presence$|^uniqueness$|^length$|^numericality$")
-                                    ]
+                                    method: (_) @{ASSOCIATION_TYPE} (#match? @{ASSOCIATION_TYPE} "^has_one$|^has_many$|^belongs_to$|^has_and_belongs_to_many$")
                                     arguments: (argument_list
                                         (simple_symbol)@{ASSOCIATION_TARGET}
                                         (pair
                                             key: (hash_key_symbol) @association.option.key
                                             value: (_) @association.option.value
                                         )? @{ASSOCIATION_OPTION}
-                                    ) 
+                                    )
                                 )?
                             )?
                 ) @{CLASS_DEFINITION}
@@ -84,6 +89,7 @@ impl Stack for Ruby {
             "#
         )
     }
+
     fn function_definition_query(&self) -> String {
         format!(
             "[
@@ -449,17 +455,24 @@ impl Stack for Ruby {
         // get the handler name
         let p = std::path::Path::new(file_path);
         let func_name = remove_all_extensions(p);
-        let controller_name = p.parent()?.file_name()?.to_str()?;
-        // println!("func_name: {}, controller_name: {}", func_name, controller_name);
-        let handler = find_fn(
+        let parent_name = p.parent()?.file_name()?.to_str()?;
+        println!("func_name: {}, parent_name: {}", func_name, parent_name);
+        let controller_handler = find_fn(
             &func_name,
-            &format!("{}{}", controller_name, CONTROLLER_FILE_SUFFIX),
+            &format!("{}{}", parent_name, CONTROLLER_FILE_SUFFIX),
         );
-        if let Some(handler) = handler {
-            Some(Edge::renders(&page, &handler))
-        } else {
-            None
+        if let Some(h) = controller_handler {
+            return Some(Edge::renders(&page, &h));
         }
+        let mailer_handler = find_fn(
+            &func_name,
+            &format!("{}{}", parent_name, MAILER_FILE_SUFFIX),
+        );
+        if let Some(h) = mailer_handler {
+            return Some(Edge::renders(&page, &h));
+        }
+        println!("no handler found for {} {}", func_name, file_path);
+        None
     }
     fn direct_class_calls(&self) -> bool {
         true

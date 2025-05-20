@@ -1,5 +1,5 @@
 use crate::lang::graphs::{EdgeType, NodeType};
-use crate::lang::Graph;
+use crate::lang::{CallsMeta, Graph};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -19,8 +19,8 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 60, "Expected 60 nodes");
-    assert_eq!(num_edges, 98, "Expected 107 edges");
+    assert_eq!(num_nodes, 61, "Expected 61 nodes");
+    assert_eq!(num_edges, 101, "Expected 101 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
