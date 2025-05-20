@@ -13,6 +13,7 @@ use tree_sitter::{Language, Parser, Query, Tree};
 pub struct Ruby(Language);
 
 const CONTROLLER_FILE_SUFFIX: &str = "_controller.rb";
+const MAILER_FILE_SUFFIX: &str = "_mailer.rb";
 
 impl Ruby {
     pub fn new() -> Self {
@@ -435,17 +436,24 @@ impl Stack for Ruby {
         // get the handler name
         let p = std::path::Path::new(file_path);
         let func_name = remove_all_extensions(p);
-        let controller_name = p.parent()?.file_name()?.to_str()?;
-        // println!("func_name: {}, controller_name: {}", func_name, controller_name);
-        let handler = find_fn(
+        let parent_name = p.parent()?.file_name()?.to_str()?;
+        println!("func_name: {}, parent_name: {}", func_name, parent_name);
+        let controller_handler = find_fn(
             &func_name,
-            &format!("{}{}", controller_name, CONTROLLER_FILE_SUFFIX),
+            &format!("{}{}", parent_name, CONTROLLER_FILE_SUFFIX),
         );
-        if let Some(handler) = handler {
-            Some(Edge::renders(&page, &handler))
-        } else {
-            None
+        if let Some(h) = controller_handler {
+            return Some(Edge::renders(&page, &h));
         }
+        let mailer_handler = find_fn(
+            &func_name,
+            &format!("{}{}", parent_name, MAILER_FILE_SUFFIX),
+        );
+        if let Some(h) = mailer_handler {
+            return Some(Edge::renders(&page, &h));
+        }
+        println!("no handler found for {} {}", func_name, file_path);
+        None
     }
     fn direct_class_calls(&self) -> bool {
         true
