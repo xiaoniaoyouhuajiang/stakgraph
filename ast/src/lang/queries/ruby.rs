@@ -49,7 +49,21 @@ impl Stack for Ruby {
                 (class
                     name: (_) @{CLASS_NAME}
                     superclass: (superclass (_) @{CLASS_PARENT})?
-                    body: (_)? 
+                    body:  (body_statement
+                                (call
+                                    method: [
+                                        (identifier) @{ASSOCIATION_TYPE}
+                                        (constant) @{ASSOCIATION_TYPE}
+                                    ]
+                                    arguments: (argument_list
+                                        (simple_symbol)@{ASSOCIATION_TARGET}
+                                        (pair
+                                            key: (hash_key_symbol) @association.option.key
+                                            value: (_) @association.option.value
+                                        )? @{ASSOCIATION_OPTION}
+                                    ) 
+                                )?
+                            )?
                 ) @{CLASS_DEFINITION}
                 )
                 (module

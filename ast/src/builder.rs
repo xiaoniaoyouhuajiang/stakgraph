@@ -244,16 +244,21 @@ impl Repo {
         i = 0;
         info!("=> get_classes...");
         for (filename, code) in &filez {
-            let classes = self.lang.get_classes::<G>(&code, &filename)?;
+            let qo = self
+                .lang
+                .q(&self.lang.lang().class_definition_query(), &NodeType::Class);
+            let classes = self.lang.collect_classes::<G>(&qo, &code, &filename)?;
             i += classes.len();
-
-            for class in classes {
+            for (class, assoc_edges) in classes {
                 graph.add_node_with_parent(
                     NodeType::Class,
                     class.clone(),
                     NodeType::File,
                     &class.file,
                 );
+                for edge in assoc_edges {
+                    graph.add_edge(edge);
+                }
             }
         }
         info!("=> got {} classes", i);
