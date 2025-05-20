@@ -27,7 +27,7 @@ app.use(fileUpload());
 try {
   new SageApp(app);
 } catch (e) {
-  console.error(e);
+  console.log("===> skipping sage setup");
 }
 
 app.get("/", swagger);
