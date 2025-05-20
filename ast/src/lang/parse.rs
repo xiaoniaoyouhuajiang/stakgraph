@@ -38,12 +38,13 @@ impl Lang {
         }
         Ok(res)
     }
-    pub fn format_class_with_associations(
+    pub fn format_class_with_associations<G: Graph>(
         &self,
         m: &QueryMatch,
         code: &str,
         file: &str,
         q: &Query,
+        graph: &G,
     ) -> Result<(NodeData, Vec<Edge>)> {
         let mut cls = NodeData::in_file(file);
         let mut associations = Vec::new();
@@ -68,22 +69,24 @@ impl Lang {
             }
 
             if let (Some(ref ty), Some(ref target)) = (&association_type, &assocition_target) {
-                let target_class = inflection_rs::inflection::singularize(&trim_quotes(target));
-                let target_class = target_class[0..1].to_uppercase() + &target_class[1..];
-                let edge = Edge::calls(
-                    NodeType::Class,
-                    &cls,
-                    NodeType::Class,
-                    &NodeData::name_file(&target_class, file),
-                    crate::lang::graphs::CallsMeta {
-                        call_start: cls.start,
-                        call_end: cls.end,
-                        operand: Some(ty.clone()),
-                    },
-                );
-                associations.push(edge);
-                association_type = None;
-                assocition_target = None;
+                let target_class_name = self.lang.convert_association_to_name(&trim_quotes(target));
+                let target_classes = graph.find_nodes_by_name(NodeType::Class, &target_class_name);
+                if let Some(target_class) = target_classes.first() {
+                    let edge = Edge::calls(
+                        NodeType::Class,
+                        &cls,
+                        NodeType::Class,
+                        &target_class,
+                        crate::lang::graphs::CallsMeta {
+                            call_start: cls.start,
+                            call_end: cls.end,
+                            operand: Some(ty.clone()),
+                        },
+                    );
+                    associations.push(edge);
+                    association_type = None;
+                    assocition_target = None;
+                }
             }
             Ok(())
         })?;
@@ -94,13 +97,14 @@ impl Lang {
         q: &Query,
         code: &str,
         file: &str,
+        graph: &G,
     ) -> Result<Vec<(NodeData, Vec<Edge>)>> {
         let tree = self.lang.parse(&code, &NodeType::Class)?;
         let mut cursor = QueryCursor::new();
         let mut matches = cursor.matches(q, tree.root_node(), code.as_bytes());
         let mut res = Vec::new();
         while let Some(m) = matches.next() {
-            let (cls, edges) = self.format_class_with_associations(&m, code, file, q)?;
+            let (cls, edges) = self.format_class_with_associations(&m, code, file, q, graph)?;
             res.push((cls, edges));
         }
         Ok(res)

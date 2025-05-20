@@ -247,7 +247,9 @@ impl Repo {
             let qo = self
                 .lang
                 .q(&self.lang.lang().class_definition_query(), &NodeType::Class);
-            let classes = self.lang.collect_classes::<G>(&qo, &code, &filename)?;
+            let classes = self
+                .lang
+                .collect_classes::<G>(&qo, &code, &filename, &graph)?;
             i += classes.len();
             for (class, assoc_edges) in classes {
                 graph.add_node_with_parent(
