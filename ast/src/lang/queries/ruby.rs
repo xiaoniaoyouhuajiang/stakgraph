@@ -445,9 +445,10 @@ impl Stack for Ruby {
         if let Some(h) = controller_handler {
             return Some(Edge::renders(&page, &h));
         }
+        let parent_name_no_mailer = parent_name.strip_suffix("_mailer").unwrap_or(parent_name);
         let mailer_handler = find_fn(
             &func_name,
-            &format!("{}{}", parent_name, MAILER_FILE_SUFFIX),
+            &format!("{}{}", parent_name_no_mailer, MAILER_FILE_SUFFIX),
         );
         if let Some(h) = mailer_handler {
             return Some(Edge::renders(&page, &h));
