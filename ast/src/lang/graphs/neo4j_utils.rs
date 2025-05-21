@@ -598,19 +598,22 @@ pub fn find_functions_called_by_query(function: &NodeData) -> (String, HashMap<S
 
 pub fn class_inherits_query() -> String {
     "MATCH (c:Class)
-     WHERE c.parent IS NOT NULL
-     MATCH (parent:Class {name: c.parent})
+     WHERE c.meta IS NOT NULL
+     WITH c, apoc.convert.fromJsonMap(c.meta) AS meta_map
+     WHERE meta_map.parent IS NOT NULL
+     MATCH (parent:Class {name: meta_map.parent})
      MERGE (parent)-[:PARENT_OF]->(c)"
         .to_string()
 }
-
 pub fn class_includes_query() -> String {
     "MATCH (c:Class)
-     WHERE c.includes IS NOT NULL
-     WITH c, split(c.includes, ',') AS modules
+     WHERE c.meta IS NOT NULL
+     WITH c, apoc.convert.fromJsonMap(c.meta) AS meta_map
+     WHERE meta_map.includes IS NOT NULL
+     WITH c, split(meta_map.includes, ',') AS modules
      UNWIND modules AS module
      MATCH (m:Class {name: trim(module)})
-     MERGE (c)-[:CLASS_IMPORTS]->(m)"
+     MERGE (c)-[:IMPORTS]->(m)"
         .to_string()
 }
 

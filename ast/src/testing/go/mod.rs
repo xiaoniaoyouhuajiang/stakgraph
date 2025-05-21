@@ -117,18 +117,5 @@ async fn test_go() {
         let mut graph = Neo4jGraph::default();
         graph.clear();
         test_go_generic::<Neo4jGraph>().await.unwrap();
-
-        //graph.clear()
-    }
-}
-#[tokio::test]
-async fn test_neo4j_connectivity() {
-    #[cfg(feature = "neo4j")]
-    {
-        use crate::lang::graphs::neo4j_utils::Neo4jConnectionManager;
-        Neo4jConnectionManager::initialize_from_env().await.unwrap();
-        let conn = Neo4jConnectionManager::get_connection().await.unwrap();
-        let result = conn.execute(neo4rs::query("RETURN 1")).await;
-        assert!(result.is_ok());
     }
 }

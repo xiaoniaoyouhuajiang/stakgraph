@@ -20,7 +20,7 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     assert_eq!(num_nodes, 61, "Expected 61 nodes");
-    assert_eq!(num_edges, 100, "Expected 101 edges");
+    assert_eq!(num_edges, 100, "Expected 100 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -128,9 +128,18 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[test(tokio::test)]
+#[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn test_ruby() {
+    #[cfg(feature = "neo4j")]
+    use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_ruby_generic::<ArrayGraph>().await.unwrap();
     test_ruby_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        let mut graph = Neo4jGraph::default();
+        graph.clear();
+        test_ruby_generic::<Neo4jGraph>().await.unwrap();
+    }
 }
