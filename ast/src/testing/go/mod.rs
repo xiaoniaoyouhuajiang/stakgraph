@@ -94,12 +94,13 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let of = graph.count_edges_of_type(EdgeType::Of);
     assert_eq!(of, 1, "Expected 1 of edges");
 
+    println!("LSP : {}", use_lsp);
     if use_lsp {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 35, "Expected 35 contains edges");
+        assert_eq!(contains, 37, "Expected 37 contains edges with lsp");
     } else {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 37, "Expected 37 contains edges");
+        assert_eq!(contains, 35, "Expected 35 contains edges");
     }
 
     Ok(())
