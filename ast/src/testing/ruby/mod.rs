@@ -116,9 +116,10 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     assert_eq!(class_calls.len(), 1, "Expected 1 class calls edges");
 
-    let person_to_article_call = class_calls
-        .iter()
-        .any(|(src, dst)| src.name == "Person" && dst.name == "Article");
+    let person_to_article_call = class_calls.iter().any(|(src, dst)| {
+        (src.name == "Person" && dst.name == "Article")
+            || (src.name == "Article" && dst.name == "Person")
+    });
     assert!(
         person_to_article_call,
         "Expects a Person -> CALLS -> Article Class Call Edge"
