@@ -416,12 +416,7 @@ impl Stack for Ruby {
     ) -> Option<Edge> {
         let cla = find_class(&nd.name);
         if let Some(cl) = cla {
-            let meta = CallsMeta {
-                call_start: nd.start,
-                call_end: nd.end,
-                operand: None,
-            };
-            Some(Edge::calls(tt, nd, NodeType::Class, &cl, meta))
+            Some(Edge::calls(tt, nd, NodeType::Class, &cl))
         } else {
             None
         }
