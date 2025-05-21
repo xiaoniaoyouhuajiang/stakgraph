@@ -601,15 +601,9 @@ impl Graph for Neo4jGraph {
                         row.get::<String>("target_type"),
                         row.get::<String>("target_name"),
                     ) {
-                        let operand = row.get::<String>("operand").ok();
-                        let edge_info = match operand {
-                            Some(op) => format!("type: {} (operand: {})", edge_type, op),
-                            None => format!("type: {}", edge_type),
-                        };
-
                         println!(
                             "From \"{}\"-{} to \"{}\"-{} {}",
-                            source_name, source_type, target_name, target_type, edge_info,
+                            source_name, source_type, target_name, target_type, edge_type,
                         );
                     }
                 }

@@ -7,6 +7,7 @@ use std::{
 use tracing::{debug, info};
 use lazy_static::lazy_static;
 use crate::{lang::FunctionCall, utils::create_node_key};
+use serde_json;
 
 use super::*;
 
@@ -52,7 +53,7 @@ impl Neo4jConnectionManager {
     pub async fn initialize_from_env() -> Result<()> {
         let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
         let username = std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
-        let password = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string());
+        let password = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string());
 
         Self::initialize(&uri, &username, &password).await
     }
@@ -124,7 +125,6 @@ impl NodeQueryBuilder {
     
     pub fn build_params(&self) -> HashMap<String, String> {
         let mut params = HashMap::new();
-
         params.insert("name".to_string(), self.node_data.name.clone());
         params.insert("file".to_string(), self.node_data.file.clone());
         params.insert("start".to_string(), self.node_data.start.to_string());
@@ -140,10 +140,8 @@ impl NodeQueryBuilder {
         if let Some(hash) = &self.node_data.hash {
             params.insert("hash".to_string(), hash.clone());
         }
-
-        for (key, value) in &self.node_data.meta {
-            params.insert(key.clone(), value.clone());
-        }
+        let string_meta = serde_json::to_string(&self.node_data.meta).unwrap();
+        params.insert("meta".to_string(), string_meta);
         
         let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
         params.insert("key".to_string(), node_key.clone());
@@ -203,19 +201,6 @@ impl EdgeQueryBuilder {
             params.insert("target_verb".to_string(), verb.clone());
         }
         
-        // Adding edge-specific properties
-        match &self.edge.edge {
-            EdgeType::Calls(meta) => {
-                params.insert("call_start".to_string(), meta.call_start.to_string());
-                params.insert("call_end".to_string(), meta.call_end.to_string());
-
-                if let Some(operand) = &meta.operand {
-                    params.insert("operand".to_string(), operand.clone());
-                }
-            }
-            _ => {}
-        };
-        
         params
     }
     
@@ -231,30 +216,13 @@ impl EdgeQueryBuilder {
         params.insert("target_name".to_string(), self.edge.target.node_data.name.clone());
         params.insert("target_file".to_string(), self.edge.target.node_data.file.clone());
     
-        let props_clause = match &self.edge.edge {
-            EdgeType::Calls if params.contains_key("operand") => {
-                "r.call_start = $call_start, r.call_end = $call_end, r.operand = $operand"
-            }
-            EdgeType::Calls => {
-                "r.call_start = $call_start, r.call_end = $call_end"
-            }
-            _ => "",
-        };
-    
         
         let query = format!(
-            "MATCH (source:{} {{name: $source_name, file: $source_file}}), 
-                   (target:{} {{name: $target_name, file: $target_file}})
-             MERGE (source)-[r:{}]->(target)
-             ON CREATE SET {}
-             ON MATCH SET {}",
-            source_type,
-            target_type,
-            rel_type,
-            if props_clause.is_empty() { "r.updated = true" } else { props_clause },
-            if props_clause.is_empty() { "r.updated = true" } else { props_clause }
+            "MATCH (source:{} {{name: $source_name, file: $source_file}}), \
+                   (target:{} {{name: $target_name, file: $target_file}}) \
+             MERGE (source)-[r:{}]->(target)",
+            source_type, target_type, rel_type
         );
-    
         (query, params)
     }
 }
@@ -356,7 +324,9 @@ pub async fn execute_node_query(
                     let data_type = node.get::<String>("data_type").unwrap_or_default();
                     let docs = node.get::<String>("docs").unwrap_or_default();
                     let hash = node.get::<String>("hash").unwrap_or_default();
-                    let meta = node.get::<BTreeMap<String, String>>("meta").unwrap_or_default();
+                    let meta_json = node.get::<String>("meta").unwrap_or_default();
+                    let meta = serde_json::from_str::<BTreeMap<String, String>>(&meta_json)
+                        .unwrap_or_default();
                     let node_data = NodeData {
                         name,
                         file,
@@ -367,8 +337,7 @@ pub async fn execute_node_query(
                         docs: Some(docs),
                         hash: Some(hash),
                         meta : meta,
-                    };
-                   
+                    };              
                     nodes.push(node_data);
                 }
             }
@@ -409,7 +378,7 @@ pub fn graph_edges_analysis_query() -> String {
     "MATCH (source)-[r]->(target) 
      RETURN labels(source)[0] as source_type, source.name as source_name, 
             type(r) as edge_type, labels(target)[0] as target_type, 
-            target.name as target_name, r.operand as operand 
+            target.name as target_name
      ORDER BY source_type, source_name, edge_type, target_type, target_name"
         .to_string()
 }
@@ -621,7 +590,7 @@ pub fn find_functions_called_by_query(function: &NodeData) -> (String, HashMap<S
     params.insert("function_start".to_string(), function.start.to_string());
     
     let query = 
-        "MATCH (source:Function {name: $function_name, file: $function_file, start: $function_start})-[:CALLS]->(target:Function)
+        "MATCH (source:Function {name: $function_name, file: $function_file})-[:CALLS]->(target:Function)
          RETURN target";
     
     (query.to_string(), params)
@@ -648,6 +617,8 @@ pub fn class_includes_query() -> String {
 
 pub fn prefix_paths_query(root: &str) -> (String, HashMap<String, String>) {
     let mut params = HashMap::new();
+    let root = if root.ends_with('/') { root.to_string() } else { format!("{}/", root) };
+    params.insert("root".to_string(), root.clone());
     params.insert("root".to_string(), root.to_string());
     
     let query = "MATCH (n)
@@ -731,20 +702,18 @@ pub fn add_functions_query(
         let mut params = HashMap::new();
         params.insert("function_name".to_string(), function_node.name.clone());
         params.insert("function_file".to_string(), function_node.file.clone());
-        params.insert(
-            "function_start".to_string(),
-            function_node.start.to_string(),
-        );
+        // params.insert(
+        //     "function_start".to_string(),
+        //     function_node.start.to_string(),
+        // );
         params.insert("req_name".to_string(), req.name.clone());
         params.insert("req_file".to_string(), req.file.clone());
-        params.insert("req_start".to_string(), req.start.to_string());
-        params.insert("call_start".to_string(), req.start.to_string());
-        params.insert("call_end".to_string(), req.end.to_string());
+        //params.insert("req_start".to_string(), req.start.to_string());
 
         let query_str = format!(
-            "MATCH (function:Function {{name: $function_name, file: $function_file, start: $function_start}}),
-                   (request:Request {{name: $req_name, file: $req_file, start: $req_start}})
-             MERGE (function)-[:CALLS {{call_start: $call_start, call_end: $call_end}}]->(request)"
+            "MATCH (function:Function {{name: $function_name, file: $function_file}}),
+                   (request:Request {{name: $req_name, file: $req_file}})
+             MERGE (function)-[:CALLS]->(request)"
         );
         queries.push((query_str, params));
     }
@@ -767,10 +736,10 @@ pub fn add_test_node_query(
     let mut params = HashMap::new();
     params.insert("test_name".to_string(), test_data.name.clone());
     params.insert("test_file".to_string(), test_data.file.clone());
-    params.insert("test_start".to_string(), test_data.start.to_string());
+    //params.insert("test_start".to_string(), test_data.start.to_string());
     
     let query_str = format!(
-        "MATCH (test:{} {{name: $test_name, file: $test_file, start: $test_start}}),
+        "MATCH (test:{} {{name: $test_name, file: $test_file}}),
                (file:File {{file: $test_file}})
          MERGE (file)-[:CONTAINS]->(test)",
         test_type.to_string()
@@ -890,7 +859,7 @@ pub fn find_endpoint_query(
 ) -> (String, HashMap<String, String>) {
     let mut params = HashMap::new();
     params.insert("name".to_string(), name.to_string());
-    params.insert("file".to_string(), file.to_string());
+    params.insert("file".to_string(),file.to_string());
     params.insert("verb".to_string(), verb.to_uppercase());
 
     let query = 
@@ -910,7 +879,8 @@ pub fn extract_node_data_from_neo4j_node(node: &neo4rs::Node) -> NodeData {
     let data_type = node.get::<String>("data_type").ok();
     let docs = node.get::<String>("docs").ok();
     let hash = node.get::<String>("hash").ok();
-    let meta = node.get::<BTreeMap<String, String>>("meta").unwrap_or_default();
+    let meta_json = node.get::<String>("meta").unwrap_or_default();
+    let meta: BTreeMap<String, String> = serde_json::from_str(&meta_json).unwrap_or_default();
    
     
     NodeData {
