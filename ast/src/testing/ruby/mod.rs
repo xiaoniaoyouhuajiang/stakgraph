@@ -111,13 +111,14 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let class_calls =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Class, EdgeType::Calls);
 
-    assert_eq!(class_calls.len(), 1, "Expected 0 class calls edges");
+    assert_eq!(class_calls.len(), 1, "Expected 1 class calls edges");
+
     let person_to_article_call = class_calls
         .iter()
         .any(|(src, dst)| src.name == "Person" && dst.name == "Article");
     assert!(
         person_to_article_call,
-        "Did not expect a Person -CALLS-> Article class edge"
+        "Expects a Person -> CALLS -> Article Class Call Edge"
     );
 
     Ok(())
