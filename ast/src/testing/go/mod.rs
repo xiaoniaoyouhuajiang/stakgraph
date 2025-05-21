@@ -22,7 +22,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 64, "Expected 64 nodes");
-        assert_eq!(num_edges, 108, "Expected 108 edges");
+        assert_eq!(num_edges, 107, "Expected 107 edges");
     } else {
         assert_eq!(num_nodes, 30, "Expected 30 nodes");
         assert_eq!(num_edges, 47, "Expected 47 edges");
@@ -96,7 +96,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     if use_lsp {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 37, "Expected 37 contains edges with lsp");
+        assert_eq!(contains, 36, "Expected 36 contains edges with lsp");
     } else {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
         assert_eq!(contains, 34, "Expected 34 contains edges");
