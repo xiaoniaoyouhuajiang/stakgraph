@@ -48,10 +48,10 @@ impl Stack for Ruby {
             r#"
             (
               (class
-                name: (_) @class-name
-                superclass: (superclass (_) @class-parent)?
+                name: (_) @{CLASS_NAME}
+                superclass: (superclass (_) @{CLASS_PARENT})?
                 body: (body_statement)?
-              ) @class-definition
+              ) @{CLASS_DEFINITION}
             )
             (
                 (class

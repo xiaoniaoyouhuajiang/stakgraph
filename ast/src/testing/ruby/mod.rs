@@ -108,6 +108,9 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
     assert_eq!(handler_edges_count, 7, "Expected 7 handler edges");
 
+    let class_counts = graph.count_edges_of_type(EdgeType::ParentOf);
+    assert_eq!(class_counts, 6, "Expected 6 class edges");
+
     let class_calls =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Class, EdgeType::Calls);
 
