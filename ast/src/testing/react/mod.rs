@@ -16,7 +16,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
     let graph = repo.build_graph_inner::<G>().await?;
 
-    // graph.analysis();
+    graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
@@ -165,9 +165,18 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_react_typescript() {
+    #[cfg(feature = "neo4j")]
+    use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_react_typescript_generic::<ArrayGraph>().await.unwrap();
     test_react_typescript_generic::<BTreeMapGraph>()
         .await
         .unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        let mut graph = Neo4jGraph::default();
+        graph.clear();
+        test_react_typescript_generic::<Neo4jGraph>().await.unwrap();
+    }
 }

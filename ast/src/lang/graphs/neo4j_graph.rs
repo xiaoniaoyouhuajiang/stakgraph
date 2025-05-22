@@ -570,12 +570,13 @@ impl Graph for Neo4jGraph {
         match block_in_place(connection.execute(query(&query_str))) {
             Ok(mut result) => {
                 while let Ok(Some(row)) = block_in_place(result.next()) {
-                    if let (Ok(node_type), Ok(name), Ok(file)) = (
+                    if let (Ok(node_type), Ok(name), Ok(file), Ok(start)) = (
                         row.get::<String>("node_type"),
                         row.get::<String>("name"),
                         row.get::<String>("file"),
+                        row.get::<String>("start"),
                     ) {
-                        println!("Node: \"{}\"-{}-{}", node_type, name, file);
+                        println!("Node: \"{}\"-{}-{}-{}", node_type, name, file, start);
                     }
                 }
             }
@@ -591,19 +592,35 @@ impl Graph for Neo4jGraph {
                     if let (
                         Ok(source_type),
                         Ok(source_name),
+                        Ok(source_file),
+                        Ok(source_start),
                         Ok(edge_type),
                         Ok(target_type),
                         Ok(target_name),
+                        Ok(target_file),
+                        Ok(target_start),
                     ) = (
                         row.get::<String>("source_type"),
                         row.get::<String>("source_name"),
+                        row.get::<String>("source_file"),
+                        row.get::<String>("source_start"),
                         row.get::<String>("edge_type"),
                         row.get::<String>("target_type"),
                         row.get::<String>("target_name"),
+                        row.get::<String>("target_file"),
+                        row.get::<String>("target_start"),
                     ) {
                         println!(
-                            "From \"{}\"-{} to \"{}\"-{} {}",
-                            source_name, source_type, target_name, target_type, edge_type,
+                            "From {}-{}-{}-{} to {}-{}-{}-{} : {}",
+                            source_type,
+                            source_name,
+                            source_file,
+                            source_start,
+                            target_type,
+                            target_name,
+                            target_file,
+                            target_start,
+                            edge_type,
                         );
                     }
                 }
