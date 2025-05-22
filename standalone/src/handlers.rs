@@ -1,4 +1,4 @@
-use crate::types::{AppError, ProcessResponse, Result};
+use crate::types::{AppError, ProcessBody, ProcessResponse, Result};
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::Repo;
@@ -6,8 +6,8 @@ use axum::Json;
 use futures::executor::block_on;
 use lsp::git::{get_commit_hash, git_pull_or_clone};
 use tracing::info;
-pub async fn process() -> Result<Json<ProcessResponse>> {
-    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo()?;
+pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
+    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
 
     let result = tokio::task::spawn_blocking(move || {
         clone_repo(
@@ -89,8 +89,8 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
     }))
 }
 
-pub async fn ingest() -> Result<Json<ProcessResponse>> {
-    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo()?;
+pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
+    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
 
     let result = tokio::task::spawn_blocking(move || {
         clone_repo(
@@ -135,15 +135,20 @@ pub async fn ingest() -> Result<Json<ProcessResponse>> {
 fn env_not_empty(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
 }
-fn resolve_repo() -> Result<(String, String, bool, Option<String>, Option<String>)> {
-    let repo_path = env_not_empty("REPO_PATH");
-    let repo_url = env_not_empty("REPO_URL");
-    let username = env_not_empty("USERNAME");
-    let pat = env_not_empty("PAT");
+fn resolve_repo(
+    body: &ProcessBody,
+) -> Result<(String, String, bool, Option<String>, Option<String>)> {
+    let repo_path = body
+        .repo_path
+        .clone()
+        .or_else(|| env_not_empty("REPO_PATH"));
+    let repo_url = body.repo_url.clone().or_else(|| env_not_empty("REPO_URL"));
+    let username = body.username.clone().or_else(|| env_not_empty("USERNAME"));
+    let pat = body.pat.clone().or_else(|| env_not_empty("PAT"));
 
     if repo_path.is_none() && repo_url.is_none() {
         return Err(AppError::Anyhow(anyhow::anyhow!(
-            "Neither REPO_PATH nor REPO_URL is set in the environment"
+            "Neither REPO_PATH nor REPO_URL is set in the body or environment"
         )));
     }
 

@@ -7,6 +7,13 @@ use serde::{Deserialize, Serialize};
 pub type Result<T> = std::result::Result<T, AppError>;
 
 #[derive(Serialize, Deserialize)]
+pub struct ProcessBody {
+    pub repo_url: Option<String>,
+    pub repo_path: Option<String>,
+    pub username: Option<String>,
+    pub pat: Option<String>,
+}
+#[derive(Serialize, Deserialize)]
 pub struct ProcessResponse {
     pub status: String,
     pub message: String,
