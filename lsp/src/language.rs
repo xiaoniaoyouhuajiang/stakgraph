@@ -140,7 +140,7 @@ impl Language {
             Self::Typescript | Self::React => true,
             Self::Python => false,
             Self::Ruby => false,
-            Self::Kotlin => true,
+            Self::Kotlin => false,
             Self::Swift => false,
             Self::Java => true,
             Self::Bash => false,
