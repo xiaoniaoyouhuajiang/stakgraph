@@ -17,5 +17,4 @@ axum = { version = "0.7", features = ["ws", "multipart", "macros"] }
 futures = "0.3.31"
 
 [features]
-default= ["neo4j"]
 neo4j = ["ast/neo4j"]
