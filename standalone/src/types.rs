@@ -8,13 +8,11 @@ pub type Result<T> = std::result::Result<T, AppError>;
 
 #[derive(Serialize, Deserialize)]
 pub struct ProcessBody {
-    pub repo_url: String,
-    #[serde(default)]
+    pub repo_url: Option<String>,
+    pub repo_path: Option<String>,
     pub username: Option<String>,
-    #[serde(default)]
     pub pat: Option<String>,
 }
-
 #[derive(Serialize, Deserialize)]
 pub struct ProcessResponse {
     pub status: String,
