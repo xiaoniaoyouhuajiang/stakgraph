@@ -18,7 +18,7 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
 
-    //graph.analysis();
+    graph.analysis();
 
     assert_eq!(num_nodes, 55, "Expected 55 nodes");
     assert_eq!(num_edges, 81, "Expected 81 edges");
@@ -79,9 +79,18 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[test(tokio::test)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_swift() {
+    #[cfg(feature = "neo4j")]
+    use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_swift_generic::<ArrayGraph>().await.unwrap();
     test_swift_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        let mut graph = Neo4jGraph::default();
+        graph.clear();
+        test_swift_generic::<Neo4jGraph>().await.unwrap();
+    }
 }
