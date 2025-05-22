@@ -155,7 +155,7 @@ function mapParams(req: Request): MapParams {
 export async function get_map(req: Request, res: Response) {
   try {
     const html = await G.get_map(mapParams(req));
-    res.send(html);
+    res.send(`<pre>${html}</pre>`);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");

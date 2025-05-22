@@ -26,8 +26,8 @@ export async function repoMap(args: z.infer<typeof RepoMapSchema>) {
   return {
     content: [
       {
-        type: "html",
-        html: result,
+        type: "text",
+        text: result,
       },
     ],
   };
