@@ -20,6 +20,10 @@ function swagger(_: Request, res: Response) {
 
 const app = express();
 app.use(cors());
+
+// MCP routes must come before body parsing middleware to preserve raw streams
+mcp_routes(app);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
@@ -34,8 +38,6 @@ app.get("/", swagger);
 app.use("/textarea", express.static(path.join(__dirname, "../textarea")));
 app.use("/app", express.static(path.join(__dirname, "../app")));
 app.use("/demo", express.static(path.join(__dirname, "../app/vendor")));
-
-mcp_routes(app);
 app.get("/schema", r.schema);
 app.get("/ontology", r.schema);
 

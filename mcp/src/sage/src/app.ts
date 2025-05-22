@@ -97,7 +97,7 @@ export class App {
   }
 
   private setupRoutes(): void {
-    this.app.post("/messages", (req, res) =>
+    this.app.post("/msg", (req, res) =>
       this.messagesController.handleMessage(req, res)
     );
     this.app.post("/webhook", (req, res) =>

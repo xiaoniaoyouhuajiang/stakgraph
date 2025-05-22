@@ -32,7 +32,7 @@ export interface Tool {
   inputSchema: Json;
 }
 
-function getTools(): HttpTool[] {
+function getMcpTools(): Tool[] {
   return [
     search.SearchTool,
     get_nodes.GetNodesTool,
@@ -40,11 +40,11 @@ function getTools(): HttpTool[] {
     repo_map.RepoMapTool,
     get_code.GetCodeTool,
     shortest_path.ShortestPathTool,
-  ].map(fmtToolForHttp);
+  ];
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return { tools: getTools() };
+  return { tools: getMcpTools() };
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -79,22 +79,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-export function mcp_routes(app: express.Express) {
-  let transport: SSEServerTransport | null = null;
+// Handle server lifecycle
+server.onerror = (error) => console.error("[MCP Error]", error);
+server.onclose = () => console.log("[MCP] Server connection closed");
 
-  app.get("/sse", (req, res) => {
-    transport = new SSEServerTransport("/messages", res);
-    server.connect(transport);
+export function mcp_routes(app: express.Express) {
+  let currentTransport: SSEServerTransport | null = null;
+
+  app.get("/sse", async (_, res) => {
+    try {
+      currentTransport = new SSEServerTransport("/messages", res);
+      await server.connect(currentTransport);
+      res.on("close", () => {
+        currentTransport = null;
+      });
+      res.on("error", (error) => {
+        currentTransport = null;
+      });
+    } catch (error) {
+      currentTransport = null;
+      if (!res.headersSent) {
+        res.status(500).send("Connection failed");
+      }
+    }
   });
 
-  app.post("/messages", (req, res) => {
-    if (transport) {
-      transport.handlePostMessage(req, res);
+  // Raw route without any body parsing middleware
+  app.post("/messages", async (req, res) => {
+    console.log("===> messages - handling POST");
+    try {
+      if (currentTransport) {
+        await currentTransport.handlePostMessage(req, res);
+      } else {
+        res.status(400).json({ error: "No active transport" });
+      }
+    } catch (error) {
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: "Message handling failed", details: error });
+      }
     }
   });
 
   app.get("/tools", (_, res) => {
-    res.send(getTools());
+    res.send(getMcpTools().map(fmtToolForHttp));
   });
 }
 
