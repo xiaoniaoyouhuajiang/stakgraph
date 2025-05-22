@@ -20,6 +20,7 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .route("/process", post(handlers::process))
         .route("/clear", post(handlers::clear_graph))
+        .route("/ingest", post(handlers::ingest))
         .layer(cors_layer);
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "7777".to_string());
