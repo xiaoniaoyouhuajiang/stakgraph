@@ -55,8 +55,8 @@ export async function getMap(args: z.infer<typeof GetMapSchema>) {
   return {
     content: [
       {
-        type: "html",
-        html: result,
+        type: "text",
+        text: result,
       },
     ],
   };

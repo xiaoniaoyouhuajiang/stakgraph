@@ -109,7 +109,7 @@ export async function get_repo_map(
   const tokenizer = await createByModelName("gpt-4");
   const tree = await buildTree(record, "down", tokenizer);
   const text = archy(tree.root);
-  return `<pre>\n${text}\n</pre>`;
+  return text;
 }
 
 export async function get_map(params: MapParams): Promise<string> {
