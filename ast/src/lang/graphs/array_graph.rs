@@ -471,14 +471,14 @@ impl Graph for ArrayGraph {
     ) {
         let mut has_children: BTreeMap<String, bool> = BTreeMap::new();
 
-        //all parents have no children
+        // Mark all parents as having no children initially
         for node in &self.nodes {
             if node.node_type == parent_type {
                 has_children.insert(node.node_data.name.clone(), false);
             }
         }
 
-        //nodes that have children
+        // Mark parents that have children
         for node in &self.nodes {
             if node.node_type == child_type {
                 if let Some(parent_name) = node.node_data.meta.get(child_meta_key) {
@@ -489,10 +489,38 @@ impl Graph for ArrayGraph {
             }
         }
 
-        //now remove nodes without children
+        // Collect keys of nodes to remove
+        let nodes_to_remove: Vec<_> = self
+            .nodes
+            .iter()
+            .filter(|node| {
+                node.node_type == parent_type
+                    && !has_children.get(&node.node_data.name).unwrap_or(&true)
+            })
+            .map(|node| create_node_key(node))
+            .collect();
+
+        // Remove nodes
         self.nodes.retain(|node| {
-            node.node_type != parent_type
-                || *has_children.get(&node.node_data.name).unwrap_or(&true)
+            !(node.node_type == parent_type
+                && !has_children.get(&node.node_data.name).unwrap_or(&true))
+        });
+
+        // Remove edges where source or target is a removed node
+        self.edges.retain(|edge| {
+            let src_key = create_node_key_from_ref(&edge.source);
+            let dst_key = create_node_key_from_ref(&edge.target);
+            !nodes_to_remove.contains(&src_key) && !nodes_to_remove.contains(&dst_key)
+        });
+
+        // Also update node_keys and edge_keys sets
+        for key in &nodes_to_remove {
+            self.node_keys.remove(key);
+        }
+        self.edge_keys.retain(|key| {
+            !nodes_to_remove
+                .iter()
+                .any(|rm| key.starts_with(rm) || key.contains(&format!("-{}-", rm)))
         });
     }
     fn get_data_models_within(&mut self, lang: &Lang) {

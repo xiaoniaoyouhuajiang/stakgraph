@@ -570,12 +570,13 @@ impl Graph for Neo4jGraph {
         match block_in_place(connection.execute(query(&query_str))) {
             Ok(mut result) => {
                 while let Ok(Some(row)) = block_in_place(result.next()) {
-                    if let (Ok(node_type), Ok(name), Ok(file)) = (
+                    if let (Ok(node_type), Ok(name), Ok(file), Ok(start)) = (
                         row.get::<String>("node_type"),
                         row.get::<String>("name"),
                         row.get::<String>("file"),
+                        row.get::<String>("start"),
                     ) {
-                        println!("Node: \"{}\"-{}-{}", node_type, name, file);
+                        println!("Node: \"{}\"-{}-{}-{}", node_type, name, file, start);
                     }
                 }
             }
@@ -591,25 +592,35 @@ impl Graph for Neo4jGraph {
                     if let (
                         Ok(source_type),
                         Ok(source_name),
+                        Ok(source_file),
+                        Ok(source_start),
                         Ok(edge_type),
                         Ok(target_type),
                         Ok(target_name),
+                        Ok(target_file),
+                        Ok(target_start),
                     ) = (
                         row.get::<String>("source_type"),
                         row.get::<String>("source_name"),
+                        row.get::<String>("source_file"),
+                        row.get::<String>("source_start"),
                         row.get::<String>("edge_type"),
                         row.get::<String>("target_type"),
                         row.get::<String>("target_name"),
+                        row.get::<String>("target_file"),
+                        row.get::<String>("target_start"),
                     ) {
-                        let operand = row.get::<String>("operand").ok();
-                        let edge_info = match operand {
-                            Some(op) => format!("type: {} (operand: {})", edge_type, op),
-                            None => format!("type: {}", edge_type),
-                        };
-
                         println!(
-                            "From \"{}\"-{} to \"{}\"-{} {}",
-                            source_name, source_type, target_name, target_type, edge_info,
+                            "From {}-{}-{}-{} to {}-{}-{}-{} : {}",
+                            source_type,
+                            source_name,
+                            source_file,
+                            source_start,
+                            target_type,
+                            target_name,
+                            target_file,
+                            target_start,
+                            edge_type,
                         );
                     }
                 }
@@ -707,8 +718,6 @@ impl Graph for Neo4jGraph {
                 Err(e) => return Err(anyhow::anyhow!("Connection error: {}", e)),
             };
             let mut txn_manager = TransactionManager::new(&connection);
-
-            // Get the queries from the utility
             let queries = add_pages_query(&pages);
             txn_manager.add_queries(queries);
 
@@ -719,22 +728,47 @@ impl Graph for Neo4jGraph {
     }
 
     fn add_endpoints(&mut self, endpoints: Vec<(NodeData, Option<Edge>)>) {
+        use std::collections::HashSet;
+        let mut to_add = Vec::new();
+        let mut seen = HashSet::new();
+
+        for (endpoint_data, handler_edge) in &endpoints {
+            if endpoint_data.meta.get("handler").is_some() {
+                let default_verb = "".to_string();
+                let verb = endpoint_data.meta.get("verb").unwrap_or(&default_verb);
+                let key = (
+                    endpoint_data.name.clone(),
+                    endpoint_data.file.clone(),
+                    verb.clone(),
+                );
+                if seen.contains(&key) {
+                    continue;
+                }
+                let exists = self
+                    .find_endpoint(&endpoint_data.name, &endpoint_data.file, verb)
+                    .is_some();
+                if !exists {
+                    to_add.push((endpoint_data.clone(), handler_edge.clone()));
+                    seen.insert(key);
+                }
+            }
+        }
+
         if let Err(e) = block_in_place(async {
-            let connection = match self.ensure_connected().await {
-                Ok(conn) => conn,
-                Err(e) => return Err(anyhow::anyhow!("Connection error: {}", e)),
-            };
-            let mut txn_manager = TransactionManager::new(&connection);
-
-            let queries = add_endpoints_query(&endpoints);
-            txn_manager.add_queries(queries);
-
-            txn_manager.execute().await
+            self.execute_with_transaction(|txn_manager| {
+                for (endpoint_data, handler_edge) in &to_add {
+                    txn_manager.add_node(&NodeType::Endpoint, endpoint_data);
+                    if let Some(edge) = handler_edge {
+                        txn_manager.add_edge(edge);
+                    }
+                }
+                Ok(())
+            })
+            .await
         }) {
             debug!("Error adding endpoints: {:?}", e);
         }
     }
-
     fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>)) {
         let (funcs, tests, int_tests) = calls;
 

@@ -567,8 +567,8 @@ impl Graph for BTreeMapGraph {
 
         for key in nodes_to_remove {
             self.nodes.remove(&key);
-            // self.edges
-            //     .retain(|(src, dst, _)| src != &key && dst != &key);
+            self.edges
+                .retain(|(src, dst, _)| src != &key && dst != &key);
         }
     }
 
