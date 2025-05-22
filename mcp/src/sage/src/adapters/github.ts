@@ -105,7 +105,7 @@ export class GitHubIssueAdapter extends BaseAdapter {
   }
 
   async checkForNewIssues(): Promise<void> {
-    console.log("Checking for new GitHub issues...");
+    // console.log("Checking for new GitHub issues...");
     const issues = await this.octokit.issues.listForRepo({
       owner: this.owner,
       repo: this.repo,
