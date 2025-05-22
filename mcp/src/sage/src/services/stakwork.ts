@@ -31,13 +31,12 @@ export class StakworkService {
     this.dryRun = dryRun;
   }
 
-  async sendToStakwork(payload: StakworkChatPayload): Promise<number> {
+  async sendToStakwork(payload: StakworkChatPayload): Promise<any> {
     if (this.dryRun) {
       console.log("Dry run, not sending to Stakwork");
-      console.log(JSON.stringify(payload, null, 2));
       return 0;
     }
-
+    console.log(JSON.stringify(payload, null, 2));
     try {
       console.log("Sending payload to Stakwork");
 
@@ -57,8 +56,8 @@ export class StakworkService {
         throw new Error(`Stakwork API error: ${JSON.stringify(response.data)}`);
       }
 
-      console.log("Stakwork response received");
-      return response.data.data.project_id;
+      console.log("Stakwork response received", response.data);
+      return response.data.data;
     } catch (error) {
       console.error("Error sending request to Stakwork:", error);
       throw new Error(`Error sending request to Stakwork: ${error}`);
