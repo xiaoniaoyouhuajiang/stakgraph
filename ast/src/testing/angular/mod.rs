@@ -3,7 +3,6 @@ use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
 use anyhow::Ok;
 use std::str::FromStr;
-use test_log::test;
 
 pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let repo = Repo::new(

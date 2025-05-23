@@ -2,7 +2,6 @@ use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
-use test_log::test;
 
 pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let repo = Repo::new(

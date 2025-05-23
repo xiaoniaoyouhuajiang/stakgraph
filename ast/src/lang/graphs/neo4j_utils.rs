@@ -188,7 +188,7 @@ impl EdgeQueryBuilder {
 
         params.insert("source_name".to_string(), self.edge.source.node_data.name.clone());
         params.insert("source_file".to_string(), self.edge.source.node_data.file.clone());
-        params.insert("source_start".to_string(), self.edge.source.node_data.start.to_string());
+       
 
         if let Some(verb) = &self.edge.source.node_data.verb {
             params.insert("source_verb".to_string(), verb.clone());
@@ -196,7 +196,7 @@ impl EdgeQueryBuilder {
 
         params.insert("target_name".to_string(), self.edge.target.node_data.name.clone());
         params.insert("target_file".to_string(), self.edge.target.node_data.file.clone());
-        params.insert("target_start".to_string(), self.edge.target.node_data.start.to_string());
+        
 
         if let Some(verb) = &self.edge.target.node_data.verb {
             params.insert("target_verb".to_string(), verb.clone());
@@ -206,19 +206,22 @@ impl EdgeQueryBuilder {
     }
     
     pub fn build(&self) -> (String, HashMap<String, String>) {
-        let  params = self.build_params();
+        let mut  params = self.build_params();
+        params.insert("source_start".to_string(), self.edge.source.node_data.start.to_string());
+        params.insert("target_start".to_string(), self.edge.target.node_data.start.to_string());
+
         let rel_type = self.edge.edge.to_string();
-        
         let source_type = self.edge.source.node_type.to_string();
         let target_type = self.edge.target.node_type.to_string();
 
-        let query = format!(
-            "MATCH (source:{} {{name: $source_name, file: $source_file}}), \
-                   (target:{} {{name: $target_name, file: $target_file}}) \
-             MERGE (source)-[r:{}]->(target)",
-            source_type, target_type, rel_type
-        );
-        (query, params)
+       
+            let query = format!(
+                "MATCH (source:{} {{name: $source_name, file: $source_file}}), \
+                       (target:{} {{name: $target_name, file: $target_file}}) \
+                 MERGE (source)-[r:{}]->(target)",
+                source_type, target_type, rel_type
+            );
+            (query, params)
     }
 }
 pub async fn execute_batch(
