@@ -357,9 +357,11 @@ impl Graph for BTreeMapGraph {
             self.add_edge(edge);
         }
     }
-
+    // Add calls only between function definitions not between function calls
     fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>)) {
         let (funcs, tests, int_tests) = calls;
+        let mut unique_edges: HashSet<(String, String, String, String)> = HashSet::new();
+
         for (fc, ext_func, class_call) in funcs {
             if let Some(class_call) = &class_call {
                 self.add_edge(Edge::new(
@@ -369,35 +371,102 @@ impl Graph for BTreeMapGraph {
                 ));
             }
             if fc.target.is_empty() {
-                continue; // might have empty target if it's a class call only
+                continue;
             }
-            if let Some(ext_nd) = ext_func {
-                let ext_node = Node::new(NodeType::Function, ext_nd.clone());
-                let ext_key = create_node_key(&ext_node);
-                if !self.nodes.contains_key(&ext_key) {
-                    self.nodes.insert(ext_key, ext_node);
-                }
 
-                let edge = Edge::uses(fc.source, &ext_nd);
-                self.add_edge(edge);
+            if let Some(ext_nd) = ext_func {
+                let edge_key = (
+                    fc.source.name.clone(),
+                    fc.source.file.clone(),
+                    ext_nd.name.clone(),
+                    ext_nd.file.clone(),
+                );
+
+                if !unique_edges.contains(&edge_key) {
+                    unique_edges.insert(edge_key);
+
+                    let ext_node = Node::new(NodeType::Function, ext_nd.clone());
+                    let ext_key = create_node_key(&ext_node);
+                    if !self.nodes.contains_key(&ext_key) {
+                        self.nodes.insert(ext_key, ext_node);
+                    }
+
+                    let edge = Edge::uses(fc.source, &ext_nd);
+                    self.add_edge(edge);
+                }
             } else {
-                self.add_edge(fc.into());
+                if let Some(target_function) = self.find_node_by_name_in_file(
+                    NodeType::Function,
+                    &fc.target.name,
+                    &fc.source.file,
+                ) {
+                    let edge_key = (
+                        fc.source.name.clone(),
+                        fc.source.file.clone(),
+                        target_function.name.clone(),
+                        target_function.file.clone(),
+                    );
+
+                    if !unique_edges.contains(&edge_key) {
+                        unique_edges.insert(edge_key);
+                        let edge = Edge::new(
+                            EdgeType::Calls,
+                            NodeRef::from(fc.source.clone(), NodeType::Function),
+                            NodeRef::from((&target_function).into(), NodeType::Function),
+                        );
+                        self.add_edge(edge);
+                    }
+                } else {
+                    let edge_key = (
+                        fc.source.name.clone(),
+                        fc.source.file.clone(),
+                        fc.target.name.clone(),
+                        fc.source.file.clone(),
+                    );
+
+                    if !unique_edges.contains(&edge_key) {
+                        unique_edges.insert(edge_key);
+                        self.add_edge(fc.into());
+                    }
+                }
             }
         }
 
         for (tc, ext_func, _) in tests {
             if let Some(ext_nd) = ext_func {
-                let edge = Edge::uses(tc.source, &ext_nd);
-                self.add_edge(edge);
-                let ext_node = Node::new(NodeType::Function, ext_nd.clone());
-                let ext_key = create_node_key(&ext_node);
-                if !self.nodes.contains_key(&ext_key) {
-                    self.nodes.insert(ext_key, ext_node);
+                let edge_key = (
+                    tc.source.name.clone(),
+                    tc.source.file.clone(),
+                    ext_nd.name.clone(),
+                    ext_nd.file.clone(),
+                );
+
+                if !unique_edges.contains(&edge_key) {
+                    unique_edges.insert(edge_key);
+
+                    let edge = Edge::uses(tc.source, &ext_nd);
+                    self.add_edge(edge);
+                    let ext_node = Node::new(NodeType::Function, ext_nd.clone());
+                    let ext_key = create_node_key(&ext_node);
+                    if !self.nodes.contains_key(&ext_key) {
+                        self.nodes.insert(ext_key, ext_node);
+                    }
                 }
             } else {
-                self.add_edge(Edge::new_test_call(tc));
+                let edge_key = (
+                    tc.source.name.clone(),
+                    tc.source.file.clone(),
+                    tc.target.name.clone(),
+                    tc.source.file.clone(),
+                );
+
+                if !unique_edges.contains(&edge_key) {
+                    unique_edges.insert(edge_key);
+                    self.add_edge(Edge::new_test_call(tc));
+                }
             }
         }
+
         for edge in int_tests {
             self.add_edge(edge);
         }

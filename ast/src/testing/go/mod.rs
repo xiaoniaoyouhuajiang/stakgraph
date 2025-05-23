@@ -22,7 +22,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 64, "Expected 64 nodes");
-        assert_eq!(num_edges, 107, "Expected 107 edges");
+        assert_eq!(num_edges, 93, "Expected 93 edges");
     } else {
         assert_eq!(num_nodes, 30, "Expected 30 nodes");
         assert_eq!(num_edges, 47, "Expected 47 edges");

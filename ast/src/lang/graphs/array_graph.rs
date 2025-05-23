@@ -361,12 +361,13 @@ impl Graph for ArrayGraph {
             self.add_edge(edge);
         }
     }
-    // funcs, tests, integration tests
+
+    //Add calls between function definitions not calls
     fn add_calls(
         &mut self,
         (funcs, tests, int_tests): (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>),
     ) {
-        // add lib funcs first
+        let mut unique_edges: HashSet<(String, String, String, String)> = HashSet::new();
         for (fc, ext_func, class_call) in funcs {
             if let Some(class_call) = &class_call {
                 self.add_edge(Edge::new(
@@ -376,37 +377,106 @@ impl Graph for ArrayGraph {
                 ));
             }
             if fc.target.is_empty() {
-                continue; // might have empty target if it's a class call only
+                continue;
             }
+
             if let Some(ext_nd) = ext_func {
-                self.add_edge(Edge::uses(fc.source, &ext_nd));
-                // don't add if it's already in the graph
-                if let None =
-                    self.find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
-                {
-                    self.add_node(NodeType::Function, ext_nd);
+                let edge_key = (
+                    fc.source.name.clone(),
+                    fc.source.file.clone(),
+                    ext_nd.name.clone(),
+                    ext_nd.file.clone(),
+                );
+
+                if !unique_edges.contains(&edge_key) {
+                    unique_edges.insert(edge_key);
+                    self.add_edge(Edge::uses(fc.source, &ext_nd));
+
+                    if self
+                        .find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
+                        .is_none()
+                    {
+                        self.add_node(NodeType::Function, ext_nd);
+                    }
                 }
             } else {
-                self.add_edge(fc.into())
+                if let Some(target_function) = self.find_node_by_name_in_file(
+                    NodeType::Function,
+                    &fc.target.name,
+                    &fc.source.file,
+                ) {
+                    let edge_key = (
+                        fc.source.name.clone(),
+                        fc.source.file.clone(),
+                        target_function.name.clone(),
+                        target_function.file.clone(),
+                    );
+
+                    if !unique_edges.contains(&edge_key) {
+                        unique_edges.insert(edge_key);
+                        let edge = Edge::new(
+                            EdgeType::Calls,
+                            NodeRef::from(fc.source.clone(), NodeType::Function),
+                            NodeRef::from((&target_function).into(), NodeType::Function),
+                        );
+                        self.add_edge(edge);
+                    }
+                } else {
+                    let edge_key = (
+                        fc.source.name.clone(),
+                        fc.source.file.clone(),
+                        fc.target.name.clone(),
+                        fc.source.file.clone(),
+                    );
+
+                    if !unique_edges.contains(&edge_key) {
+                        unique_edges.insert(edge_key);
+                        self.add_edge(fc.into());
+                    }
+                }
             }
         }
+
         for (tc, ext_func, _) in tests {
             if let Some(ext_nd) = ext_func {
-                self.add_edge(Edge::uses(tc.source, &ext_nd));
+                let edge_key = (
+                    tc.source.name.clone(),
+                    tc.source.file.clone(),
+                    ext_nd.name.clone(),
+                    ext_nd.file.clone(),
+                );
 
-                if let None =
-                    self.find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
-                {
-                    self.add_node(NodeType::Function, ext_nd);
+                if !unique_edges.contains(&edge_key) {
+                    unique_edges.insert(edge_key);
+                    self.add_edge(Edge::uses(tc.source, &ext_nd));
+
+                    if self
+                        .find_node_by_name_in_file(NodeType::Function, &ext_nd.name, &ext_nd.file)
+                        .is_none()
+                    {
+                        self.add_node(NodeType::Function, ext_nd);
+                    }
                 }
             } else {
-                self.add_edge(Edge::new_test_call(tc));
+                let edge_key = (
+                    tc.source.name.clone(),
+                    tc.source.file.clone(),
+                    tc.target.name.clone(),
+                    tc.source.file.clone(),
+                );
+
+                if !unique_edges.contains(&edge_key) {
+                    unique_edges.insert(edge_key);
+                    self.add_edge(Edge::new_test_call(tc));
+                }
             }
         }
+
         for edge in int_tests {
             self.add_edge(edge);
         }
     }
+
     fn find_node_by_name_in_file(
         &self,
         node_type: NodeType,
