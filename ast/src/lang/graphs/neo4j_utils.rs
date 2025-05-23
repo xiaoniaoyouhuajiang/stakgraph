@@ -211,14 +211,6 @@ impl EdgeQueryBuilder {
         
         let source_type = self.edge.source.node_type.to_string();
         let target_type = self.edge.target.node_type.to_string();
-        
-        // this is ideal query for unique edges
-        // let query = format!(
-        //     "MATCH (source:{} {{name: $source_name, file: $source_file, start: $source_start}}), \
-        //            (target:{} {{name: $target_name, file: $target_file, start: $target_start}}) \
-        //      MERGE (source)-[r:{}]->(target)",
-        //     source_type, target_type, rel_type
-        // );
 
         let query = format!(
             "MATCH (source:{} {{name: $source_name, file: $source_file}}), \
@@ -285,9 +277,26 @@ impl<'a> TransactionManager<'a> {
         self
     }
     
+    //Add nodes before edges to the graph when we batch them.
     pub async fn execute(self) -> Result<()> {
-        execute_batch(self.conn, self.queries).await
-    }
+         let (node_queries, edge_queries): (Vec<_>, Vec<_>) = self.queries
+         .into_iter()
+         .partition(|(query, _)| {
+             query.contains("MERGE (n:") || 
+             query.contains("CREATE (n:") ||
+             query.trim_start().starts_with("MERGE (") && query.contains(" {name:")
+         });
+
+        if !node_queries.is_empty() {
+            execute_batch(self.conn, node_queries).await?;
+        } 
+        if !edge_queries.is_empty() {
+            execute_batch(self.conn, edge_queries).await?;
+        }
+
+     Ok(())
+ }
+    
 }
 
 
