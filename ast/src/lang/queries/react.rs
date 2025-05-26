@@ -48,37 +48,48 @@ impl Stack for ReactTs {
         let types = "(string)(template_string)(number)(object)(array)(true)(false)(new_expression)";
         Some(format!(
             r#"(program
-                    [
+                    (export_statement
                         (variable_declaration
                             (variable_declarator
                                 name: (identifier) @{VARIABLE_NAME}
-                                value: [{types}] @variable_value
                                 type: (_)? @{VARIABLE_TYPE}
+                                value: [{types}]+ @{VARIABLE_VALUE}
+
                             )
                         )
+                    )?@{VARIABLE_DECLARATION}
+                )
+                (program
+                    (export_statement
                         (lexical_declaration
                             (variable_declarator
                                 name: (identifier) @{VARIABLE_NAME}
-                                value: [{types}] @variable_value
                                 type: (_)? @{VARIABLE_TYPE}
+                                value: [{types}]+ @{VARIABLE_VALUE}
+
                             )
                         )
-                        (export_statement
-                            declaration: (lexical_declaration
-                                (variable_declarator
-                                    name: (identifier) @{VARIABLE_NAME}
-                                    value: [{types}] @variable_value
-                                    type: (_)? @{VARIABLE_TYPE}
-                                )
+                    )?@{VARIABLE_DECLARATION}
+                )
+                (program
+                        (lexical_declaration
+                            (variable_declarator
+                                name: (identifier) @{VARIABLE_NAME}
+                                type: (_)? @{VARIABLE_TYPE}
+                                value: [{types}]+ @{VARIABLE_VALUE}
                             )
-                        )
-                        (expression_statement
-                            (assignment_expression
-                                left: (identifier) @{VARIABLE_NAME}
-                                right: [{types}] @variable_value
+                        )@{VARIABLE_DECLARATION}
+                    
+                )
+                (program
+                        (variable_declaration
+                            (variable_declarator
+                                name: (identifier) @{VARIABLE_NAME}
+                                type: (_)? @{VARIABLE_TYPE}
+                                value: [{types}]+ @{VARIABLE_VALUE}
                             )
-                        )
-                    ]+ @{VARIABLE_DECLARATION}
+                        ) @{VARIABLE_DECLARATION}
+                    
                 )"#,
         ))
     }
@@ -354,7 +365,7 @@ impl Stack for ReactTs {
             inst.add_verb("GET");
         }
     }
-    fn is_router_file(&self, file_name: &str, code: &str) -> bool {
+    fn is_router_file(&self, file_name: &str, _code: &str) -> bool {
         // next.js or react-router-dom
         // file_name.contains("src/pages/") || code.contains("react-router-dom")
         !file_name.contains("__tests__") && !file_name.contains("test")
