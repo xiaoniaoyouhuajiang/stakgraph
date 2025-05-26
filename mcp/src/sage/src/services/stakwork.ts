@@ -94,6 +94,7 @@ export class StakworkService {
               secret: this.secret,
               source,
               history,
+              webhook_url: webhookUrl,
             },
           },
         },
