@@ -14,6 +14,8 @@ export class WebhookController {
       const payload = req.body as WebhookPayload;
       const chatId = payload.value?.chatId;
 
+      console.log("=> handleWebhook payload", payload);
+
       if (!chatId) {
         res.status(400).json({
           success: false,

@@ -26,20 +26,11 @@ export interface WebhookPayload {
 
 export interface ChatMessageArtifact {
   id: string;
-  type: ArtifactType; // Assuming db.ArtifactType maps to this
-  content: any; // or unknown, depending on your preference for type safety
+  type: ArtifactType;
+  content: any;
 }
 
-// You'll need to define ArtifactType based on what db.ArtifactType contains
-// For example:
-export type ArtifactType = string; // or union of specific values like 'text' | 'image' | 'file'
-
-// export interface WebhookPayload {
-//   chat_id: string;
-//   message: Message;
-//   workflow_id: number;
-//   project_id: number;
-// }
+export type ArtifactType = string;
 
 export interface StakworkChatPayload {
   name: string;
