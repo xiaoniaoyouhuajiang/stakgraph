@@ -36,11 +36,31 @@ impl Stack for ReactTs {
     fn is_lib_file(&self, file_name: &str) -> bool {
         file_name.contains("node_modules/")
     }
+
     fn imports_query(&self) -> Option<String> {
         Some(format!(
-            r#"(program
-                (import_statement)+ @{IMPORTS}
-            )"#,
+            r#"
+            (import_statement
+                (import_clause
+                    (identifier)? @{IMPORTS_NAME}
+                    (named_imports
+                        (import_specifier
+                            name:(identifier) @{IMPORTS_NAME}
+                        )
+                    )?
+
+                )?
+                source: (string) @{IMPORTS_FROM}
+            )@{IMPORTS}
+            (export_statement
+                (export_clause
+                    (export_specifier
+                        name: (identifier)@{IMPORTS_NAME}
+                    )
+                )
+                source: (string) @{IMPORTS_FROM}
+            )@{IMPORTS}
+            "#,
         ))
     }
 
@@ -464,5 +484,23 @@ impl Stack for ReactTs {
             None => None,
         };
         Ok(parent_of)
+    }
+    fn resolve_import_path(&self, import_path: &str, _current_file: &str) -> String {
+        let mut path = import_path.trim().to_string();
+        if path.starts_with("./") {
+            path = path[2..].to_string();
+        } else if path.starts_with(".\\") {
+            path = path[2..].to_string();
+        } else if path.starts_with('/') {
+            path = path[1..].to_string();
+        }
+
+        if (path.starts_with('"') && path.ends_with('"'))
+            || (path.starts_with('\'') && path.ends_with('\''))
+            || (path.starts_with('`') && path.ends_with('`'))
+        {
+            path = path[1..path.len() - 1].to_string();
+        }
+        path
     }
 }

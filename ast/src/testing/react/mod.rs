@@ -21,10 +21,10 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 67, "Expected 67 nodes");
-        assert_eq!(num_edges, 84, "Expected 84 edges");
+        assert_eq!(num_edges, 88, "Expected 88 edges");
     } else {
         assert_eq!(num_nodes, 61, "Expected 61 nodes");
-        assert_eq!(num_edges, 70, "Expected 70 edges");
+        assert_eq!(num_edges, 74, "Expected 74 edges");
     }
 
     fn normalize_path(path: &str) -> String {
@@ -51,6 +51,19 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     );
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
+    for imp in &imports {
+        let import_lines: Vec<&str> = imp
+            .body
+            .lines()
+            .filter(|line| line.trim_start().starts_with("import "))
+            .collect();
+
+        assert!(
+            import_lines.len() > 0,
+            "Expected multiple import lines in {}",
+            imp.file
+        );
+    }
     assert_eq!(imports.len(), 5, "Expected 5 imports");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);

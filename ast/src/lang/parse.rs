@@ -1104,6 +1104,66 @@ impl Lang {
         );
         Ok(Some(edge))
     }
+    pub fn collect_import_edges<G: Graph>(
+        &self,
+        q: &Query,
+        code: &str,
+        file: &str,
+        graph: &G,
+    ) -> Result<Vec<Edge>> {
+        let tree = self.lang.parse(&code, &NodeType::Import)?;
+        let mut cursor = QueryCursor::new();
+        let mut matches = cursor.matches(q, tree.root_node(), code.as_bytes());
+        let mut edges = Vec::new();
+
+        while let Some(m) = matches.next() {
+            let mut import_names = Vec::new();
+            let mut import_source = None;
+
+            Self::loop_captures_multi(q, &m, code, |body, _node, o| {
+                if o == IMPORTS_NAME {
+                    import_names.push(body.clone());
+                } else if o == IMPORTS_FROM {
+                    import_source = Some(trim_quotes(&body).to_string());
+                }
+                Ok(())
+            })?;
+
+            if let Some(source_path) = import_source {
+                let resolved_path = self.lang.resolve_import_path(&source_path, file);
+
+                for name in &import_names {
+                    for nt in [
+                        NodeType::Function,
+                        NodeType::Class,
+                        NodeType::DataModel,
+                        NodeType::Var,
+                    ] {
+                        let targets = graph.find_nodes_by_name(nt.clone(), name);
+
+                        if !targets.is_empty() {
+                            let target = targets
+                                .iter()
+                                .filter(|node_data| node_data.file.contains(&resolved_path))
+                                .next();
+
+                            let file_nodes =
+                                graph.find_nodes_by_file_ends_with(NodeType::File, file);
+                            let file_node = file_nodes
+                                .first()
+                                .cloned()
+                                .unwrap_or_else(|| NodeData::in_file(file));
+                            if let Some(target) = target {
+                                edges.push(Edge::file_imports(&file_node, nt, &target));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(edges)
+    }
 }
 
 fn _func_target_files_finder<G: Graph>(
