@@ -10,7 +10,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import express from "express";
+import { Request, Response, NextFunction, Express } from "express";
 
 const server = new Server(
   {
@@ -83,10 +83,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 server.onerror = (error) => console.error("[MCP Error]", error);
 server.onclose = () => console.log("[MCP] Server connection closed");
 
-export function mcp_routes(app: express.Express) {
+export function bearerToken(req: Request, res: Response, next: NextFunction) {
+  const apiToken = process.env.API_TOKEN;
+  if (!apiToken) {
+    return next();
+  }
+  const requestToken = req.header("Authorization");
+  if (!requestToken || requestToken !== `Bearer ${apiToken}`) {
+    res.status(401).json({ error: "Unauthorized: Invalid API token" });
+    return;
+  }
+  next();
+}
+
+export function mcp_routes(app: Express) {
   let currentTransport: SSEServerTransport | null = null;
 
-  app.get("/sse", async (_, res) => {
+  app.get("/sse", bearerToken, async (_, res) => {
     try {
       currentTransport = new SSEServerTransport("/messages", res);
       await server.connect(currentTransport);
@@ -105,7 +118,7 @@ export function mcp_routes(app: express.Express) {
   });
 
   // Raw route without any body parsing middleware
-  app.post("/messages", async (req, res) => {
+  app.post("/messages", bearerToken, async (req, res) => {
     console.log("===> messages - handling POST");
     try {
       if (currentTransport) {
@@ -122,8 +135,16 @@ export function mcp_routes(app: express.Express) {
     }
   });
 
-  app.get("/tools", (_, res) => {
-    res.send(getMcpTools().map(fmtToolForHttp));
+  app.get("/tools", bearerToken, (_, res) => {
+    const obj: { tools: HttpTool[]; headers?: { [k: string]: any } } = {
+      tools: getMcpTools().map(fmtToolForHttp),
+    };
+    if (process.env.API_TOKEN) {
+      obj.headers = {
+        Authorization: "Bearer YOUR_TOKEN",
+      };
+    }
+    res.send(obj);
   });
 }
 

@@ -124,7 +124,7 @@ export class GitHubIssueAdapter extends BaseAdapter {
       }
 
       // Check if @hive is mentioned
-      if (issue.body && issue.body.includes("@hive")) {
+      if (issue.body && issue.body.includes("@stakwork")) {
         const chatId = `github-issue-${issue.number}`;
         const message: Message = {
           role: "user",
@@ -132,7 +132,7 @@ export class GitHubIssueAdapter extends BaseAdapter {
         };
 
         console.log(
-          `Processing GitHub issue #${issue.number} with @hive mention`
+          `Processing GitHub issue #${issue.number} with @stakwork mention`
         );
         this.processedIssues.add(issue.number);
         newIssuesProcessed = true;
