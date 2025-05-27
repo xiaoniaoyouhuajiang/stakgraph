@@ -20,11 +20,11 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
-        assert_eq!(num_nodes, 63, "Expected 63 nodes");
-        assert_eq!(num_edges, 80, "Expected 80 edges");
+        assert_eq!(num_nodes, 67, "Expected 67 nodes");
+        assert_eq!(num_edges, 84, "Expected 84 edges");
     } else {
-        assert_eq!(num_nodes, 57, "Expected 57 nodes");
-        assert_eq!(num_edges, 66, "Expected 66 edges");
+        assert_eq!(num_nodes, 61, "Expected 61 nodes");
+        assert_eq!(num_edges, 70, "Expected 70 edges");
     }
 
     fn normalize_path(path: &str) -> String {
@@ -145,6 +145,9 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
 
     let pages = graph.find_nodes_by_type(NodeType::Page);
     assert_eq!(pages.len(), 2, "Expected 2 pages");
+
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    assert_eq!(variables.len(), 5, "Expected 5 variables");
 
     let renders_edges_count = graph.count_edges_of_type(EdgeType::Renders);
     assert_eq!(renders_edges_count, 2, "Expected 2 renders edges");
