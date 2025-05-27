@@ -36,13 +36,6 @@ impl Stack for ReactTs {
     fn is_lib_file(&self, file_name: &str) -> bool {
         file_name.contains("node_modules/")
     }
-    // fn imports_query(&self) -> Option<String> {
-    //     Some(format!(
-    //         r#"(program
-    //             (import_statement)+ @{IMPORTS}
-    //         )"#,
-    //     ))
-    // }
 
     fn imports_query(&self) -> Option<String> {
         Some(format!(
