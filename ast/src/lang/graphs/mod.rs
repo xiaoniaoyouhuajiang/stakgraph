@@ -183,6 +183,13 @@ impl Edge {
             NodeRef::from(m.into(), NodeType::Class),
         )
     }
+    pub fn file_imports(file: &NodeData, target_type: NodeType, target: &NodeData) -> Edge {
+        Edge::new(
+            EdgeType::Imports,
+            NodeRef::from(file.into(), NodeType::File),
+            NodeRef::from(target.into(), target_type),
+        )
+    }
     pub fn add_root(&mut self, root: &str) {
         self.source.node_data.file = format!("{}/{}", root, self.source.node_data.file);
         self.target.node_data.file = format!("{}/{}", root, self.target.node_data.file);
