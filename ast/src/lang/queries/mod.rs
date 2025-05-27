@@ -251,6 +251,9 @@ pub trait Stack {
     fn convert_association_to_name(&self, name: &str) -> String {
         name.to_string()
     }
+    fn resolve_import_path(&self, import_path: &str, _current_file: &str) -> String {
+        import_path.to_string()
+    }
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {

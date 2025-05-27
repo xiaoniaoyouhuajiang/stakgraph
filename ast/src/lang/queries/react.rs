@@ -492,4 +492,22 @@ impl Stack for ReactTs {
         };
         Ok(parent_of)
     }
+    fn resolve_import_path(&self, import_path: &str, _current_file: &str) -> String {
+        let mut path = import_path.trim().to_string();
+        if path.starts_with("./") {
+            path = path[2..].to_string();
+        } else if path.starts_with(".\\") {
+            path = path[2..].to_string();
+        } else if path.starts_with('/') {
+            path = path[1..].to_string();
+        }
+
+        if (path.starts_with('"') && path.ends_with('"'))
+            || (path.starts_with('\'') && path.ends_with('\''))
+            || (path.starts_with('`') && path.ends_with('`'))
+        {
+            path = path[1..path.len() - 1].to_string();
+        }
+        path
+    }
 }

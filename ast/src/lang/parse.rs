@@ -1130,7 +1130,7 @@ impl Lang {
             })?;
 
             if let Some(source_path) = import_source {
-                let resolved_path = resolve_import_path(&source_path);
+                let resolved_path = self.lang.resolve_import_path(&source_path, file);
 
                 for name in &import_names {
                     for nt in [
@@ -1270,18 +1270,6 @@ fn _pick_target_file_from_graph<G: Graph>(target_name: &str, graph: &G) -> Optio
     }
 
     target_file
-}
-fn resolve_import_path(import_path: &str) -> String {
-    let mut path = import_path.trim().to_string();
-    if path.starts_with("./") {
-        path = path[2..].to_string();
-    } else if path.starts_with(".\\") {
-        path = path[2..].to_string();
-    } else if path.starts_with('/') {
-        path = path[1..].to_string();
-    }
-
-    trim_quotes(&path).to_string()
 }
 
 pub fn trim_quotes(value: &str) -> &str {
