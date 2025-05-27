@@ -24,8 +24,8 @@ export class App {
       this.configureMiddleware();
     }
     this.initializeServices();
-    this.setupControllers();
     this.adapters = this.initializeAdapters();
+    this.setupControllers();
     this.setupRoutes();
   }
 
