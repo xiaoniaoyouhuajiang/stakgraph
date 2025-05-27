@@ -55,12 +55,12 @@ impl Stack for ReactTs {
                             name:(identifier) @{IMPORTS_NAME}
                         )
                     )?
-                    
-                )? 
+
+                )?
                 source: (string) @{IMPORTS_FROM}
             )@{IMPORTS}
             (export_statement
-                (export_clause	
+                (export_clause
                     (export_specifier
                         name: (identifier)@{IMPORTS_NAME}
                     )

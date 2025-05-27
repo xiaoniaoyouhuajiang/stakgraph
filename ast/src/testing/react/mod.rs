@@ -51,6 +51,19 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     );
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
+    for imp in &imports {
+        let import_lines: Vec<&str> = imp
+            .body
+            .lines()
+            .filter(|line| line.trim_start().starts_with("import "))
+            .collect();
+
+        assert!(
+            import_lines.len() > 1,
+            "Expected multiple import lines in {}",
+            imp.file
+        );
+    }
     assert_eq!(imports.len(), 5, "Expected 5 imports");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
