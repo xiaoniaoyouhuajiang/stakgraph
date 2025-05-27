@@ -88,7 +88,7 @@ export class App {
 
   private setupControllers(): void {
     const WEBHOOK_BASE_URL =
-      process.env.WEBHOOK_BASE_URL || "http://localhost:3000/webhook";
+      this.config.webhook_url || "http://localhost:3000/webhook";
     this.messagesController = new MessagesController(
       this.stakworkService,
       WEBHOOK_BASE_URL

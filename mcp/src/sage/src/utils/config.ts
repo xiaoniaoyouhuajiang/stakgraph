@@ -14,6 +14,7 @@ export interface Config {
   workflow_id: string;
   data_dir?: string;
   dry_run?: boolean;
+  webhook_url?: string;
 }
 
 export function loadConfig(configPath: string = "sage_config.json"): Config {
