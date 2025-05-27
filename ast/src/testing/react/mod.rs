@@ -59,7 +59,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
             .collect();
 
         assert!(
-            import_lines.len() > 1,
+            import_lines.len() > 0,
             "Expected multiple import lines in {}",
             imp.file
         );

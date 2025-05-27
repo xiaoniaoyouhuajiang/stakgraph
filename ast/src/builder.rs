@@ -562,9 +562,19 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
         return Vec::new();
     }
     let import_name = create_node_key(&Node::new(NodeType::Import, nodes[0].clone()));
+
+    let mut seen_starts = HashSet::new();
+    let mut unique_nodes = Vec::new();
+    for node in nodes {
+        if !seen_starts.contains(&node.start) {
+            seen_starts.insert(node.start);
+            unique_nodes.push(node);
+        }
+    }
+
     let mut combined_body = String::new();
-    let mut current_position = nodes[0].start;
-    for (i, node) in nodes.iter().enumerate() {
+    let mut current_position = unique_nodes[0].start;
+    for (i, node) in unique_nodes.iter().enumerate() {
         // Add extra newlines if there's a gap between this node and the previous position
         if node.start > current_position {
             let extra_newlines = node.start - current_position;
@@ -573,7 +583,7 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
         // Add the node body
         combined_body.push_str(&node.body);
         // Add a newline separator between nodes (except after the last one)
-        if i < nodes.len() - 1 {
+        if i < unique_nodes.len() - 1 {
             combined_body.push('\n');
             current_position = node.end + 1; // +1 for the newline we just added
         } else {
@@ -581,8 +591,8 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
         }
     }
     // Use the file from the first node
-    let file = if !nodes.is_empty() {
-        nodes[0].file.clone()
+    let file = if !unique_nodes.is_empty() {
+        unique_nodes[0].file.clone()
     } else {
         String::new()
     };
@@ -591,8 +601,8 @@ pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
         name: import_name,
         file,
         body: combined_body,
-        start: nodes[0].start,
-        end: nodes.last().unwrap().end,
+        start: unique_nodes[0].start,
+        end: unique_nodes.last().unwrap().end,
         ..Default::default()
     }]
 }
