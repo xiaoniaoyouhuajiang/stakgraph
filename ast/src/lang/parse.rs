@@ -132,7 +132,6 @@ impl Lang {
         Self::loop_captures_multi(q, &m, code, |body, node, o| {
             let mut impy = NodeData::in_file(file);
             if o == IMPORTS {
-                println!("IMPORTS: {}", body);
                 impy.name = "imports".to_string();
                 impy.body = body;
                 impy.start = node.start_position().row;
@@ -1105,6 +1104,66 @@ impl Lang {
         );
         Ok(Some(edge))
     }
+    pub fn collect_import_edges<G: Graph>(
+        &self,
+        q: &Query,
+        code: &str,
+        file: &str,
+        graph: &G,
+    ) -> Result<Vec<Edge>> {
+        let tree = self.lang.parse(&code, &NodeType::Import)?;
+        let mut cursor = QueryCursor::new();
+        let mut matches = cursor.matches(q, tree.root_node(), code.as_bytes());
+        let mut edges = Vec::new();
+
+        while let Some(m) = matches.next() {
+            let mut import_names = Vec::new();
+            let mut import_source = None;
+
+            Self::loop_captures_multi(q, &m, code, |body, _node, o| {
+                if o == IMPORTS_NAME {
+                    import_names.push(body.clone());
+                } else if o == IMPORTS_FROM {
+                    import_source = Some(trim_quotes(&body).to_string());
+                }
+                Ok(())
+            })?;
+
+            if let Some(source_path) = import_source {
+                let resolved_path = resolve_import_path(&source_path);
+
+                for name in &import_names {
+                    for nt in [
+                        NodeType::Function,
+                        NodeType::Class,
+                        NodeType::DataModel,
+                        NodeType::Var,
+                    ] {
+                        let targets = graph.find_nodes_by_name(nt.clone(), name);
+
+                        if !targets.is_empty() {
+                            let target = targets
+                                .iter()
+                                .filter(|node_data| node_data.file.contains(&resolved_path))
+                                .next();
+
+                            let file_nodes =
+                                graph.find_nodes_by_file_ends_with(NodeType::File, file);
+                            let file_node = file_nodes
+                                .first()
+                                .cloned()
+                                .unwrap_or_else(|| NodeData::in_file(file));
+                            if let Some(target) = target {
+                                edges.push(Edge::file_imports(&file_node, nt, &target));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(edges)
+    }
 }
 
 fn _func_target_files_finder<G: Graph>(
@@ -1211,6 +1270,18 @@ fn _pick_target_file_from_graph<G: Graph>(target_name: &str, graph: &G) -> Optio
     }
 
     target_file
+}
+fn resolve_import_path(import_path: &str) -> String {
+    let mut path = import_path.trim().to_string();
+    if path.starts_with("./") {
+        path = path[2..].to_string();
+    } else if path.starts_with(".\\") {
+        path = path[2..].to_string();
+    } else if path.starts_with('/') {
+        path = path[1..].to_string();
+    }
+
+    trim_quotes(&path).to_string()
 }
 
 pub fn trim_quotes(value: &str) -> &str {

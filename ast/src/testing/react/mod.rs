@@ -23,8 +23,8 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
         assert_eq!(num_nodes, 67, "Expected 67 nodes");
         assert_eq!(num_edges, 84, "Expected 84 edges");
     } else {
-        assert_eq!(num_nodes, 61, "Expected 61 nodes");
-        assert_eq!(num_edges, 70, "Expected 70 edges");
+        assert_eq!(num_nodes, 63, "Expected 63 nodes");
+        assert_eq!(num_edges, 88, "Expected 88 edges");
     }
 
     fn normalize_path(path: &str) -> String {
