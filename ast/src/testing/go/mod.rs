@@ -42,7 +42,26 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 3, "Expected 3 imports");
 
-    // Find classes
+    let main_import_body = format!(
+        r#"import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)"#
+    );
+    let main = imports
+        .iter()
+        .find(|i| i.file == "src/testing/go/main.go")
+        .unwrap();
+
+    assert_eq!(
+        main.body, main_import_body,
+        "Model import body is incorrect"
+    );
+
     let classes = graph.find_nodes_by_type(NodeType::Class);
     assert_eq!(classes.len(), 1, "Expected 1 class");
     assert_eq!(
