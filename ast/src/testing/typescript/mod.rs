@@ -67,6 +67,21 @@ pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     }
     assert_eq!(imports.len(), 5, "Expected 5 imports");
 
+    let model_import_body = format!(
+        r#"import DataTypes, {{ Model }} from "sequelize";
+import {{ Entity, Column, PrimaryGeneratedColumn }} from "typeorm";
+import {{ sequelize }} from "./config.js";"#
+    );
+    let model = imports
+        .iter()
+        .find(|i| i.file == "src/testing/typescript/src/model.ts")
+        .unwrap();
+
+    assert_eq!(
+        model.body, model_import_body,
+        "Model import body is incorrect"
+    );
+
     let functions = graph.find_nodes_by_type(NodeType::Function);
     if use_lsp == true {
         assert_eq!(functions.len(), 9, "Expected 9 functions");

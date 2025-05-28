@@ -35,6 +35,25 @@ pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 5, "Expected 5 imports");
 
+    let main_import_body = format!(
+        r#"use crate::db::init_db;
+use crate::routes::{{
+    actix_routes::config, axum_routes::create_router, rocket_routes::create_rocket,
+}};
+
+use anyhow::Result;
+use std::net::SocketAddr;"#
+    );
+    let main = imports
+        .iter()
+        .find(|i| i.file == "src/testing/rust/src/main.rs")
+        .unwrap();
+
+    assert_eq!(
+        main.body, main_import_body,
+        "Model import body is incorrect"
+    );
+
     let vars = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(vars.len(), 5, "Expected 5 variables");
 

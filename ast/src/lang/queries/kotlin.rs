@@ -36,8 +36,8 @@ impl Stack for Kotlin {
         Some(format!(
             r#"
                 (package_header
-                    (identifier) @{IMPORTS}
-                )
+                    (identifier) 
+                )@{IMPORTS}
                 (import_list
                     (import_header
                         (identifier) @{IMPORTS_NAME} @{IMPORTS_FROM}

@@ -55,6 +55,25 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 9, "Expected 9 imports");
 
+    let main_import_body = format!(
+        r#"package com.kotlintestapp.sqldelight
+
+import android.content.Context
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.kotlintestapp.db.Person
+import com.kotlintestapp.db.PersonDatabase"#
+    );
+    let main = imports
+        .iter()
+        .find(|i| i.file == "src/testing/kotlin/app/src/main/java/com/kotlintestapp/sqldelight/DatabaseHelper.kt")
+        .unwrap();
+
+    assert_eq!(
+        main.body, main_import_body,
+        "Model import body is incorrect"
+    );
+
     let classes = graph.find_nodes_by_type(NodeType::Class);
     assert_eq!(classes.len(), 6, "Expected 6 classes");
 

@@ -36,6 +36,26 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 12, "Expected 12 imports");
 
+    let main_import_body = format!(
+        r#"import os
+import signal
+import subprocess
+import sys
+from fastapi import FastAPI
+from flask import Flask
+from fastapi_app.routes import router
+from database import Base, engine
+from flask_app.routes import flask_bp"#
+    );
+    let main = imports
+        .iter()
+        .find(|i| i.file == "src/testing/python/main.py")
+        .unwrap();
+
+    assert_eq!(
+        main.body, main_import_body,
+        "Model import body is incorrect"
+    );
     let classes = graph.find_nodes_by_type(NodeType::Class);
     assert_eq!(classes.len(), 3, "Expected 3 classes");
 

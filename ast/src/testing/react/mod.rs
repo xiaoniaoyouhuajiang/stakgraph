@@ -64,6 +64,20 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
             imp.file
         );
     }
+    let import_test_file = imports
+        .iter()
+        .find(|imp| imp.file == "src/testing/react/src/App.tsx")
+        .unwrap();
+
+    let app_body = format!(
+        r#"import React from "react";
+import {{ BrowserRouter as Router, Route, Routes }} from "react-router-dom";
+import "./App.css";
+import People from "./components/People";
+import NewPerson from "./components/NewPerson";"#
+    );
+
+    assert_eq!(import_test_file.body, app_body, "Body of App is incorrect");
     assert_eq!(imports.len(), 5, "Expected 5 imports");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
