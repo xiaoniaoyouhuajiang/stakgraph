@@ -20,7 +20,7 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     //graph.analysis();
     assert_eq!(num_nodes, 124, "Expected 124 nodes");
-    assert_eq!(num_edges, 134, "Expected 134 edges");
+    assert_eq!(num_edges, 140, "Expected 140 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -90,10 +90,10 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(requests.len(), 2, "Expected 2 requests");
 
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls);
-    assert!(calls_edges_count > 0, "Expected at least one calls edge");
+    assert_eq!(calls_edges_count, 13, "Expected at 13 calls edges");
 
-    // let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
-    // assert!(import_edges_count > 0, "Expected at least one import edge");
+    let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
+    assert_eq!(import_edges_count, 6, "Expected at 6 import edges");
 
     Ok(())
 }
@@ -103,8 +103,8 @@ async fn test_kotlin() {
     #[cfg(feature = "neo4j")]
     use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
-    test_kotlin_generic::<BTreeMapGraph>().await.unwrap();
     test_kotlin_generic::<ArrayGraph>().await.unwrap();
+    test_kotlin_generic::<BTreeMapGraph>().await.unwrap();
 
     #[cfg(feature = "neo4j")]
     {

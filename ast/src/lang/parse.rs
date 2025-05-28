@@ -1132,14 +1132,15 @@ impl Lang {
             if let Some(source_path) = import_source {
                 let resolved_path = self.lang.resolve_import_path(&source_path, file);
 
-                for name in &import_names {
+                for import_name in &import_names {
                     for nt in [
                         NodeType::Function,
                         NodeType::Class,
                         NodeType::DataModel,
                         NodeType::Var,
                     ] {
-                        let targets = graph.find_nodes_by_name(nt.clone(), name);
+                        let name = self.lang.resolve_import_name(import_name);
+                        let targets = graph.find_nodes_by_name(nt.clone(), &name);
 
                         if !targets.is_empty() {
                             let target = targets
