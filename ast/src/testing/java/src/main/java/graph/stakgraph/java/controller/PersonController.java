@@ -6,6 +6,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import java.util.Optional;
 
+protected static String appName = "stakgraph";
+
+
 @RestController
 public class PersonController {
     private final PersonRepository repository;

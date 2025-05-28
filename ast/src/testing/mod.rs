@@ -7,6 +7,7 @@ use std::str::FromStr;
 pub mod angular;
 pub mod go;
 pub mod graphs;
+pub mod java;
 pub mod kotlin;
 #[cfg(feature = "neo4j")]
 pub mod neo4j;
