@@ -17,6 +17,7 @@ pub mod svelte;
 pub mod swift;
 pub mod test_backend;
 pub mod test_frontend;
+pub mod typescript;
 pub mod utils;
 
 #[cfg(test)]
