@@ -46,6 +46,29 @@ impl Stack for Rust {
             .to_string(),
         )
     }
+    fn variables_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+                (source_file
+                    (const_item
+                        name: (identifier) @{VARIABLE_NAME}
+                        type: (_)? @{VARIABLE_TYPE}
+                        value: (_) @{VARIABLE_VALUE}
+                    )?@{VARIABLE_DECLARATION}
+                    (static_item
+                        name: (identifier) @{VARIABLE_NAME}
+                        type: (_)? @{VARIABLE_TYPE}
+                        value: (_) @{VARIABLE_VALUE}
+                    )?@{VARIABLE_DECLARATION}
+                    (let_declaration
+                        pattern: (identifier) @{VARIABLE_NAME}
+                        type: (_)? @{VARIABLE_TYPE}
+                        value: (_) @{VARIABLE_VALUE}
+                    )?@{VARIABLE_DECLARATION}
+                )
+                "#
+        ))
+    }
     fn trait_query(&self) -> Option<String> {
         Some(
             r#"
