@@ -43,6 +43,21 @@ impl Stack for Python {
             )"
         ))
     }
+    fn variables_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (module
+                (expression_statement
+                    (assignment
+                        left: (identifier) @{VARIABLE_NAME}
+                        type: (type)? @{VARIABLE_TYPE}
+                        right: (_) @{VARIABLE_VALUE}
+                    )
+                )@{VARIABLE_DECLARATION}
+            )
+            "#
+        ))
+    }
     fn class_definition_query(&self) -> String {
         format!(
             "(class_definition
