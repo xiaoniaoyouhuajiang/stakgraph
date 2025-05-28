@@ -34,10 +34,11 @@ export class StakworkService {
     this.repo = repo;
   }
 
-  async sendToStakwork(payload: StakworkChatPayload): Promise<any> {
+  // src/sage/src/services/stakwork.ts
+  async sendToStakwork(payload: StakworkChatPayload): Promise<number | null> {
     if (this.dryRun) {
       console.log("Dry run, not sending to Stakwork");
-      return 0;
+      return null;
     }
     console.log(JSON.stringify(payload, null, 2));
     try {
@@ -60,7 +61,7 @@ export class StakworkService {
       }
 
       console.log("Stakwork response received", response.data);
-      return response.data.data;
+      return response.data.data.project_id; // Return the project_id
     } catch (error) {
       console.error("Error sending request to Stakwork:", error);
       throw new Error(`Error sending request to Stakwork: ${error}`);

@@ -93,7 +93,8 @@ export class App {
       this.config.webhook_url || "http://localhost:3000/webhook";
     this.messagesController = new MessagesController(
       this.stakworkService,
-      WEBHOOK_BASE_URL
+      WEBHOOK_BASE_URL,
+      this.adapters
     );
     this.webhookController = new WebhookController(this.adapters);
   }
