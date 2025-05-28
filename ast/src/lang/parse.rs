@@ -1131,6 +1131,7 @@ impl Lang {
 
             if let Some(source_path) = import_source {
                 let resolved_path = self.lang.resolve_import_path(&source_path, file);
+                println!("resolved import path: {} -> {}", source_path, resolved_path);
 
                 for import_name in &import_names {
                     for nt in [
@@ -1140,6 +1141,7 @@ impl Lang {
                         NodeType::Var,
                     ] {
                         let name = self.lang.resolve_import_name(import_name);
+                        println!("looking for import name: {}", name);
                         let targets = graph.find_nodes_by_name(nt.clone(), &name);
 
                         if !targets.is_empty() {
