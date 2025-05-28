@@ -36,11 +36,30 @@ impl Stack for Python {
 ) @{LIBRARY}"
         ))
     }
+    // fn imports_query(&self) -> Option<String> {
+    //     Some(format!(
+    //         "(module
+    //             [(import_statement)+ (import_from_statement)+] @{IMPORTS}
+    //         )"
+    //     ))
+    // }
+
     fn imports_query(&self) -> Option<String> {
         Some(format!(
-            "(module
-                [(import_statement)+ (import_from_statement)+] @{IMPORTS}
-            )"
+            r#"
+             (module
+             [
+                (import_from_statement
+                    module_name: (relative_import)? @{IMPORTS_FROM}
+                    module_name: (dotted_name)? @{IMPORTS_FROM}
+                    name: (dotted_name) @{IMPORTS_NAME}
+
+                )+
+                (import_statement)+
+                (future_import_statement)?
+            ]@{IMPORTS}
+            )
+            "#
         ))
     }
     fn variables_query(&self) -> Option<String> {
