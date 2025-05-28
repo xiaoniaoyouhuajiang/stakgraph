@@ -19,8 +19,8 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
 
     //graph.analysis();
-    assert_eq!(num_nodes, 115, "Expected 115 nodes");
-    assert_eq!(num_edges, 125, "Expected 125 edges");
+    assert_eq!(num_nodes, 124, "Expected 124 nodes");
+    assert_eq!(num_edges, 134, "Expected 134 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -58,6 +58,15 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let classes = graph.find_nodes_by_type(NodeType::Class);
     assert_eq!(classes.len(), 6, "Expected 6 classes");
 
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    for imp in &imports {
+        println!("Import: {:?}\n\n", imp);
+    }
+    assert_eq!(imports.len(), 9, "Expected 9 imports");
+
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    assert_eq!(variables.len(), 9, "Expected 9 variables");
+
     let mut sorted_classes = classes.clone();
     sorted_classes.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -82,6 +91,9 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls);
     assert!(calls_edges_count > 0, "Expected at least one calls edge");
+
+    // let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
+    // assert!(import_edges_count > 0, "Expected at least one import edge");
 
     Ok(())
 }

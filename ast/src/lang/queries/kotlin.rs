@@ -45,6 +45,23 @@ impl Stack for Kotlin {
         ))
     }
 
+    fn variables_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (source_file
+                (property_declaration
+                    (modifiers)?@modifiers
+                    (binding_pattern_kind)
+                    (variable_declaration
+                        (user_type)?@{VARIABLE_TYPE}
+                    )@{VARIABLE_NAME}
+                    (_)?@{VARIABLE_VALUE}
+                )@{VARIABLE_DECLARATION}
+            )
+            "#
+        ))
+    }
+
     fn class_definition_query(&self) -> String {
         format!(
             r#"
