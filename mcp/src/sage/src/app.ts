@@ -35,13 +35,15 @@ export class App {
 
   private initializeServices(): void {
     const workflow_id = parseInt(this.config.workflow_id || "38842", 10);
+    const repo = `${this.config.github.owner}/${this.config.github.repo}`;
     this.stakworkService = new StakworkService(
       this.config.stakwork_api_key,
       workflow_id,
       this.config.codeSpaceURL,
       this.config["2b_base_url"],
       this.config.secret,
-      this.config.dry_run
+      this.config.dry_run,
+      repo
     );
   }
 

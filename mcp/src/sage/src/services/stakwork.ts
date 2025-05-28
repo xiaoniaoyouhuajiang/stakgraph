@@ -14,6 +14,7 @@ export class StakworkService {
   private twoBBaseUrl: string;
   private secret: string;
   private dryRun: boolean;
+  private repo: string;
 
   constructor(
     apiKey: string,
@@ -21,7 +22,8 @@ export class StakworkService {
     codeSpaceURL: string = "",
     twoBBaseUrl: string = "",
     secret: string = "",
-    dryRun: boolean = false
+    dryRun: boolean = false,
+    repo: string = ""
   ) {
     this.apiKey = apiKey;
     this.workflowId = workflowId;
@@ -29,6 +31,7 @@ export class StakworkService {
     this.twoBBaseUrl = twoBBaseUrl;
     this.secret = secret;
     this.dryRun = dryRun;
+    this.repo = repo;
   }
 
   async sendToStakwork(payload: StakworkChatPayload): Promise<any> {
@@ -95,6 +98,7 @@ export class StakworkService {
               source,
               history,
               webhook_url: webhookUrl,
+              repo: this.repo,
             },
           },
         },
