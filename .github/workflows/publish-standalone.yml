@@ -30,7 +30,7 @@ jobs:
         with:
           context: .
           file: Dockerfile.standalone
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ghcr.io/stakwork/stakgraph:standalone-${{ github.ref_name }}
