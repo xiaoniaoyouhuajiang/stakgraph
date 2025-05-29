@@ -1,5 +1,6 @@
 use super::super::*;
 use super::consts::*;
+use crate::utils::get_use_lsp;
 use anyhow::{Context, Result};
 use lsp::{Cmd as LspCmd, CmdSender, Position, Res as LspRes};
 use tree_sitter::{Language, Parser, Query, Tree};
@@ -293,6 +294,10 @@ impl Stack for Go {
     }
     fn clean_graph(&self, callback: &mut dyn FnMut(NodeType, NodeType, &str)) {
         callback(NodeType::Class, NodeType::Function, "operand");
+    }
+    fn use_lsp_for_import_edges(&self) -> bool {
+        println!("========USING LSP FOR IMPORT EDGES========");
+        get_use_lsp()
     }
 }
 
