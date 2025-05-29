@@ -3,6 +3,7 @@ import { BaseAdapter } from "./adapter.js";
 import { Message } from "../types/index.js";
 import * as fs from "fs";
 import * as path from "path";
+import { extractCodespaceUrl } from "../utils/markdown.js";
 
 export class GitHubIssueAdapter extends BaseAdapter {
   private octokit: Octokit;
@@ -123,17 +124,28 @@ export class GitHubIssueAdapter extends BaseAdapter {
         continue;
       }
 
-      // Check if @hive is mentioned
+      // Check if @stakwork is mentioned
       if (issue.body && issue.body.includes("@stakwork")) {
         const chatId = `github-issue-${issue.number}`;
+
+        // Extract codespace URL from the issue body
+        const extractedCodespaceUrl = extractCodespaceUrl(issue.body);
+
         const message: Message = {
           role: "user",
           content: issue.body,
+          // Add extracted codespace URL as metadata
+          ...(extractedCodespaceUrl && { codespaceUrl: extractedCodespaceUrl }),
         };
 
         console.log(
           `Processing GitHub issue #${issue.number} with @stakwork mention`
         );
+
+        if (extractedCodespaceUrl) {
+          console.log(`Extracted codespace URL: ${extractedCodespaceUrl}`);
+        }
+
         this.processedIssues.add(issue.number);
         newIssuesProcessed = true;
 

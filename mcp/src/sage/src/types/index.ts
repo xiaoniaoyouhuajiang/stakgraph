@@ -1,6 +1,7 @@
 export interface Message {
   role: string;
   content: string;
+  codespaceUrl?: string; // Add optional codespace URL
 }
 
 export interface ChatRequest {

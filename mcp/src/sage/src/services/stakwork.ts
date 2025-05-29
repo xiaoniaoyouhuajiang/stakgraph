@@ -74,15 +74,20 @@ export class StakworkService {
     webhookUrl: string
   ): StakworkChatPayload {
     const source = getAdapterFromChatId(chatId);
-    /*
-    history: [
-      {
-        role: "user",
-        content: "message",
-      },
-    ]
-    */
+
+    // Check if any message has a codespace URL
+    const messageWithCodespace = messages.find((msg) => msg.codespaceUrl);
+    const codeSpaceURL =
+      messageWithCodespace?.codespaceUrl || this.codeSpaceURL;
+
+    console.log(
+      `Using codespace URL: ${codeSpaceURL} ${
+        messageWithCodespace?.codespaceUrl ? "(from message)" : "(from config)"
+      }`
+    );
+
     const history: { role: string; content: string }[] = [];
+
     return {
       name: "Hive Chat Processor",
       workflow_id: this.workflowId,
@@ -93,7 +98,7 @@ export class StakworkService {
               chatId,
               messages,
               query: messages[messages.length - 1].content,
-              codeSpaceURL: this.codeSpaceURL,
+              codeSpaceURL, // Use the extracted or default codespace URL
               "2b_base_url": this.twoBBaseUrl,
               secret: this.secret,
               source,
