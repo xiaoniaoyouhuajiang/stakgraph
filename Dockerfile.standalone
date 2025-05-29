@@ -14,7 +14,7 @@ COPY standalone/src standalone/src
 COPY standalone/Cargo.toml standalone/Cargo.toml
 
 # Build the release version of your application
-RUN cargo build --release --manifest-path standalone/Cargo.toml
+RUN cargo build --release --manifest-path standalone/Cargo.toml --features neo4j
 
 # lsp final image
 FROM sphinxlightning/stakgraph-lsp:latest
