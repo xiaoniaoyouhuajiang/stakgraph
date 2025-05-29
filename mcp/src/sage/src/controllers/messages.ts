@@ -91,9 +91,10 @@ export class MessagesController {
       const adapter = this.adapters[adapterType];
 
       if (adapter) {
+        const stakworkUrl = `https://jobs.stakwork.com/admin/projects/${projectId}`;
         const immediateMessage: Message = {
           role: "assistant",
-          content: `🤖 Processing your request... (Project ID: ${projectId})\n\nI've received your message and started working on it. You'll receive a detailed response shortly.`,
+          content: `🤖 Processing your request... (Stakwork run: ${stakworkUrl})\n\nI've received your message and started working on it. You'll receive a detailed response shortly.`,
         };
 
         await adapter.sendResponse(chatId, immediateMessage);
