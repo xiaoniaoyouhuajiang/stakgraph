@@ -43,6 +43,30 @@ impl Stack for Ruby {
         ))
     }
 
+    fn imports_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (call
+                method: (identifier) @method (#any-of? @method "require" "require_relative" "load" "include" "extend")
+                arguments: (argument_list) @{IMPORTS_NAME} @{IMPORTS_FROM}
+            )@{IMPORTS}
+            "#
+        ))
+    }
+
+    fn variables_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (program
+                (assignment
+                    left: (_) @{VARIABLE_NAME}
+                    right: (_) @{VARIABLE_VALUE}
+                )@{VARIABLE_DECLARATION}
+            )
+            "#
+        ))
+    }
+
     fn class_definition_query(&self) -> String {
         format!(
             r#"
@@ -477,6 +501,37 @@ impl Stack for Ruby {
     fn convert_association_to_name(&self, name: &str) -> String {
         let target_class = inflection_rs::inflection::singularize(name);
         target_class.to_case(Case::Pascal)
+    }
+
+    fn resolve_import_path(&self, import_path: &str, _current_file: &str) -> String {
+        let mut path = import_path.to_string();
+
+        if path.starts_with("(") {
+            path = path[1..path.len() - 1].to_string();
+        }
+
+        if path.contains(":") {
+            path = path.replace(":", "");
+        }
+
+        path
+    }
+    fn resolve_import_name(&self, import_name: &str) -> String {
+        let mut name = import_name.to_string();
+
+        if name.starts_with("(") {
+            name = name[1..name.len() - 1].to_string();
+        }
+
+        if name.contains(":") {
+            name = name.replace(":", "");
+        }
+
+        if name.starts_with("\"") && name.ends_with("\"") {
+            name = name[1..name.len() - 1].to_string();
+        }
+
+        inflection::camelize(name)
     }
 }
 

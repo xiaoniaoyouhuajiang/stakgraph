@@ -19,8 +19,8 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 61, "Expected 61 nodes");
-    assert_eq!(num_edges, 100, "Expected 100 edges");
+    assert_eq!(num_nodes, 67, "Expected 67 nodes");
+    assert_eq!(num_edges, 110, "Expected 110 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -38,6 +38,23 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(
         pkg_files[0].name, "Gemfile",
         "Package file name is incorrect"
+    );
+
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 6, "Expected 6 import node");
+
+    for imp in &imports {
+        println!("Import: {} in file: {}", imp.name, imp.file);
+    }
+    let import_body = imports
+        .iter()
+        .find(|i| i.file == "src/testing/ruby/config/environment.rb")
+        .expect("Import body not found");
+    let environment_body = format!(r#"require_relative "application""#,);
+
+    assert_eq!(
+        import_body.body, environment_body,
+        "Import body is incorrect"
     );
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
@@ -115,6 +132,9 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Class, EdgeType::Calls);
 
     assert_eq!(class_calls.len(), 1, "Expected 1 class calls edges");
+
+    let import_edges = graph.count_edges_of_type(EdgeType::Imports);
+    assert_eq!(import_edges, 4, "Expected 4 import edges");
 
     let person_to_article_call = class_calls.iter().any(|(src, dst)| {
         (src.name == "Person" && dst.name == "Article")
