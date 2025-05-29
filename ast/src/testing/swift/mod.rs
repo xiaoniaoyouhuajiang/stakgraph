@@ -19,8 +19,8 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     graph.analysis();
 
-    assert_eq!(num_nodes, 55, "Expected 55 nodes");
-    assert_eq!(num_edges, 81, "Expected 81 edges");
+    assert_eq!(num_nodes, 57, "Expected 57 nodes");
+    assert_eq!(num_edges, 83, "Expected 83 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -66,6 +66,9 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
     assert_eq!(requests.len(), 2, "Expected 2 requests");
+
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    assert_eq!(variables.len(), 2, "Expected 2 variables");
 
     let mut sorted_requests = requests.clone();
     sorted_requests.sort_by(|a, b| a.name.cmp(&b.name));
