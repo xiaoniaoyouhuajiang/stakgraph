@@ -296,7 +296,6 @@ impl Stack for Go {
         callback(NodeType::Class, NodeType::Function, "operand");
     }
     fn use_lsp_for_import_edges(&self) -> bool {
-        println!("========USING LSP FOR IMPORT EDGES========");
         get_use_lsp()
     }
 }

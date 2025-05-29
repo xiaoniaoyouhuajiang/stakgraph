@@ -1121,7 +1121,6 @@ impl Lang {
         let mut edges = Vec::new();
 
         while let Some(m) = matches.next() {
-            println!("collect_import_edges {:?}", m);
             let mut import_names = Vec::new();
             let mut import_source = None;
 
