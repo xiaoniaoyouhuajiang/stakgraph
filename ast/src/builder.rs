@@ -419,9 +419,9 @@ impl Repo {
         for (filename, code) in &filez {
             if let Some(import_query) = self.lang.lang().imports_query() {
                 let q = self.lang.q(&import_query, &NodeType::Import);
-                let import_edges = self
-                    .lang
-                    .collect_import_edges(&q, &code, &filename, &graph)?;
+                let import_edges =
+                    self.lang
+                        .collect_import_edges(&q, &code, &filename, &graph, &self.lsp_tx)?;
                 for edge in import_edges {
                     graph.add_edge(edge);
                     i += 1;

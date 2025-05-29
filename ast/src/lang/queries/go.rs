@@ -1,5 +1,6 @@
 use super::super::*;
 use super::consts::*;
+use crate::utils::get_use_lsp;
 use anyhow::{Context, Result};
 use lsp::{Cmd as LspCmd, CmdSender, Position, Res as LspRes};
 use tree_sitter::{Language, Parser, Query, Tree};
@@ -50,6 +51,28 @@ impl Stack for Go {
             "(source_file
                 (import_declaration)+ @{IMPORTS}
             )"
+        ))
+    }
+    fn variables_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (source_file
+                (var_declaration
+                    (var_spec
+                        name: (identifier) @{VARIABLE_NAME}
+                        type: (type_identifier)? @{VARIABLE_TYPE}
+                        value: (expression_list)? @{VARIABLE_VALUE}
+                    )
+                )? @{VARIABLE_DECLARATION}
+                (const_declaration
+                    (const_spec
+                        name: (identifier) @{VARIABLE_NAME}
+                        type: (type_identifier)? @{VARIABLE_TYPE}
+                        value: (expression_list)? @{VARIABLE_VALUE}
+                    )
+                )? @{VARIABLE_DECLARATION}
+            )
+            "#
         ))
     }
     fn trait_query(&self) -> Option<String> {
@@ -271,6 +294,9 @@ impl Stack for Go {
     }
     fn clean_graph(&self, callback: &mut dyn FnMut(NodeType, NodeType, &str)) {
         callback(NodeType::Class, NodeType::Function, "operand");
+    }
+    fn use_lsp_for_import_edges(&self) -> bool {
+        get_use_lsp()
     }
 }
 

@@ -21,11 +21,11 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
-        assert_eq!(num_nodes, 64, "Expected 64 nodes");
-        assert_eq!(num_edges, 93, "Expected 93 edges");
+        assert_eq!(num_nodes, 65, "Expected 65 nodes");
+        assert_eq!(num_edges, 104, "Expected 104 edges");
     } else {
-        assert_eq!(num_nodes, 30, "Expected 30 nodes");
-        assert_eq!(num_edges, 47, "Expected 47 edges");
+        assert_eq!(num_nodes, 31, "Expected 31 nodes");
+        assert_eq!(num_edges, 48, "Expected 48 edges");
     }
 
     let language_nodes = graph.find_nodes_by_name(NodeType::Language, "go");
@@ -115,12 +115,19 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     if use_lsp {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 36, "Expected 36 contains edges with lsp");
+        assert_eq!(contains, 37, "Expected 37 contains edges with lsp");
     } else {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 34, "Expected 34 contains edges");
+        assert_eq!(contains, 35, "Expected 35 contains edges");
     }
 
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    assert_eq!(variables.len(), 1, "Expected 1 variables");
+
+    if use_lsp {
+        let import_edges = graph.count_edges_of_type(EdgeType::Imports);
+        assert_eq!(import_edges, 10, "Expected 10 import edges with lsp");
+    }
     Ok(())
 }
 
