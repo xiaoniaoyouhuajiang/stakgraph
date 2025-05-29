@@ -39,8 +39,11 @@ pub async fn test_java_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let pom_file = graph.find_nodes_by_name(NodeType::File, repo.lang.kind.pkg_files()[0]);
-    assert_eq!(pom_file.len(), 1, "Expected 2 build.gradle.kts files");
-    assert_eq!(pom_file[0].name, "pom.xml", "Gradle file name is incorrect");
+    assert_eq!(pom_file.len(), 1, "Expected pom.xml files");
+    assert_eq!(
+        pom_file[0].name, "pom.xml",
+        "pom.xml file name is incorrect"
+    );
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 4, "Expected 4 imports");

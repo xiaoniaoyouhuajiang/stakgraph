@@ -1131,6 +1131,7 @@ impl Lang {
 
             if let Some(source_path) = import_source {
                 let resolved_path = self.lang.resolve_import_path(&source_path, file);
+
                 for import_name in &import_names {
                     for nt in [
                         NodeType::Function,
