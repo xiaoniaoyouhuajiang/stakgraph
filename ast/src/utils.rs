@@ -1,9 +1,9 @@
 use std::any::Any;
+use std::env;
 use std::str::FromStr;
-use std::{default, env};
 
 use crate::lang::graphs::{ArrayGraph, Node};
-use crate::lang::{self, BTreeMapGraph, Graph, NodeRef};
+use crate::lang::{BTreeMapGraph, Graph, NodeRef};
 use anyhow::Result;
 use lsp::Language;
 use serde::Serialize;

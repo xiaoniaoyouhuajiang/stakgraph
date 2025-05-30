@@ -1,5 +1,3 @@
-use crate::utils::get_use_lsp;
-
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
