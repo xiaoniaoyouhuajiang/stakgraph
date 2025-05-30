@@ -1225,6 +1225,39 @@ impl Lang {
         }
         Ok(edges)
     }
+
+    pub fn collect_var_call_in_function<G: Graph>(&self, func: &NodeData, graph: &G) -> Vec<Edge> {
+        let mut edges = Vec::new();
+        if func.body.is_empty() {
+            return edges;
+        }
+
+        let all_vars = graph.find_nodes_by_type(NodeType::Var);
+
+        let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, &func.file);
+        let import_body = imports
+            .get(0)
+            .map(|imp| imp.body.clone())
+            .unwrap_or_default();
+
+        for var in all_vars {
+            if var.name.is_empty() {
+                continue;
+            }
+
+            if func.body.contains(&var.name) {
+                if var.file == func.file {
+                    edges.push(Edge::calls(NodeType::Function, func, NodeType::Var, &var));
+                    continue;
+                }
+
+                if !import_body.is_empty() && import_body.contains(&var.name) {
+                    edges.push(Edge::calls(NodeType::Function, func, NodeType::Var, &var));
+                }
+            }
+        }
+        edges
+    }
 }
 
 fn _func_target_files_finder<G: Graph>(

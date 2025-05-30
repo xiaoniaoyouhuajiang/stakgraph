@@ -22,10 +22,10 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 65, "Expected 65 nodes");
-        assert_eq!(num_edges, 104, "Expected 104 edges");
+        assert_eq!(num_edges, 105, "Expected 105 edges");
     } else {
         assert_eq!(num_nodes, 31, "Expected 31 nodes");
-        assert_eq!(num_edges, 48, "Expected 48 edges");
+        assert_eq!(num_edges, 49, "Expected 49 edges");
     }
 
     let language_nodes = graph.find_nodes_by_name(NodeType::Language, "go");
@@ -105,7 +105,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(handler_edges_count, 2, "Expected 2 handler edges");
 
     let function_calls = graph.count_edges_of_type(EdgeType::Calls);
-    assert_eq!(function_calls, 6, "Expected 6 function calls");
+    assert_eq!(function_calls, 7, "Expected 7 function calls");
 
     let operands = graph.count_edges_of_type(EdgeType::Operand);
     assert_eq!(operands, 4, "Expected 4 operands");
