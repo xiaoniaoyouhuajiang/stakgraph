@@ -1,3 +1,5 @@
+use crate::utils::get_use_lsp;
+
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
@@ -502,5 +504,11 @@ impl Stack for ReactTs {
             path = path[1..path.len() - 1].to_string();
         }
         path
+    }
+    fn use_lsp_for_var_calls(&self) -> bool {
+        get_use_lsp()
+    }
+    fn use_lsp_for_import_edges(&self) -> bool {
+        get_use_lsp()
     }
 }

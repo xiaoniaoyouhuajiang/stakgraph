@@ -1226,7 +1226,15 @@ impl Lang {
         Ok(edges)
     }
 
-    pub fn collect_var_call_in_function<G: Graph>(&self, func: &NodeData, graph: &G) -> Vec<Edge> {
+    pub fn collect_var_call_in_function<G: Graph>(
+        &self,
+        func: &NodeData,
+        graph: &G,
+        lsp_tsx: &Option<CmdSender>,
+    ) -> Vec<Edge> {
+        if self.lang.use_lsp_for_var_calls() {
+            return self.collect_var_call_in_function_lsp(func, graph, lsp_tsx);
+        }
         let mut edges = Vec::new();
         if func.body.is_empty() {
             return edges;
@@ -1255,6 +1263,48 @@ impl Lang {
                     edges.push(Edge::calls(NodeType::Function, func, NodeType::Var, &var));
                 }
             }
+        }
+        edges
+    }
+    fn collect_var_call_in_function_lsp<G: Graph>(
+        &self,
+        func: &NodeData,
+        graph: &G,
+        lsp_tx: &Option<CmdSender>,
+    ) -> Vec<Edge> {
+        let mut edges = Vec::new();
+        if lsp_tx.is_none() || func.body.is_empty() {
+            return edges;
+        }
+        let lsp = lsp_tx.as_ref().unwrap();
+
+        let code = &func.body;
+        let tree = self.lang.parse(code, &NodeType::Function).ok();
+        if tree.is_none() {
+            return edges;
+        }
+        let tree = tree.unwrap();
+        let query = self.q(&self.lang.identifier_query(), &NodeType::Var);
+        let mut cursor = tree_sitter::QueryCursor::new();
+        let mut matches = cursor.matches(&query, tree.root_node(), code.as_bytes());
+
+        while let Some(m) = matches.next() {
+            Self::loop_captures(&query, &m, code, |body, node, _o| {
+                let p = node.start_position();
+                let pos = Position::new(&func.file, p.row as u32, p.column as u32)?;
+                let res = LspCmd::GotoDefinition(pos.clone()).send(lsp)?;
+                if let LspRes::GotoDefinition(Some(gt)) = res {
+                    let target_file = gt.file.display().to_string();
+                    let target_name = body.clone();
+                    if let Some(var) =
+                        graph.find_node_by_name_in_file(NodeType::Var, &target_name, &target_file)
+                    {
+                        edges.push(Edge::calls(NodeType::Function, func, NodeType::Var, &var));
+                    }
+                }
+                Ok(())
+            })
+            .ok();
         }
         edges
     }

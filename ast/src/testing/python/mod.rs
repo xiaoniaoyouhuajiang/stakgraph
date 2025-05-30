@@ -1,7 +1,6 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::Graph;
 use crate::{lang::Lang, repo::Repo};
-use std::f32::consts::E;
 use std::str::FromStr;
 
 pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {

@@ -298,6 +298,9 @@ impl Stack for Go {
     fn use_lsp_for_import_edges(&self) -> bool {
         get_use_lsp()
     }
+    fn use_lsp_for_var_calls(&self) -> bool {
+        get_use_lsp()
+    }
 }
 
 /*

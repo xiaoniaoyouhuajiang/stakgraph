@@ -327,7 +327,9 @@ impl Repo {
 
             for func in &funcs {
                 let func_node = &func.0;
-                let var_edges = self.lang.collect_var_call_in_function(func_node, &graph);
+                let var_edges =
+                    self.lang
+                        .collect_var_call_in_function(func_node, &graph, &self.lsp_tx);
                 for edge in var_edges {
                     graph.add_edge(edge);
                 }

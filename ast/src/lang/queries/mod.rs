@@ -260,6 +260,9 @@ pub trait Stack {
     fn use_lsp_for_import_edges(&self) -> bool {
         false
     }
+    fn use_lsp_for_var_calls(&self) -> bool {
+        false
+    }
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {
