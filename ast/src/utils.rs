@@ -1,9 +1,11 @@
 use std::any::Any;
-use std::env;
+use std::str::FromStr;
+use std::{default, env};
 
 use crate::lang::graphs::{ArrayGraph, Node};
-use crate::lang::{BTreeMapGraph, Graph, NodeRef};
+use crate::lang::{self, BTreeMapGraph, Graph, NodeRef};
 use anyhow::Result;
+use lsp::Language;
 use serde::Serialize;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -87,13 +89,14 @@ pub fn create_node_key(node: &Node) -> String {
     result
 }
 
-pub fn get_use_lsp() -> bool {
+pub fn get_use_lsp(language: &str) -> bool {
     println!("===-==> Getting use LSP");
     env::set_var("LSP_SKIP_POST_CLONE", "true");
     delete_react_testing_node_modules().ok();
     let lsp = env::var("USE_LSP").unwrap_or_else(|_| "false".to_string());
     if lsp == "true" || lsp == "1" {
-        return true;
+        let lang = Language::from_str(language).unwrap();
+        return lang.default_do_lsp();
     }
     false
 }

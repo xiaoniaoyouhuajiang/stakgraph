@@ -5,7 +5,7 @@ use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 
 pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
-    let use_lsp = get_use_lsp();
+    let use_lsp = get_use_lsp("go");
     let repo = Repo::new(
         "src/testing/go",
         Lang::from_str("go").unwrap(),
@@ -115,7 +115,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     if use_lsp {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 37, "Expected 37 contains edges with lsp");
+        assert_eq!(contains, 38, "Expected 38 contains edges with lsp");
     } else {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
         assert_eq!(contains, 36, "Expected 36 contains edges");

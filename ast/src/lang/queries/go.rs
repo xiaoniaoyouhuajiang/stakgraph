@@ -1,6 +1,5 @@
 use super::super::*;
 use super::consts::*;
-use crate::utils::get_use_lsp;
 use anyhow::{Context, Result};
 use lsp::{Cmd as LspCmd, CmdSender, Position, Res as LspRes};
 use tree_sitter::{Language, Parser, Query, Tree};
