@@ -102,9 +102,15 @@ pub fn get_use_lsp(language: &str) -> bool {
 }
 
 fn delete_react_testing_node_modules() -> std::io::Result<()> {
-    let path = std::path::Path::new("src/testing/react/node_modules");
-    if path.exists() {
-        std::fs::remove_dir_all(path)?;
+    let paths = vec![
+        std::path::Path::new("src/testing/react/node_modules"),
+        std::path::Path::new("src/testing/typescript/node_modules"),
+    ];
+
+    for path in &paths {
+        if path.exists() {
+            std::fs::remove_dir_all(path)?;
+        }
     }
     Ok(())
 }
