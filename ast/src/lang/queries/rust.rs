@@ -297,9 +297,6 @@ impl Stack for Rust {
     fn resolve_import_path(&self, import_path: &str, _current_file: &str) -> String {
         let mut path = import_path.to_string();
         path = path.replace("::", "/");
-
-        println!("Resolving import path: {}", path);
-
         path
     }
 }
