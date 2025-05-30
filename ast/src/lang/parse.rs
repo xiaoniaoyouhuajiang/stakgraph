@@ -1112,8 +1112,8 @@ impl Lang {
         graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<Edge>> {
-        if self.lang.use_lsp_for_import_edges() {
-            return self.collect_import_edges_with_lsp(code, file, graph, lsp_tx);
+        if let Some(lsp) = lsp_tx {
+            return self.collect_import_edges_with_lsp(code, file, graph, lsp);
         }
         let tree = self.lang.parse(&code, &NodeType::Import)?;
         let mut cursor = QueryCursor::new();
@@ -1175,15 +1175,9 @@ impl Lang {
         code: &str,
         file: &str,
         graph: &G,
-        lsp_tx: &Option<CmdSender>,
+        lsp: &CmdSender,
     ) -> Result<Vec<Edge>> {
         let mut edges = Vec::new();
-
-        if lsp_tx.is_none() {
-            return Ok(edges);
-        }
-
-        let lsp = lsp_tx.as_ref().unwrap();
 
         let q = self.lang.identifier_query();
         let tree = self.lang.parse(code, &NodeType::Function)?;
@@ -1232,8 +1226,8 @@ impl Lang {
         graph: &G,
         lsp_tsx: &Option<CmdSender>,
     ) -> Vec<Edge> {
-        if self.lang.use_lsp_for_var_calls() {
-            return self.collect_var_call_in_function_lsp(func, graph, lsp_tsx);
+        if let Some(lsp) = lsp_tsx {
+            return self.collect_var_call_in_function_lsp(func, graph, lsp);
         }
         let mut edges = Vec::new();
         if func.body.is_empty() {
@@ -1255,12 +1249,22 @@ impl Lang {
 
             if func.body.contains(&var.name) {
                 if var.file == func.file {
-                    edges.push(Edge::calls(NodeType::Function, func, NodeType::Var, &var));
+                    edges.push(Edge::contains(
+                        NodeType::Function,
+                        func,
+                        NodeType::Var,
+                        &var,
+                    ));
                     continue;
                 }
 
                 if !import_body.is_empty() && import_body.contains(&var.name) {
-                    edges.push(Edge::calls(NodeType::Function, func, NodeType::Var, &var));
+                    edges.push(Edge::contains(
+                        NodeType::Function,
+                        func,
+                        NodeType::Var,
+                        &var,
+                    ));
                 }
             }
         }
@@ -1270,13 +1274,12 @@ impl Lang {
         &self,
         func: &NodeData,
         graph: &G,
-        lsp_tx: &Option<CmdSender>,
+        lsp: &CmdSender,
     ) -> Vec<Edge> {
         let mut edges = Vec::new();
-        if lsp_tx.is_none() || func.body.is_empty() {
+        if func.body.is_empty() {
             return edges;
         }
-        let lsp = lsp_tx.as_ref().unwrap();
 
         let code = &func.body;
         let tree = self.lang.parse(code, &NodeType::Function).ok();
@@ -1299,7 +1302,12 @@ impl Lang {
                     if let Some(var) =
                         graph.find_node_by_name_in_file(NodeType::Var, &target_name, &target_file)
                     {
-                        edges.push(Edge::calls(NodeType::Function, func, NodeType::Var, &var));
+                        edges.push(Edge::contains(
+                            NodeType::Function,
+                            func,
+                            NodeType::Var,
+                            &var,
+                        ));
                     }
                 }
                 Ok(())

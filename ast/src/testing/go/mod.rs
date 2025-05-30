@@ -105,7 +105,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(handler_edges_count, 2, "Expected 2 handler edges");
 
     let function_calls = graph.count_edges_of_type(EdgeType::Calls);
-    assert_eq!(function_calls, 7, "Expected 7 function calls");
+    assert_eq!(function_calls, 6, "Expected 6 function calls");
 
     let operands = graph.count_edges_of_type(EdgeType::Operand);
     assert_eq!(operands, 4, "Expected 4 operands");
@@ -118,7 +118,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
         assert_eq!(contains, 37, "Expected 37 contains edges with lsp");
     } else {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 35, "Expected 35 contains edges");
+        assert_eq!(contains, 36, "Expected 36 contains edges");
     }
 
     let variables = graph.find_nodes_by_type(NodeType::Var);

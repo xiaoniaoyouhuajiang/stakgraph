@@ -66,8 +66,8 @@ use std::net::SocketAddr;"#
     let imported_edges = graph.count_edges_of_type(EdgeType::Imports);
     assert_eq!(imported_edges, 4, "Expected 4 import edges");
 
-    let calls_edges = graph.count_edges_of_type(EdgeType::Calls);
-    assert_eq!(calls_edges, 9, "Expected 9 call edges");
+    let calls_edges = graph.count_edges_of_type(EdgeType::Contains);
+    assert_eq!(calls_edges, 62, "Expected 62 contains edges");
 
     Ok(())
 }
