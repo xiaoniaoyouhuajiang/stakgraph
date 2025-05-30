@@ -1299,9 +1299,11 @@ impl Lang {
                 if let LspRes::GotoDefinition(Some(gt)) = res {
                     let target_file = gt.file.display().to_string();
                     let target_name = body.clone();
-                    if let Some(var) =
-                        graph.find_node_by_name_in_file(NodeType::Var, &target_name, &target_file)
-                    {
+                    if let Some(var) = graph.find_node_by_name_in_file(
+                        NodeType::Var,
+                        &target_name,
+                        &target_file.to_lowercase(),
+                    ) {
                         edges.push(Edge::contains(
                             NodeType::Function,
                             func,

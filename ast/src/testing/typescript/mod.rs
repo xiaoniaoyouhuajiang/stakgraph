@@ -21,7 +21,7 @@ pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp {
         assert_eq!(num_nodes, 49, "Expected 49 nodes");
-        assert_eq!(num_edges, 81, "Expected 81 edges");
+        assert_eq!(num_edges, 80, "Expected 80 edges");
     } else {
         assert_eq!(num_nodes, 46, "Expected 46 nodes");
         assert_eq!(num_edges, 66, "Expected 66 edges");
