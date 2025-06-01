@@ -4,7 +4,7 @@ use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
-    let use_lsp = get_use_lsp("react");
+    let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/react",
         Lang::from_str("tsx").unwrap(),

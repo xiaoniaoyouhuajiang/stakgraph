@@ -1,10 +1,10 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::Graph;
-use crate::utils::get_use_lsp;
+// use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
-    let use_lsp = get_use_lsp("typescript");
+    let use_lsp = false;
     let repo = Repo::new(
         "src/testing/typescript",
         Lang::from_str("ts").unwrap(),

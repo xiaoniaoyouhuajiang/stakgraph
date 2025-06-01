@@ -1,11 +1,9 @@
 use std::any::Any;
 use std::env;
-use std::str::FromStr;
 
 use crate::lang::graphs::{ArrayGraph, Node};
 use crate::lang::{BTreeMapGraph, Graph, NodeRef};
 use anyhow::Result;
-use lsp::Language;
 use serde::Serialize;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -89,28 +87,21 @@ pub fn create_node_key(node: &Node) -> String {
     result
 }
 
-pub fn get_use_lsp(language: &str) -> bool {
+pub fn get_use_lsp() -> bool {
     println!("===-==> Getting use LSP");
     env::set_var("LSP_SKIP_POST_CLONE", "true");
     delete_react_testing_node_modules().ok();
     let lsp = env::var("USE_LSP").unwrap_or_else(|_| "false".to_string());
     if lsp == "true" || lsp == "1" {
-        let lang = Language::from_str(language).unwrap();
-        return lang.default_do_lsp();
+        return true;
     }
     false
 }
 
 fn delete_react_testing_node_modules() -> std::io::Result<()> {
-    let paths = vec![
-        std::path::Path::new("src/testing/react/node_modules"),
-        std::path::Path::new("src/testing/typescript/node_modules"),
-    ];
-
-    for path in &paths {
-        if path.exists() {
-            std::fs::remove_dir_all(path)?;
-        }
+    let path = std::path::Path::new("src/testing/react/node_modules");
+    if path.exists() {
+        std::fs::remove_dir_all(path)?;
     }
     Ok(())
 }

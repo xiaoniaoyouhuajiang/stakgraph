@@ -5,7 +5,7 @@ use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 
 pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
-    let use_lsp = get_use_lsp("go");
+    let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/go",
         Lang::from_str("go").unwrap(),
