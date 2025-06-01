@@ -500,28 +500,16 @@ impl Graph for ArrayGraph {
         name: &str,
         suffix: &str,
     ) -> Option<NodeData> {
-        println!(
-            "ArrayGraph searching for: type={:?}, name='{}', suffix='{}'",
-            node_type, name, suffix
-        );
-
-        for node in &self.nodes {
-            if node.node_type == node_type {
-                println!(
-                    "  Checking node: name='{}', file='{}', ends_with={}",
-                    node.node_data.name,
-                    node.node_data.file,
-                    node.node_data.file.ends_with(suffix)
-                );
-
-                if node.node_data.name == name && node.node_data.file.ends_with(suffix) {
-                    println!("  MATCH FOUND!");
-                    return Some(node.node_data.clone());
-                }
+        self.nodes.iter().find_map(|node| {
+            if node.node_type == node_type
+                && node.node_data.name == name
+                && node.node_data.file.ends_with(suffix)
+            {
+                Some(node.node_data.clone())
+            } else {
+                None
             }
-        }
-        println!("  NO MATCH FOUND");
-        None
+        })
     }
     fn find_nodes_by_file_ends_with(&self, node_type: NodeType, file: &str) -> Vec<NodeData> {
         self.nodes
