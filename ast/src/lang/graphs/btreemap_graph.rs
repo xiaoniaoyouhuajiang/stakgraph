@@ -34,7 +34,10 @@ impl Graph for BTreeMapGraph {
             println!("Edge: {:?}: {:?} -> {:?}", edge_type, src_key, dst_key);
         }
         for (node_key, node) in &self.nodes {
-            println!("Node: {:?} type: {:?}", node_key, node.node_type);
+            println!(
+                "Node: {:?} type: {:?} file: {:?}",
+                node_key, node.node_type, node.node_data.file
+            );
         }
     }
 

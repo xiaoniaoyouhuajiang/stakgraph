@@ -48,7 +48,10 @@ impl Graph for ArrayGraph {
         }
 
         for node in &self.nodes {
-            println!("Node: {:?}-{:?}", node.node_data.name, node.node_type);
+            println!(
+                "Node: {:?}-{:?}-{:?}",
+                node.node_data.name, node.node_type, node.node_data.file
+            );
         }
     }
     fn create_filtered_graph(&self, final_filter: &[String]) -> Self {

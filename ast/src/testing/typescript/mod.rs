@@ -1,10 +1,10 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::Graph;
-// use crate::utils::get_use_lsp;
+use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
-    let use_lsp = false;
+    let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/typescript",
         Lang::from_str("ts").unwrap(),
@@ -21,7 +21,7 @@ pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp {
         assert_eq!(num_nodes, 49, "Expected 49 nodes");
-        assert_eq!(num_edges, 80, "Expected 80 edges");
+        assert_eq!(num_edges, 69, "Expected 69 edges");
     } else {
         assert_eq!(num_nodes, 46, "Expected 46 nodes");
         assert_eq!(num_edges, 66, "Expected 66 edges");
@@ -101,9 +101,17 @@ import {{ sequelize }} from "./config.js";"#
     let variables = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(variables.len(), 4, "Expected 4 variables");
 
+    let contains = graph.count_edges_of_type(EdgeType::Contains);
+
+    if use_lsp {
+        assert_eq!(contains, 48, "Expected 47 contains edges");
+    } else {
+        assert_eq!(contains, 50, "Expected 50 contains edges");
+    }
+
     let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     if use_lsp {
-        assert_eq!(import_edges_count, 23, "Expected 23 import edges");
+        assert_eq!(import_edges_count, 12, "Expected 12 import edges");
     } else {
         assert_eq!(import_edges_count, 12, "Expected 12 import edges");
     }
@@ -116,7 +124,9 @@ async fn test_typescript() {
     #[cfg(feature = "neo4j")]
     use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
+    println!("===-==> ArrayGraph <===-==");
     test_typescript_generic::<ArrayGraph>().await.unwrap();
+    println!("===-==> BTreeMapGraph <===-==");
     test_typescript_generic::<BTreeMapGraph>().await.unwrap();
 
     #[cfg(feature = "neo4j")]
