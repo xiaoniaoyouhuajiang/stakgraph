@@ -36,6 +36,10 @@ impl Stack for TypeScript {
 
     fn is_lib_file(&self, file_name: &str) -> bool {
         file_name.contains("node_modules/")
+            || file_name.contains("/lib/")
+            || file_name.ends_with(".d.ts")
+            || file_name.starts_with("/usr")
+            || file_name.contains(".nvm/")
     }
     //copied from react
     fn imports_query(&self) -> Option<String> {

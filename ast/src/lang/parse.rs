@@ -1178,52 +1178,89 @@ impl Lang {
         lsp: &CmdSender,
     ) -> Result<Vec<Edge>> {
         let mut edges = Vec::new();
+        let mut processed = std::collections::HashSet::new();
 
-        let q = self.lang.identifier_query();
+        let query = self.q(&self.lang.identifier_query(), &NodeType::Var);
         let tree = self.lang.parse(code, &NodeType::Function)?;
         let mut cursor = tree_sitter::QueryCursor::new();
-        let query = self.q(&q, &NodeType::Function);
         let mut matches = cursor.matches(&query, tree.root_node(), code.as_bytes());
 
+        // To guarantee a deterministic order of identifiers, we collect them and sort them before processing them.
+        let mut identifiers = Vec::new();
         while let Some(m) = matches.next() {
             Self::loop_captures(&query, &m, code, |body, node, _o| {
                 let p = node.start_position();
-                let pos = lsp::Position::new(file, p.row as u32, p.column as u32)?;
-                let res = lsp::Cmd::GotoDefinition(pos.clone()).send(lsp)?;
-                if let lsp::Res::GotoDefinition(Some(gt)) = res {
-                    let target_file = gt.file.display().to_string();
-
-                    let target_name = body.clone().to_string();
-                    println!("TARGET NAME {} in file {}", target_name, target_file);
-
-                    for nt in [
-                        NodeType::Function,
-                        NodeType::Class,
-                        NodeType::DataModel,
-                        NodeType::Var,
-                    ] {
-                        if let Some(target) = graph.find_node_by_name_and_file_end_with(
-                            nt.clone(),
-                            &target_name,
-                            &target_file,
-                        ) {
-                            let file_node = graph
-                                .find_nodes_by_file_ends_with(NodeType::File, file)
-                                .first()
-                                .cloned()
-                                .unwrap_or_else(|| NodeData::in_file(file));
-
-                            edges.push(Edge::file_imports(&file_node, nt.clone(), &target));
-                            break;
-                        }
-                    }
-                }
+                identifiers.push((body.clone(), p.row as u32, p.column as u32));
                 Ok(())
             })?;
         }
+
+        identifiers.sort();
+
+        for (target_name, row, col) in identifiers {
+            let pos = Position::new(file, row, col)?;
+            let res = lsp::Cmd::GotoDefinition(pos.clone()).send(lsp)?;
+
+            if let lsp::Res::GotoDefinition(Some(gt)) = res {
+                let target_file = gt.file.display().to_string();
+
+                if self.lang.is_lib_file(&target_file) {
+                    continue;
+                }
+
+                for nt in [
+                    NodeType::Function,
+                    NodeType::Class,
+                    NodeType::DataModel,
+                    NodeType::Var,
+                ] {
+                    if file == target_file {
+                        continue;
+                    }
+                    let key = format!("{}:{}:{}:{:?}", file, target_name, target_file, nt);
+                    if processed.contains(&key) {
+                        continue;
+                    }
+                    let found = graph.find_node_by_name_and_file_end_with(
+                        nt.clone(),
+                        &target_name,
+                        &target_file,
+                    );
+                    if let Some(ref target) = found {
+                        let file_node = graph
+                            .find_nodes_by_file_ends_with(NodeType::File, file)
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| NodeData::in_file(file));
+                        edges.push(Edge::file_imports(&file_node, nt.clone(), &target));
+                        processed.insert(key);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let mut edge_descriptions: Vec<_> = edges
+            .iter()
+            .map(|e| {
+                format!(
+                    "{} -> {} ({:?})",
+                    e.source.node_data.file, e.target.node_data.file, e.edge
+                )
+            })
+            .collect();
+        edge_descriptions.sort();
+        println!("=== FINAL IMPORT EDGES ===");
+        for desc in &edge_descriptions {
+            println!("{}", desc);
+        }
+        println!(
+            "=== END IMPORT EDGES (total: {}) ===",
+            edge_descriptions.len()
+        );
+
         Ok(edges)
     }
-
     pub fn collect_var_call_in_function<G: Graph>(
         &self,
         func: &NodeData,

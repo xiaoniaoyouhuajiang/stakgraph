@@ -21,7 +21,7 @@ pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp {
         assert_eq!(num_nodes, 49, "Expected 49 nodes");
-        assert_eq!(num_edges, 69, "Expected 69 edges");
+        assert_eq!(num_edges, 72, "Expected 72 edges");
     } else {
         assert_eq!(num_nodes, 46, "Expected 46 nodes");
         assert_eq!(num_edges, 66, "Expected 66 edges");
@@ -104,14 +104,14 @@ import {{ sequelize }} from "./config.js";"#
     let contains = graph.count_edges_of_type(EdgeType::Contains);
 
     if use_lsp {
-        assert_eq!(contains, 48, "Expected 47 contains edges");
+        assert_eq!(contains, 48, "Expected 48 contains edges");
     } else {
         assert_eq!(contains, 50, "Expected 50 contains edges");
     }
 
     let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     if use_lsp {
-        assert_eq!(import_edges_count, 12, "Expected 12 import edges");
+        assert_eq!(import_edges_count, 15, "Expected 15 import edges");
     } else {
         assert_eq!(import_edges_count, 12, "Expected 12 import edges");
     }

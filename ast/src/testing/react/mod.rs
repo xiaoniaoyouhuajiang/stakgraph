@@ -21,7 +21,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 67, "Expected 67 nodes");
-        assert_eq!(num_edges, 109, "Expected 109 edges");
+        assert_eq!(num_edges, 88, "Expected 88 edges");
     } else {
         assert_eq!(num_nodes, 61, "Expected 61 nodes");
         assert_eq!(num_edges, 74, "Expected 74 edges");
