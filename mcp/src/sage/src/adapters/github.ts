@@ -46,7 +46,7 @@ export class GitHubIssueAdapter extends BaseAdapter {
       } catch (error) {
         console.error("Error checking for new GitHub issues:", error);
       }
-    }, 60000); // Check every minute
+    }, 10000); // Check every 10 seconds
   }
 
   async sendResponse(chatId: string, message: Message): Promise<void> {
