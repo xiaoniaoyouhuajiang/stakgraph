@@ -22,7 +22,7 @@ const PROGRAMMING_LANGUAGES: [&str; 11] = [
     "rust",
 ];
 
-//const PROGRAMMING_LANGUAGES: [&str; 1] = ["typescript"];
+// const PROGRAMMING_LANGUAGES: [&str; 1] = ["typescript"];
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compare_graphs() {
     for lang in PROGRAMMING_LANGUAGES.iter() {
