@@ -38,15 +38,13 @@ async fn compare_graphs_inner(lang_id: &str, repo_path: &str) -> Result<()> {
     let lang = Lang::from_str(lang_id).unwrap();
     let use_lsp = get_use_lsp() && lang.kind.default_do_lsp();
     let repo = Repo::new(repo_path, lang, use_lsp, Vec::new(), Vec::new()).unwrap();
-    let array_graph = repo.build_graph_inner::<ArrayGraph>().await?;
+
     info!("ArrayGraph Analysis for {}", lang_id);
+    let array_graph = repo.build_graph_inner::<ArrayGraph>().await?;
 
-    let lang = Lang::from_str(lang_id).unwrap();
-    let repo = Repo::new(repo_path, lang, use_lsp, Vec::new(), Vec::new()).unwrap();
-    let btree_map_graph = repo.build_graph_inner::<BTreeMapGraph>().await?;
     info!("BTreeMapGraph Analysis for {}", lang_id);
+    let btree_map_graph = repo.build_graph_inner::<BTreeMapGraph>().await?;
 
-    //Graph difference
     let (array_graph_nodes, array_graph_edges) = array_graph.get_graph_keys();
     let (btree_map_graph_nodes, btree_map_graph_edges) = btree_map_graph.get_graph_keys();
     let nodes_only_in_array_graph: HashSet<_> = array_graph_nodes
@@ -78,7 +76,19 @@ async fn compare_graphs_inner(lang_id: &str, repo_path: &str) -> Result<()> {
         );
     }
 
-    assert_eq!(array_graph.nodes.len(), btree_map_graph.nodes.len());
-    assert_eq!(array_graph.edges.len(), btree_map_graph.edges.len());
+    assert_eq!(
+        array_graph.nodes.len(),
+        btree_map_graph.nodes.len(),
+        "Node counts do not match: ArrayGraph has {}, BTreeMapGraph has {}",
+        array_graph.nodes.len(),
+        btree_map_graph.nodes.len()
+    );
+    assert_eq!(
+        array_graph.edges.len(),
+        btree_map_graph.edges.len(),
+        "Edge counts do not match: ArrayGraph has {}, BTreeMapGraph has {}",
+        array_graph.edges.len(),
+        btree_map_graph.edges.len()
+    );
     Ok(())
 }

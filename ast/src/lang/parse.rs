@@ -1218,9 +1218,7 @@ impl Lang {
                         continue;
                     }
                     let key = format!("{}:{}:{}:{:?}", file, target_name, target_file, nt);
-                    println!("[DEBUG] Considering key: {}", key);
                     if processed.contains(&key) {
-                        println!("[DEBUG] Skipping duplicate key: {}", key);
                         continue;
                     }
                     let found = graph.find_node_by_name_and_file_end_with(
@@ -1234,10 +1232,7 @@ impl Lang {
                             .first()
                             .cloned()
                             .unwrap_or_else(|| NodeData::in_file(file));
-                        println!(
-                            "[DEBUG] ADD EDGE: {} -> {} ({:?}) [key: {}]",
-                            file_node.file, target.file, nt, key
-                        );
+
                         edges.push(Edge::file_imports(&file_node, nt.clone(), &target));
                         processed.insert(key);
                         break;
@@ -1246,24 +1241,25 @@ impl Lang {
             }
         }
 
-        let mut edge_descriptions: Vec<_> = edges
-            .iter()
-            .map(|e| {
-                format!(
-                    "{} -> {} ({:?})",
-                    e.source.node_data.file, e.target.node_data.file, e.edge
-                )
-            })
-            .collect();
-        edge_descriptions.sort();
-        println!("=== FINAL IMPORT EDGES ===");
-        for desc in &edge_descriptions {
-            println!("{}", desc);
-        }
-        println!(
-            "=== END IMPORT EDGES (total: {}) ===",
-            edge_descriptions.len()
-        );
+        // Uncomment for debugging import edges
+        // let mut edge_descriptions: Vec<_> = edges
+        //     .iter()
+        //     .map(|e| {
+        //         format!(
+        //             "{} -> {} ({:?})",
+        //             e.source.node_data.file, e.target.node_data.file, e.edge
+        //         )
+        //     })
+        //     .collect();
+        // edge_descriptions.sort();
+        // println!("=== FINAL IMPORT EDGES ===");
+        // for desc in &edge_descriptions {
+        //     println!("{}", desc);
+        // }
+        // println!(
+        //     "=== END IMPORT EDGES (total: {}) ===",
+        //     edge_descriptions.len()
+        // );
 
         Ok(edges)
     }
@@ -1324,46 +1320,65 @@ impl Lang {
         lsp: &CmdSender,
     ) -> Vec<Edge> {
         let mut edges = Vec::new();
+        let mut processed = std::collections::HashSet::new();
 
         if func.body.is_empty() {
             return edges;
         }
 
         let code = &func.body;
-        let tree = self.lang.parse(code, &NodeType::Function).ok();
-        if tree.is_none() {
-            return edges;
-        }
-        let tree = tree.unwrap();
+        let tree = match self.lang.parse(code, &NodeType::Function) {
+            Ok(tree) => tree,
+            Err(_) => return edges,
+        };
         let query = self.q(&self.lang.identifier_query(), &NodeType::Var);
         let mut cursor = tree_sitter::QueryCursor::new();
         let mut matches = cursor.matches(&query, tree.root_node(), code.as_bytes());
 
+        let mut identifiers = Vec::new();
         while let Some(m) = matches.next() {
             Self::loop_captures(&query, &m, code, |body, node, _o| {
                 let p = node.start_position();
-                let pos = Position::new(&func.file, p.row as u32, p.column as u32)?;
-                let res = LspCmd::GotoDefinition(pos.clone()).send(lsp)?;
-                if let LspRes::GotoDefinition(Some(gt)) = res {
-                    let target_file = gt.file.display().to_string();
-                    let target_name = body.clone();
-
-                    if let Some(var) = graph.find_node_by_name_and_file_end_with(
-                        NodeType::Var,
-                        &target_name,
-                        &target_file,
-                    ) {
-                        edges.push(Edge::contains(
-                            NodeType::Function,
-                            func,
-                            NodeType::Var,
-                            &var,
-                        ));
-                    }
-                }
+                identifiers.push((body.clone(), p.row as u32, p.column as u32));
                 Ok(())
             })
             .ok();
+        }
+        identifiers.sort();
+
+        for (target_name, row, col) in identifiers {
+            let pos = Position::new(&func.file, row, col).unwrap();
+
+            let mut lsp_result = None;
+            for _ in 0..2 {
+                let res = LspCmd::GotoDefinition(pos.clone()).send(lsp);
+                if let Ok(LspRes::GotoDefinition(Some(gt))) = res {
+                    lsp_result = Some(gt);
+                    break;
+                }
+            }
+            let gt = match lsp_result {
+                Some(gt) => gt,
+                None => continue,
+            };
+            let target_file = gt.file.display().to_string();
+
+            let key = format!("{}:{}:{}:variable", func.file, func.name, target_file);
+            if processed.contains(&key) {
+                continue;
+            }
+
+            if let Some(var) =
+                graph.find_node_by_name_and_file_end_with(NodeType::Var, &target_name, &target_file)
+            {
+                edges.push(Edge::contains(
+                    NodeType::Function,
+                    func,
+                    NodeType::Var,
+                    &var,
+                ));
+                processed.insert(key);
+            }
         }
         edges
     }
