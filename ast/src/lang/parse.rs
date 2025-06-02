@@ -1346,8 +1346,8 @@ impl Lang {
         }
         identifiers.sort();
 
-        for (target_name, row, col) in identifiers {
-            let pos = Position::new(&func.file, row, col).unwrap();
+        for (target_name, row, col) in &identifiers {
+            let pos = Position::new(&func.file, *row, *col).unwrap();
 
             let mut lsp_result = None;
             for _ in 0..2 {
@@ -1363,14 +1363,27 @@ impl Lang {
             };
             let target_file = gt.file.display().to_string();
 
-            let key = format!("{}:{}:{}:variable", func.file, func.name, target_file);
+            let key = format!(
+                "{}:{}:{}:{}:variable",
+                func.file, func.name, target_name, target_file
+            );
+            println!(
+                "[VAR_CALL_LSP] Considering edge: {} -> {} (Var) [key: {}]",
+                func.name, target_name, key
+            );
+
             if processed.contains(&key) {
+                println!("[VAR_CALL_LSP] Skipping duplicate key: {}", key);
                 continue;
             }
 
             if let Some(var) =
-                graph.find_node_by_name_and_file_end_with(NodeType::Var, &target_name, &target_file)
+                graph.find_node_by_name_and_file_end_with(NodeType::Var, target_name, &target_file)
             {
+                println!(
+                    "[VAR_CALL_LSP] ADD EDGE: {} (Function@{}) -> {} (Var@{})",
+                    func.name, func.file, var.name, var.file
+                );
                 edges.push(Edge::contains(
                     NodeType::Function,
                     func,
@@ -1380,6 +1393,32 @@ impl Lang {
                 processed.insert(key);
             }
         }
+
+        let mut edge_descriptions: Vec<_> = edges
+            .iter()
+            .map(|e| {
+                format!(
+                    "{} (Function@{}) -> {} (Var@{})",
+                    e.source.node_data.name,
+                    e.source.node_data.file,
+                    e.target.node_data.name,
+                    e.target.node_data.file
+                )
+            })
+            .collect();
+        edge_descriptions.sort();
+        println!(
+            "=== FINAL VAR_CALL_LSP CONTAINS EDGES for {} ===",
+            func.name
+        );
+        for desc in &edge_descriptions {
+            println!("{}", desc);
+        }
+        println!(
+            "=== END VAR_CALL_LSP CONTAINS EDGES (total: {}) ===",
+            edge_descriptions.len()
+        );
+
         edges
     }
 }
