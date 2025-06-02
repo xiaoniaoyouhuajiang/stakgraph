@@ -1218,7 +1218,9 @@ impl Lang {
                         continue;
                     }
                     let key = format!("{}:{}:{}:{:?}", file, target_name, target_file, nt);
+                    println!("[DEBUG] Considering key: {}", key);
                     if processed.contains(&key) {
+                        println!("[DEBUG] Skipping duplicate key: {}", key);
                         continue;
                     }
                     let found = graph.find_node_by_name_and_file_end_with(
@@ -1232,6 +1234,10 @@ impl Lang {
                             .first()
                             .cloned()
                             .unwrap_or_else(|| NodeData::in_file(file));
+                        println!(
+                            "[DEBUG] ADD EDGE: {} -> {} ({:?}) [key: {}]",
+                            file_node.file, target.file, nt, key
+                        );
                         edges.push(Edge::file_imports(&file_node, nt.clone(), &target));
                         processed.insert(key);
                         break;

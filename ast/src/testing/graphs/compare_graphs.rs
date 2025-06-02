@@ -22,6 +22,7 @@ const PROGRAMMING_LANGUAGES: [&str; 11] = [
     "rust",
 ];
 
+//const PROGRAMMING_LANGUAGES: [&str; 1] = ["typescript"];
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compare_graphs() {
     for lang in PROGRAMMING_LANGUAGES.iter() {
@@ -44,8 +45,6 @@ async fn compare_graphs_inner(lang_id: &str, repo_path: &str) -> Result<()> {
     let repo = Repo::new(repo_path, lang, use_lsp, Vec::new(), Vec::new()).unwrap();
     let btree_map_graph = repo.build_graph_inner::<BTreeMapGraph>().await?;
     info!("BTreeMapGraph Analysis for {}", lang_id);
-    assert_eq!(array_graph.nodes.len(), btree_map_graph.nodes.len());
-    assert_eq!(array_graph.edges.len(), btree_map_graph.edges.len());
 
     //Graph difference
     let (array_graph_nodes, array_graph_edges) = array_graph.get_graph_keys();
@@ -65,18 +64,21 @@ async fn compare_graphs_inner(lang_id: &str, repo_path: &str) -> Result<()> {
         .collect();
 
     if !nodes_only_in_array_graph.is_empty() {
-        debug!("Nodes only in ArrayGraph: {:#?}", nodes_only_in_array_graph);
-        debug!(
+        println!("Nodes only in ArrayGraph: {:#?}", nodes_only_in_array_graph);
+        println!(
             "Nodes only in BTreeMapGraph: {:#?}",
             nodes_only_in_btree_map_graph
         );
     }
     if !edges_only_in_array_graph.is_empty() {
-        debug!("Edges only in ArrayGraph: {:#?}", edges_only_in_array_graph);
-        debug!(
+        println!("Edges only in ArrayGraph: {:#?}", edges_only_in_array_graph);
+        println!(
             "Edges only in BTreeMapGraph: {:#?}",
             edges_only_in_btree_map_graph
         );
     }
+
+    assert_eq!(array_graph.nodes.len(), btree_map_graph.nodes.len());
+    assert_eq!(array_graph.edges.len(), btree_map_graph.edges.len());
     Ok(())
 }
