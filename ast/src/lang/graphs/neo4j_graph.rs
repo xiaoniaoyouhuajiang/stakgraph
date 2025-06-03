@@ -1,9 +1,6 @@
-use crate::{
-    lang::{Function, FunctionCall},
-    Lang,
-};
+use crate::lang::{Function, FunctionCall};
 
-use super::{graph::Graph, neo4j_utils::*, *};
+use super::{neo4j_utils::*, *};
 use anyhow::Result;
 use neo4rs::{query, Graph as Neo4jConnection};
 use std::str::FromStr;
@@ -12,7 +9,6 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio::runtime::Handle;
 use tracing::{debug, info, warn};
 
 use super::neo4j_utils::Neo4jConnectionManager;
@@ -181,19 +177,14 @@ impl Neo4jGraph {
         Ok(())
     }
 
-    async fn execute_with_transaction<F, Fut, T>(&mut self, operation: F) -> Result<T>
+    async fn execute_with_transaction<F, T>(&mut self, operation: F) -> Result<T>
     where
-        F: FnOnce(&mut TransactionManager) -> Fut,
-        Fut: std::future::Future<Output = Result<T>>,
+        F: FnOnce(&mut TransactionManager) -> Result<T>,
     {
-        let connection = match self.ensure_connected().await {
-            Ok(conn) => conn,
-            Err(e) => return Err(anyhow::anyhow!("Connection error: {}", e)),
-        };
-
+        let connection = self.ensure_connected().await?;
         let mut txn_manager = TransactionManager::new(&connection);
 
-        let result = operation(&mut txn_manager).await;
+        let result = operation(&mut txn_manager);
 
         if result.is_ok() {
             match txn_manager.execute().await {
@@ -225,7 +216,7 @@ impl Neo4jGraph {
         let (query_str, params) = remove_nodes_by_file_query(file_path);
         let mut query_obj = query(&query_str);
         for (k, v) in &params {
-            query_obj = query_obj.param(k, v);
+            query_obj = query_obj.param(k, v.as_str());
         }
         let mut result = connection.execute(query_obj).await?;
         if let Some(row) = result.next().await? {
@@ -236,7 +227,7 @@ impl Neo4jGraph {
     }
 
     pub async fn update_repository_hash(&mut self, repo_name: &str, new_hash: &str) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             let (query, params) = update_repository_hash_query(repo_name, new_hash);
             txn_manager.add_query((query, params));
             Ok(())
@@ -373,7 +364,7 @@ impl Neo4jGraph {
     }
 
     pub async fn add_node(&mut self, node_type: NodeType, node_data: NodeData) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             txn_manager.add_node(&node_type, &node_data);
             Ok(())
         })
@@ -381,7 +372,7 @@ impl Neo4jGraph {
     }
 
     pub async fn add_edge(&mut self, edge: Edge) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             txn_manager.add_edge(&edge);
             Ok(())
         })
@@ -395,7 +386,7 @@ impl Neo4jGraph {
         parent_type: NodeType,
         parent_file: &str,
     ) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             txn_manager.add_node(&node_type, &node_data);
 
             let mut params = HashMap::new();
@@ -469,7 +460,7 @@ impl Neo4jGraph {
     fn get_graph_keys(&self) -> (HashSet<&str>, HashSet<&str>) {
         (HashSet::new(), HashSet::new())
     }
-    pub async fn analysis(&self) -> Result<()> {
+    pub async fn analysis(&mut self) -> Result<()> {
         let connection = self.get_connection();
         let (nodes, edges) = self.get_graph_size().await?;
         println!("Graph contains {} nodes and {} edges", nodes, edges);
@@ -539,7 +530,7 @@ impl Neo4jGraph {
         }
         Ok(())
     }
-    fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
+    pub async fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
         let connection = self.get_connection();
 
         let (query_str, params) = count_edges_by_type_query(&edge_type);
@@ -549,7 +540,7 @@ impl Neo4jGraph {
         }
         match connection.execute(query_obj).await {
             Ok(mut result) => {
-                if let Ok(Some(row)) = result.next() {
+                if let Ok(Some(row)) = result.next().await {
                     row.get::<usize>("count").unwrap_or(0)
                 } else {
                     0
@@ -562,7 +553,7 @@ impl Neo4jGraph {
         }
     }
     pub async fn add_functions(&mut self, functions: Vec<Function>) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             for (function_node, method_of, reqs, dms, trait_operand, return_types) in &functions {
                 let queries = add_functions_query(
                     function_node,
@@ -629,6 +620,7 @@ impl Neo4jGraph {
                 }
                 let exists = self
                     .find_endpoint(&endpoint_data.name, &endpoint_data.file, verb)
+                    .await
                     .is_some();
                 if !exists {
                     to_add.push((endpoint_data.clone(), handler_edge.clone()));
@@ -636,7 +628,7 @@ impl Neo4jGraph {
                 }
             }
         }
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             for (endpoint_data, handler_edge) in &to_add {
                 txn_manager.add_node(&NodeType::Endpoint, endpoint_data);
                 if let Some(edge) = handler_edge {
@@ -762,7 +754,7 @@ impl Neo4jGraph {
         child_type: NodeType,
         _child_meta_key: &str,
     ) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             let query = format!(
                 "MATCH (parent:{}) \\n                 WHERE NOT EXISTS {{
                      MATCH (parent)<-[:OPERAND]-(child:{})
@@ -781,7 +773,7 @@ impl Neo4jGraph {
     }
 
     pub async fn class_includes(&mut self) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             let query = class_includes_query();
             txn_manager.add_query((query, HashMap::new()));
             Ok(())
@@ -790,7 +782,7 @@ impl Neo4jGraph {
     }
 
     pub async fn class_inherits(&mut self) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             let query = class_inherits_query();
             txn_manager.add_query((query, HashMap::new()));
             Ok(())
@@ -818,7 +810,7 @@ impl Neo4jGraph {
     }
 
     pub async fn prefix_paths(&mut self, root: &str) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| async move {
+        self.execute_with_transaction(|txn_manager| {
             let (query, params) = prefix_paths_query(root);
             txn_manager.add_query((query, params));
             Ok(())
@@ -855,7 +847,6 @@ impl Neo4jGraph {
         );
         let mut result = source_connection
             .execute(query(&filtered_nodes_query))
-            .await
             .await?;
         while let Some(row) = result.next().await? {
             if let (Ok(node), Ok(node_type_str)) =
@@ -905,8 +896,8 @@ impl Neo4jGraph {
         Ok(filtered_graph)
     }
 
-    pub async fn extend_graph(&mut self, other: Self) {
-        let (other_nodes, other_edges) = other.get_graph_size();
+    pub async fn extend_graph(&mut self, mut other: Self) -> Result<()> {
+        let (other_nodes, other_edges) = other.get_graph_size().await?;
         if other_nodes == 0 && other_edges == 0 {
             warn!("Warning: Attempting to extend with an empty graph");
             return Ok(());
@@ -914,7 +905,7 @@ impl Neo4jGraph {
 
         let target_connection = match self.ensure_connected().await {
             Ok(conn) => conn,
-            Err(e) => return Err(anyhow::anyhow!("Connection error for target graph: {}", e)),
+            Err(e) => return Err(e),
         };
 
         let source_connection = other.get_connection();
@@ -924,7 +915,7 @@ impl Neo4jGraph {
         let nodes_query = "MATCH (n) RETURN n, labels(n)[0] as node_type";
 
         if let Ok(mut result) = source_connection.execute(query(nodes_query)).await {
-            while let Ok(Some(row)) = result.next() {
+            while let Ok(Some(row)) = result.next().await {
                 if let (Ok(node), Ok(node_type_str)) =
                     (row.get::<neo4rs::Node>("n"), row.get::<String>("node_type"))
                 {
@@ -942,7 +933,7 @@ impl Neo4jGraph {
                                      labels(target)[0] as target_type";
 
         if let Ok(mut result) = source_connection.execute(query(edges_query)).await {
-            while let Ok(Some(row)) = result.next() {
+            while let Ok(Some(row)) = result.next().await {
                 if let (
                     Ok(source_node),
                     Ok(edge_type_str),
@@ -1073,31 +1064,32 @@ impl Neo4jGraph {
         Ok(())
     }
 
-    pub async fn get_data_models_within(&mut self, lang: &Lang) -> Result<()> {
-        let connection = self.ensure_connected().await?;
-        let mut txn_manager = TransactionManager::new(&connection);
+    // pub async fn get_data_models_within(&mut self, lang: &Lang) -> Result<()> {
+    //     let connection = self.ensure_connected().await?;
+    //     let mut txn_manager = TransactionManager::new(&connection);
 
-        let data_models = self.find_nodes_by_type(NodeType::DataModel).await?;
+    //     let data_models = self.find_nodes_by_type(NodeType::DataModel).await?;
 
-        for data_model in data_models {
-            let edges = lang.lang().data_model_within_finder(&data_model, &|file| {
-                futures::executor::block_on(
-                    self.find_nodes_by_file_ends_with(NodeType::Function, file),
-                )
-            });
+    //     for data_model in data_models {
+    //         let edges = lang.lang().data_model_within_finder(&data_model, &|file| {
+    //             futures::executor::block_on(
+    //                 self.find_nodes_by_file_ends_with(NodeType::Function, file)
+    //                     .unwrap(),
+    //             )
+    //         });
 
-            for edge in edges {
-                txn_manager.add_edge(&edge);
-            }
-        }
+    //         for edge in edges {
+    //             txn_manager.add_edge(&edge);
+    //         }
+    //     }
 
-        if let Err(e) = txn_manager.execute().await {
-            println!("Transaction failed in get_data_models_within: {:?}", e);
-            return Err(e);
-        }
+    //     if let Err(e) = txn_manager.execute().await {
+    //         println!("Transaction failed in get_data_models_within: {:?}", e);
+    //         return Err(e);
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub async fn find_nodes_with_edge_type(
         &mut self,
@@ -1152,58 +1144,58 @@ impl Neo4jGraph {
         }
     }
 
-    pub async fn process_endpoint_groups(&mut self, eg: Vec<NodeData>, lang: &Lang) -> Result<()> {
-        // Pre-process the data we need before entering the transaction
-        let mut group_data = Vec::new();
+    // pub async fn process_endpoint_groups(&mut self, eg: Vec<NodeData>, lang: &Lang) -> Result<()> {
+    //     // Pre-process the data we need before entering the transaction
+    //     let mut group_data = Vec::new();
 
-        for group in &eg {
-            if let Some(group_function_name) = group.meta.get("group") {
-                if let Some(group_function) = self
-                    .find_nodes_by_name(NodeType::Function, group_function_name)
-                    .await
-                    .first()
-                    .cloned()
-                {
-                    for finder_query in lang.lang().endpoint_finders() {
-                        if let Ok(endpoints) = lang.get_query_opt::<Self>(
-                            Some(finder_query),
-                            &group_function.body,
-                            &group_function.file,
-                            NodeType::Endpoint,
-                        ) {
-                            group_data.push((group.clone(), endpoints));
-                        }
-                    }
-                }
-            }
-        }
+    //     for group in &eg {
+    //         if let Some(group_function_name) = group.meta.get("group") {
+    //             if let Some(group_function) = self
+    //                 .find_nodes_by_name(NodeType::Function, group_function_name)
+    //                 .await
+    //                 .first()
+    //                 .cloned()
+    //             {
+    //                 for finder_query in lang.lang().endpoint_finders() {
+    //                     if let Ok(endpoints) = lang.get_query_opt::<Self>(
+    //                         Some(finder_query),
+    //                         &group_function.body,
+    //                         &group_function.file,
+    //                         NodeType::Endpoint,
+    //                     ) {
+    //                         group_data.push((group.clone(), endpoints));
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        self.execute_with_transaction(|txn_manager| async move {
-            for (group, endpoints) in &group_data {
-                for endpoint in endpoints {
-                    let update_node_query = format!(
-                        "MATCH (n:Endpoint {{name: $old_name, file: $file}})
-                        SET n.name = $new_name
-                        RETURN n"
-                    );
-                    let mut node_params = HashMap::new();
-                    node_params.insert("old_name".to_string(), endpoint.name.clone());
-                    node_params.insert("file".to_string(), endpoint.file.clone());
-                    node_params.insert(
-                        "new_name".to_string(),
-                        format!("{}{}", group.name, endpoint.name),
-                    );
-                    txn_manager.add_query((update_node_query, node_params.clone()));
-                    let update_rels_query = format!(
-                        "MATCH (source:Endpoint {{name: $old_name, file: $file}})-[r]->(target)
-                        SET source.name = $new_name
-                        RETURN r"
-                    );
-                    txn_manager.add_query((update_rels_query, node_params));
-                }
-            }
-            Ok(())
-        })
-        .await
-    }
+    //     self.execute_with_transaction(|txn_manager|  {
+    //         for (group, endpoints) in &group_data {
+    //             for endpoint in endpoints {
+    //                 let update_node_query = format!(
+    //                     "MATCH (n:Endpoint {{name: $old_name, file: $file}})
+    //                     SET n.name = $new_name
+    //                     RETURN n"
+    //                 );
+    //                 let mut node_params = HashMap::new();
+    //                 node_params.insert("old_name".to_string(), endpoint.name.clone());
+    //                 node_params.insert("file".to_string(), endpoint.file.clone());
+    //                 node_params.insert(
+    //                     "new_name".to_string(),
+    //                     format!("{}{}", group.name, endpoint.name),
+    //                 );
+    //                 txn_manager.add_query((update_node_query, node_params.clone()));
+    //                 let update_rels_query = format!(
+    //                     "MATCH (source:Endpoint {{name: $old_name, file: $file}})-[r]->(target)
+    //                     SET source.name = $new_name
+    //                     RETURN r"
+    //                 );
+    //                 txn_manager.add_query((update_rels_query, node_params));
+    //             }
+    //         }
+    //         Ok(())
+    //     })
+    //     .await
+    // }
 }
