@@ -4,13 +4,13 @@ use crate::lang::graphs::graph_ops::GraphOps;
 use crate::lang::{graphs::EdgeType, NodeType};
 use lsp::git::{checkout_commit, get_changed_files_between, git_pull_or_clone};
 use tracing::{debug, info};
-#[cfg(feature = "neo4j")]
+
 fn clear_neo4j() {
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().unwrap();
     graph_ops.clear().unwrap();
 }
-#[cfg(feature = "neo4j")]
+
 fn assert_edge_exists(graph: &GraphOps, src: &str, tgt: &str) -> bool {
     graph
         .graph
@@ -19,7 +19,6 @@ fn assert_edge_exists(graph: &GraphOps, src: &str, tgt: &str) -> bool {
         .any(|(s, t)| s.name == src && t.name == tgt)
 }
 
-#[cfg(feature = "neo4j")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_update() {
     use crate::lang::graph;
