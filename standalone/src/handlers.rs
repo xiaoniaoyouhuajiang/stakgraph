@@ -4,6 +4,7 @@ use ast::lang::Graph;
 use ast::repo::Repo;
 use axum::Json;
 use lsp::git::{get_commit_hash, git_pull_or_clone};
+use std::time::Instant;
 use tracing::info;
 
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
@@ -85,7 +86,10 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
 }
 #[axum::debug_handler]
 pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
+    let start_total = Instant::now();
     let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
+
+    let start_clone = Instant::now();
     clone_repo(
         need_clone,
         &final_repo_url,
@@ -94,10 +98,15 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
         pat.clone(),
     )
     .await?;
+    info!(
+        "\n\n ==>> Cloning repo took {:.2?} \n\n",
+        start_clone.elapsed()
+    );
 
     let repo_path = final_repo_path.clone();
     let repo_url = final_repo_url.clone();
 
+    let start_build = Instant::now();
     let btree_graph = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let repos = rt
@@ -114,11 +123,29 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     .await
     .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Join error: {}", e)))??;
 
+    info!(
+        "\n\n ==>>Building BTreeMapGraph took {:.2?} \n\n",
+        start_build.elapsed()
+    );
+
     let mut graph_ops = GraphOps::new();
     graph_ops.connect()?;
+
+    let start_upload = Instant::now();
+
     let (nodes, edges) = graph_ops
         .upload_btreemap_to_neo4j(&btree_graph)
         .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Neo4j upload failed: {}", e)))?;
+
+    info!(
+        "\n\n ==>> Uploading to Neo4j took {:.2?} \n\n",
+        start_upload.elapsed()
+    );
+
+    info!(
+        "\n\n ==>> Total ingest time: {:.2?} \n\n",
+        start_total.elapsed()
+    );
 
     Ok(Json(ProcessResponse {
         status: "success".to_string(),
