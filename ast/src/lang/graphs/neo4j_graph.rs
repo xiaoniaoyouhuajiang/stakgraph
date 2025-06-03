@@ -5,7 +5,7 @@ use anyhow::Result;
 use neo4rs::{query, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -351,7 +351,7 @@ impl std::fmt::Debug for Neo4jGraph {
 }
 
 impl Neo4jGraph {
-    fn _new() -> Self {
+    fn new() -> Self {
         Neo4jGraph {
             connection: None,
             config: Neo4jConfig::default(),
@@ -359,7 +359,7 @@ impl Neo4jGraph {
         }
     }
 
-    fn _with_capacity(_nodes: usize, _edges: usize) -> Self {
+    fn with_capacity(_nodes: usize, _edges: usize) -> Self {
         Neo4jGraph::default()
     }
 
@@ -456,6 +456,9 @@ impl Neo4jGraph {
         } else {
             Ok((0, 0))
         }
+    }
+    fn get_graph_keys(&self) -> (HashSet<&str>, HashSet<&str>) {
+        (HashSet::new(), HashSet::new())
     }
     pub async fn analysis(&mut self) -> Result<()> {
         let connection = self.get_connection();
