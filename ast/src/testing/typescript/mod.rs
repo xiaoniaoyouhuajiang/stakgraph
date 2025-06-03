@@ -127,9 +127,7 @@ async fn test_typescript() {
     #[cfg(feature = "neo4j")]
     use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
-    println!("===-==> BTreeMapGraph <===-==");
     test_typescript_generic::<BTreeMapGraph>().await.unwrap();
-    println!("===-==> ArrayGraph <===-==");
     test_typescript_generic::<ArrayGraph>().await.unwrap();
 
     #[cfg(feature = "neo4j")]

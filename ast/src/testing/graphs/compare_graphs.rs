@@ -1,11 +1,11 @@
 use crate::lang::graphs::BTreeMapGraph;
 use crate::lang::{ArrayGraph, Graph, Lang};
 use crate::repo::Repo;
-
 use crate::utils::get_use_lsp;
 use anyhow::{Ok, Result};
 use std::collections::HashSet;
 use std::str::FromStr;
+use test_log::test;
 use tracing::{debug, info};
 
 const PROGRAMMING_LANGUAGES: [&str; 11] = [
@@ -22,7 +22,7 @@ const PROGRAMMING_LANGUAGES: [&str; 11] = [
     "rust",
 ];
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn compare_graphs() {
     for lang in PROGRAMMING_LANGUAGES.iter() {
         let repo_path = format!("src/testing/{}", lang);
@@ -61,15 +61,15 @@ async fn compare_graphs_inner(lang_id: &str, repo_path: &str) -> Result<()> {
         .collect();
 
     if !nodes_only_in_array_graph.is_empty() {
-        println!("Nodes only in ArrayGraph: {:#?}", nodes_only_in_array_graph);
-        println!(
+        debug!("Nodes only in ArrayGraph: {:#?}", nodes_only_in_array_graph);
+        debug!(
             "Nodes only in BTreeMapGraph: {:#?}",
             nodes_only_in_btree_map_graph
         );
     }
     if !edges_only_in_array_graph.is_empty() {
-        println!("Edges only in ArrayGraph: {:#?}", edges_only_in_array_graph);
-        println!(
+        debug!("Edges only in ArrayGraph: {:#?}", edges_only_in_array_graph);
+        debug!(
             "Edges only in BTreeMapGraph: {:#?}",
             edges_only_in_btree_map_graph
         );
