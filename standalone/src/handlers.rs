@@ -1,5 +1,4 @@
 use crate::types::{AppError, ProcessBody, ProcessResponse, Result};
-#[cfg(feature = "neo4j")]
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::Repo;
@@ -8,146 +7,118 @@ use lsp::git::{get_commit_hash, git_pull_or_clone};
 use tracing::info;
 
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
-    #[cfg(feature = "neo4j")]
-    {
-        let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
+    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
 
-        clone_repo(
-            need_clone,
-            &final_repo_url,
-            &final_repo_path,
-            username.clone(),
-            pat.clone(),
-        )
-        .await?;
+    clone_repo(
+        need_clone,
+        &final_repo_url,
+        &final_repo_path,
+        username.clone(),
+        pat.clone(),
+    )
+    .await?;
 
-        let repo_path = &final_repo_path;
-        let repo_url = &final_repo_url;
+    let repo_path = &final_repo_path;
+    let repo_url = &final_repo_url;
 
-        let current_hash = match get_commit_hash(&repo_path).await {
-            Ok(hash) => hash,
-            Err(e) => {
-                return Err(AppError::Anyhow(anyhow::anyhow!(
-                    "Could not get current hash: {}",
-                    e
-                )))
-            }
-        };
-
-        let mut graph_ops = GraphOps::new();
-        graph_ops.connect()?;
-
-        let stored_hash = match graph_ops.graph.get_repository_hash(&repo_url) {
-            Ok(hash) => Some(hash),
-            Err(_) => None,
-        };
-
-        info!(
-            "Current hash: {} | Stored hash: {:?}",
-            current_hash, stored_hash
-        );
-
-        if let Some(hash) = &stored_hash {
-            if hash == &current_hash {
-                let (nodes, edges) = graph_ops.graph.get_graph_size();
-                return Ok(Json(ProcessResponse {
-                    status: "success".to_string(),
-                    message: "Repository already processed".to_string(),
-                    nodes: nodes as usize,
-                    edges: edges as usize,
-                }));
-            }
+    let current_hash = match get_commit_hash(&repo_path).await {
+        Ok(hash) => hash,
+        Err(e) => {
+            return Err(AppError::Anyhow(anyhow::anyhow!(
+                "Could not get current hash: {}",
+                e
+            )))
         }
+    };
 
-        let (nodes, edges) = if let Some(hash) = stored_hash {
-            info!("Updating repository hash from {} to {}", hash, current_hash);
-            graph_ops.update_incremental(&repo_url, &repo_path, &current_hash, &hash)?
-        } else {
-            info!("Adding new repository hash: {}", current_hash);
-            graph_ops.update_full(&repo_url, &repo_path, &current_hash)?
-        };
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect()?;
 
-        Ok(Json(ProcessResponse {
-            status: "success".to_string(),
-            message: "Repository processed successfully".to_string(),
-            nodes: nodes as usize,
-            edges: edges as usize,
-        }))
+    let stored_hash = match graph_ops.graph.get_repository_hash(&repo_url) {
+        Ok(hash) => Some(hash),
+        Err(_) => None,
+    };
+
+    info!(
+        "Current hash: {} | Stored hash: {:?}",
+        current_hash, stored_hash
+    );
+
+    if let Some(hash) = &stored_hash {
+        if hash == &current_hash {
+            let (nodes, edges) = graph_ops.graph.get_graph_size();
+            return Ok(Json(ProcessResponse {
+                status: "success".to_string(),
+                message: "Repository already processed".to_string(),
+                nodes: nodes as usize,
+                edges: edges as usize,
+            }));
+        }
     }
-    #[cfg(not(feature = "neo4j"))]
-    {
-        Err(AppError::Anyhow(anyhow::anyhow!(
-            "Neo4j feature is not enabled. Please run with --features neo4j."
-        )))
-    }
+
+    let (nodes, edges) = if let Some(hash) = stored_hash {
+        info!("Updating repository hash from {} to {}", hash, current_hash);
+        graph_ops.update_incremental(&repo_url, &repo_path, &current_hash, &hash)?
+    } else {
+        info!("Adding new repository hash: {}", current_hash);
+        graph_ops.update_full(&repo_url, &repo_path, &current_hash)?
+    };
+
+    Ok(Json(ProcessResponse {
+        status: "success".to_string(),
+        message: "Repository processed successfully".to_string(),
+        nodes: nodes as usize,
+        edges: edges as usize,
+    }))
 }
 
 pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
-    #[cfg(feature = "neo4j")]
-    {
-        let mut graph_ops = GraphOps::new();
-        graph_ops.connect()?;
-        let (nodes, edges) = graph_ops.clear()?;
-        Ok(Json(ProcessResponse {
-            status: "success".to_string(),
-            message: "Graph cleared".to_string(),
-            nodes: nodes as usize,
-            edges: edges as usize,
-        }))
-    }
-    #[cfg(not(feature = "neo4j"))]
-    {
-        Err(AppError::Anyhow(anyhow::anyhow!(
-            "Neo4j feature is not enabled. Please run with --features neo4j."
-        )))
-    }
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect()?;
+    let (nodes, edges) = graph_ops.clear()?;
+    Ok(Json(ProcessResponse {
+        status: "success".to_string(),
+        message: "Graph cleared".to_string(),
+        nodes: nodes as usize,
+        edges: edges as usize,
+    }))
 }
 
 pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
-    #[cfg(feature = "neo4j")]
-    {
-        let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
-        clone_repo(
-            need_clone,
-            &final_repo_url,
-            &final_repo_path,
-            username.clone(),
-            pat.clone(),
-        )
-        .await?;
+    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
+    clone_repo(
+        need_clone,
+        &final_repo_url,
+        &final_repo_path,
+        username.clone(),
+        pat.clone(),
+    )
+    .await?;
 
-        let repo_path = &final_repo_path;
-        let repo_url = &final_repo_url;
+    let repo_path = &final_repo_path;
+    let repo_url = &final_repo_url;
 
-        let current_hash = match get_commit_hash(&repo_path).await {
-            Ok(hash) => hash,
-            Err(e) => {
-                return Err(AppError::Anyhow(anyhow::anyhow!(
-                    "Could not get current hash: {}",
-                    e
-                )))
-            }
-        };
+    let current_hash = match get_commit_hash(&repo_path).await {
+        Ok(hash) => hash,
+        Err(e) => {
+            return Err(AppError::Anyhow(anyhow::anyhow!(
+                "Could not get current hash: {}",
+                e
+            )))
+        }
+    };
 
-        let mut graph_ops = GraphOps::new();
-        graph_ops.connect()?;
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect()?;
 
-        let (nodes, edges) = graph_ops.update_full(&repo_url, &repo_path, &current_hash)?;
+    let (nodes, edges) = graph_ops.update_full(&repo_url, &repo_path, &current_hash)?;
 
-        Ok(Json(ProcessResponse {
-            status: "success".to_string(),
-            message: "Repository ingested fully".to_string(),
-            nodes: nodes as usize,
-            edges: edges as usize,
-        }))
-    }
-
-    #[cfg(not(feature = "neo4j"))]
-    {
-        Err(AppError::Anyhow(anyhow::anyhow!(
-            "Neo4j feature is not enabled. Please run with --features neo4j."
-        )))
-    }
+    Ok(Json(ProcessResponse {
+        status: "success".to_string(),
+        message: "Repository ingested fully".to_string(),
+        nodes: nodes as usize,
+        edges: edges as usize,
+    }))
 }
 
 fn env_not_empty(key: &str) -> Option<String> {
