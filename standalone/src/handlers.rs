@@ -133,9 +133,7 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
 
     let start_upload = Instant::now();
 
-    let (nodes, edges) = graph_ops
-        .upload_btreemap_to_neo4j(&btree_graph)
-        .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Neo4j upload failed: {}", e)))?;
+    let (nodes, edges) = graph_ops.upload_btreemap_to_neo4j(&btree_graph).await?;
 
     info!(
         "\n\n ==>> Uploading to Neo4j took {:.2?} \n\n",
