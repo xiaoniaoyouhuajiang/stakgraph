@@ -6,76 +6,114 @@ use lsp::git::{get_commit_hash, git_pull_or_clone};
 use std::time::Instant;
 use tracing::info;
 
-// #[axum::debug_handler]
-// pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
-//     let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
+#[axum::debug_handler]
+pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
+    let start_total = Instant::now();
+    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
 
-//     clone_repo(
-//         need_clone,
-//         &final_repo_url,
-//         &final_repo_path,
-//         username.clone(),
-//         pat.clone(),
-//     )
-//     .await?;
+    let start_clone = Instant::now();
+    clone_repo(
+        need_clone,
+        &final_repo_url,
+        &final_repo_path,
+        username.clone(),
+        pat.clone(),
+    )
+    .await?;
+    info!(
+        "\n\n ==>> Cloning repo took {:.2?} \n\n",
+        start_clone.elapsed()
+    );
 
-//     let repo_path = &final_repo_path;
-//     let repo_url = &final_repo_url;
+    let repo_path = final_repo_path.clone();
+    let repo_url = final_repo_url.clone();
 
-//     let current_hash = match get_commit_hash(&repo_path).await {
-//         Ok(hash) => hash,
-//         Err(e) => {
-//             return Err(AppError::Anyhow(anyhow::anyhow!(
-//                 "Could not get current hash: {}",
-//                 e
-//             )))
-//         }
-//     };
+    let current_hash = match get_commit_hash(&repo_path).await {
+        Ok(hash) => hash,
+        Err(e) => {
+            return Err(AppError::Anyhow(anyhow::anyhow!(
+                "Could not get current hash: {}",
+                e
+            )))
+        }
+    };
 
-//     let mut graph_ops = GraphOps::new();
-//     graph_ops.connect().await?;
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
 
-//     let stored_hash = match graph_ops.graph.get_repository_hash(&repo_url).await {
-//         Ok(hash) => Some(hash),
-//         Err(_) => None,
-//     };
+    let stored_hash = match graph_ops.graph.get_repository_hash(&repo_url).await {
+        Ok(hash) => Some(hash),
+        Err(_) => None,
+    };
 
-//     info!(
-//         "Current hash: {} | Stored hash: {:?}",
-//         current_hash, stored_hash
-//     );
+    info!(
+        "Current hash: {} | Stored hash: {:?}",
+        current_hash, stored_hash
+    );
 
-//     if let Some(hash) = &stored_hash {
-//         if hash == &current_hash {
-//             let (nodes, edges) = graph_ops.graph.get_graph_size().await?;
-//             return Ok(Json(ProcessResponse {
-//                 status: "success".to_string(),
-//                 message: "Repository already processed".to_string(),
-//                 nodes: nodes as usize,
-//                 edges: edges as usize,
-//             }));
-//         }
-//     }
+    // If hashes match, return early
+    if let Some(hash) = &stored_hash {
+        if hash == &current_hash {
+            let (nodes, edges) = graph_ops.graph.get_graph_size().await?;
+            info!(
+                "\n\n ==>> Total process time: {:.2?} \n\n",
+                start_total.elapsed()
+            );
+            return Ok(Json(ProcessResponse {
+                status: "success".to_string(),
+                message: "Repository already processed".to_string(),
+                nodes: nodes as usize,
+                edges: edges as usize,
+            }));
+        }
+    }
 
-//     let (nodes, edges) = if let Some(hash) = stored_hash {
-//         info!("Updating repository hash from {} to {}", hash, current_hash);
-//         graph_ops
-//             .update_incremental(&repo_url, &repo_path, &current_hash, &hash)
-//             .await?
-//     } else {
-//         info!("Adding new repository hash: {}", current_hash);
-//         graph_ops
-//             .update_full(&repo_url, &repo_path, &current_hash)
-//             .await?
-//     };
+    // Build the in-memory graph using BTreeMapGraph in a blocking thread
+    let start_build = Instant::now();
+    let btree_graph = tokio::task::spawn_blocking({
+        let repo_path = repo_path.clone();
+        let repo_url = repo_url.clone();
+        move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let repos = rt
+                .block_on(Repo::new_multi_detect(
+                    &repo_path,
+                    Some(repo_url.clone()),
+                    Vec::new(),
+                    Vec::new(),
+                ))
+                .map_err(|e| anyhow::anyhow!("Repo detect failed: {}", e))?;
+            rt.block_on(repos.build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>())
+                .map_err(|e| anyhow::anyhow!("Graph build failed: {}", e))
+        }
+    })
+    .await
+    .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Join error: {}", e)))??;
+    info!(
+        "\n\n ==>>Building BTreeMapGraph took {:.2?} \n\n",
+        start_build.elapsed()
+    );
 
-//     Ok(Json(ProcessResponse {
-//         status: "success".to_string(),
-//         message: "Repository processed successfully".to_string(),
-//         nodes: nodes as usize,
-//         edges: edges as usize,
-//     }))
-// }
+    // Upload the in-memory graph to Neo4j
+    let start_upload = Instant::now();
+    let (nodes, edges) = graph_ops.upload_btreemap_to_neo4j(&btree_graph).await?;
+    info!(
+        "\n\n ==>> Uploading to Neo4j took {:.2?} \n\n",
+        start_upload.elapsed()
+    );
+
+    info!(
+        "\n\n ==>> Total process time: {:.2?} \n\n",
+        start_total.elapsed()
+    );
+
+    Ok(Json(ProcessResponse {
+        status: "success".to_string(),
+        message: "Repository processed successfully".to_string(),
+        nodes: nodes as usize,
+        edges: edges as usize,
+    }))
+}
 
 pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
     let mut graph_ops = GraphOps::new();
@@ -88,6 +126,7 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
         edges: edges as usize,
     }))
 }
+
 #[axum::debug_handler]
 pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let start_total = Instant::now();
@@ -160,6 +199,7 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
 fn env_not_empty(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
 }
+
 fn resolve_repo(
     body: &ProcessBody,
 ) -> Result<(String, String, bool, Option<String>, Option<String>)> {
@@ -185,6 +225,7 @@ fn resolve_repo(
         Ok((tmp_path, url, true, username, pat))
     }
 }
+
 async fn clone_repo(
     need_clone: bool,
     repo_url: &str,
