@@ -34,7 +34,10 @@ impl Graph for BTreeMapGraph {
             println!("Edge: {:?}: {:?} -> {:?}", edge_type, src_key, dst_key);
         }
         for (node_key, node) in &self.nodes {
-            println!("Node: {:?} type: {:?}", node_key, node.node_type);
+            println!(
+                "Node: {:?} type: {:?} file: {:?}",
+                node_key, node.node_type, node.node_data.file
+            );
         }
     }
 
@@ -59,9 +62,10 @@ impl Graph for BTreeMapGraph {
         self.nodes.insert(node_key.clone(), node);
     }
 
-    fn get_graph_keys(&self) -> (HashSet<&str>, HashSet<&str>) {
-        let node_keys: HashSet<&str> = self.nodes.keys().map(|k| k.as_str()).collect();
-        let edge_keys: HashSet<&str> = self.edge_keys.iter().map(|s| s.as_str()).collect();
+    fn get_graph_keys(&self) -> (HashSet<String>, HashSet<String>) {
+        let node_keys: HashSet<String> = self.nodes.keys().map(|s| s.to_lowercase()).collect();
+
+        let edge_keys: HashSet<String> = self.edge_keys.iter().map(|s| s.to_lowercase()).collect();
         (node_keys, edge_keys)
     }
 

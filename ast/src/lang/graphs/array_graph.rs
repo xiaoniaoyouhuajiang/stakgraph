@@ -48,7 +48,10 @@ impl Graph for ArrayGraph {
         }
 
         for node in &self.nodes {
-            println!("Node: {:?}-{:?}", node.node_data.name, node.node_type);
+            println!(
+                "Node: {:?}-{:?}-{:?}",
+                node.node_data.name, node.node_type, node.node_data.file
+            );
         }
     }
     fn create_filtered_graph(&self, final_filter: &[String]) -> Self {
@@ -116,9 +119,9 @@ impl Graph for ArrayGraph {
         }
     }
 
-    fn get_graph_keys(&self) -> (HashSet<&str>, HashSet<&str>) {
-        let node_keys: HashSet<&str> = self.node_keys.iter().map(|s| s.as_str()).collect();
-        let edge_keys: HashSet<&str> = self.edge_keys.iter().map(|s| s.as_str()).collect();
+    fn get_graph_keys(&self) -> (HashSet<String>, HashSet<String>) {
+        let node_keys: HashSet<String> = self.node_keys.iter().map(|s| s.to_lowercase()).collect();
+        let edge_keys: HashSet<String> = self.edge_keys.iter().map(|s| s.to_lowercase()).collect();
         (node_keys, edge_keys)
     }
 
