@@ -155,7 +155,7 @@ impl Neo4jGraph {
         }
     }
 
-    fn get_connection(&self) -> Arc<Neo4jConnection> {
+    pub fn get_connection(&self) -> Arc<Neo4jConnection> {
         match &self.connection {
             Some(conn) => conn.clone(),
             None => block_in_place(async {

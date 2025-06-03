@@ -1,6 +1,7 @@
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::Graph;
-use crate::lang::graphs::{BTreeMapGraph, Edge, Node, NodeKeys, NodeRef};
+use crate::lang::graphs::{BTreeMapGraph, Edge, NodeKeys, NodeRef};
+use crate::lang::neo4j_utils::TransactionManager;
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
 use tracing::info;
@@ -119,15 +120,15 @@ impl GraphOps {
         &mut self,
         btree_graph: &BTreeMapGraph,
     ) -> anyhow::Result<(u32, u32)> {
-        // 1. Clear Neo4j graph before upload
         self.graph.clear();
 
-        // 2. Upload nodes
+        let connection = self.graph.get_connection();
+
+        let mut txn_manager = TransactionManager::new(&connection);
         for node in btree_graph.nodes.values() {
-            self.graph
-                .add_node(node.node_type.clone(), node.node_data.clone());
+            txn_manager.add_node(&node.node_type, &node.node_data);
         }
-        // 3. Upload edges
+
         for (src_key, dst_key, edge_type) in &btree_graph.edges {
             if let (Some(src_node), Some(dst_node)) = (
                 btree_graph.nodes.get(src_key),
@@ -144,9 +145,12 @@ impl GraphOps {
                         node_data: NodeKeys::from(&dst_node.node_data),
                     },
                 };
-                self.graph.add_edge(edge);
+                txn_manager.add_edge(&edge);
             }
         }
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(txn_manager.execute())?;
 
         Ok(self.graph.get_graph_size())
     }

@@ -98,7 +98,6 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let repo_path = final_repo_path.clone();
     let repo_url = final_repo_url.clone();
 
-    // 1. Build the BTreeMapGraph from the repo
     let btree_graph = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let repos = rt
@@ -115,7 +114,6 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     .await
     .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Join error: {}", e)))??;
 
-    // 2. Upload to Neo4j
     let mut graph_ops = GraphOps::new();
     graph_ops.connect()?;
     let (nodes, edges) = graph_ops
