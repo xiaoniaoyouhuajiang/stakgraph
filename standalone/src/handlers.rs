@@ -95,18 +95,25 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     )
     .await?;
 
-    let repo_path = &final_repo_path;
-    let repo_url = &final_repo_url;
+    let repo_path = final_repo_path.clone();
+    let repo_url = final_repo_url.clone();
 
     // 1. Build the BTreeMapGraph from the repo
-    let repos = Repo::new_multi_detect(repo_path, Some(repo_url.clone()), Vec::new(), Vec::new())
-        .await
-        .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Repo detect failed: {}", e)))?;
-
-    let btree_graph = repos
-        .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
-        .await
-        .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Graph build failed: {}", e)))?;
+    let btree_graph = tokio::task::spawn_blocking(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let repos = rt
+            .block_on(Repo::new_multi_detect(
+                &repo_path,
+                Some(repo_url.clone()),
+                Vec::new(),
+                Vec::new(),
+            ))
+            .map_err(|e| anyhow::anyhow!("Repo detect failed: {}", e))?;
+        rt.block_on(repos.build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>())
+            .map_err(|e| anyhow::anyhow!("Graph build failed: {}", e))
+    })
+    .await
+    .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Join error: {}", e)))??;
 
     // 2. Upload to Neo4j
     let mut graph_ops = GraphOps::new();
