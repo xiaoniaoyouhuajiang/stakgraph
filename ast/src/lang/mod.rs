@@ -18,7 +18,7 @@ use tree_sitter::{Node as TreeNode, Query, QueryCursor, QueryMatch};
 
 pub struct Lang {
     pub kind: Language,
-    lang: Box<dyn Stack>,
+    lang: Box<dyn Stack + Send + Sync>,
 }
 
 impl fmt::Display for Lang {

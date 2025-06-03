@@ -83,7 +83,7 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
         edges: edges as usize,
     }))
 }
-
+#[axum::debug_handler]
 pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
     clone_repo(
@@ -98,20 +98,22 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let repo_path = &final_repo_path;
     let repo_url = &final_repo_url;
 
-    let current_hash = match get_commit_hash(&repo_path).await {
-        Ok(hash) => hash,
-        Err(e) => {
-            return Err(AppError::Anyhow(anyhow::anyhow!(
-                "Could not get current hash: {}",
-                e
-            )))
-        }
-    };
+    // 1. Build the BTreeMapGraph from the repo
+    let repos = Repo::new_multi_detect(repo_path, Some(repo_url.clone()), Vec::new(), Vec::new())
+        .await
+        .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Repo detect failed: {}", e)))?;
 
+    let btree_graph = repos
+        .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
+        .await
+        .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Graph build failed: {}", e)))?;
+
+    // 2. Upload to Neo4j
     let mut graph_ops = GraphOps::new();
     graph_ops.connect()?;
-
-    let (nodes, edges) = graph_ops.update_full(&repo_url, &repo_path, &current_hash)?;
+    let (nodes, edges) = graph_ops
+        .upload_btreemap_to_neo4j(&btree_graph)
+        .map_err(|e| AppError::Anyhow(anyhow::anyhow!("Neo4j upload failed: {}", e)))?;
 
     Ok(Json(ProcessResponse {
         status: "success".to_string(),
