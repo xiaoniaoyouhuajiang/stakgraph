@@ -426,9 +426,6 @@ impl Lang {
                 endp.name = handler.to_string();
             }
         }
-
-        println!("<<< endpoint >>> {:?}", endp);
-
         if let Some(graph) = graph {
             if self.lang().use_handler_finder() {
                 // find handler manually (not LSP)
@@ -484,7 +481,7 @@ impl Lang {
                 }
             }
         }
-        println!("<<< endpoint >>> {:?}", endp.name);
+        // println!("<<< endpoint >>> {:?}", endp.name);
         Ok(vec![(endp, handler)])
     }
     pub fn format_data_model(
