@@ -113,8 +113,13 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
 
     let start_build = Instant::now();
 
-    let repos = Repo::new_multi_detect(&repo_path, Some(repo_url.clone()), Vec::new(), Vec::new())?;
-    let btree_graph = repos.build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()?;
+    let repos = Repo::new_multi_detect(&repo_path, Some(repo_url.clone()), Vec::new(), Vec::new())
+        .await
+        .map_err(|e| anyhow::anyhow!("Repo detect failed: {}", e))?;
+    let btree_graph = repos
+        .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
+        .await
+        .map_err(|e| anyhow::anyhow!("Graph build failed: {}", e))?;
     info!(
         "\n\n ==>>Building BTreeMapGraph took {:.2?} \n\n",
         start_build.elapsed()
