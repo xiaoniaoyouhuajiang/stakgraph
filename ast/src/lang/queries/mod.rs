@@ -1,6 +1,7 @@
 pub mod angular;
 pub mod bash;
 pub mod consts;
+pub mod cpp;
 pub mod erb;
 pub mod go;
 pub mod haml;
