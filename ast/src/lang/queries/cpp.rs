@@ -2,6 +2,7 @@ use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
 // use lsp::{Cmd as LspCmd, CmdSender, Position, Res as LspRes};
+use crate::lang::parse::trim_quotes;
 use tree_sitter::{Language, Parser, Query, Tree};
 
 pub struct Cpp(Language);
@@ -194,6 +195,17 @@ impl Stack for Cpp {
                             (string_literal) @{ENDPOINT}
                             )
                         ) 
+                         arguments: (argument_list
+                            (lambda_expression
+                                body: (compound_statement
+                                    (return_statement
+                                        (call_expression
+                                            function: (identifier) @{HANDLER}
+                                        )
+                                    )
+                                )
+                            )
+                        )
                     )@{ROUTE}
                     )
                     (call_expression
@@ -212,9 +224,44 @@ impl Stack for Cpp {
                         )
 
                     )
+                    arguments: (argument_list
+                        (lambda_expression
+                            body: (compound_statement
+                                (return_statement
+                                    (call_expression
+                                        function: (identifier) @{HANDLER}
+                                    )
+                                )
+                            )
+                        )
+                    )
                     )@{ROUTE}
                     ]
                 "#
         )]
+    }
+    fn add_endpoint_verb(&self, nd: &mut NodeData, _call: &Option<String>) {
+        if nd.meta.get("verb").is_some() {
+            return;
+        }
+        // If no verb specified, Crow allows all verbs
+        nd.add_verb("ANY");
+    }
+
+    fn update_endpoint_verb(&self, nd: &mut NodeData, _call: &Option<String>) {
+        if let Some(verb_annotation) = nd.meta.get("verb").cloned() {
+            let c = verb_annotation.trim();
+            let verb = if let Some(stripped) = c.strip_suffix("_METHOD") {
+                trim_quotes(stripped).to_uppercase()
+            } else {
+                trim_quotes(c).to_uppercase()
+            };
+            if !verb.is_empty() {
+                nd.add_verb(&verb);
+                return;
+            }
+        } else {
+            nd.add_verb("ANY");
+        }
     }
 }

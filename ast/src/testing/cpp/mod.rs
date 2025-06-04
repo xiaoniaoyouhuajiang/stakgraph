@@ -20,8 +20,8 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
 
-    assert_eq!(num_nodes, 18, "Expected 18 nodes");
-    assert_eq!(num_edges, 18, "Expected 18 edges");
+    assert_eq!(num_nodes, 23, "Expected 23 nodes");
+    assert_eq!(num_edges, 25, "Expected 25 edges");
 
     let language_nodes = graph.find_nodes_by_name(NodeType::Language, "cpp");
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -79,35 +79,35 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Expected Person data model not found"
     );
 
-    // let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
-    // assert_eq!(endpoints.len(), 2, "Expected 2 endpoints");
+    let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
+    assert_eq!(endpoints.len(), 2, "Expected 2 endpoints");
 
-    // let get_endpoint = endpoints
-    //     .iter()
-    //     .find(|e| e.name == "/person/{id}" && e.meta.get("verb") == Some(&"GET".to_string()))
-    //     .expect("GET endpoint not found");
-    // assert_eq!(get_endpoint.file, "src/testing/cpp/routes.cpp");
+    let get_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/person/<int>" && e.meta.get("verb") == Some(&"ANY".to_string()))
+        .expect("ANY endpoint not found");
+    assert_eq!(get_endpoint.file, "src/testing/cpp/routes.cpp");
 
-    // let post_endpoint = endpoints
-    //     .iter()
-    //     .find(|e| e.name == "/person" && e.meta.get("verb") == Some(&"POST".to_string()))
-    //     .expect("POST endpoint not found");
-    // assert_eq!(post_endpoint.file, "src/testing/cpp/routes.cpp");
+    let post_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/person" && e.meta.get("verb") == Some(&"POST".to_string()))
+        .expect("POST endpoint not found");
+    assert_eq!(post_endpoint.file, "src/testing/cpp/routes.cpp");
 
-    // let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
-    // assert_eq!(handler_edges_count, 2, "Expected 2 handler edges");
+    let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
+    assert_eq!(handler_edges_count, 2, "Expected 2 handler edges");
 
     let function_calls = graph.count_edges_of_type(EdgeType::Calls);
-    assert_eq!(function_calls, 1, "Expected 1 function calls");
+    assert_eq!(function_calls, 3, "Expected 3 function calls");
 
     // let operands = graph.count_edges_of_type(EdgeType::Operand);
     // assert_eq!(operands, 4, "Expected 4 operands");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
-    assert_eq!(contains, 17, "Expected 17 contains edges");
+    assert_eq!(contains, 20, "Expected 20 contains edges");
 
-    // let variables = graph.find_nodes_by_type(NodeType::Var);
-    // assert_eq!(variables.len(), 1, "Expected 1 variables");
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    assert_eq!(variables.len(), 1, "Expected 1 variables");
 
     Ok(())
 }

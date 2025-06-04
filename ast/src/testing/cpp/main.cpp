@@ -2,6 +2,7 @@
 #include "routes.h"
 #include "model.h"
 
+std::string app_name = "StakGraph";
 int main() {
     Database db("people.db");
     crow::SimpleApp app;
