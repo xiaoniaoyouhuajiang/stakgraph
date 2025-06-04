@@ -103,7 +103,7 @@ impl Language {
             Self::Toml => vec![".git"],
             Self::Svelte => vec![".git", " node_modules"],
             Self::Angular => vec![".git", " node_modules"],
-            Self::Cpp => vec![".git", "build", "out"],
+            Self::Cpp => vec![".git", "build", "out", "CMakeFiles"],
         }
     }
 
@@ -253,7 +253,7 @@ impl Language {
             Self::Toml => Vec::new(),
             Self::Svelte => Vec::new(),
             Self::Angular => Vec::new(),
-            Self::Cpp => vec!["cmake . && make"],
+            Self::Cpp => Vec::new(),
         }
     }
 

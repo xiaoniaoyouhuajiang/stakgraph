@@ -169,4 +169,52 @@ impl Stack for Cpp {
             "#
         )
     }
+
+    fn data_model_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (struct_specifier
+                name: (type_identifier)@{STRUCT_NAME}
+                body: (_)
+            )@{STRUCT}
+                
+            "#
+        ))
+    }
+
+    fn endpoint_finders(&self) -> Vec<String> {
+        vec![format!(
+            r#"[
+                    (expression_statement
+                        (call_expression
+                        function: (call_expression
+                            function: (identifier) @route_macro (#match? @route_macro "^CROW_(ROUTE|WEBSOCKET_ROUTE|BP_ROUTE)$")
+                            arguments: (argument_list
+                                (identifier) @{OPERAND}
+                            (string_literal) @{ENDPOINT}
+                            )
+                        ) 
+                    )@{ROUTE}
+                    )
+                    (call_expression
+                    function: (call_expression
+                        (field_expression
+                            argument: (call_expression
+                                function: (identifier) @route_macro (#match? @route_macro "^CROW_(ROUTE|WEBSOCKET_ROUTE|BP_ROUTE)$")
+                                arguments: (argument_list
+                                    (identifier) @{OPERAND}
+                                    (string_literal) @{ENDPOINT}
+                                )
+                            ) 
+                        )
+                        arguments: (argument_list
+                            (user_defined_literal)@{ENDPOINT_VERB}
+                        )
+
+                    )
+                    )@{ROUTE}
+                    ]
+                "#
+        )]
+    }
 }

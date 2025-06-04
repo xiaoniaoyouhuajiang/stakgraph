@@ -1,0 +1,128 @@
+use crate::lang::graphs::{EdgeType, NodeType};
+use crate::lang::Graph;
+
+use crate::{lang::Lang, repo::Repo};
+use std::str::FromStr;
+
+pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
+    let repo = Repo::new(
+        "src/testing/cpp",
+        Lang::from_str("cpp").unwrap(),
+        false,
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+
+    let graph = repo.build_graph_inner::<G>().await?;
+
+    graph.analysis();
+
+    let (num_nodes, num_edges) = graph.get_graph_size();
+
+    assert_eq!(num_nodes, 18, "Expected 18 nodes");
+    assert_eq!(num_edges, 18, "Expected 18 edges");
+
+    let language_nodes = graph.find_nodes_by_name(NodeType::Language, "cpp");
+    assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
+    assert_eq!(
+        language_nodes[0].name, "cpp",
+        "Language node name should be 'cpp'"
+    );
+    assert!(
+        "src/testing/cpp/".contains(language_nodes[0].file.as_str()),
+        "Language node file path is incorrect"
+    );
+
+    let imports = graph.find_nodes_by_type(NodeType::Import);
+    assert_eq!(imports.len(), 5, "Expected 5 imports");
+
+    let main_import_body = format!(
+        r#"#include "crow.h"
+
+#include "routes.h"
+
+#include "model.h"
+"#
+    );
+    let main = imports
+        .iter()
+        .find(|i| i.file == "src/testing/cpp/main.cpp")
+        .unwrap();
+
+    assert_eq!(
+        main.body, main_import_body,
+        "Model import body is incorrect"
+    );
+
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+    assert_eq!(classes.len(), 1, "Expected 1 class");
+    assert_eq!(
+        classes[0].name, "Database",
+        "Class name should be 'Database'"
+    );
+    assert_eq!(
+        classes[0].file, "src/testing/cpp/model.h",
+        "Class file path is incorrect"
+    );
+
+    // let class_function_edges =
+    //     graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
+    // assert_eq!(class_function_edges.len(), 4, "Expected 4 methods");
+
+    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    assert_eq!(data_models.len(), 1, "Expected 1 data models");
+    assert!(
+        data_models
+            .iter()
+            .any(|dm| dm.name == "Person" && dm.file == "src/testing/cpp/model.h"),
+        "Expected Person data model not found"
+    );
+
+    // let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
+    // assert_eq!(endpoints.len(), 2, "Expected 2 endpoints");
+
+    // let get_endpoint = endpoints
+    //     .iter()
+    //     .find(|e| e.name == "/person/{id}" && e.meta.get("verb") == Some(&"GET".to_string()))
+    //     .expect("GET endpoint not found");
+    // assert_eq!(get_endpoint.file, "src/testing/cpp/routes.cpp");
+
+    // let post_endpoint = endpoints
+    //     .iter()
+    //     .find(|e| e.name == "/person" && e.meta.get("verb") == Some(&"POST".to_string()))
+    //     .expect("POST endpoint not found");
+    // assert_eq!(post_endpoint.file, "src/testing/cpp/routes.cpp");
+
+    // let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
+    // assert_eq!(handler_edges_count, 2, "Expected 2 handler edges");
+
+    let function_calls = graph.count_edges_of_type(EdgeType::Calls);
+    assert_eq!(function_calls, 1, "Expected 1 function calls");
+
+    // let operands = graph.count_edges_of_type(EdgeType::Operand);
+    // assert_eq!(operands, 4, "Expected 4 operands");
+
+    let contains = graph.count_edges_of_type(EdgeType::Contains);
+    assert_eq!(contains, 17, "Expected 17 contains edges");
+
+    // let variables = graph.find_nodes_by_type(NodeType::Var);
+    // assert_eq!(variables.len(), 1, "Expected 1 variables");
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_cpp() {
+    #[cfg(feature = "neo4j")]
+    use crate::lang::graphs::Neo4jGraph;
+    use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
+    test_cpp_generic::<ArrayGraph>().await.unwrap();
+    test_cpp_generic::<BTreeMapGraph>().await.unwrap();
+    #[cfg(feature = "neo4j")]
+    {
+        let mut graph = Neo4jGraph::default();
+        graph.clear();
+        test_cpp_generic::<Neo4jGraph>().await.unwrap();
+    }
+}
