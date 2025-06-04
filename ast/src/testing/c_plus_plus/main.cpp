@@ -1,0 +1,10 @@
+#include "crow.h"
+#include "routes.h"
+#include "model.h"
+
+int main() {
+    Database db("people.db");
+    crow::SimpleApp app;
+    setup_routes(app, db);
+    app.port(18080).multithreaded().run();
+}

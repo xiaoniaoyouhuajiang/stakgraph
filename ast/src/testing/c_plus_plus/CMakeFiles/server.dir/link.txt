@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/server.dir/main.cpp.o CMakeFiles/server.dir/model.cpp.o CMakeFiles/server.dir/routes.cpp.o -o server   -L/opt/homebrew/lib  -Wl,-rpath,/opt/homebrew/lib /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libsqlite3.tbd -lpthread

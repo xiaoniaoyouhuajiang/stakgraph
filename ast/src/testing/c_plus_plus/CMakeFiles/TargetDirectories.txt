@@ -1,0 +1,3 @@
+/Users/fayekelmith/Kelmith/Projects/stakgraph/ast/src/testing/c_plus_plus/CMakeFiles/server.dir
+/Users/fayekelmith/Kelmith/Projects/stakgraph/ast/src/testing/c_plus_plus/CMakeFiles/edit_cache.dir
+/Users/fayekelmith/Kelmith/Projects/stakgraph/ast/src/testing/c_plus_plus/CMakeFiles/rebuild_cache.dir
