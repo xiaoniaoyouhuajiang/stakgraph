@@ -20,8 +20,8 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
 
-    assert_eq!(num_nodes, 23, "Expected 23 nodes");
-    assert_eq!(num_edges, 25, "Expected 25 edges");
+    assert_eq!(num_nodes, 24, "Expected 24 nodes");
+    assert_eq!(num_edges, 27, "Expected 27 edges");
 
     let language_nodes = graph.find_nodes_by_name(NodeType::Language, "cpp");
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -66,10 +66,6 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Class file path is incorrect"
     );
 
-    // let class_function_edges =
-    //     graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
-    // assert_eq!(class_function_edges.len(), 4, "Expected 4 methods");
-
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     assert_eq!(data_models.len(), 1, "Expected 1 data models");
     assert!(
@@ -100,11 +96,8 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let function_calls = graph.count_edges_of_type(EdgeType::Calls);
     assert_eq!(function_calls, 3, "Expected 3 function calls");
 
-    // let operands = graph.count_edges_of_type(EdgeType::Operand);
-    // assert_eq!(operands, 4, "Expected 4 operands");
-
     let contains = graph.count_edges_of_type(EdgeType::Contains);
-    assert_eq!(contains, 20, "Expected 20 contains edges");
+    assert_eq!(contains, 21, "Expected 21 contains edges");
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(variables.len(), 1, "Expected 1 variables");

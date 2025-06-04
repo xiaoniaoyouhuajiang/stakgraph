@@ -94,6 +94,29 @@ impl Stack for Cpp {
             "#
         )
     }
+    fn instance_definition_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            [
+                (declaration
+                    type: (type_identifier)? @{CLASS_NAME}
+                    declarator: (init_declarator
+                        declarator: (identifier) @{INSTANCE_NAME}
+                    )  
+                )@{INSTANCE}
+
+                (declaration
+                        type: (qualified_identifier
+                            scope: (namespace_identifier) @scope
+                            name : (type_identifier) @included_module
+                        ) @{CLASS_NAME}
+                        
+                        declarator: (identifier) @{INSTANCE_NAME}
+                )@{INSTANCE}
+            ]
+            "#
+        ))
+    }
 
     fn function_definition_query(&self) -> String {
         format!(
