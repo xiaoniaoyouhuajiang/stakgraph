@@ -106,6 +106,12 @@ impl Lang {
             lang: Box::new(angular::Angular::new()),
         }
     }
+    pub fn new_cpp() -> Self {
+        Self {
+            kind: Language::Cpp,
+            lang: Box::new(cpp::Cpp::new()),
+        }
+    }
     pub fn lang(&self) -> &dyn Stack {
         self.lang.as_ref()
     }
@@ -314,6 +320,7 @@ impl Lang {
             Language::Java => Lang::new_java(),
             Language::Svelte => Lang::new_svelte(),
             Language::Angular => Lang::new_angular(),
+            Language::Cpp => Lang::new_cpp(),
         }
     }
 }
