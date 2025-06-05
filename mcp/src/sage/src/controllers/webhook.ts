@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
-import { Adapter, ChatAdapter } from "../adapters/adapter.js";
+import { Adapter, ChatAdapter, ChatInfo } from "../adapters/adapter.js";
 import { WebhookPayload } from "../types/index.js";
+import { getAdapterFromChatId } from "../utils/chatId.js";
 
 export class WebhookController {
   private adapters: Record<Adapter, ChatAdapter>;
@@ -25,12 +26,9 @@ export class WebhookController {
       }
 
       // Determine which adapter to use based on chatId prefix
-      let adapterKey: Adapter = "none";
-      if (chatId.startsWith("github-")) {
-        adapterKey = "github";
-      }
-
+      const adapterKey = getAdapterFromChatId(chatId);
       const adapter = this.adapters[adapterKey];
+
       if (!adapter) {
         res.status(500).json({
           success: false,
@@ -44,6 +42,27 @@ export class WebhookController {
         role: "assistant",
         content: payload.value?.response,
       });
+
+      // Extract and store webhook if present
+      const webhookToStore = payload.value?.artifacts
+        ?.find((artifact) => artifact.type === "action")
+        ?.content.options.find(
+          (option) => option.action_type === "chat"
+        )?.webhook;
+
+      if (webhookToStore) {
+        console.log("=> webhookToStore", webhookToStore);
+
+        // Get current message count and update chat info
+        const currentMessageCount = await adapter.getMessageCount(chatId);
+        const updatedChatInfo: ChatInfo = {
+          webhookToStore,
+          messageCount: currentMessageCount,
+        };
+
+        await adapter.updateChatInfo(chatId, updatedChatInfo);
+        console.log(`Updated chat info for ${chatId} with webhook`);
+      }
 
       res.status(200).json({
         success: true,

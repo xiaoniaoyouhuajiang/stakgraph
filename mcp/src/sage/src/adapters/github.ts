@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import { BaseAdapter } from "./adapter.js";
+import { BaseAdapter, ChatInfo } from "./adapter.js";
 import { Message } from "../types/index.js";
 import * as fs from "fs";
 import * as path from "path";
@@ -9,7 +9,7 @@ export class GitHubIssueAdapter extends BaseAdapter {
   private octokit: Octokit;
   private owner: string;
   private repo: string;
-  private processedIssues: Set<number> = new Set();
+  private processedChats: Map<string, ChatInfo> = new Map();
   private dataDir: string;
   private persistFilePath: string;
 
@@ -26,7 +26,7 @@ export class GitHubIssueAdapter extends BaseAdapter {
     this.dataDir = dataDir;
     this.persistFilePath = path.join(
       this.dataDir,
-      `github-${owner}-${repo}-processed-issues.json`
+      `chat-info-${owner}-${repo}.json`
     );
   }
 
@@ -36,15 +36,15 @@ export class GitHubIssueAdapter extends BaseAdapter {
     // Ensure data directory exists
     await this.ensureDataDirExists();
 
-    // Load previously processed issues
-    await this.loadProcessedIssues();
+    // Load previously processed chats
+    await this.loadProcessedChats();
 
-    // Start polling for new issues
+    // Start polling for new messages
     setInterval(async () => {
       try {
-        await this.checkForNewIssues();
+        await this.checkForNewMessages();
       } catch (error) {
-        console.error("Error checking for new GitHub issues:", error);
+        console.error("Error checking for new GitHub messages:", error);
       }
     }, 10000); // Check every 10 seconds
   }
@@ -66,6 +66,39 @@ export class GitHubIssueAdapter extends BaseAdapter {
     });
   }
 
+  async getMessageCount(chatId: string): Promise<number> {
+    const issueNumber = parseInt(chatId.replace("github-issue-", ""), 10);
+    if (isNaN(issueNumber)) {
+      return 0;
+    }
+
+    try {
+      const comments = await this.octokit.issues.listComments({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+      });
+
+      // +1 for the original issue body
+      return comments.data.length + 1;
+    } catch (error) {
+      console.error(
+        `Error getting message count for issue #${issueNumber}:`,
+        error
+      );
+      return 0;
+    }
+  }
+
+  isMessageFromBot(author: string): boolean {
+    return author === "stakgraph";
+  }
+
+  async updateChatInfo(chatId: string, chatInfo: ChatInfo): Promise<void> {
+    this.processedChats.set(chatId, chatInfo);
+    await this.saveProcessedChats();
+  }
+
   private async ensureDataDirExists(): Promise<void> {
     if (!fs.existsSync(this.dataDir)) {
       await fs.promises.mkdir(this.dataDir, { recursive: true });
@@ -73,66 +106,65 @@ export class GitHubIssueAdapter extends BaseAdapter {
     }
   }
 
-  private async loadProcessedIssues(): Promise<void> {
+  private async loadProcessedChats(): Promise<void> {
     try {
       if (fs.existsSync(this.persistFilePath)) {
         const data = await fs.promises.readFile(this.persistFilePath, "utf-8");
-        const issues = JSON.parse(data);
-        this.processedIssues = new Set(issues);
+        const chatsArray = JSON.parse(data);
+        this.processedChats = new Map(chatsArray);
         console.log(
-          `Loaded ${this.processedIssues.size} previously processed issues`
+          `Loaded ${this.processedChats.size} previously processed chats`
         );
       } else {
-        console.log("No previously processed issues found");
+        console.log("No previously processed chats found");
       }
     } catch (error) {
-      console.error("Error loading processed issues:", error);
-      // Continue with empty set if loading fails
+      console.error("Error loading processed chats:", error);
+      // Continue with empty map if loading fails
     }
   }
 
-  private async saveProcessedIssues(): Promise<void> {
+  private async saveProcessedChats(): Promise<void> {
     try {
-      const issues = Array.from(this.processedIssues);
+      const chatsArray = Array.from(this.processedChats.entries());
       await fs.promises.writeFile(
         this.persistFilePath,
-        JSON.stringify(issues),
+        JSON.stringify(chatsArray),
         "utf-8"
       );
-      console.log(`Saved ${issues.length} processed issues`);
+      console.log(`Saved ${this.processedChats.size} processed chats`);
     } catch (error) {
-      console.error("Error saving processed issues:", error);
+      console.error("Error saving processed chats:", error);
     }
   }
 
-  async checkForNewIssues(): Promise<void> {
-    // console.log("Checking for new GitHub issues...");
+  async checkForNewMessages(): Promise<void> {
     const issues = await this.octokit.issues.listForRepo({
       owner: this.owner,
       repo: this.repo,
       state: "open",
-      sort: "created",
+      sort: "updated",
       direction: "desc",
-      per_page: 10,
+      per_page: 20,
     });
 
-    let newIssuesProcessed = false;
-
     for (const issue of issues.data) {
-      // Skip if already processed
-      if (this.processedIssues.has(issue.number)) {
-        continue;
-      }
       if (!issue.body) {
         continue;
       }
 
-      // Check if @stakwork or @stakgraph is mentioned
+      const chatId = `github-issue-${issue.number}`;
+      const currentMessageCount = await this.getMessageCount(chatId);
+      const existingChatInfo = this.processedChats.get(chatId);
+
+      // Check if this is a new issue with @stakwork mention
       if (
-        issue.body.includes("@stakwork") ||
-        issue.body.includes("@stakgraph")
+        !existingChatInfo &&
+        (issue.body.includes("@stakwork") || issue.body.includes("@stakgraph"))
       ) {
-        const chatId = `github-issue-${issue.number}`;
+        console.log(
+          `Processing new GitHub issue #${issue.number} with @stakwork mention`
+        );
 
         // Extract codespace URL from the issue body
         const extractedCodespaceUrl = extractCodespaceUrl(issue.body);
@@ -140,20 +172,19 @@ export class GitHubIssueAdapter extends BaseAdapter {
         const message: Message = {
           role: "user",
           content: issue.body,
-          // Add extracted codespace URL as metadata
           ...(extractedCodespaceUrl && { codespaceUrl: extractedCodespaceUrl }),
         };
-
-        console.log(
-          `Processing GitHub issue #${issue.number} with @stakwork mention`
-        );
 
         if (extractedCodespaceUrl) {
           console.log(`Extracted codespace URL: ${extractedCodespaceUrl}`);
         }
 
-        this.processedIssues.add(issue.number);
-        newIssuesProcessed = true;
+        // Store new chat info
+        const newChatInfo: ChatInfo = {
+          messageCount: currentMessageCount,
+        };
+        this.processedChats.set(chatId, newChatInfo);
+        await this.saveProcessedChats();
 
         try {
           await this.messageCallback(chatId, message);
@@ -164,11 +195,97 @@ export class GitHubIssueAdapter extends BaseAdapter {
           );
         }
       }
-    }
+      // Check if there are new messages in existing chat
+      else if (
+        existingChatInfo &&
+        currentMessageCount > existingChatInfo.messageCount
+      ) {
+        console.log(
+          `Checking for new messages in GitHub issue #${issue.number}`
+        );
 
-    // Save processed issues if any new ones were added
-    if (newIssuesProcessed) {
-      await this.saveProcessedIssues();
+        // Get the new comments
+        const comments = await this.octokit.issues.listComments({
+          owner: this.owner,
+          repo: this.repo,
+          issue_number: issue.number,
+        });
+
+        // Find new comments since last check
+        const newComments = comments.data.slice(
+          existingChatInfo.messageCount - 1
+        );
+
+        for (const comment of newComments) {
+          // Skip if comment is from bot
+          if (this.isMessageFromBot(comment.user?.login || "")) {
+            console.log(
+              `Skipping comment from bot user: ${comment.user?.login}`
+            );
+            continue;
+          }
+
+          console.log(
+            `Processing new comment from user: ${comment.user?.login}`
+          );
+
+          const message: Message = {
+            role: "user",
+            content: comment.body || "",
+          };
+
+          try {
+            // Use stored webhook if available
+            if (existingChatInfo.webhookToStore) {
+              await this.sendToStoredWebhook(
+                existingChatInfo.webhookToStore,
+                chatId,
+                message
+              );
+            } else {
+              await this.messageCallback(chatId, message);
+            }
+          } catch (error) {
+            console.error(
+              `Error processing new comment in issue #${issue.number}:`,
+              error
+            );
+          }
+        }
+
+        // Update message count
+        existingChatInfo.messageCount = currentMessageCount;
+        await this.saveProcessedChats();
+      }
+    }
+  }
+
+  private async sendToStoredWebhook(
+    webhookUrl: string,
+    chatId: string,
+    message: Message
+  ): Promise<void> {
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          messages: [message],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook request failed: ${response.status}`);
+      }
+
+      console.log(`Sent message to stored webhook for ${chatId}`);
+    } catch (error) {
+      console.error(`Error sending to stored webhook:`, error);
+      // Fall back to normal processing
+      await this.messageCallback(chatId, message);
     }
   }
 }
