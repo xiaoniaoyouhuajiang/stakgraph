@@ -43,13 +43,13 @@ export type NodeType =
   | "Endpoint"
   | "Request"
   | "Datamodel"
-  | "Page";
+  | "Page"
+  | "Var";
 
 export type EdgeType =
   | "CALLS"
   | "USES"
   | "OPERAND"
-  | "ARG_OF"
   | "CONTAINS"
   | "IMPORTS"
   | "OF"
@@ -76,6 +76,7 @@ export function relevant_node_types(): NodeType[] {
     "Endpoint",
     "Test",
     "E2etest",
+    "Var",
   ];
 }
 
@@ -126,5 +127,6 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
     Datamodel:
       "A structured representation of data within a system, typically defining entities, relationships, attribute types, and corresponding SQL table definitions.",
     Page: "A webpage or route within an application, representing a specific view or section of the system. It can serve as the starting point for a codemap.",
+    Var: "A variable in source code, representing a value that can be used in the code.",
   };
 }
