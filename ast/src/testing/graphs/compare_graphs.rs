@@ -8,7 +8,7 @@ use std::str::FromStr;
 use test_log::test;
 use tracing::{debug, info};
 
-const PROGRAMMING_LANGUAGES: [&str; 11] = [
+const PROGRAMMING_LANGUAGES: [&str; 12] = [
     "angular",
     "go",
     "kotlin",
@@ -20,6 +20,7 @@ const PROGRAMMING_LANGUAGES: [&str; 11] = [
     "typescript",
     "java",
     "rust",
+    "cpp",
 ];
 
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]

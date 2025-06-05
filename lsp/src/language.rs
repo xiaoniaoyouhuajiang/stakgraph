@@ -16,9 +16,10 @@ pub enum Language {
     Java,
     Svelte,
     Angular,
+    Cpp,
 }
 
-pub const PROGRAMMING_LANGUAGES: [Language; 11] = [
+pub const PROGRAMMING_LANGUAGES: [Language; 12] = [
     Language::Rust,
     Language::Go,
     Language::Typescript,
@@ -30,6 +31,7 @@ pub const PROGRAMMING_LANGUAGES: [Language; 11] = [
     Language::Java,
     Language::Svelte,
     Language::Angular,
+    Language::Cpp,
 ];
 
 impl Language {
@@ -53,6 +55,7 @@ impl Language {
             Self::Toml => vec![],
             Self::Svelte => vec!["package.json"],
             Self::Angular => vec!["package.json"],
+            Self::Cpp => vec!["CMakeLists.txt"],
         }
     }
 
@@ -72,6 +75,7 @@ impl Language {
             Self::React => vec!["jsx", "tsx", "ts", "js"],
             Self::Svelte => vec!["svelte", "ts", "js"],
             Self::Angular => vec!["ts", "js"],
+            Self::Cpp => vec!["cpp", "h"],
         }
     }
 
@@ -99,6 +103,7 @@ impl Language {
             Self::Toml => vec![".git"],
             Self::Svelte => vec![".git", " node_modules"],
             Self::Angular => vec![".git", " node_modules"],
+            Self::Cpp => vec![".git", "build", "out", "CMakeFiles"],
         }
     }
 
@@ -125,6 +130,7 @@ impl Language {
             Self::Toml => Vec::new(),
             Self::Svelte => Vec::new(),
             Self::Angular => Vec::new(),
+            Self::Cpp => Vec::new(),
         }
     }
 
@@ -148,6 +154,7 @@ impl Language {
             Self::Toml => false,
             Self::Svelte => false,
             Self::Angular => false,
+            Self::Cpp => false,
         }
     }
 
@@ -165,6 +172,7 @@ impl Language {
             Self::Toml => "",
             Self::Svelte => "svelte-language-server",
             Self::Angular => "angular-language-server",
+            Self::Cpp => "",
         }
         .to_string()
     }
@@ -183,6 +191,7 @@ impl Language {
             Self::Toml => "",
             Self::Svelte => "--version",
             Self::Angular => "--version",
+            Self::Cpp => "--version",
         }
         .to_string()
     }
@@ -201,6 +210,7 @@ impl Language {
             Self::Toml => Vec::new(),
             Self::Svelte => Vec::new(),
             Self::Angular => Vec::new(),
+            Self::Cpp => Vec::new(),
         }
     }
 
@@ -219,6 +229,7 @@ impl Language {
             Self::Toml => "toml",
             Self::Svelte => "svelte",
             Self::Angular => "angular",
+            Self::Cpp => "cpp",
         }
         .to_string()
     }
@@ -242,6 +253,7 @@ impl Language {
             Self::Toml => Vec::new(),
             Self::Svelte => Vec::new(),
             Self::Angular => Vec::new(),
+            Self::Cpp => Vec::new(),
         }
     }
 
@@ -296,6 +308,11 @@ impl FromStr for Language {
             "Svelte" => Ok(Language::Svelte),
             "angular" => Ok(Language::Angular),
             "Angular" => Ok(Language::Angular),
+            "cpp" => Ok(Language::Cpp),
+            "Cpp" => Ok(Language::Cpp),
+            "c++" => Ok(Language::Cpp),
+            "C++" => Ok(Language::Cpp),
+
             _ => Err(anyhow::anyhow!("unsupported language")),
         }
     }
