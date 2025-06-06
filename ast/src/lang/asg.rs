@@ -184,6 +184,7 @@ impl FromStr for NodeType {
             "Datamodel" => Ok(NodeType::DataModel),
             "Feature" => Ok(NodeType::Feature),
             "Page" => Ok(NodeType::Page),
+            "Var" => Ok(NodeType::Var),
             _ => Err(anyhow::anyhow!("Invalid NodeType string: {}", s)),
         }
     }
