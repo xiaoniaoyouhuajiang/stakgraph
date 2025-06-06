@@ -99,7 +99,7 @@ export async function search(req: Request, res: Response) {
       concise,
       maxTokens || 100000,
       method,
-      output || "json",
+      output || "snippet",
       tests
     );
     if (output === "snippet") {

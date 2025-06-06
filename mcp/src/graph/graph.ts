@@ -14,7 +14,7 @@ export async function get_nodes(
   node_type: NodeType,
   concise: boolean,
   ref_ids: string[],
-  output: OutputFormat = "json"
+  output: OutputFormat = "snippet"
 ) {
   let result: Neo4jNode[] = [];
   if (ref_ids.length > 0) {
@@ -30,7 +30,7 @@ export async function get_files(prefix: string, limit: number) {
   return result.map((f) => toNode(f, true));
 }
 
-export type OutputFormat = "json" | "snippet";
+export type OutputFormat = "snippet" | "json";
 
 export async function search(
   query: string,
@@ -39,7 +39,7 @@ export async function search(
   concise: boolean,
   maxTokens: number,
   method: SearchMethod = "fulltext",
-  output: OutputFormat = "json",
+  output: OutputFormat = "snippet",
   tests: boolean = false
 ) {
   if (method === "vector") {
@@ -61,7 +61,7 @@ export async function search(
 export function toNodes(
   result: Neo4jNode[],
   concise: boolean,
-  output: OutputFormat = "json"
+  output: OutputFormat = "snippet"
 ) {
   if (output === "snippet") {
     let r = "";
