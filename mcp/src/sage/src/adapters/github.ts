@@ -211,10 +211,13 @@ export class GitHubIssueAdapter extends BaseAdapter {
           issue_number: issue.number,
         });
 
+        // Calculate how many comments we've already processed
+        // existingChatInfo.messageCount includes the issue body (+1)
+        // So comments already processed = existingChatInfo.messageCount - 1
+        const commentsAlreadyProcessed = existingChatInfo.messageCount - 1;
+
         // Find new comments since last check
-        const newComments = comments.data.slice(
-          existingChatInfo.messageCount - 1
-        );
+        const newComments = comments.data.slice(commentsAlreadyProcessed);
 
         for (const comment of newComments) {
           // Skip if comment is from bot
