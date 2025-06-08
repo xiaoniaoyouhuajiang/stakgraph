@@ -18,7 +18,7 @@ export const GetNodesSchema = z.object({
   ref_ids: z
     .string()
     .optional()
-    .describe("Comma-separated list of ref_ids to retrieve (e.g. '123,456')."),
+    .describe("Comma-separated list of ref_ids to retrieve."),
 });
 
 export const GetNodesTool: Tool = {

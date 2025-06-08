@@ -4,19 +4,20 @@ import { parseSchema } from "./utils.js";
 import * as G from "../graph/graph.js";
 
 export const RepoMapSchema = z.object({
-  name: z.string().optional().describe("Name of the node to map from."),
+  name: z
+    .string()
+    .optional()
+    .describe("Name of the Repository node to map from."),
   ref_id: z
     .string()
     .optional()
-    .describe(
-      "Reference ID of the node (either ref_id or node_type+name must be provided)."
-    ),
+    .describe("Reference ID of the Repository node."),
 });
 
 export const RepoMapTool: Tool = {
   name: "stakgraph_repo_map",
   description:
-    "Generate a visual map/tree of the directories and files in the repo",
+    "Generate a visual map/tree of the directories and files in the repo. If no name or ref_id is provided, it will return a repo map for all repositories.",
   inputSchema: parseSchema(RepoMapSchema),
 };
 
