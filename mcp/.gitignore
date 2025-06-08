@@ -31,5 +31,6 @@ src/pr/*.txt
 temp
 
 sage_config.json
+sage_config-*
 data/*
 !data/.gitkeep
