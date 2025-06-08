@@ -104,12 +104,22 @@ export async function get_repo_map(
   name: string,
   ref_id: string
 ): Promise<string> {
-  const r = await db.get_repo_subtree(name, ref_id);
-  const record = r.records[0];
-  const tokenizer = await createByModelName("gpt-4");
-  const tree = await buildTree(record, "down", tokenizer);
-  const text = archy(tree.root);
-  return text;
+  let names = [name];
+  if (name === "" && ref_id === "") {
+    const repos = await db.get_repositories();
+    names = repos.map((r) => r.properties.name);
+  }
+  let finalText = "";
+  for (const name of names) {
+    const r = await db.get_repo_subtree(name, ref_id);
+    const record = r.records[0];
+    const tokenizer = await createByModelName("gpt-4");
+    const tree = await buildTree(record, "down", tokenizer);
+    const text = archy(tree.root);
+    finalText += text;
+    finalText += "\n\n";
+  }
+  return finalText;
 }
 
 export async function get_map(params: MapParams): Promise<string> {

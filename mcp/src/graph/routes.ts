@@ -166,7 +166,7 @@ export async function get_repo_map(req: Request, res: Response) {
   try {
     const name = req.query.name as string;
     const ref_id = req.query.ref_id as string;
-    const html = await G.get_repo_map(name, ref_id);
+    const html = await G.get_repo_map(name || "", ref_id || "");
     res.send(`<pre>\n${html}\n</pre>`);
   } catch (error) {
     console.error("Error:", error);

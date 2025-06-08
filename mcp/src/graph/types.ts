@@ -97,6 +97,7 @@ export function all_node_types(): NodeType[] {
     "Request",
     "Datamodel",
     "Page",
+    "Var",
   ];
 }
 

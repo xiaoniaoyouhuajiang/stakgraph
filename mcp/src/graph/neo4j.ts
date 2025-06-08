@@ -128,6 +128,16 @@ class Db {
     }
   }
 
+  async get_repositories(): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const r = await session.run(Q.REPOSITORIES_QUERY);
+      return r.records.map((record) => record.get("r"));
+    } finally {
+      await session.close();
+    }
+  }
+
   async get_repo_subtree(name: string, ref_id: string) {
     const disclude: NodeType[] = all_node_types().filter(
       (type: NodeType) =>
