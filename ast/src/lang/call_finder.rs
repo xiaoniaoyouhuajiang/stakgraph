@@ -6,7 +6,10 @@ pub fn func_target_file_finder<G: Graph>(
     graph: &G,
     current_file: &str, // Add current file parameter
 ) -> Option<String> {
-    log_cmd(format!("func_target_file_finder {:?}", func_name));
+    log_cmd(format!(
+        "func_target_file_finder {:?} from file {:?}",
+        func_name, current_file
+    ));
 
     // First try: find only one function file
     if let Some(tf) = find_only_one_function_file(func_name, graph) {
@@ -91,8 +94,8 @@ fn find_function_in_same_file<G: Graph>(
         graph.find_node_by_name_and_file_end_with(NodeType::Function, func_name, current_file);
 
     if let Some(node) = node {
-        // dont return the same node
-        if node.name.to_lowercase() == func_name.to_lowercase() {
+        // dont return like Label->label
+        if node.name != func_name && node.name.to_lowercase() == func_name.to_lowercase() {
             return None;
         }
         if !node.body.is_empty() && node.file == current_file {
@@ -119,9 +122,16 @@ fn find_function_in_same_directory<G: Graph>(
     let nodes = graph.find_nodes_by_name(NodeType::Function, func_name);
     let mut same_dir_files = Vec::new();
 
+    log_cmd(format!(
+        "::: found {:?} nodes name: {:?} file: {:?} in dir: {:?}",
+        nodes.len(),
+        func_name,
+        current_file,
+        current_dir
+    ));
     for node in nodes {
-        // dont return the same node
-        if node.name.to_lowercase() == func_name.to_lowercase() {
+        // dont return like Label->label
+        if node.name != func_name && node.name.to_lowercase() == func_name.to_lowercase() {
             return None;
         }
         if !node.body.is_empty() {
@@ -130,6 +140,10 @@ fn find_function_in_same_directory<G: Graph>(
                 .and_then(|p| p.to_str())
             {
                 if node_dir == current_dir && !node.file.contains("mock") {
+                    log_cmd(format!(
+                        "::: found function in same directory! file: {:?}",
+                        current_file
+                    ));
                     same_dir_files.push(node.file.clone());
                 }
             }
@@ -148,6 +162,9 @@ fn find_function_in_same_directory<G: Graph>(
 }
 
 fn log_cmd(cmd: String) {
+    // if cmd.contains("src/components/designer/bitcoin/BitcoinDetails.tsx") {
+    //     tracing::info!("{}", cmd);
+    // }
     tracing::debug!("{}", cmd);
 }
 
