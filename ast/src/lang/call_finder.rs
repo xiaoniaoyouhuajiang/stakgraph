@@ -14,11 +14,11 @@ pub fn func_target_file_finder<G: Graph>(
     }
 
     // Second try: find function with operand
-    if let Some(op) = operand {
-        if let Some(tf) = find_function_with_operand(&op, func_name, graph) {
-            return Some(tf);
-        }
-    }
+    // if let Some(op) = operand {
+    //     if let Some(tf) = find_function_with_operand(&op, func_name, graph) {
+    //         return Some(tf);
+    //     }
+    // }
 
     // Third try: find in the same file
     if let Some(tf) = find_function_in_same_file(func_name, current_file, graph) {
@@ -55,7 +55,7 @@ fn find_only_one_function_file<G: Graph>(func_name: &str, graph: &G) -> Option<S
     None
 }
 
-fn find_function_with_operand<G: Graph>(
+fn _find_function_with_operand<G: Graph>(
     operand: &str,
     func_name: &str,
     graph: &G,
@@ -91,6 +91,10 @@ fn find_function_in_same_file<G: Graph>(
         graph.find_node_by_name_and_file_end_with(NodeType::Function, func_name, current_file);
 
     if let Some(node) = node {
+        // dont return the same node
+        if node.name.to_lowercase() == func_name.to_lowercase() {
+            return None;
+        }
         if !node.body.is_empty() && node.file == current_file {
             log_cmd(format!(
                 "::: found function in same file: {:?}",
@@ -116,6 +120,10 @@ fn find_function_in_same_directory<G: Graph>(
     let mut same_dir_files = Vec::new();
 
     for node in nodes {
+        // dont return the same node
+        if node.name.to_lowercase() == func_name.to_lowercase() {
+            return None;
+        }
         if !node.body.is_empty() {
             if let Some(node_dir) = std::path::Path::new(&node.file)
                 .parent()
@@ -153,9 +161,9 @@ fn _func_target_files_finder<G: Graph>(
     if let Some(tf_) = find_only_one_function_file(func_name, graph) {
         tf = Some(tf_);
     } else if let Some(op) = operand {
-        if let Some(tf_) = find_function_with_operand(&op, func_name, graph) {
-            tf = Some(tf_);
-        }
+        // if let Some(tf_) = find_function_with_operand(&op, func_name, graph) {
+        //     tf = Some(tf_);
+        // }
     }
     tf
 }
