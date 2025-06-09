@@ -5,7 +5,6 @@ use axum::Json;
 use lsp::git::{get_commit_hash, git_pull_or_clone};
 use std::time::Instant;
 use tracing::info;
-
 #[axum::debug_handler]
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
@@ -135,11 +134,12 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
         "\n\n ==>>Building BTreeMapGraph took {:.2?} \n\n",
         start_build.elapsed()
     );
-
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
     let start_upload = Instant::now();
+
+    graph_ops.graph.clear().await?;
 
     let (nodes, edges) = graph_ops.upload_btreemap_to_neo4j(&btree_graph).await?;
     graph_ops.graph.create_indexes().await?;

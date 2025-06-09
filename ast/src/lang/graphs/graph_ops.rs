@@ -1,6 +1,6 @@
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
-use crate::lang::graphs::{BTreeMapGraph, Edge, EdgeType, NodeRef};
+use crate::lang::graphs::BTreeMapGraph;
 use crate::lang::neo4j_utils::TransactionManager;
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
@@ -121,6 +121,7 @@ impl GraphOps {
 
         temp_graph.analysis();
 
+        self.graph.clear().await?;
         self.upload_btreemap_to_neo4j(&temp_graph).await?;
         self.graph.create_indexes().await?;
 
@@ -142,47 +143,13 @@ impl GraphOps {
         nodes_txn_manager.execute().await?;
 
         let mut edges_txn_manager = TransactionManager::new(&connection);
-        for (src_key, dst_key, edge_type) in &btree_graph.edges {
-            if let Some(edge) = self.create_edge(btree_graph, src_key, dst_key, edge_type.clone()) {
-                edges_txn_manager.add_edge(&edge);
-            }
+        let edges = btree_graph.to_array_graph_edges();
+        for edge in edges {
+            edges_txn_manager.add_edge(&edge);
         }
         edges_txn_manager.execute().await?;
 
         let (nodes, edges) = self.graph.get_graph_size().await?;
         Ok((nodes, edges))
-    }
-
-    fn create_edge(
-        &self,
-        graph: &BTreeMapGraph,
-        src_key: &str,
-        dst_key: &str,
-        edge_type: EdgeType,
-    ) -> Option<Edge> {
-        let src_base_key = src_key.rsplitn(2, '-').nth(1).unwrap_or(src_key);
-        let dst_base_key = dst_key.rsplitn(2, '-').nth(1).unwrap_or(dst_key);
-
-        let src_node = graph
-            .nodes
-            .iter()
-            .find(|(key, _)| key.starts_with(src_base_key))
-            .map(|(_, node)| node);
-
-        let dst_node = graph
-            .nodes
-            .iter()
-            .find(|(key, _)| key.starts_with(dst_base_key))
-            .map(|(_, node)| node);
-
-        if let (Some(src_node), Some(dst_node)) = (src_node, dst_node) {
-            Some(Edge::new(
-                edge_type,
-                NodeRef::from((&src_node.node_data).into(), src_node.node_type.clone()),
-                NodeRef::from((&dst_node.node_data).into(), dst_node.node_type.clone()),
-            ))
-        } else {
-            None
-        }
     }
 }
