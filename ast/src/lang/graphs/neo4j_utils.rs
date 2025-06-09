@@ -8,6 +8,7 @@ use tracing::{debug, info};
 use lazy_static::lazy_static;
 use crate::{lang::FunctionCall, utils::create_node_key};
 use serde_json;
+use uuid::Uuid;
 
 use super::*;
 
@@ -15,6 +16,8 @@ lazy_static! {
     static ref CONNECTION: tokio::sync::Mutex<Option<Arc<Neo4jConnection>>> = tokio::sync::Mutex::new(None);
     static ref INIT: Once = Once::new();
 }
+
+const DATA_BANK: &str = "Data_Bank";
 
 pub struct Neo4jConnectionManager;
 
@@ -97,19 +100,6 @@ impl QueryBuilder {
     }
 }
 
-pub async fn execute_query(
-    conn: &Neo4jConnection,
-    builder: &QueryBuilder,
-) -> Result<()> {
-    match conn.execute(builder.to_neo4j_query()).await {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            debug!("Neo4j query error: {}", e);
-            Err(anyhow::anyhow!("Neo4j query error: {}", e))
-        }
-    }
-}
-
 pub struct NodeQueryBuilder {
     node_type: NodeType,
     node_data: NodeData,
@@ -131,6 +121,14 @@ impl NodeQueryBuilder {
         params.insert("end".to_string(), self.node_data.end.to_string());
         params.insert("body".to_string(), self.node_data.body.clone());
 
+        let ref_id = if std::env::var("TEST_REF_ID").is_ok() {
+            "test_ref_id".to_string()
+        } else {
+            Uuid::new_v4().to_string()
+        };
+
+        params.insert("ref_id".to_string(), ref_id);
+
         if let Some(data_type) = &self.node_data.data_type {
             params.insert("data_type".to_string(), data_type.clone());
         }
@@ -140,35 +138,40 @@ impl NodeQueryBuilder {
         if let Some(hash) = &self.node_data.hash {
             params.insert("hash".to_string(), hash.clone());
         }
-        let string_meta = serde_json::to_string(&self.node_data.meta).unwrap();
-        params.insert("meta".to_string(), string_meta);
-        
-        let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
-        params.insert("key".to_string(), node_key.clone());
+        for (key, value) in &self.node_data.meta {
+            match key.as_str() {
+                "handler" => { params.insert("handler".to_string(), value.clone()); },
+                "verb" => { params.insert("verb".to_string(), value.clone()); },
+                _ => { params.insert(key.clone(), value.clone()); },
+            }
+        }
         
         params
     }
     
     pub fn build(&self) -> (String, HashMap<String, String>) {
-        let params = self.build_params();
+        let mut params = self.build_params();
+        
+        let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
+        params.insert("node_key".to_string(), node_key);
         
         let property_list = params
             .keys()
-            .filter(|k| k != &"key")
+            .filter(|k| k != &"node_key")
             .map(|k| format!("n.{} = ${}", k, k))
             .collect::<Vec<_>>()
             .join(", ");
-
-
+    
         let query = format!(
-            "MERGE (n:{} {{name: $name, file: $file, start: $start}})
+            "MERGE (n:{}:{} {{node_key: $node_key}})
             ON CREATE SET {}
             ON MATCH SET {}",
             self.node_type.to_string(),
+            DATA_BANK,
             property_list,
             property_list
         );
-
+    
         (query, params)
     }
 }
@@ -189,9 +192,6 @@ impl EdgeQueryBuilder {
         params.insert("source_name".to_string(), self.edge.source.node_data.name.clone());
         params.insert("source_file".to_string(), self.edge.source.node_data.file.clone());
         params.insert("source_start".to_string(), self.edge.source.node_data.start.to_string());
-       
-       
-        
 
         if let Some(verb) = &self.edge.source.node_data.verb {
             params.insert("source_verb".to_string(), verb.clone());
@@ -224,6 +224,7 @@ impl EdgeQueryBuilder {
             );
             (query, params)
     }
+  
 }
 pub async fn execute_batch(
     conn: &Neo4jConnection,
@@ -281,23 +282,9 @@ impl<'a> TransactionManager<'a> {
         self
     }
     
-    //Add nodes before edges to the graph when we batch them.
+
     pub async fn execute(self) -> Result<()> {
-         let (node_queries, edge_queries): (Vec<_>, Vec<_>) = self.queries
-         .into_iter()
-         .partition(|(query, _)| {
-             query.contains("MERGE (n:") || 
-             query.contains("CREATE (n:") ||
-             query.trim_start().starts_with("MERGE (") && query.contains(" {name:")
-         });
-
-        if !node_queries.is_empty() {
-            execute_batch(self.conn, node_queries).await?;
-        } 
-        if !edge_queries.is_empty() {
-            execute_batch(self.conn, edge_queries).await?;
-        }
-
+        execute_batch(self.conn, self.queries).await?;
      Ok(())
  }
     
@@ -971,4 +958,16 @@ pub fn update_repository_hash_query(repo_name: &str, new_hash: &str) -> (String,
                  SET r.hash = $new_hash";
     
     (query.to_string(), params)
+}
+
+pub fn data_bank_bodies_query_no_token_count() -> String {
+    "MATCH (n:Data_Bank) 
+     WHERE n.token_count IS NULL AND n.body IS NOT NULL
+     RETURN n.node_key as node_key, n.body as body".to_string()
+}
+
+
+pub fn update_token_count_query() -> String {
+    "MATCH (n {node_key: $node_key})
+     SET n.token_count = $token_count".to_string()
 }

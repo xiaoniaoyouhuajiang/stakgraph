@@ -5,10 +5,11 @@ use anyhow::Result;
 use neo4rs::{query, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tiktoken_rs::get_bpe_from_model;
 use tracing::{debug, info, warn};
 
 use super::neo4j_utils::Neo4jConnectionManager;
@@ -155,6 +156,51 @@ impl Neo4jGraph {
         }
     }
 
+    pub async fn create_indexes(&mut self) -> anyhow::Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries = vec![
+            "CREATE INDEX node_key_index IF NOT EXISTS FOR (n) ON (n.node_key)",
+            "CREATE FULLTEXT INDEX body_fulltext_index IF NOT EXISTS FOR (n) ON EACH [n.body]",
+            "CREATE FULLTEXT INDEX name_fulltext_index IF NOT EXISTS FOR (n) ON EACH [n.name]", 
+            "CREATE FULLTEXT INDEX composite_fulltext_index IF NOT EXISTS FOR (n) ON EACH [n.name, n.body, n.file]",
+            "CREATE VECTOR INDEX vector_index IF NOT EXISTS FOR (n) ON (n.embeddings) OPTIONS {indexConfig: {`vector.dimensions`: 384, `vector.similarity_function`: 'cosine'}}"
+        ];
+        for q in queries {
+            let _ = connection.run(neo4rs::query(q)).await;
+        }
+        Ok(())
+    }
+
+    pub async fn update_all_token_counts(&mut self) -> anyhow::Result<()> {
+        self.execute_query(|conn| {
+            Box::pin(async move {
+                let query_str = data_bank_bodies_query_no_token_count();
+                let mut result = conn.execute(neo4rs::query(&query_str)).await?;
+                let mut updates: Vec<(String, String)> = Vec::new();
+
+                while let Some(row) = result.next().await? {
+                    if let (Ok(node_key), Ok(body)) =
+                        (row.get::<String>("node_key"), row.get::<String>("body"))
+                    {
+                        updates.push((node_key, body));
+                    }
+                }
+
+                let bpe = get_bpe_from_model("gpt-4")?;
+                for (node_key, body) in &updates {
+                    let token_count = bpe.encode_with_special_tokens(&body).len();
+                    let update_query = update_token_count_query();
+                    let query_obj = neo4rs::query(&update_query)
+                        .param("node_key", node_key.to_string())
+                        .param("token_count", token_count as i64);
+                    conn.run(query_obj).await?;
+                }
+                Ok(())
+            })
+        })
+        .await
+    }
+
     pub async fn clear(&mut self) -> Result<()> {
         let connection = self.ensure_connected().await?;
         let mut txn = connection.start_txn().await?;
@@ -175,6 +221,17 @@ impl Neo4jGraph {
 
         txn.commit().await?;
         Ok(())
+    }
+
+    async fn execute_query<T, Fut>(
+        &mut self,
+        operation: impl FnOnce(Arc<Neo4jConnection>) -> Fut,
+    ) -> anyhow::Result<T>
+    where
+        Fut: std::future::Future<Output = anyhow::Result<T>>,
+    {
+        let connection = self.ensure_connected().await?;
+        operation(connection).await
     }
 
     async fn execute_with_transaction<F, T>(&mut self, operation: F) -> Result<T>
@@ -351,16 +408,12 @@ impl std::fmt::Debug for Neo4jGraph {
 }
 
 impl Neo4jGraph {
-    fn new() -> Self {
+    fn _new() -> Self {
         Neo4jGraph {
             connection: None,
             config: Neo4jConfig::default(),
             connected: Arc::new(Mutex::new(false)),
         }
-    }
-
-    fn with_capacity(_nodes: usize, _edges: usize) -> Self {
-        Neo4jGraph::default()
     }
 
     pub async fn add_node(&mut self, node_type: NodeType, node_data: NodeData) -> Result<()> {
@@ -456,9 +509,6 @@ impl Neo4jGraph {
         } else {
             Ok((0, 0))
         }
-    }
-    fn get_graph_keys(&self) -> (HashSet<&str>, HashSet<&str>) {
-        (HashSet::new(), HashSet::new())
     }
     pub async fn analysis(&mut self) -> Result<()> {
         let connection = self.get_connection();
