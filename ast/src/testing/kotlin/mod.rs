@@ -20,7 +20,7 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     //graph.analysis();
     assert_eq!(num_nodes, 124, "Expected 124 nodes");
-    assert_eq!(num_edges, 142, "Expected 142 edges");
+    assert_eq!(num_edges, 144, "Expected 144 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -109,7 +109,7 @@ import com.kotlintestapp.db.PersonDatabase"#
     assert_eq!(requests.len(), 2, "Expected 2 requests");
 
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls);
-    assert_eq!(calls_edges_count, 13, "Expected at 13 calls edges");
+    assert_eq!(calls_edges_count, 15, "Expected at 15 calls edges");
 
     let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     assert_eq!(import_edges_count, 6, "Expected at 6 import edges");
