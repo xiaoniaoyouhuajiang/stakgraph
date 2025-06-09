@@ -801,26 +801,79 @@ impl BTreeMapGraph {
         let mut formatted_edges = Vec::with_capacity(self.edges.len());
 
         for (src_key, dst_key, edge_type) in &self.edges {
-            if let (Some(src_node), Some(dst_node)) =
-                (self.nodes.get(src_key), self.nodes.get(dst_key))
-            {
-                let edge = Edge {
-                    edge: edge_type.clone(),
-                    source: NodeRef {
-                        node_type: src_node.node_type.clone(),
-                        node_data: NodeKeys::from(&src_node.node_data),
-                    },
-                    target: NodeRef {
-                        node_type: dst_node.node_type.clone(),
-                        node_data: NodeKeys::from(&dst_node.node_data),
-                    },
-                };
-
-                formatted_edges.push(edge);
-            }
+            let edges = self.find_edges_by_keys(src_key, dst_key, edge_type);
+            formatted_edges.extend(edges);
         }
 
         formatted_edges
+    }
+    pub fn find_nodes_by_key_fuzzy(&self, key: &str) -> Vec<&Node> {
+        if let Some(node) = self.nodes.get(key) {
+            return vec![node];
+        }
+
+        let base_key = Self::base_key(key);
+        let base_matches: Vec<&Node> = self
+            .nodes
+            .iter()
+            .filter(|(node_key, _)| Self::base_key(node_key) == base_key)
+            .map(|(_, node)| node)
+            .collect();
+
+        if !base_matches.is_empty() {
+            return base_matches;
+        }
+
+        //extremely week but last line if first 2 fail
+        let (search_type, search_name, _) = Self::extract_key_components(key);
+        self.nodes
+            .iter()
+            .filter(|(node_key, _)| {
+                let (node_type, node_name, _) = Self::extract_key_components(node_key);
+                node_type == search_type && node_name == search_name
+            })
+            .map(|(_, node)| node)
+            .collect()
+    }
+
+    pub fn find_edges_by_keys(
+        &self,
+        src_key: &str,
+        dst_key: &str,
+        edge_type: &EdgeType,
+    ) -> Vec<Edge> {
+        let src_nodes = self.find_nodes_by_key_fuzzy(src_key);
+        let dst_nodes = self.find_nodes_by_key_fuzzy(dst_key);
+
+        let mut edges = Vec::new();
+        for src_node in &src_nodes {
+            for dst_node in &dst_nodes {
+                edges.push(Edge::new(
+                    edge_type.clone(),
+                    NodeRef::from((&src_node.node_data).into(), src_node.node_type.clone()),
+                    NodeRef::from((&dst_node.node_data).into(), dst_node.node_type.clone()),
+                ));
+            }
+        }
+        edges
+    }
+
+    fn base_key(key: &str) -> &str {
+        match key.rfind('-') {
+            Some(idx) if key[idx + 1..].chars().all(char::is_numeric) => &key[..idx],
+            _ => key,
+        }
+    }
+    fn extract_key_components(key: &str) -> (String, String, String) {
+        let parts: Vec<&str> = key.split('-').collect();
+        if parts.len() >= 3 {
+            let node_type = parts[0].to_string();
+            let name = parts[1].to_string();
+            let rest = parts[2..].join("-");
+            (node_type, name, rest)
+        } else {
+            (key.to_string(), "".to_string(), "".to_string())
+        }
     }
 }
 impl Default for BTreeMapGraph {
