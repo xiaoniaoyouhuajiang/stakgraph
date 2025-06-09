@@ -2,7 +2,7 @@ use super::{graphs::Graph, *};
 
 pub fn func_target_file_finder<G: Graph>(
     func_name: &str,
-    operand: &Option<String>,
+    _operand: &Option<String>,
     graph: &G,
     current_file: &str, // Add current file parameter
 ) -> Option<String> {
@@ -160,7 +160,7 @@ fn _func_target_files_finder<G: Graph>(
     let mut tf = None;
     if let Some(tf_) = find_only_one_function_file(func_name, graph) {
         tf = Some(tf_);
-    } else if let Some(op) = operand {
+    } else if let Some(_op) = operand {
         // if let Some(tf_) = find_function_with_operand(&op, func_name, graph) {
         //     tf = Some(tf_);
         // }
