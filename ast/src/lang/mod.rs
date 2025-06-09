@@ -1,4 +1,5 @@
 pub mod asg;
+pub mod call_finder;
 pub mod graphs;
 pub mod linker;
 pub mod parse;
