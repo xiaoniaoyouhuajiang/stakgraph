@@ -915,6 +915,7 @@ impl Lang {
         file: &str,
         caller_node: TreeNode,
         caller_name: &str,
+        caller_start: usize,
         graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<Edge>> {
@@ -923,7 +924,9 @@ impl Lang {
         let mut matches = cursor.matches(q, caller_node, code.as_bytes());
         let mut res = Vec::new();
         while let Some(m) = matches.next() {
-            if let Some(fc) = self.format_extra(&m, code, file, q, caller_name, graph, lsp_tx)? {
+            if let Some(fc) =
+                self.format_extra(&m, code, file, q, caller_name, caller_start, graph, lsp_tx)?
+            {
                 res.push(fc);
             }
         }
@@ -936,6 +939,7 @@ impl Lang {
         file: &str,
         q: &Query,
         caller_name: &str,
+        caller_start: usize,
         graph: &G,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Option<Edge>> {
@@ -963,11 +967,26 @@ impl Lang {
         })?;
         // unwrap is ok since we checked above
         let lsp_tx = lsp_tx.as_ref().unwrap();
-        let cn = caller_name;
-        if let Some(edgy) = find_def(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::Var)? {
+        if let Some(edgy) = find_def(
+            pos.clone(),
+            lsp_tx,
+            graph,
+            &ex,
+            caller_name,
+            caller_start,
+            NodeType::Var,
+        )? {
             return Ok(Some(edgy));
         }
-        if let Some(edgy) = find_def(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::DataModel)? {
+        if let Some(edgy) = find_def(
+            pos.clone(),
+            lsp_tx,
+            graph,
+            &ex,
+            caller_name,
+            caller_start,
+            NodeType::DataModel,
+        )? {
             return Ok(Some(edgy));
         }
         Ok(None)
@@ -1436,9 +1455,6 @@ pub fn trim_quotes(value: &str) -> &str {
 
 fn log_cmd(cmd: String) {
     debug!("{}", cmd);
-    if cmd.contains("Model") {
-        println!("{}", cmd);
-    }
 }
 
 fn is_capitalized(name: &str) -> bool {
@@ -1455,6 +1471,7 @@ fn find_def<G: Graph>(
     graph: &G,
     ex: &NodeData,
     caller_name: &str,
+    caller_start: usize,
     node_type: NodeType,
 ) -> Result<Option<Edge>> {
     if pos.is_none() {
@@ -1473,9 +1490,15 @@ fn find_def<G: Graph>(
                 caller_name, ex.name, &t_node.name
             ));
             let tt = &t_node;
+            let caller_keys = NodeKeys {
+                name: caller_name.to_string(),
+                file: ex.file.to_string(),
+                start: caller_start,
+                verb: None,
+            };
             return Ok(Some(Edge::new(
                 EdgeType::Calls,
-                NodeRef::from(ex.into(), NodeType::Function),
+                NodeRef::from(caller_keys, NodeType::Function),
                 NodeRef::from(tt.into(), node_type),
             )));
         }

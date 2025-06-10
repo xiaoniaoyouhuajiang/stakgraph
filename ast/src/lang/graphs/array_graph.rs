@@ -483,7 +483,6 @@ impl Graph for ArrayGraph {
             self.add_edge(edge);
         }
         for edge in extras {
-            println!("============>extra edge: {:?}", edge);
             self.add_edge(edge);
         }
     }
