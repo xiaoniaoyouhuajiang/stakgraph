@@ -1434,6 +1434,29 @@ impl Lang {
 
         edges
     }
+
+    pub fn collect_class_contains_datamodel_edge<G: Graph>(
+        &self,
+        class: &NodeData,
+        graph: &G,
+    ) -> Result<Vec<Edge>> {
+        let mut edges = Vec::new();
+        if class.body.is_empty() {
+            return Ok(edges);
+        }
+        let dm_nodes = graph.find_nodes_by_type(NodeType::DataModel);
+        for dm_node in dm_nodes {
+            if class.body.contains(&dm_node.name) {
+                edges.push(Edge::contains(
+                    NodeType::Class,
+                    class,
+                    NodeType::DataModel,
+                    &dm_node,
+                ));
+            }
+        }
+        Ok(edges)
+    }
 }
 
 pub fn trim_quotes(value: &str) -> &str {

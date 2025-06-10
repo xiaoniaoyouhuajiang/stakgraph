@@ -314,6 +314,8 @@ impl Repo {
         }
         info!("=> got {} data models", i);
 
+        // Fetch Classes and then call the collect_class_contains_datamodel_edge method.
+
         // this also adds requests and data models inside
         i = 0;
         info!("=> get_functions_and_tests...");
