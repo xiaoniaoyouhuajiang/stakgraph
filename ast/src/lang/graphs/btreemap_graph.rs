@@ -149,7 +149,7 @@ impl Graph for BTreeMapGraph {
         filtered
     }
 
-    fn find_nodes_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
+    fn find_node_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
         let prefix = format!("{:?}-", node_type).to_lowercase();
 
         self.nodes

@@ -247,6 +247,7 @@ impl Lang {
                 if o == FUNCTION_NAME {
                     caller_name = body;
                 } else if o == FUNCTION_DEFINITION {
+                    let caller_start = node.start_byte();
                     // NOTE this should always be the last one
                     let q2 = self.q(&self.lang.function_call_query(), &NodeType::Function);
                     let calls = self.collect_calls_in_function(
@@ -278,6 +279,7 @@ impl Lang {
                             file,
                             node,
                             &caller_name,
+                            caller_start,
                             graph,
                             lsp_tx,
                         )?;
