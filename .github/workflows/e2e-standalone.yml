@@ -75,7 +75,8 @@ jobs:
       - name: Start Rust Standalone Server
         run: |
           export TEST_REF_ID=1
-          cargo run --bin standalone --features neo4j
+          cargo run --bin standalone --features neo4j > standalone.log 2>&1 &
+          echo $! > standalone.pid
 
       - name: Wait for Rust server
         run: |
