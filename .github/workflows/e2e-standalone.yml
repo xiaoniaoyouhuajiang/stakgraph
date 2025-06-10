@@ -5,7 +5,7 @@ on:
       - main
 
 jobs:
-  run-standalone-test:
+  run-standalone-e2e-test:
     runs-on: ubuntu-latest
     name: Run e2e standalone tests
     steps:
@@ -74,16 +74,19 @@ jobs:
 
       - name: Start Rust Standalone Server
         run: |
-          export NEO4J_URI="bolt://localhost:7687"
-          export NEO4J_USER="neo4j"
-          export NEO4J_PASSWORD="testtest"
-          cargo run --bin standalone --features neo4j > standalone.log 2>&1 &
-          echo $! > standalone.pid
+          export TEST_REF_ID=1
+          cargo run --bin standalone --features neo4j
 
       - name: Wait for Rust server
         run: |
-          tail -n +1 -f standalone.log &
-          npx wait-on http://localhost:7777 -t 120000
+          echo "Waiting for Rust server to be ready..."
+          timeout 120s bash -c '
+            until curl -s -X POST http://localhost:7777/clear | grep -q "\"status\":\"success\""; do
+              echo "Rust server not ready yet..."
+              sleep 10
+            done
+          '
+          echo "Rust server is ready!"
 
       - name: Start Node Server
         working-directory: ./mcp
