@@ -75,6 +75,8 @@ jobs:
       - name: Run Graph Update Tests
         run: |
           export TEST_REF_ID="test_ref_id"
+          export LSP_SKIP_POST_CLONE=1
+          export USE_LSP=false
           cargo test --features neo4j test_graph_update --verbose
 
       - name: Cleanup
