@@ -147,28 +147,94 @@ export async function buildTree(
   }
 
   const root = rootNode || { label: "Root not found", nodes: [] };
-  return { root, total_tokens };
+  return removeCircularReferences({ root, total_tokens });
+  // return { root, total_tokens };
 }
 
-export function alphabetizeNodeLabels(node: TreeNode) {
-  if (node && node.nodes && Array.isArray(node.nodes)) {
+export function alphabetizeNodeLabels(
+  node: TreeNode,
+  visited = new Set<TreeNode>()
+) {
+  // Prevent infinite recursion by checking if we've already processed this node
+  if (!node || visited.has(node)) {
+    return node;
+  }
+
+  // Mark this node as visited
+  visited.add(node);
+
+  if (node.nodes && Array.isArray(node.nodes)) {
     // Sort the nodes array based on the 'label' property
     node.nodes.sort((a, b) => {
-      const labelA = a.label.toUpperCase(); // Ignore case for sorting
-      const labelB = b.label.toUpperCase();
-      if (labelA < labelB) {
-        return -1;
-      }
-      if (labelA > labelB) {
-        return 1;
-      }
-      return 0; // labels are equal
+      const labelA = a.label?.toUpperCase() || "";
+      const labelB = b.label?.toUpperCase() || "";
+      return labelA.localeCompare(labelB);
     });
 
     // Recursively alphabetize the labels of child nodes
     node.nodes.forEach((childNode) => {
-      alphabetizeNodeLabels(childNode);
+      alphabetizeNodeLabels(childNode, visited);
     });
   }
-  return node; // Return the modified node
+
+  return node;
+}
+
+export function removeCircularReferences(tree: Tree): Tree {
+  if (!tree || !tree.root) {
+    return {
+      root: { label: "empty", nodes: [] },
+      total_tokens: tree?.total_tokens || 0,
+    };
+  }
+
+  function processNode(
+    node: TreeNode,
+    visited = new Set<TreeNode>(),
+    path = new Set<TreeNode>()
+  ): TreeNode {
+    if (!node) return { label: "unknown", nodes: [] };
+
+    // If we've encountered this node in our current path, it's a circular reference
+    if (path.has(node)) {
+      return {
+        label: node.label,
+        nodes: [],
+      };
+    }
+
+    // If we've already processed this node completely, return a copy
+    if (visited.has(node)) {
+      return {
+        label: node.label,
+        nodes: [],
+      };
+    }
+
+    // Mark as visited and add to current path
+    visited.add(node);
+    path.add(node);
+
+    const cleanNode: TreeNode = {
+      label: node.label,
+      nodes: [],
+    };
+
+    if (node.nodes && Array.isArray(node.nodes)) {
+      cleanNode.nodes = node.nodes
+        .filter((child) => child != null)
+        .map((child) => processNode(child, visited, path))
+        .filter((child) => child != null);
+    }
+
+    // Remove from current path (backtrack)
+    path.delete(node);
+
+    return cleanNode;
+  }
+
+  return {
+    root: processNode(tree.root),
+    total_tokens: tree.total_tokens,
+  };
 }
