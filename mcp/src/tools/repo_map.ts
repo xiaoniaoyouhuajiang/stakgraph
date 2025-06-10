@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Tool } from "./index.js";
 import { parseSchema } from "./utils.js";
 import * as G from "../graph/graph.js";
+import { NodeType } from "../graph/types.js";
 
 export const RepoMapSchema = z.object({
   name: z
@@ -12,6 +13,13 @@ export const RepoMapSchema = z.object({
     .string()
     .optional()
     .describe("Reference ID of the Repository node."),
+  node_type: z
+    .string()
+    .optional()
+    .default("Repository")
+    .describe(
+      "Type of the node to map from. Either Repository, Directory, or File."
+    ),
 });
 
 export const RepoMapTool: Tool = {
@@ -23,7 +31,12 @@ export const RepoMapTool: Tool = {
 
 export async function repoMap(args: z.infer<typeof RepoMapSchema>) {
   console.log("=> Running repo_map tool with args:", args);
-  const result = await G.get_repo_map(args.name || "", args.ref_id || "");
+  const node_type = args.node_type as NodeType;
+  const result = await G.get_repo_map(
+    args.name || "",
+    args.ref_id || "",
+    node_type || "Repository"
+  );
   return {
     content: [
       {

@@ -32,14 +32,17 @@ export const GetMapSchema = z.object({
   tests: z
     .boolean()
     .optional()
+    .default(false)
     .describe("Whether to include tests in the map."),
   depth: z
     .number()
     .optional()
+    .default(10)
     .describe("Depth of the subtree to retrieve (default: 1)."),
   direction: z
     .enum(["up", "down", "both"] as const)
     .optional()
+    .default("down")
     .describe("Direction of relationships to traverse."),
   trim: z
     .string()
