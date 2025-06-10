@@ -222,14 +222,14 @@ impl Lang {
             Ok(Vec::new())
         }
     }
-    // returns (Vec<CallsFromFunctions>, Vec<CallsFromTests>, Vec<IntegrationTests>)
+    // returns (Vec<CallsFromFunctions>, Vec<CallsFromTests>, Vec<IntegrationTests>, Vec<ExtraCalls>)
     pub async fn get_function_calls<G: Graph>(
         &self,
         code: &str,
         file: &str,
         graph: &G,
         lsp_tx: &Option<CmdSender>,
-    ) -> Result<(Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>)> {
+    ) -> Result<(Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>)> {
         trace!("get_function_calls");
         let tree = self.lang.parse(&code, &NodeType::Function)?;
         // get each function
@@ -237,7 +237,7 @@ impl Lang {
         let mut cursor = QueryCursor::new();
         let mut matches = cursor.matches(&qo1, tree.root_node(), code.as_bytes());
         // calls from functions, calls from tests, integration tests
-        let mut res = (Vec::new(), Vec::new(), Vec::new());
+        let mut res = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         // get each function call within that function
         while let Some(m) = matches.next() {
             // FIXME can we only pass in the node code here? Need to sum line nums
@@ -270,6 +270,19 @@ impl Lang {
                         )?;
                         res.2.extend(int_calls);
                     }
+                    for eq in self.lang.extra_calls_queries() {
+                        let qex = self.q(&eq, &NodeType::Function);
+                        let extras = self.collect_extras_in_function(
+                            &qex,
+                            code,
+                            file,
+                            node,
+                            &caller_name,
+                            graph,
+                            lsp_tx,
+                        )?;
+                        res.3.extend(extras);
+                    }
                 }
                 Ok(())
             })?;
@@ -278,7 +291,7 @@ impl Lang {
     }
     fn add_calls_inside(
         &self,
-        res: &mut (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>),
+        res: &mut (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>),
         caller_name: &str,
         caller_file: &str,
         calls: Vec<FunctionCall>,

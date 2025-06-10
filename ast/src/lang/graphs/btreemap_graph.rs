@@ -362,8 +362,8 @@ impl Graph for BTreeMapGraph {
         }
     }
     // Add calls only between function definitions not between function calls
-    fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>)) {
-        let (funcs, tests, int_tests) = calls;
+    fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>)) {
+        let (funcs, tests, int_tests, extras) = calls;
         let mut unique_edges: HashSet<(String, String, String, String)> = HashSet::new();
 
         for (fc, ext_func, class_call) in funcs {
@@ -473,6 +473,10 @@ impl Graph for BTreeMapGraph {
 
         for edge in int_tests {
             self.add_edge(edge);
+        }
+
+        for extra in extras {
+            self.add_edge(extra);
         }
     }
     fn process_endpoint_groups(&mut self, eg: Vec<NodeData>, lang: &Lang) -> Result<()> {

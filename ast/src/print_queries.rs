@@ -76,5 +76,10 @@ fn main() -> Result<()> {
         println!("{}\n", vq);
     }
 
+    println!("=======> Extra calls query <=======");
+    for eq in lang.lang().extra_calls_queries() {
+        println!("{}\n", eq);
+    }
+
     Ok(())
 }

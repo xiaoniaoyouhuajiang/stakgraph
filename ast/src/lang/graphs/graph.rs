@@ -59,7 +59,7 @@ pub trait Graph: Default + Debug {
     fn add_pages(&mut self, pages: Vec<(NodeData, Vec<Edge>)>);
     fn add_endpoints(&mut self, endpoints: Vec<(NodeData, Option<Edge>)>);
     fn add_test_node(&mut self, test_data: NodeData, test_type: NodeType, test_edge: Option<Edge>);
-    fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>));
+    fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>));
     fn filter_out_nodes_without_children(
         &mut self,
         parent_type: NodeType,
