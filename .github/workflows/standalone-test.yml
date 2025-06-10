@@ -74,28 +74,21 @@ jobs:
 
       - name: Start Rust Standalone Server
         run: |
-          export NEO4J_URI="bolt://localhost:7687"
-          export NEO4J_USER="neo4j"
-          export NEO4J_PASSWORD="testtest"
-          export PORT="7777"
+          export USE_LSP=false
           cargo run --bin standalone --features neo4j > server.log 2>&1 &
-          echo $! > standalone.pid
 
       - name: Wait for Rust server
         run: |
-          echo "Waiting for server to start..."
-          timeout 120 bash -c '
-          while ! curl -s -f http://localhost:7777/clear > /dev/null 2>&1; do
-            echo "Server not ready yet, waiting..."
-            sleep 2
+          echo "Waiting for Rust server to be ready..."
+          timeout 300s sh -c '
+          until curl -s -f http://localhost:7777/clear > /dev/null 2>&1; do
+            echo "Rust server is not ready yet..."
+            sleep 5
           done'
-          echo "Server is ready!"
+          echo "Rust server is ready!"
 
       - name: Run Graph Update Tests
         run: |
-          export NEO4J_URI="bolt://localhost:7777"
-          export NEO4J_USER="neo4j"
-          export NEO4J_PASSWORD="testtest"
           export TEST_REF_ID="test_ref_id"
           cargo test --features neo4j test_graph_update --verbose
 
