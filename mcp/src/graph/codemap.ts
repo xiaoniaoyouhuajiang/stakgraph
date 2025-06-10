@@ -206,7 +206,7 @@ export function removeCircularReferences(tree: Tree): Tree {
     // If we've already processed this node completely, return a copy
     if (visited.has(node)) {
       return {
-        label: `${node.label} (duplicate reference)`,
+        label: node.label,
         nodes: [],
       };
     }
