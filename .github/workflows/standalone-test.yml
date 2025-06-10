@@ -5,9 +5,9 @@ on:
       - main
 
 jobs:
-  run-standalone-integration-test:
+  run-standalone-test:
     runs-on: ubuntu-latest
-    name: Run standalone integration tests
+    name: Run standalone tests
     steps:
       - name: Enable docker.host.internal for Ubuntu
         run: |
@@ -78,23 +78,26 @@ jobs:
           export NEO4J_USER="neo4j"
           export NEO4J_PASSWORD="testtest"
           export PORT="7777"
-          cargo run --bin standalone --features neo4j > standalone.log 2>&1 &
+          cargo run --bin standalone --features neo4j > server.log 2>&1 &
           echo $! > standalone.pid
 
       - name: Wait for Rust server
         run: |
-          tail -n +1 -f standalone.log &
-          npx wait-on http://localhost:7777 -t 120000
-
-      - name: Test server is responding
-        run: |
-          curl -f http://localhost:7777/clear || (echo "Server not responding" && exit 1)
+          echo "Waiting for server to start..."
+          timeout 120 bash -c '
+          while ! curl -s -f http://localhost:7777/clear > /dev/null 2>&1; do
+            echo "Server not ready yet, waiting..."
+            sleep 2
+          done'
+          echo "Server is ready!"
 
       - name: Run Graph Update Tests
         run: |
+          export NEO4J_URI="bolt://localhost:7777"
+          export NEO4J_USER="neo4j"
+          export NEO4J_PASSWORD="testtest"
+          export TEST_REF_ID="test_ref_id"
           cargo test --features neo4j test_graph_update --verbose
-
-      # other tests to be added here
 
       - name: Cleanup
         if: always()
