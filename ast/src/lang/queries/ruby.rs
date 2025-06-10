@@ -544,6 +544,12 @@ impl Stack for Ruby {
         if name.contains("__dir__") {
             return "".to_string();
         }
+        if name.starts_with("__") {
+            return "".to_string();
+        }
+        if name.starts_with(".") {
+            return "".to_string();
+        }
         tracing::debug!("camelize: {}", name);
         inflection::camelize(name)
     }
