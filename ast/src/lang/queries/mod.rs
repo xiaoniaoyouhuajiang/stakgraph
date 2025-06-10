@@ -265,8 +265,8 @@ pub trait Stack {
         &self,
         _datamodel: &NodeData,
         _find_class: &dyn Fn(&str) -> Option<NodeData>,
-    ) -> Option<NodeData> {
-        None
+    ) -> Vec<NodeData> {
+        Vec::new()
     }
 }
 
