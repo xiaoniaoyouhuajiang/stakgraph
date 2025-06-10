@@ -72,21 +72,6 @@ jobs:
           done'
           echo "Neo4j is healthy!"
 
-      - name: Start Rust Standalone Server
-        run: |
-          export USE_LSP=false
-          cargo run --bin standalone --features neo4j > server.log 2>&1 &
-
-      - name: Wait for Rust server
-        run: |
-          echo "Waiting for Rust server to be ready..."
-          timeout 300s sh -c '
-          until curl -s -f http://localhost:7777/clear > /dev/null 2>&1; do
-            echo "Rust server is not ready yet..."
-            sleep 5
-          done'
-          echo "Rust server is ready!"
-
       - name: Run Graph Update Tests
         run: |
           export TEST_REF_ID="test_ref_id"
