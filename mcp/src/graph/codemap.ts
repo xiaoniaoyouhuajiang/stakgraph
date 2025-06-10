@@ -150,25 +150,31 @@ export async function buildTree(
   return { root, total_tokens };
 }
 
-export function alphabetizeNodeLabels(node: TreeNode) {
-  if (node && node.nodes && Array.isArray(node.nodes)) {
+export function alphabetizeNodeLabels(
+  node: TreeNode,
+  visited = new Set<TreeNode>()
+) {
+  // Prevent infinite recursion by checking if we've already processed this node
+  if (!node || visited.has(node)) {
+    return node;
+  }
+
+  // Mark this node as visited
+  visited.add(node);
+
+  if (node.nodes && Array.isArray(node.nodes)) {
     // Sort the nodes array based on the 'label' property
     node.nodes.sort((a, b) => {
-      const labelA = a.label.toUpperCase(); // Ignore case for sorting
-      const labelB = b.label.toUpperCase();
-      if (labelA < labelB) {
-        return -1;
-      }
-      if (labelA > labelB) {
-        return 1;
-      }
-      return 0; // labels are equal
+      const labelA = a.label?.toUpperCase() || "";
+      const labelB = b.label?.toUpperCase() || "";
+      return labelA.localeCompare(labelB);
     });
 
     // Recursively alphabetize the labels of child nodes
     node.nodes.forEach((childNode) => {
-      alphabetizeNodeLabels(childNode);
+      alphabetizeNodeLabels(childNode, visited);
     });
   }
-  return node; // Return the modified node
+
+  return node;
 }
