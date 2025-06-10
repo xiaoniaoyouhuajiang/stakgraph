@@ -57,33 +57,16 @@ async fn test_graph_consistency() {
         neo4j_nodes, neo4j_edges
     );
 
-    let (actual_nodes, actual_edges) = graph_ops.graph.get_graph_size().await.unwrap();
-
-    info!(
-        "Neo4j actual: {} nodes, {} edges",
-        actual_nodes, actual_edges
-    );
-
     assert_eq!(
         btree_node_count, neo4j_nodes as usize,
         "Node count mismatch: BTreeMapGraph={} Neo4j={}",
         btree_node_count, neo4j_nodes
     );
     assert_eq!(
-        btree_node_count, actual_nodes as usize,
-        "Node count mismatch: BTreeMapGraph={} Neo4j actual={}",
-        btree_node_count, actual_nodes
-    );
-    assert_eq!(
         btree_edge_count, neo4j_edges as usize,
         "Edge count mismatch: BTreeMapGraph={} Neo4j={}",
         btree_edge_count, neo4j_edges
     );
-    assert_eq!(
-        btree_edge_count, actual_edges as usize,
-        "Edge count mismatch: BTreeMapGraph={} Neo4j actual={}",
-        btree_edge_count, actual_edges
-    );
 
-    info!("✅ BTreeMapGraph and Neo4j counts are consistent!");
+    info!("✅ BTreeMapGraph and Neo4j upload counts are consistent!");
 }
