@@ -46,6 +46,8 @@ This project uses the Language Server Protocol to connect nodes in the graph.
 
 ##### typescript
 
+`npm install -g typescript`
+
 `npm install -g typescript-language-server`
 
 ##### go

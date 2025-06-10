@@ -737,7 +737,7 @@ impl Lang {
                 if let Some(node) = nodes.next() {
                     let body = node.utf8_text(code.as_bytes())?.to_string();
                     if let Err(e) = cb(body, node, o.to_string()) {
-                        println!("error in loop_captures {:?}", e);
+                        tracing::warn!("error in loop_captures {:?}", e);
                     }
                 }
             }
@@ -754,7 +754,7 @@ impl Lang {
                 for node in nodes {
                     let body = node.utf8_text(code.as_bytes())?.to_string();
                     if let Err(e) = cb(body, node, o.to_string()) {
-                        println!("error in loop_captures {:?}", e);
+                        tracing::warn!("error in loop_captures {:?}", e);
                     }
                 }
             }
@@ -914,7 +914,7 @@ impl Lang {
         }
         Ok(Some((fc, external_func, class_call)))
     }
-    pub fn collect_extras<G: Graph>(
+    pub fn collect_extras_in_function<G: Graph>(
         &self,
         q: &Query,
         code: &str,
@@ -967,11 +967,17 @@ impl Lang {
             }
             Ok(())
         })?;
-
         // unwrap is ok since we checked above
         let lsp_tx = lsp_tx.as_ref().unwrap();
-        let target = find_def_if_pos(pos, lsp_tx, graph, &ex, caller_name)?;
-        // FIXME make edge
+        let cn = caller_name;
+        if let Some(edgy) = find_def_if_pos(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::Var)? {
+            return Ok(Some(edgy));
+        }
+        if let Some(edgy) =
+            find_def_if_pos(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::DataModel)?
+        {
+            return Ok(Some(edgy));
+        }
         Ok(None)
     }
     pub fn collect_integration_test_calls<G: Graph>(
@@ -1449,34 +1455,37 @@ fn is_capitalized(name: &str) -> bool {
     name.chars().next().unwrap().is_uppercase()
 }
 
+// FIXME also find it its in range!!! not just on the line!!!
 fn find_def_if_pos<G: Graph>(
     pos: Option<Position>,
     lsp_tx: &CmdSender,
     graph: &G,
     ex: &NodeData,
     caller_name: &str,
-) -> Result<Option<NodeData>> {
+    node_type: NodeType,
+) -> Result<Option<Edge>> {
     if pos.is_none() {
         return Ok(None);
     }
     let pos = pos.unwrap();
+    let row = pos.line as u32;
     // unwrap is ok since we checked above
-    log_cmd(format!(
-        "=> {} looking for extra: {:?}",
-        caller_name, ex.name
-    ));
     let res = LspCmd::GotoDefinition(pos).send(&lsp_tx)?;
     if let LspRes::GotoDefinition(Some(gt)) = res {
         let target_file = gt.file.display().to_string();
-        if let Some(t_file) =
-            graph.find_node_by_name_in_file(NodeType::Function, &ex.name, &target_file)
-        {
+        if let Some(t_file) = graph.find_nodes_in_range(node_type.clone(), row, &target_file) {
             log_cmd(format!(
                 "==> {} ! found extra target for {:?} {:?}!!!",
                 caller_name, ex.name, &t_file
             ));
-            return Ok(Some(t_file));
+            let tt = &t_file;
+            return Ok(Some(Edge::new(
+                EdgeType::Calls,
+                NodeRef::from(ex.into(), NodeType::Function),
+                NodeRef::from(tt.into(), node_type),
+            )));
         }
     }
+
     Ok(None)
 }

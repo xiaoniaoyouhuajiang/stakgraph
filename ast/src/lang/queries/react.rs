@@ -504,6 +504,10 @@ impl Stack for ReactTs {
         path
     }
     fn extra_calls_queries(&self) -> Vec<String> {
+        let mut extra_regex = "^use.*tore".to_string();
+        if let Ok(env_regex) = std::env::var("EXTRA_REGEX_REACT") {
+            extra_regex = env_regex;
+        }
         vec![format!(
             r#"
 (lexical_declaration
@@ -513,7 +517,7 @@ impl Stack for ReactTs {
         	. (shorthand_property_identifier_pattern) @{EXTRA_PROP}
         )?
         value: (call_expression
-            function: (identifier) @{EXTRA_NAME} (#match? @hook-name "^use.*tore")
+            function: (identifier) @{EXTRA_NAME} (#match? @{EXTRA_NAME} "{extra_regex}")
         )
     )
 ) @{EXTRA}?

@@ -368,7 +368,12 @@ impl Graph for ArrayGraph {
     //Add calls between function definitions not calls
     fn add_calls(
         &mut self,
-        (funcs, tests, int_tests): (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>),
+        (funcs, tests, int_tests, extras): (
+            Vec<FunctionCall>,
+            Vec<FunctionCall>,
+            Vec<Edge>,
+            Vec<Edge>,
+        ),
     ) {
         let mut unique_edges: HashSet<(String, String, String, String)> = HashSet::new();
         for (fc, ext_func, class_call) in funcs {
@@ -474,8 +479,11 @@ impl Graph for ArrayGraph {
                 }
             }
         }
-
         for edge in int_tests {
+            self.add_edge(edge);
+        }
+        for edge in extras {
+            println!("============>extra edge: {:?}", edge);
             self.add_edge(edge);
         }
     }
