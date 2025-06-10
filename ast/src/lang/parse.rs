@@ -727,12 +727,7 @@ impl Lang {
         })?;
         Ok(test)
     }
-    pub fn loop_captures<'a, F>(
-        q: &Query,
-        m: &QueryMatch<'a, 'a>,
-        code: &str,
-        mut cb: F,
-    ) -> Result<()>
+    pub fn loop_captures<F>(q: &Query, m: &QueryMatch, code: &str, mut cb: F) -> Result<()>
     where
         F: FnMut(String, TreeNode, String) -> Result<()>,
     {
@@ -749,12 +744,7 @@ impl Lang {
         }
         Ok(())
     }
-    pub fn loop_captures_multi<'a, F>(
-        q: &Query,
-        m: &QueryMatch<'a, 'a>,
-        code: &str,
-        mut cb: F,
-    ) -> Result<()>
+    pub fn loop_captures_multi<F>(q: &Query, m: &QueryMatch, code: &str, mut cb: F) -> Result<()>
     where
         F: FnMut(String, TreeNode, String) -> Result<()>,
     {
@@ -771,12 +761,12 @@ impl Lang {
         }
         Ok(())
     }
-    pub fn collect_calls_in_function<'a, G: Graph>(
+    pub fn collect_calls_in_function<G: Graph>(
         &self,
         q: &Query,
         code: &str,
         file: &str,
-        caller_node: TreeNode<'a>,
+        caller_node: TreeNode,
         caller_name: &str,
         graph: &G,
         lsp_tx: &Option<CmdSender>,
@@ -794,9 +784,9 @@ impl Lang {
         }
         Ok(res)
     }
-    fn format_function_call<'a, 'b, G: Graph>(
+    fn format_function_call<G: Graph>(
         &self,
-        m: &QueryMatch<'a, 'b>,
+        m: &QueryMatch,
         code: &str,
         file: &str,
         q: &Query,
@@ -924,11 +914,71 @@ impl Lang {
         }
         Ok(Some((fc, external_func, class_call)))
     }
-    pub fn collect_integration_test_calls<'a, G: Graph>(
+    pub fn collect_extras<G: Graph>(
+        &self,
+        q: &Query,
+        code: &str,
+        file: &str,
+        caller_node: TreeNode,
+        caller_name: &str,
+        graph: &G,
+        lsp_tx: &Option<CmdSender>,
+    ) -> Result<Vec<Edge>> {
+        trace!("collect_calls_in_function");
+        let mut cursor = QueryCursor::new();
+        let mut matches = cursor.matches(q, caller_node, code.as_bytes());
+        let mut res = Vec::new();
+        while let Some(m) = matches.next() {
+            if let Some(fc) = self.format_extra(&m, code, file, q, caller_name, graph, lsp_tx)? {
+                res.push(fc);
+            }
+        }
+        Ok(res)
+    }
+    fn format_extra<G: Graph>(
+        &self,
+        m: &QueryMatch,
+        code: &str,
+        file: &str,
+        q: &Query,
+        caller_name: &str,
+        graph: &G,
+        lsp_tx: &Option<CmdSender>,
+    ) -> Result<Option<Edge>> {
+        // extras
+        if lsp_tx.is_none() {
+            return Ok(None);
+        }
+        let mut pos = None;
+        let mut ex = NodeData::in_file(file);
+        Self::loop_captures(q, &m, code, |body, node, o| {
+            if o == EXTRA_NAME {
+                ex.name = trim_quotes(&body).to_string();
+            } else if o == EXTRA {
+                ex.body = body;
+                ex.start = node.start_position().row;
+                ex.end = node.end_position().row;
+            } else if o == EXTRA_PROP {
+                pos = Some(Position::new(
+                    file,
+                    node.start_position().row as u32,
+                    node.start_position().column as u32,
+                )?);
+            }
+            Ok(())
+        })?;
+
+        // unwrap is ok since we checked above
+        let lsp_tx = lsp_tx.as_ref().unwrap();
+        let target = find_def_if_pos(pos, lsp_tx, graph, &ex, caller_name)?;
+        // FIXME make edge
+        Ok(None)
+    }
+    pub fn collect_integration_test_calls<G: Graph>(
         &self,
         code: &str,
         file: &str,
-        caller_node: TreeNode<'a>,
+        caller_node: TreeNode,
         caller_name: &str,
         graph: &G,
         lsp_tx: &Option<CmdSender>,
@@ -1021,9 +1071,9 @@ impl Lang {
         }
         Ok((nd, tt))
     }
-    fn format_integration_test_call<'a, 'b, G: Graph>(
+    fn format_integration_test_call<G: Graph>(
         &self,
-        m: &QueryMatch<'a, 'b>,
+        m: &QueryMatch,
         code: &str,
         file: &str,
         q: &Query,
@@ -1172,7 +1222,6 @@ impl Lang {
         }
         Ok(edges)
     }
-
     pub fn collect_import_edges_with_lsp<G: Graph>(
         &self,
         code: &str,
@@ -1398,4 +1447,36 @@ fn is_capitalized(name: &str) -> bool {
         return false;
     }
     name.chars().next().unwrap().is_uppercase()
+}
+
+fn find_def_if_pos<G: Graph>(
+    pos: Option<Position>,
+    lsp_tx: &CmdSender,
+    graph: &G,
+    ex: &NodeData,
+    caller_name: &str,
+) -> Result<Option<NodeData>> {
+    if pos.is_none() {
+        return Ok(None);
+    }
+    let pos = pos.unwrap();
+    // unwrap is ok since we checked above
+    log_cmd(format!(
+        "=> {} looking for extra: {:?}",
+        caller_name, ex.name
+    ));
+    let res = LspCmd::GotoDefinition(pos).send(&lsp_tx)?;
+    if let LspRes::GotoDefinition(Some(gt)) = res {
+        let target_file = gt.file.display().to_string();
+        if let Some(t_file) =
+            graph.find_node_by_name_in_file(NodeType::Function, &ex.name, &target_file)
+        {
+            log_cmd(format!(
+                "==> {} ! found extra target for {:?} {:?}!!!",
+                caller_name, ex.name, &t_file
+            ));
+            return Ok(Some(t_file));
+        }
+    }
+    Ok(None)
 }

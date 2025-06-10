@@ -240,6 +240,13 @@ impl Language {
                 return Vec::new();
             }
         }
+        // for local repo, assume its already cloned
+        if let Ok(repo_path) = std::env::var("REPO_PATH") {
+            if !repo_path.is_empty() {
+                tracing::info!("skipping post clone cmd for local repo. If its a js/ts repo, run npm install first!");
+                return Vec::new();
+            }
+        }
         match self {
             Self::Rust => Vec::new(),
             Self::Go => Vec::new(),

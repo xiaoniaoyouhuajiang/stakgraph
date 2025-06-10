@@ -258,6 +258,9 @@ pub trait Stack {
     fn resolve_import_name(&self, import_name: &str) -> String {
         import_name.to_string()
     }
+    fn extra_calls_queries(&self) -> Vec<String> {
+        vec![]
+    }
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {

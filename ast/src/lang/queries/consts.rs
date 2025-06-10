@@ -54,3 +54,7 @@ pub const VARIABLE_DECLARATION: &str = "variable-declaration";
 pub const VARIABLE_NAME: &str = "variable-name";
 pub const VARIABLE_VALUE: &str = "variable-value";
 pub const VARIABLE_TYPE: &str = "variable-type";
+
+pub const EXTRA: &str = "extra";
+pub const EXTRA_NAME: &str = "extra-name";
+pub const EXTRA_PROP: &str = "extra-prop";
