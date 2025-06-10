@@ -122,7 +122,7 @@ pub trait Graph: Default + Debug {
             .find(|node| node.file.ends_with(suffix))
     }
 
-    fn find_nodes_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
+    fn find_node_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
         self.find_nodes_by_type(node_type)
             .into_iter()
             .find(|node| node.file == file && node.start as u32 <= row && node.end as u32 >= row)

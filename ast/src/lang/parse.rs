@@ -359,7 +359,6 @@ impl Lang {
         graph: Option<&G>,
         lsp_tx: &Option<CmdSender>,
     ) -> Result<Vec<(NodeData, Option<Edge>)>> {
-        // println!("FORMAT ENDPOINT");
         let mut endp = NodeData::in_file(file);
         let mut handler = None;
         let mut call = None;
@@ -371,14 +370,12 @@ impl Lang {
                 if namey.len() > 0 {
                     endp.name = namey.to_string();
                 }
-                // println!("endpoint {:?}", inst.name);
             } else if o == ENDPOINT_ALIAS {
                 // endpoint alias overwrites
                 let namey = trim_quotes(&body);
                 if namey.len() > 0 {
                     endp.name = namey.to_string();
                 }
-                // println!("alias {:?}", inst.name);
             } else if o == ROUTE {
                 endp.body = body;
                 endp.start = node.start_position().row;
@@ -482,7 +479,6 @@ impl Lang {
                 }
             }
         }
-        // println!("<<< endpoint >>> {:?}", endp.name);
         Ok(vec![(endp, handler)])
     }
     pub fn format_data_model(
@@ -677,7 +673,7 @@ impl Lang {
             trait_operand = self.lang.find_trait_operand(
                 pos,
                 &func,
-                &|row, file| graph.find_nodes_in_range(NodeType::Trait, row, file),
+                &|row, file| graph.find_node_in_range(NodeType::Trait, row, file),
                 lsp_tx,
             )?;
         }
@@ -833,7 +829,6 @@ impl Lang {
                                 log_cmd(format!("==> ? ONE target for {:?} {}", called, &one_func));
                                 fc.target = NodeKeys::new(&called, &one_func, 0);
                             } else {
-                                // println!("no target for {:?}", body);
                                 log_cmd(format!(
                                     "==> ? definition, not in graph: {:?} in {}",
                                     called, &target_file
@@ -882,7 +877,6 @@ impl Lang {
                 // } else if let Some(tf) = func_target_file_finder(&body, &fc.operand, graph) {
                 // fc.target = NodeKeys::new(&body, &tf);
                 } else {
-                    // println!("no target for {:?}", body);
                     // FALLBACK to find?
                     if let Some(tf) = func_target_file_finder(&called, &None, graph, file) {
                         log_cmd(format!(
@@ -970,12 +964,10 @@ impl Lang {
         // unwrap is ok since we checked above
         let lsp_tx = lsp_tx.as_ref().unwrap();
         let cn = caller_name;
-        if let Some(edgy) = find_def_if_pos(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::Var)? {
+        if let Some(edgy) = find_def(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::Var)? {
             return Ok(Some(edgy));
         }
-        if let Some(edgy) =
-            find_def_if_pos(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::DataModel)?
-        {
+        if let Some(edgy) = find_def(pos.clone(), lsp_tx, graph, &ex, cn, NodeType::DataModel)? {
             return Ok(Some(edgy));
         }
         Ok(None)
@@ -1093,8 +1085,6 @@ impl Lang {
         let mut call_position = None;
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == HANDLER {
-                // println!("====> TEST HANDLER {}", body);
-                // GetWorkspaceRepoByWorkspaceUuidAndRepoUuid
                 fc.call_start = node.start_position().row;
                 fc.call_end = node.end_position().row;
                 let p = node.start_position();
@@ -1446,6 +1436,9 @@ pub fn trim_quotes(value: &str) -> &str {
 
 fn log_cmd(cmd: String) {
     debug!("{}", cmd);
+    if cmd.contains("Model") {
+        println!("{}", cmd);
+    }
 }
 
 fn is_capitalized(name: &str) -> bool {
@@ -1456,7 +1449,7 @@ fn is_capitalized(name: &str) -> bool {
 }
 
 // FIXME also find it its in range!!! not just on the line!!!
-fn find_def_if_pos<G: Graph>(
+fn find_def<G: Graph>(
     pos: Option<Position>,
     lsp_tx: &CmdSender,
     graph: &G,
@@ -1468,17 +1461,18 @@ fn find_def_if_pos<G: Graph>(
         return Ok(None);
     }
     let pos = pos.unwrap();
-    let row = pos.line as u32;
     // unwrap is ok since we checked above
     let res = LspCmd::GotoDefinition(pos).send(&lsp_tx)?;
     if let LspRes::GotoDefinition(Some(gt)) = res {
         let target_file = gt.file.display().to_string();
-        if let Some(t_file) = graph.find_nodes_in_range(node_type.clone(), row, &target_file) {
+        let target_row = gt.line as u32;
+        if let Some(t_node) = graph.find_node_in_range(node_type.clone(), target_row, &target_file)
+        {
             log_cmd(format!(
                 "==> {} ! found extra target for {:?} {:?}!!!",
-                caller_name, ex.name, &t_file
+                caller_name, ex.name, &t_node.name
             ));
-            let tt = &t_file;
+            let tt = &t_node;
             return Ok(Some(Edge::new(
                 EdgeType::Calls,
                 NodeRef::from(ex.into(), NodeType::Function),

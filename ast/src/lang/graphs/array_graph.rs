@@ -133,7 +133,7 @@ impl Graph for ArrayGraph {
             .collect()
     }
 
-    fn find_nodes_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
+    fn find_node_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
         self.nodes.iter().find_map(|node| {
             if node.node_type == node_type
                 && node.node_data.file == file
