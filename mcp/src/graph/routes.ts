@@ -163,6 +163,8 @@ export async function get_map(req: Request, res: Response) {
 }
 
 export async function get_repo_map(req: Request, res: Response) {
+  // sleep 10 seconds:
+  await new Promise((resolve) => setTimeout(resolve, 10000));
   try {
     const name = req.query.name as string;
     const ref_id = req.query.ref_id as string;
