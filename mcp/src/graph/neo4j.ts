@@ -138,7 +138,11 @@ class Db {
     }
   }
 
-  async get_repo_subtree(name: string, ref_id: string) {
+  async get_repo_subtree(
+    name: string,
+    ref_id: string,
+    node_type: NodeType = "Repository"
+  ) {
     const disclude: NodeType[] = all_node_types().filter(
       (type: NodeType) =>
         type !== "File" && type !== "Directory" && type !== "Repository"
@@ -147,7 +151,7 @@ class Db {
     console.log("get_repo_subtree", name, ref_id, this.skip_string(disclude));
     try {
       return await session.run(Q.SUBGRAPH_QUERY, {
-        node_label: "Repository",
+        node_label: node_type,
         node_name: name,
         ref_id: ref_id || "",
         depth: 10,
