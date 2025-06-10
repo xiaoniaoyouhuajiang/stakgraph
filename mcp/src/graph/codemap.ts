@@ -198,7 +198,7 @@ export function removeCircularReferences(tree: Tree): Tree {
     // If we've encountered this node in our current path, it's a circular reference
     if (path.has(node)) {
       return {
-        label: `${node.label} (circular reference)`,
+        label: node.label,
         nodes: [],
       };
     }
