@@ -147,7 +147,8 @@ export async function buildTree(
   }
 
   const root = rootNode || { label: "Root not found", nodes: [] };
-  return { root, total_tokens };
+  return removeCircularReferences({ root, total_tokens });
+  // return { root, total_tokens };
 }
 
 export function alphabetizeNodeLabels(
@@ -177,4 +178,63 @@ export function alphabetizeNodeLabels(
   }
 
   return node;
+}
+
+export function removeCircularReferences(tree: Tree): Tree {
+  if (!tree || !tree.root) {
+    return {
+      root: { label: "empty", nodes: [] },
+      total_tokens: tree?.total_tokens || 0,
+    };
+  }
+
+  function processNode(
+    node: TreeNode,
+    visited = new Set<TreeNode>(),
+    path = new Set<TreeNode>()
+  ): TreeNode {
+    if (!node) return { label: "unknown", nodes: [] };
+
+    // If we've encountered this node in our current path, it's a circular reference
+    if (path.has(node)) {
+      return {
+        label: `${node.label} (circular reference)`,
+        nodes: [],
+      };
+    }
+
+    // If we've already processed this node completely, return a copy
+    if (visited.has(node)) {
+      return {
+        label: `${node.label} (duplicate reference)`,
+        nodes: [],
+      };
+    }
+
+    // Mark as visited and add to current path
+    visited.add(node);
+    path.add(node);
+
+    const cleanNode: TreeNode = {
+      label: node.label,
+      nodes: [],
+    };
+
+    if (node.nodes && Array.isArray(node.nodes)) {
+      cleanNode.nodes = node.nodes
+        .filter((child) => child != null)
+        .map((child) => processNode(child, visited, path))
+        .filter((child) => child != null);
+    }
+
+    // Remove from current path (backtrack)
+    path.delete(node);
+
+    return cleanNode;
+  }
+
+  return {
+    root: processNode(tree.root),
+    total_tokens: tree.total_tokens,
+  };
 }
