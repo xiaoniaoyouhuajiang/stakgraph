@@ -20,7 +20,7 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     assert_eq!(num_nodes, 67, "Expected 67 nodes");
-    assert_eq!(num_edges, 110, "Expected 110 edges");
+    assert_eq!(num_edges, 112, "Expected 112 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -145,6 +145,18 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Expects a Person -> CALLS -> Article Class Call Edge"
     );
 
+    let contains_edges =
+        graph.find_nodes_with_edge_type(NodeType::Class, NodeType::DataModel, EdgeType::Contains);
+
+    assert_eq!(contains_edges.len(), 2, "Expected 2 contains edge");
+
+    let person_contains_data_model = contains_edges
+        .iter()
+        .any(|(src, dst)| src.name == "PeopleController" && dst.name == "people");
+    assert!(
+        person_contains_data_model,
+        "Expects a PeopleController -> CONTAINS -> people Data Model Edge"
+    );
     Ok(())
 }
 

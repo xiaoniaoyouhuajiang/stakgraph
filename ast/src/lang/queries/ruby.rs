@@ -533,6 +533,25 @@ impl Stack for Ruby {
 
         inflection::camelize(name)
     }
+    fn class_contains_datamodel(
+        &self,
+        datamodel: &NodeData,
+        find_class: &dyn Fn(&str) -> Option<NodeData>,
+    ) -> Option<NodeData> {
+        let base_singular = inflection::singularize(&datamodel.name).to_case(Case::Pascal);
+        let base_plural = inflection::pluralize(&datamodel.name).to_case(Case::Pascal);
+        let suffixes = ["Controller", "Blueprint"];
+
+        for base in [&base_singular, &base_plural] {
+            for suffix in &suffixes {
+                let candidate = format!("{}{}", base, suffix);
+                if let Some(class) = find_class(&candidate) {
+                    return Some(class);
+                }
+            }
+        }
+        None
+    }
 }
 
 fn remove_all_extensions(path: &Path) -> String {

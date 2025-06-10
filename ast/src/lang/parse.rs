@@ -1437,23 +1437,25 @@ impl Lang {
 
     pub fn collect_class_contains_datamodel_edge<G: Graph>(
         &self,
-        class: &NodeData,
+        datamodel: &NodeData,
         graph: &G,
     ) -> Result<Vec<Edge>> {
         let mut edges = Vec::new();
-        if class.body.is_empty() {
-            return Ok(edges);
-        }
-        let dm_nodes = graph.find_nodes_by_type(NodeType::DataModel);
-        for dm_node in dm_nodes {
-            if class.body.contains(&dm_node.name) {
-                edges.push(Edge::contains(
-                    NodeType::Class,
-                    class,
-                    NodeType::DataModel,
-                    &dm_node,
-                ));
-            }
+        if let Some(class) = self
+            .lang
+            .class_contains_datamodel(datamodel, &|class_name| {
+                graph
+                    .find_nodes_by_name(NodeType::Class, class_name)
+                    .first()
+                    .cloned()
+            })
+        {
+            edges.push(Edge::contains(
+                NodeType::Class,
+                &class,
+                NodeType::DataModel,
+                datamodel,
+            ));
         }
         Ok(edges)
     }
