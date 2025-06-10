@@ -16,7 +16,12 @@ export function toMapParams(args: z.infer<typeof GetMapSchema>): G.MapParams {
 }
 
 export const GetMapSchema = z.object({
-  node_type: z.string().optional().describe("Type of the node."),
+  node_type: z
+    .string()
+    .optional()
+    .describe(
+      "Type of the node. Does NOT support Repository, Directory, or File."
+    ),
   name: z.string().optional().describe("Name of the node to map from."),
   ref_id: z
     .string()
