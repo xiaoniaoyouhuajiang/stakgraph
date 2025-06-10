@@ -1,0 +1,89 @@
+#[cfg(feature = "neo4j")]
+use ast::lang::graphs::graph_ops::GraphOps;
+
+#[cfg(feature = "neo4j")]
+async fn clear_neo4j() {
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await.unwrap();
+    graph_ops.clear().await.unwrap();
+}
+
+#[cfg(feature = "neo4j")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_graph_consistency() {
+    use ast::lang::graphs::BTreeMapGraph;
+    use ast::repo::Repo;
+    use lsp::git::git_pull_or_clone;
+    use tracing::info;
+
+    let repo_url = "https://github.com/stakwork/demo-repo.git";
+    let repo_path = "/tmp/consistent";
+
+    git_pull_or_clone(repo_url, repo_path, None, None)
+        .await
+        .unwrap();
+
+    clear_neo4j().await;
+
+    info!("Building BTreeMapGraph...");
+    let repos = Repo::new_multi_detect(
+        repo_path,
+        Some(repo_url.to_string()),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .unwrap();
+
+    let btree_graph = repos.build_graphs_inner::<BTreeMapGraph>().await.unwrap();
+
+    let btree_node_count = btree_graph.nodes.len();
+    let btree_edge_count = btree_graph.to_array_graph_edges().len();
+
+    info!(
+        "BTreeMapGraph: {} nodes, {} edges (formatted)",
+        btree_node_count, btree_edge_count
+    );
+
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await.unwrap();
+    let (neo4j_nodes, neo4j_edges) = graph_ops
+        .upload_btreemap_to_neo4j(&btree_graph)
+        .await
+        .unwrap();
+
+    info!(
+        "Neo4j upload result: {} nodes, {} edges",
+        neo4j_nodes, neo4j_edges
+    );
+
+    let (actual_nodes, actual_edges) = graph_ops.graph.get_graph_size().await.unwrap();
+
+    info!(
+        "Neo4j actual: {} nodes, {} edges",
+        actual_nodes, actual_edges
+    );
+
+    assert_eq!(
+        btree_node_count, neo4j_nodes as usize,
+        "Node count mismatch: BTreeMapGraph={} Neo4j={}",
+        btree_node_count, neo4j_nodes
+    );
+    assert_eq!(
+        btree_node_count, actual_nodes as usize,
+        "Node count mismatch: BTreeMapGraph={} Neo4j actual={}",
+        btree_node_count, actual_nodes
+    );
+    assert_eq!(
+        btree_edge_count, neo4j_edges as usize,
+        "Edge count mismatch: BTreeMapGraph={} Neo4j={}",
+        btree_edge_count, neo4j_edges
+    );
+    assert_eq!(
+        btree_edge_count, actual_edges as usize,
+        "Edge count mismatch: BTreeMapGraph={} Neo4j actual={}",
+        btree_edge_count, actual_edges
+    );
+
+    info!("✅ BTreeMapGraph and Neo4j counts are consistent!");
+}

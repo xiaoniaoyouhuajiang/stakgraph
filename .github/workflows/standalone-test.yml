@@ -79,6 +79,12 @@ jobs:
           export USE_LSP=false
           cargo test --features neo4j test_graph_update --verbose
 
+      - name: Run Graph Consistency Test
+        run: |
+          export LSP_SKIP_POST_CLONE=1
+          export USE_LSP=false
+          cargo test --features neo4j test_graph_consistency --verbose
+
       - name: Cleanup
         if: always()
         run: |
