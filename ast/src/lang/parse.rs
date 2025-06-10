@@ -1212,6 +1212,9 @@ impl Lang {
                         NodeType::Var,
                     ] {
                         let name = self.lang.resolve_import_name(import_name);
+                        if name.is_empty() {
+                            continue;
+                        }
                         let targets = graph.find_nodes_by_name(nt.clone(), &name);
 
                         if !targets.is_empty() {
