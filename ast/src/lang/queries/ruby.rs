@@ -531,6 +531,20 @@ impl Stack for Ruby {
             name = name[1..name.len() - 1].to_string();
         }
 
+        if name.starts_with("'") && name.ends_with("'") {
+            name = name[1..name.len() - 1].to_string();
+        }
+
+        if name.starts_with("File") {
+            return "".to_string();
+        }
+        if name.contains(" ") {
+            return "".to_string();
+        }
+        if name.contains("__dir__") {
+            return "".to_string();
+        }
+        tracing::debug!("camelize: {}", name);
         inflection::camelize(name)
     }
     fn class_contains_datamodel(
