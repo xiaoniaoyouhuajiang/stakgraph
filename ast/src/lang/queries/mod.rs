@@ -261,6 +261,13 @@ pub trait Stack {
     fn extra_calls_queries(&self) -> Vec<String> {
         vec![]
     }
+    fn class_contains_datamodel(
+        &self,
+        _datamodel: &NodeData,
+        _find_class: &dyn Fn(&str) -> Option<NodeData>,
+    ) -> Vec<NodeData> {
+        Vec::new()
+    }
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {

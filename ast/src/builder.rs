@@ -311,6 +311,14 @@ impl Repo {
                     &st.file,
                 );
             }
+            for dm in &structs {
+                let edges = self
+                    .lang
+                    .collect_class_contains_datamodel_edge(dm, &graph)?;
+                for edge in edges {
+                    graph.add_edge(edge);
+                }
+            }
         }
         info!("=> got {} data models", i);
 
