@@ -225,9 +225,9 @@ impl Repo {
         info!("=> got {} import sections", i);
 
         i = 0;
-        info!("=> get_varables...");
+        info!("=> get_vars...");
         for (filename, code) in &filez {
-            let variables = self.lang.get_varables::<G>(&code, &filename)?;
+            let variables = self.lang.get_vars::<G>(&code, &filename)?;
 
             i += variables.len();
             for variable in variables {
@@ -239,7 +239,7 @@ impl Repo {
                 );
             }
         }
-        info!("=> got {} all variables", i);
+        info!("=> got {} all vars", i);
 
         i = 0;
         info!("=> get_classes...");

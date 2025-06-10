@@ -503,4 +503,21 @@ impl Stack for ReactTs {
         }
         path
     }
+    fn extra_calls_queries(&self) -> Vec<String> {
+        vec![format!(
+            r#"
+(lexical_declaration
+	(variable_declarator
+    	name: (object_pattern
+        	;; first only
+        	. (shorthand_property_identifier_pattern) @{EXTRA_PROP}
+        )?
+        value: (call_expression
+            function: (identifier) @{EXTRA_NAME} (#match? @hook-name "^use.*tore")
+        )
+    )
+) @{EXTRA}?
+            "#,
+        )]
+    }
 }
