@@ -73,28 +73,28 @@ impl NodeQueryBuilder {
     }
 
     pub fn build(&self) -> (String, BoltMap) {
-        let mut bolt_map: BoltMap = (&self.node_data).into();
+        let mut properties: BoltMap = (&self.node_data).into();
 
         let ref_id = if std::env::var("TEST_REF_ID").is_ok() {
             "test_ref_id".to_string()
         } else {
             uuid::Uuid::new_v4().to_string()
         };
-        bolt_map.value.insert("ref_id".into(), ref_id.into());
+        properties.value.insert("ref_id".into(), ref_id.into());
 
         let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
-        bolt_map.value.insert("node_key".into(), node_key.into());
+        properties.value.insert("node_key".into(), node_key.into());
 
         let query = format!(
             "MERGE (node:{}:{} {{node_key: $node_key}})
-            ON CREATE SET node += $bolt_map
-            ON MATCH SET node += $bolt_map
+            ON CREATE SET node += $properties
+            ON MATCH SET node += $properties
             Return node",
             self.node_type.to_string(),
             DATA_BANK,
         );
 
-        (query, bolt_map)
+        (query, properties)
     }
 }
 pub struct EdgeQueryBuilder {
@@ -106,37 +106,14 @@ impl EdgeQueryBuilder {
         Self { edge: edge.clone() }
     }
 
-    pub fn build_params(&self) -> BoltMap {
+    pub fn build(&self) -> (String, BoltMap) {
         let mut params = BoltMap::new();
 
         boltmap_insert_str(&mut params, "source_name", &self.edge.source.node_data.name);
         boltmap_insert_str(&mut params, "source_file", &self.edge.source.node_data.file);
-        boltmap_insert_int(
-            &mut params,
-            "source_start",
-            self.edge.source.node_data.start as i64,
-        );
-
-        if let Some(verb) = &self.edge.source.node_data.verb {
-            boltmap_insert_str(&mut params, "source_verb", &verb);
-        }
 
         boltmap_insert_str(&mut params, "target_name", &self.edge.target.node_data.name);
         boltmap_insert_str(&mut params, "target_file", &self.edge.target.node_data.file);
-        boltmap_insert_int(
-            &mut params,
-            "target_start",
-            self.edge.target.node_data.start as i64,
-        );
-        if let Some(verb) = &self.edge.target.node_data.verb {
-            boltmap_insert_str(&mut params, "target_verb", &verb);
-        }
-
-        params
-    }
-
-    pub fn build(&self) -> (String, BoltMap) {
-        let params = self.build_params();
 
         let rel_type = self.edge.edge.to_string();
         let source_type = self.edge.source.node_type.to_string();
@@ -151,25 +128,7 @@ impl EdgeQueryBuilder {
         (query, params)
     }
 }
-pub async fn execute_batch(conn: &Neo4jConnection, queries: Vec<(String, BoltMap)>) -> Result<()> {
-    let mut txn = conn.start_txn().await?;
 
-    for (i, (query_str, params)) in queries.iter().enumerate() {
-        let mut query_obj = query(&query_str);
-        for (k, v) in params.value.iter() {
-            query_obj = query_obj.param(k.value.as_str(), v.clone());
-        }
-
-        if let Err(e) = txn.run(query_obj).await {
-            println!("Neo4j query #{} {} failed: {}", i, query_str, e);
-            txn.rollback().await?;
-            return Err(anyhow::anyhow!("Neo4j batch query error: {}", e));
-        }
-    }
-
-    txn.commit().await?;
-    Ok(())
-}
 pub struct TransactionManager<'a> {
     conn: &'a Neo4jConnection,
     queries: Vec<(String, BoltMap)>,
@@ -202,8 +161,20 @@ impl<'a> TransactionManager<'a> {
         let mut txn = self.conn.start_txn().await?;
         for (query_str, bolt_map) in self.queries {
             let mut query_obj = query(&query_str);
-            for (k, v) in bolt_map.value {
-                query_obj = query_obj.param(k.value.as_str(), v);
+            if query_str.contains("$properties") {
+                let properties = boltmap_to_bolttype_map(&bolt_map);
+                query_obj = query_obj.param("properties", properties);
+
+                if let Some(BoltType::String(node_key)) = bolt_map.value.get("node_key") {
+                    query_obj = query_obj.param("node_key", node_key.value.as_str());
+                }
+                if let Some(BoltType::String(ref_id)) = bolt_map.value.get("ref_id") {
+                    query_obj = query_obj.param("ref_id", ref_id.value.as_str());
+                }
+            } else {
+                for (key, value) in bolt_map.value.iter() {
+                    query_obj = query_obj.param(key.value.as_str(), value.clone());
+                }
             }
             txn.run(query_obj).await?;
         }
@@ -455,4 +426,11 @@ pub fn boltmap_insert_str(map: &mut BoltMap, key: &str, value: &str) {
 pub fn boltmap_insert_int(map: &mut BoltMap, key: &str, value: i64) {
     map.value
         .insert(key.into(), BoltType::Integer(value.into()));
+}
+fn boltmap_to_bolttype_map(bolt_map: &BoltMap) -> BoltType {
+    let mut map = std::collections::HashMap::new();
+    for (k, v) in &bolt_map.value {
+        map.insert(k.clone(), v.clone());
+    }
+    BoltType::Map(BoltMap { value: map })
 }
