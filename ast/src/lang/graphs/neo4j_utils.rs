@@ -329,40 +329,17 @@ pub async fn execute_node_query(
     params: HashMap<String, String>,
 ) -> Result<Vec<NodeData>> {
     let mut query_obj = query(&query_str);
-
     for (key, value) in params {
         query_obj = query_obj.param(&key, value);
     }
-
     match conn.execute(query_obj).await {
         Ok(mut result) => {
             let mut nodes = Vec::new();
-
             while let Some(row) = result.next().await? {
                 if let Ok(node) = row.get::<neo4rs::Node>("n") {
-                    let name = node.get::<String>("name").unwrap_or_default();
-                    let file = node.get::<String>("file").unwrap_or_default();
-                    let start = node.get::<i32>("start").unwrap_or_default();
-                    let end = node.get::<i32>("end").unwrap_or_default();
-                    let body = node.get::<String>("body").unwrap_or_default();
-                    let data_type = node.get::<String>("data_type").unwrap_or_default();
-                    let docs = node.get::<String>("docs").unwrap_or_default();
-                    let hash = node.get::<String>("hash").unwrap_or_default();
-                    let meta_json = node.get::<String>("meta").unwrap_or_default();
-                    let meta = serde_json::from_str::<BTreeMap<String, String>>(&meta_json)
-                        .unwrap_or_default();
-                    let node_data = NodeData {
-                        name,
-                        file,
-                        start: start as usize,
-                        end: end as usize,
-                        body,
-                        data_type: Some(data_type),
-                        docs: Some(docs),
-                        hash: Some(hash),
-                        meta: meta,
-                    };
-                    nodes.push(node_data);
+                    if let Ok(node_data) = NodeData::try_from(&node) {
+                        nodes.push(node_data);
+                    }
                 }
             }
             Ok(nodes)
