@@ -20,6 +20,25 @@ impl Stack for Angular {
         parser.set_language(&self.0)?;
         Ok(parser.parse(code, None).context("failed to parse")?)
     }
+    fn component_template_query(&self) -> Option<String> {
+        Some(format!(
+            r#"
+            (decorator
+                (call_expression
+                    function: (identifier) @decorator_name (#eq? @decorator_name "Component")
+                    arguments: (arguments
+                        (object
+                            (pair
+                                key: (property_identifier) @key (#match? @key "^(templateUrl|styleUrls)$")
+                                value: (_) @value
+                            )
+                        )
+                    )
+                )
+            )
+            "#
+        ))
+    }
     fn lib_query(&self) -> Option<String> {
         Some(format!(
             r#"(pair
@@ -206,5 +225,66 @@ impl Stack for Angular {
         }
 
         path
+    }
+    fn is_extra_page(&self, file_name: &str) -> bool {
+        file_name.ends_with(".html") || 
+        file_name.ends_with(".css") || 
+        file_name.ends_with(".scss") || 
+        file_name.ends_with(".sass")
+    }
+    
+    fn use_extra_page_finder(&self) -> bool {
+        true
+    }
+    
+    fn extra_page_finder(
+        &self,
+        file_path: &str,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+    ) -> Option<Edge> {
+        let path = std::path::Path::new(file_path);
+        let extension = path.extension()?.to_str()?;
+        let file_stem = path.file_stem()?.to_str()?;
+        
+        if extension == "html" {
+            let component_name = format!("{}Component", file_stem.replace("-", " ")
+                .split_whitespace()
+                .map(|s| {
+                    let mut c = s.chars();
+                    match c.next() {
+                        None => String::new(),
+                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                    }
+                })
+                .collect::<String>());
+            
+            let component_file = format!("{}.component.ts", file_stem);
+            
+            if let Some(component) = find_fn(&component_name, &component_file) {
+                let page = NodeData::name_file(file_stem, file_path);
+                return Some(Edge::renders(&page, &component));
+            }
+        }
+        else if extension == "css" || extension == "scss" || extension == "sass" {
+            let component_name = format!("{}Component", file_stem.replace("-", " ")
+                .split_whitespace()
+                .map(|s| {
+                    let mut c = s.chars();
+                    match c.next() {
+                        None => String::new(),
+                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                    }
+                })
+                .collect::<String>());
+            
+            let component_file = format!("{}.component.ts", file_stem);
+            
+            if let Some(component) = find_fn(&component_name, &component_file) {
+                let page = NodeData::name_file(file_stem, file_path);
+                return Some(Edge::renders(&page, &component));
+            }
+        }
+        
+        None
     }
 }

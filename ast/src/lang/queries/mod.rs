@@ -232,6 +232,9 @@ pub trait Stack {
     fn page_query(&self) -> Option<String> {
         None
     }
+    fn component_template_query(&self) -> Option<String> {
+        None
+    }
     fn use_extra_page_finder(&self) -> bool {
         false
     }
