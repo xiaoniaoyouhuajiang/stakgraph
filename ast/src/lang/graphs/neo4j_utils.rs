@@ -85,22 +85,13 @@ impl NodeQueryBuilder {
         let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
         bolt_map.value.insert("node_key".into(), node_key.into());
 
-        let property_list = bolt_map
-            .value
-            .keys()
-            .filter(|k| k.value.as_str() != "node_key")
-            .map(|k| format!("n.{} = ${}", k.value.as_str(), k.value.as_str()))
-            .collect::<Vec<_>>()
-            .join(", ");
-
         let query = format!(
-            "MERGE (n:{}:{} {{node_key: $node_key}})
-            ON CREATE SET {}
-            ON MATCH SET {}",
+            "MERGE (node:{}:{} {{node_key: $node_key}})
+            ON CREATE SET node += $bolt_map
+            ON MATCH SET node += $bolt_map
+            Return node",
             self.node_type.to_string(),
             DATA_BANK,
-            property_list,
-            property_list
         );
 
         (query, bolt_map)
