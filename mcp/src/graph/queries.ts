@@ -283,7 +283,7 @@ WITH startNode, allNodes, COLLECT(DISTINCT {
 
 WITH startNode, allNodes, relationships,
      [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
-MATCH (file:File)-[:CONTAINS]->(import:Import)
+OPTIONAL MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames
 
 RETURN startNode,

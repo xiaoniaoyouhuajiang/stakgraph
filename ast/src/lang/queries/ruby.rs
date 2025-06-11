@@ -551,8 +551,8 @@ impl Stack for Ruby {
             return "".to_string();
         }
         tracing::debug!("camelize: {}", name);
-        // inflection::camelize(name) // this paniced! no good
-        name.to_case(Case::Camel)
+        inflection::camelize(name) // this paniced! no good
+                                   // name.to_case(Case::Camel)
     }
     fn class_contains_datamodel(
         &self,
