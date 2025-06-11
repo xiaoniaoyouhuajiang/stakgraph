@@ -509,23 +509,6 @@ pub fn find_nodes_with_edge_type_query(
     (query, params)
 }
 
-pub fn prefix_paths_query(root: &str) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-    let root = if root.ends_with('/') {
-        root.to_string()
-    } else {
-        format!("{}/", root)
-    };
-    params.insert("root".to_string(), root.clone());
-    params.insert("root".to_string(), root.to_string());
-
-    let query = "MATCH (n)
-                WHERE n.file IS NOT NULL AND NOT n.file STARTS WITH $root
-                SET n.file = $root + n.file";
-
-    (query.to_string(), params)
-}
-
 pub fn extract_node_data_from_neo4j_node(node: &neo4rs::Node) -> NodeData {
     let name = node.get::<String>("name").unwrap_or_default();
     let file = node.get::<String>("file").unwrap_or_default();

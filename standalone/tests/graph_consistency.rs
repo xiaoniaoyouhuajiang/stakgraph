@@ -11,7 +11,8 @@ async fn clear_neo4j() {
 #[cfg(feature = "neo4j")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_consistency() {
-    use ast::lang::graphs::BTreeMapGraph;
+    use ast::lang::graphs::{BTreeMapGraph, EdgeType};
+    use ast::lang::Graph;
     use ast::repo::Repo;
     use lsp::git::git_pull_or_clone;
     use tracing::info;
@@ -36,6 +37,8 @@ async fn test_graph_consistency() {
     .unwrap();
 
     let btree_graph = repos.build_graphs_inner::<BTreeMapGraph>().await.unwrap();
+
+    btree_graph.analysis();
 
     let btree_node_count = btree_graph.nodes.len();
     let btree_edge_count = btree_graph.to_array_graph_edges().len();
@@ -67,6 +70,31 @@ async fn test_graph_consistency() {
         "Edge count mismatch: BTreeMapGraph={} Neo4j={}",
         btree_edge_count, neo4j_edges
     );
+
+    for edge_type in [
+        EdgeType::Calls,
+        EdgeType::Contains,
+        EdgeType::Imports,
+        EdgeType::Operand,
+        EdgeType::Uses,
+        EdgeType::ParentOf,
+        EdgeType::Handler,
+        EdgeType::Renders,
+        EdgeType::ArgOf,
+        EdgeType::Of,
+    ] {
+        let btree_count = btree_graph.count_edges_of_type(edge_type.clone());
+        let neo4j_count = graph_ops.graph.count_edges_of_type(edge_type.clone()).await;
+        assert_eq!(
+            btree_count, neo4j_count,
+            "Edge count mismatch for {:?}: BTreeMapGraph={} Neo4j={}",
+            edge_type, btree_count, neo4j_count
+        );
+        info!(
+            "✅ EdgeType {:?}: BTreeMapGraph={} Neo4j={}",
+            edge_type, btree_count, neo4j_count
+        );
+    }
 
     info!("✅ BTreeMapGraph and Neo4j upload counts are consistent!");
 }
