@@ -59,31 +59,6 @@ impl Neo4jConnectionManager {
     }
 }
 
-pub struct QueryBuilder {
-    query: String,
-    params: BoltMap,
-}
-
-impl QueryBuilder {
-    pub fn new(query_string: &str) -> Self {
-        Self {
-            query: query_string.to_string(),
-            params: BoltMap::new(),
-        }
-    }
-
-    pub fn with_param(mut self, key: &str, value: &str) -> Self {
-        self.params
-            .value
-            .insert(key.into(), value.to_string().into());
-        self
-    }
-
-    pub fn build(&self) -> (String, BoltMap) {
-        (self.query.clone(), self.params.clone())
-    }
-}
-
 pub struct NodeQueryBuilder {
     node_type: NodeType,
     node_data: NodeData,
@@ -143,40 +118,27 @@ impl EdgeQueryBuilder {
     pub fn build_params(&self) -> BoltMap {
         let mut params = BoltMap::new();
 
-        params.value.insert(
-            "source_name".into(),
-            BoltType::String(self.edge.source.node_data.name.clone().into()),
+        boltmap_insert_str(&mut params, "source_name", &self.edge.source.node_data.name);
+        boltmap_insert_str(&mut params, "source_file", &self.edge.source.node_data.file);
+        boltmap_insert_int(
+            &mut params,
+            "source_start",
+            self.edge.source.node_data.start as i64,
         );
-        params.value.insert(
-            "source_file".into(),
-            BoltType::String(self.edge.source.node_data.file.clone().into()),
-        );
-        params.value.insert(
-            "source_start".into(),
-            BoltType::Integer((self.edge.source.node_data.start as i32).into()),
-        );
+
         if let Some(verb) = &self.edge.source.node_data.verb {
-            params
-                .value
-                .insert("source_verb".into(), BoltType::String(verb.clone().into()));
+            boltmap_insert_str(&mut params, "source_verb", &verb);
         }
 
-        params.value.insert(
-            "target_name".into(),
-            BoltType::String(self.edge.target.node_data.name.clone().into()),
-        );
-        params.value.insert(
-            "target_file".into(),
-            BoltType::String(self.edge.target.node_data.file.clone().into()),
-        );
-        params.value.insert(
-            "target_start".into(),
-            BoltType::Integer((self.edge.target.node_data.start as i32).into()),
+        boltmap_insert_str(&mut params, "target_name", &self.edge.target.node_data.name);
+        boltmap_insert_str(&mut params, "target_file", &self.edge.target.node_data.file);
+        boltmap_insert_int(
+            &mut params,
+            "target_start",
+            self.edge.target.node_data.start as i64,
         );
         if let Some(verb) = &self.edge.target.node_data.verb {
-            params
-                .value
-                .insert("target_verb".into(), BoltType::String(verb.clone().into()));
+            boltmap_insert_str(&mut params, "target_verb", &verb);
         }
 
         params
@@ -320,10 +282,7 @@ pub fn graph_edges_analysis_query() -> String {
 }
 pub fn count_edges_by_type_query(edge_type: &EdgeType) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    params.value.insert(
-        "edge_type".into(),
-        BoltType::String(edge_type.to_string().into()),
-    );
+    boltmap_insert_str(&mut params, "edge_type", &edge_type.to_string());
 
     let query = "MATCH ()-[r]->() 
                 WHERE type(r) = $edge_type 
@@ -334,10 +293,7 @@ pub fn count_edges_by_type_query(edge_type: &EdgeType) -> (String, BoltMap) {
 
 pub fn find_nodes_by_type_query(node_type: &NodeType) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    params.value.insert(
-        "node_type".into(),
-        BoltType::String(node_type.to_string().into()),
-    );
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
 
     let query = format!(
         "MATCH (n:{}) 
@@ -369,12 +325,9 @@ pub fn find_node_by_name_file_query(
     file: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    params
-        .value
-        .insert("name".into(), BoltType::String(name.into()));
-    params
-        .value
-        .insert("file".into(), BoltType::String(file.into()));
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_str(&mut params, "name", name);
+    boltmap_insert_str(&mut params, "file", file);
 
     let query = format!(
         "MATCH (n:{}) 
@@ -391,9 +344,8 @@ pub fn find_nodes_by_file_pattern_query(
     file_pattern: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    params
-        .value
-        .insert("file_pattern".into(), BoltType::String(file_pattern.into()));
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_str(&mut params, "file_pattern", file_pattern);
     let query = format!(
         "MATCH (n:{}) 
                        WHERE n.file CONTAINS $file_pattern 
@@ -409,9 +361,8 @@ pub fn find_nodes_by_name_contains_query(
     name_part: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    params
-        .value
-        .insert("name_part".into(), BoltType::String(name_part.into()));
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_str(&mut params, "name_part", name_part);
 
     let query = format!(
         "MATCH (n:{}) 
@@ -429,11 +380,9 @@ pub fn find_nodes_with_edge_type_query(
     edge_type: &EdgeType,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    params.value.insert(
-        "edge_type".into(),
-        BoltType::String(edge_type.to_string().into()),
-    );
-
+    boltmap_insert_str(&mut params, "source_type", &source_type.to_string());
+    boltmap_insert_str(&mut params, "target_type", &target_type.to_string());
+    boltmap_insert_str(&mut params, "edge_type", &edge_type.to_string());
     let query = format!(
         "MATCH (source:{})-[r:{}]->(target:{})
          RETURN source.name as source_name, source.file as source_file, source.start as source_start, \
@@ -457,10 +406,7 @@ pub fn get_repository_hash_query(repo_url: &str) -> (String, BoltMap) {
         repo_url
     };
 
-    params
-        .value
-        .insert("repo_name".into(), BoltType::String(repo_name.into()));
-
+    boltmap_insert_str(&mut params, "repo_name", repo_name);
     let query = "MATCH (r:Repository) 
                  WHERE r.name CONTAINS $repo_name 
                  RETURN r.hash as hash";
@@ -471,9 +417,7 @@ pub fn get_repository_hash_query(repo_url: &str) -> (String, BoltMap) {
 pub fn remove_nodes_by_file_query(file_path: &str) -> (String, BoltMap) {
     let mut params = BoltMap::new();
     let file_name = file_path.split('/').last().unwrap_or(file_path);
-    params
-        .value
-        .insert("file_name".into(), BoltType::String(file_name.into()));
+    boltmap_insert_str(&mut params, "file_name", file_name);
 
     let query = "
         MATCH (n)
@@ -491,12 +435,8 @@ pub fn remove_nodes_by_file_query(file_path: &str) -> (String, BoltMap) {
 
 pub fn update_repository_hash_query(repo_name: &str, new_hash: &str) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    params
-        .value
-        .insert("repo_name".into(), BoltType::String(repo_name.into()));
-    params
-        .value
-        .insert("new_hash".into(), BoltType::String(new_hash.into()));
+    boltmap_insert_str(&mut params, "repo_name", repo_name);
+    boltmap_insert_str(&mut params, "new_hash", new_hash);
 
     let query = "MATCH (r:Repository) 
                  WHERE r.name CONTAINS $repo_name 
@@ -516,4 +456,12 @@ pub fn update_token_count_query() -> String {
     "MATCH (n {node_key: $node_key})
      SET n.token_count = $token_count"
         .to_string()
+}
+
+pub fn boltmap_insert_str(map: &mut BoltMap, key: &str, value: &str) {
+    map.value.insert(key.into(), BoltType::String(value.into()));
+}
+pub fn boltmap_insert_int(map: &mut BoltMap, key: &str, value: i64) {
+    map.value
+        .insert(key.into(), BoltType::Integer(value.into()));
 }
