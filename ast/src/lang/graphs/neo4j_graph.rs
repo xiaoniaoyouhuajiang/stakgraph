@@ -1,6 +1,6 @@
 use super::{neo4j_utils::*, *};
 use anyhow::Result;
-use neo4rs::{query, Graph as Neo4jConnection};
+use neo4rs::{query, BoltType, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{
     sync::{Arc, Mutex},
@@ -185,11 +185,11 @@ impl Neo4jGraph {
 
                 let bpe = get_bpe_from_model("gpt-4")?;
                 for (node_key, body) in &updates {
-                    let token_count = bpe.encode_with_special_tokens(&body).len();
+                    let token_count = bpe.encode_with_special_tokens(&body).len() as i32;
                     let update_query = update_token_count_query();
                     let query_obj = neo4rs::query(&update_query)
                         .param("node_key", node_key.to_string())
-                        .param("token_count", token_count as i64);
+                        .param("token_count".into(), BoltType::Integer(token_count.into()));
                     conn.run(query_obj).await?;
                 }
                 Ok(())

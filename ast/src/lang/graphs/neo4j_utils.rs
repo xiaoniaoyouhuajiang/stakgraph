@@ -1,14 +1,13 @@
 use crate::utils::create_node_key;
 use anyhow::Result;
 use lazy_static::lazy_static;
-use neo4rs::{query, ConfigBuilder, Graph as Neo4jConnection};
+use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use serde_json;
 use std::{
     collections::{BTreeMap, HashMap},
     sync::{Arc, Once},
 };
 use tracing::{debug, info};
-use uuid::Uuid;
 
 use super::*;
 
@@ -115,58 +114,24 @@ impl NodeQueryBuilder {
         }
     }
 
-    pub fn build_params(&self) -> HashMap<String, String> {
-        let mut params = HashMap::new();
-        params.insert("name".to_string(), self.node_data.name.clone());
-        params.insert("file".to_string(), self.node_data.file.clone());
-        params.insert("start".to_string(), self.node_data.start.to_string());
-        params.insert("end".to_string(), self.node_data.end.to_string());
-        params.insert("body".to_string(), self.node_data.body.clone());
+    pub fn build(&self) -> (String, BoltMap) {
+        let mut bolt_map: BoltMap = (&self.node_data).into();
 
         let ref_id = if std::env::var("TEST_REF_ID").is_ok() {
             "test_ref_id".to_string()
         } else {
-            Uuid::new_v4().to_string()
+            uuid::Uuid::new_v4().to_string()
         };
-
-        params.insert("ref_id".to_string(), ref_id);
-
-        if let Some(data_type) = &self.node_data.data_type {
-            params.insert("data_type".to_string(), data_type.clone());
-        }
-        if let Some(docs) = &self.node_data.docs {
-            params.insert("docs".to_string(), docs.clone());
-        }
-        if let Some(hash) = &self.node_data.hash {
-            params.insert("hash".to_string(), hash.clone());
-        }
-        for (key, value) in &self.node_data.meta {
-            match key.as_str() {
-                "handler" => {
-                    params.insert("handler".to_string(), value.clone());
-                }
-                "verb" => {
-                    params.insert("verb".to_string(), value.clone());
-                }
-                _ => {
-                    params.insert(key.clone(), value.clone());
-                }
-            }
-        }
-
-        params
-    }
-
-    pub fn build(&self) -> (String, HashMap<String, String>) {
-        let mut params = self.build_params();
+        bolt_map.value.insert("ref_id".into(), ref_id.into());
 
         let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
-        params.insert("node_key".to_string(), node_key);
+        bolt_map.value.insert("node_key".into(), node_key.into());
 
-        let property_list = params
+        let property_list = bolt_map
+            .value
             .keys()
-            .filter(|k| k != &"node_key")
-            .map(|k| format!("n.{} = ${}", k, k))
+            .filter(|k| k.value.as_str() != "node_key")
+            .map(|k| format!("n.{} = ${}", k.value.as_str(), k.value.as_str()))
             .collect::<Vec<_>>()
             .join(", ");
 
@@ -180,7 +145,7 @@ impl NodeQueryBuilder {
             property_list
         );
 
-        (query, params)
+        (query, bolt_map)
     }
 }
 pub struct EdgeQueryBuilder {
@@ -192,47 +157,45 @@ impl EdgeQueryBuilder {
         Self { edge: edge.clone() }
     }
 
-    pub fn build_params(&self) -> HashMap<String, String> {
-        let mut params = HashMap::new();
+    pub fn build_params(&self) -> BoltMap {
+        let mut params = std::collections::HashMap::new();
 
         params.insert(
-            "source_name".to_string(),
-            self.edge.source.node_data.name.clone(),
+            "source_name".into(),
+            BoltType::String(self.edge.source.node_data.name.clone().into()),
         );
         params.insert(
-            "source_file".to_string(),
-            self.edge.source.node_data.file.clone(),
+            "source_file".into(),
+            BoltType::String(self.edge.source.node_data.file.clone().into()),
         );
         params.insert(
-            "source_start".to_string(),
-            self.edge.source.node_data.start.to_string(),
+            "source_start".into(),
+            BoltType::Integer((self.edge.source.node_data.start as i32).into()),
         );
-
         if let Some(verb) = &self.edge.source.node_data.verb {
-            params.insert("source_verb".to_string(), verb.clone());
+            params.insert("source_verb".into(), BoltType::String(verb.clone().into()));
         }
 
         params.insert(
-            "target_name".to_string(),
-            self.edge.target.node_data.name.clone(),
+            "target_name".into(),
+            BoltType::String(self.edge.target.node_data.name.clone().into()),
         );
         params.insert(
-            "target_file".to_string(),
-            self.edge.target.node_data.file.clone(),
+            "target_file".into(),
+            BoltType::String(self.edge.target.node_data.file.clone().into()),
         );
         params.insert(
-            "target_start".to_string(),
-            self.edge.target.node_data.start.to_string(),
+            "target_start".into(),
+            BoltType::Integer((self.edge.target.node_data.start as i32).into()),
         );
-
         if let Some(verb) = &self.edge.target.node_data.verb {
-            params.insert("target_verb".to_string(), verb.clone());
+            params.insert("target_verb".into(), BoltType::String(verb.clone().into()));
         }
 
-        params
+        BoltMap { value: params }
     }
 
-    pub fn build(&self) -> (String, HashMap<String, String>) {
+    pub fn build(&self) -> (String, BoltMap) {
         let params = self.build_params();
 
         let rel_type = self.edge.edge.to_string();
@@ -248,16 +211,13 @@ impl EdgeQueryBuilder {
         (query, params)
     }
 }
-pub async fn execute_batch(
-    conn: &Neo4jConnection,
-    queries: Vec<(String, HashMap<String, String>)>,
-) -> Result<()> {
+pub async fn execute_batch(conn: &Neo4jConnection, queries: Vec<(String, BoltMap)>) -> Result<()> {
     let mut txn = conn.start_txn().await?;
 
     for (i, (query_str, params)) in queries.iter().enumerate() {
         let mut query_obj = query(&query_str);
-        for (k, v) in params {
-            query_obj = query_obj.param(&k, v.as_str());
+        for (k, v) in params.value.iter() {
+            query_obj = query_obj.param(k.value.as_str(), v.clone());
         }
 
         if let Err(e) = txn.run(query_obj).await {
@@ -272,7 +232,7 @@ pub async fn execute_batch(
 }
 pub struct TransactionManager<'a> {
     conn: &'a Neo4jConnection,
-    queries: Vec<(String, HashMap<String, String>)>,
+    queries: Vec<(String, BoltMap)>,
 }
 
 impl<'a> TransactionManager<'a> {
@@ -283,15 +243,12 @@ impl<'a> TransactionManager<'a> {
         }
     }
 
-    pub fn add_query(&mut self, query: (String, HashMap<String, String>)) -> &mut Self {
+    pub fn add_query(&mut self, query: (String, BoltMap)) -> &mut Self {
         self.queries.push(query);
         self
     }
 
-    pub fn add_queries(
-        &mut self,
-        mut queries: Vec<(String, HashMap<String, String>)>,
-    ) -> &mut Self {
+    pub fn add_queries(&mut self, mut queries: Vec<(String, BoltMap)>) -> &mut Self {
         self.queries.append(&mut queries);
         self
     }
@@ -307,19 +264,24 @@ impl<'a> TransactionManager<'a> {
     }
 
     pub async fn execute(self) -> Result<()> {
-        execute_batch(self.conn, self.queries).await?;
+        let mut txn = self.conn.start_txn().await?;
+        for (query_str, bolt_map) in self.queries {
+            let mut query_obj = query(&query_str);
+            for (k, v) in bolt_map.value {
+                query_obj = query_obj.param(k.value.as_str(), v);
+            }
+            txn.run(query_obj).await?;
+        }
+        txn.commit().await?;
         Ok(())
     }
 }
 
-pub fn add_node_query(
-    node_type: &NodeType,
-    node_data: &NodeData,
-) -> (String, HashMap<String, String>) {
+pub fn add_node_query(node_type: &NodeType, node_data: &NodeData) -> (String, BoltMap) {
     NodeQueryBuilder::new(node_type, node_data).build()
 }
 
-pub fn add_edge_query(edge: &Edge) -> (String, HashMap<String, String>) {
+pub fn add_edge_query(edge: &Edge) -> (String, BoltMap) {
     EdgeQueryBuilder::new(edge).build()
 }
 
@@ -552,13 +514,14 @@ pub fn remove_nodes_by_file_query(file_path: &str) -> (String, HashMap<String, S
     (query.to_string(), params)
 }
 
-pub fn update_repository_hash_query(
-    repo_name: &str,
-    new_hash: &str,
-) -> (String, HashMap<String, String>) {
-    let mut params = HashMap::new();
-    params.insert("repo_name".to_string(), repo_name.to_string());
-    params.insert("new_hash".to_string(), new_hash.to_string());
+pub fn update_repository_hash_query(repo_name: &str, new_hash: &str) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    params
+        .value
+        .insert("repo_name".into(), BoltType::String(repo_name.into()));
+    params
+        .value
+        .insert("new_hash".into(), BoltType::String(new_hash.into()));
 
     let query = "MATCH (r:Repository) 
                  WHERE r.name CONTAINS $repo_name 
