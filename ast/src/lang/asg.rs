@@ -329,16 +329,8 @@ impl TryFrom<&BoltNode> for NodeData {
             name: node.get::<String>("name").unwrap_or_default(),
             file: node.get::<String>("file").unwrap_or_default(),
             body: node.get::<String>("body").unwrap_or_default(),
-            start: node
-                .get::<String>("start")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0),
-            end: node
-                .get::<String>("end")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0),
+            start: node.get::<i64>("start").unwrap_or(0) as usize,
+            end: node.get::<i64>("end").unwrap_or(0) as usize,
             docs: node.get::<String>("docs").ok(),
             hash: node.get::<String>("hash").ok(),
             data_type: node.get::<String>("data_type").ok(),
