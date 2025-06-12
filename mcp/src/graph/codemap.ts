@@ -1,7 +1,7 @@
 import { Record } from "neo4j-driver";
 import { getNodeLabel } from "./utils.js";
 import { TikTokenizer } from "@microsoft/tiktokenizer";
-import { Neo4jNode } from "./types.js";
+import { BoltInt, EdgeType, Neo4jNode } from "./types.js";
 
 export interface TreeNode {
   label: string;
@@ -14,6 +14,13 @@ const REVERSE_RELATIONSHIPS = ["OPERAND"];
 interface Tree {
   root: TreeNode;
   total_tokens: number;
+}
+
+interface Relationship {
+  source: BoltInt;
+  target: BoltInt;
+  type: EdgeType;
+  properties: Record<any, any>;
 }
 
 export async function buildTree(
@@ -30,7 +37,7 @@ export async function buildTree(
   // Extract data from the record
   const startNode: Neo4jNode = record.get("startNode");
   const allNodes: Neo4jNode[] = record.get("allNodes");
-  const relationships = record.get("relationships");
+  const relationships: Relationship[] = record.get("relationships");
 
   // Create maps to store nodes
   const nodeMap = new Map<string, any>(); // Neo4j node by ID
@@ -39,12 +46,14 @@ export async function buildTree(
 
   // Add all nodes to the nodeMap
   for (const node of allNodes) {
-    const nodeId = node.identity.toString();
+    const nodeId =
+      node.identity?.toString() || node.properties.node_key.toString();
     nodeMap.set(nodeId, node);
   }
 
   // Add the root node
-  const rootId = startNode.identity.toString();
+  const rootId =
+    startNode.identity?.toString() || startNode.properties.node_key.toString();
   nodeMap.set(rootId, startNode);
 
   // Process relationships

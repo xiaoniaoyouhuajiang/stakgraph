@@ -3,8 +3,10 @@ export interface Node {
   node_data: NodeData;
 }
 
+export type BoltInt = number | { low: number; hight: number };
+
 export interface Neo4jNode {
-  identity?: any; // built-in on some queries
+  identity?: BoltInt; // built-in on some queries
   properties: NodeData;
   labels: string[];
   ref_id?: string;
