@@ -265,7 +265,7 @@ impl Stack for Angular {
             
             if let Some(component) = find_fn(&component_name, &component_file) {
                 let page = NodeData::name_file(file_stem, file_path);
-                return Some(Edge::renders(&page, &component));
+                return Some(Edge::renders(&component, &page));
             }
         }
         else if extension == "css" || extension == "scss" || extension == "sass" {
@@ -284,7 +284,7 @@ impl Stack for Angular {
             
             if let Some(component) = find_fn(&component_name, &component_file) {
                 let page = NodeData::name_file(file_stem, file_path);
-                return Some(Edge::renders(&page, &component));
+                return Some(Edge::renders(&component, &page));
             }
         }
         
