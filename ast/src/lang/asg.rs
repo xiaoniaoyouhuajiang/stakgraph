@@ -282,7 +282,7 @@ impl From<&NodeData> for BoltMap {
         );
         map.insert(
             "end".into(),
-            BoltType::Integer((node_data.end as i32).into()),
+            BoltType::Integer((node_data.end as i64).into()),
         );
         if let Some(ref docs) = node_data.docs {
             map.insert("docs".into(), BoltType::String(docs.clone().into()));

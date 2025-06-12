@@ -185,7 +185,7 @@ impl Neo4jGraph {
 
                 let bpe = get_bpe_from_model("gpt-4")?;
                 for (node_key, body) in &updates {
-                    let token_count = bpe.encode_with_special_tokens(&body).len() as i32;
+                    let token_count = bpe.encode_with_special_tokens(&body).len() as i64;
                     let update_query = update_token_count_query();
                     let query_obj = neo4rs::query(&update_query)
                         .param("node_key", node_key.to_string())
@@ -553,10 +553,10 @@ impl Neo4jGraph {
         while let Some(row) = result.next().await? {
             let source_name: String = row.get("source_name").unwrap_or_default();
             let source_file: String = row.get("source_file").unwrap_or_default();
-            let source_start: i32 = row.get("source_start").unwrap_or_default();
+            let source_start: i64 = row.get("source_start").unwrap_or_default();
             let target_name: String = row.get("target_name").unwrap_or_default();
             let target_file: String = row.get("target_file").unwrap_or_default();
-            let target_start: i32 = row.get("target_start").unwrap_or_default();
+            let target_start: i64 = row.get("target_start").unwrap_or_default();
 
             let source_node = NodeData {
                 name: source_name,
