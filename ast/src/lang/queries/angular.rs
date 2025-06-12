@@ -25,12 +25,12 @@ impl Stack for Angular {
             r#"
             (decorator
                 (call_expression
-                    function: (identifier) @decorator_name (#eq? @decorator_name "Component")
+                    function: (identifier) @{DECORATOR_NAME} (#eq? @{DECORATOR_NAME} "Component")
                     arguments: (arguments
                         (object
                             (pair
-                                key: (property_identifier) @key (#match? @key "^(templateUrl|styleUrls)$")
-                                value: (_) @value
+                                key: (property_identifier) @{TEMPLATE_KEY} (#match? @{TEMPLATE_KEY} "^(templateUrl|styleUrls)$")
+                                value: (_) @{TEMPLATE_VALUE}
                             )
                         )
                     )
@@ -38,6 +38,9 @@ impl Stack for Angular {
             )
             "#
         ))
+    }
+    fn template_ext(&self) -> Option<&str> {
+        Some(".component.ts")
     }
     fn lib_query(&self) -> Option<String> {
         Some(format!(

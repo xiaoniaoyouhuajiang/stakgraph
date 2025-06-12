@@ -369,12 +369,12 @@ impl Repo {
         }
         info!("=> got {} pages", i);
         
-        if matches!(self.lang.kind, Language::Angular) {
-            i = 0;
-            info!("=> get_angular_component_templates");
-            for (filename, code) in &filez {
-                if filename.ends_with(".component.ts") {
-                    let template_edges = self.lang.get_angular_component_templates::<G>(&code, &filename, &graph)?;
+        i = 0;
+        info!("=> get_component_templates");
+        for (filename, code) in &filez {
+            if let Some(ext) = self.lang.lang().template_ext() {
+                if filename.ends_with(ext) {
+                    let template_edges = self.lang.get_component_templates::<G>(&code, &filename, &graph)?;
                     i += template_edges.len();
                     for edge in template_edges {
                         let page = NodeData::name_file(&edge.source.node_data.name, &edge.source.node_data.file);
@@ -383,8 +383,8 @@ impl Repo {
                     }
                 }
             }
-            info!("=> got {} Angular component templates/styles", i);
         }
+        info!("=> got {} component templates/styles", i);
 
         if self.lang.lang().use_extra_page_finder() {
             info!("=> get_extra_pages");

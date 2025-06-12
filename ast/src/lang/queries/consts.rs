@@ -58,3 +58,7 @@ pub const VARIABLE_TYPE: &str = "variable-type";
 pub const EXTRA: &str = "extra";
 pub const EXTRA_NAME: &str = "extra-name";
 pub const EXTRA_PROP: &str = "extra-prop";
+
+pub const DECORATOR_NAME: &str = "decorator_name";
+pub const TEMPLATE_KEY: &str = "key";
+pub const TEMPLATE_VALUE: &str = "value";

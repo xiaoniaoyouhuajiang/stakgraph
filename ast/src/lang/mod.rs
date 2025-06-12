@@ -169,16 +169,12 @@ impl Lang {
             Ok(Vec::new())
         }
     }
-    pub fn get_angular_component_templates<G: Graph>(
+    pub fn get_component_templates<G: Graph>(
         &self,
         code: &str,
         file: &str,
         _graph: &G,
     ) -> Result<Vec<Edge>> {
-        if self.kind != Language::Angular {
-            return Ok(Vec::new());
-        }
-        
         if let Some(qo) = self.lang.component_template_query() {
             let qo = self.q(&qo, &NodeType::Class);
             let tree = self.lang.parse(&code, &NodeType::Class)?;
@@ -220,9 +216,9 @@ impl Lang {
                         let mut nodes = m.nodes_for_capture_index(ci);
                         if let Some(node) = nodes.next() {
                             let text = node.utf8_text(code.as_bytes())?.to_string();
-                            if o == &"key" {
+                            if o == &TEMPLATE_KEY {
                                 key = text;
-                            } else if o == &"value" {
+                            } else if o == &TEMPLATE_VALUE {
                                 value = text;
                             }
                         }
