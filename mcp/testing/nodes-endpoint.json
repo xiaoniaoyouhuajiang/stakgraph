@@ -1,47 +1,47 @@
 [
   {
     "node_type": "Endpoint",
-    "ref_id": "test_ref_id",
     "properties": {
-      "handler": "GetPerson",
-      "token_count": 10,
+      "body": "r.Get(\"/people\", GetPeople)",
+      "end": 23,
       "file": "stakwork/demo-repo/routes.go",
-      "node_key": "endpoint-personid-stakworkdemoreporoutesgo-21-get",
-      "name": "/person/{id}",
-      "verb": "GET",
-      "start": 21,
-      "end": 21,
-      "body": "r.Get(\"/person/{id}\", GetPerson)"
-    }
-  },
-  {
-    "node_type": "Endpoint",
-    "ref_id": "test_ref_id",
-    "properties": {
-      "handler": "CreatePerson",
-      "token_count": 8,
-      "file": "stakwork/demo-repo/routes.go",
-      "node_key": "endpoint-person-stakworkdemoreporoutesgo-22-post",
-      "start": 22,
-      "verb": "POST",
-      "name": "/person",
-      "end": 22,
-      "body": "r.Post(\"/person\", CreatePerson)"
-    }
-  },
-  {
-    "node_type": "Endpoint",
-    "ref_id": "test_ref_id",
-    "properties": {
       "handler": "GetPeople",
-      "token_count": 8,
-      "file": "stakwork/demo-repo/routes.go",
+      "name": "/people",
       "node_key": "endpoint-people-stakworkdemoreporoutesgo-23-get",
       "start": 23,
-      "name": "/people",
-      "verb": "GET",
-      "end": 23,
-      "body": "r.Get(\"/people\", GetPeople)"
-    }
+      "token_count": 8,
+      "verb": "GET"
+    },
+    "ref_id": "test_ref_id"
+  },
+  {
+    "node_type": "Endpoint",
+    "properties": {
+      "body": "r.Post(\"/person\", CreatePerson)",
+      "end": 22,
+      "file": "stakwork/demo-repo/routes.go",
+      "handler": "CreatePerson",
+      "name": "/person",
+      "node_key": "endpoint-person-stakworkdemoreporoutesgo-22-post",
+      "start": 22,
+      "token_count": 8,
+      "verb": "POST"
+    },
+    "ref_id": "test_ref_id"
+  },
+  {
+    "node_type": "Endpoint",
+    "properties": {
+      "body": "r.Get(\"/person/{id}\", GetPerson)",
+      "end": 21,
+      "file": "stakwork/demo-repo/routes.go",
+      "handler": "GetPerson",
+      "name": "/person/{id}",
+      "node_key": "endpoint-personid-stakworkdemoreporoutesgo-21-get",
+      "start": 21,
+      "token_count": 10,
+      "verb": "GET"
+    },
+    "ref_id": "test_ref_id"
   }
 ]

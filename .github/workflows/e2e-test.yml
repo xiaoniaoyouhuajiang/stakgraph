@@ -155,8 +155,8 @@ jobs:
           SORTED_ACTUAL_NODETYPE_ENDPOINT_FILE="/tmp/sorted_actual_endpoint.json"
           SORTED_EXPECTED_NODETYPE_ENDPOINT_FILE="/tmp/sorted_expected_endpoint.json"
 
-          jq --sort-keys . "$ACTUAL_NODETYPE_ENDPOINT_FILE" > "$SORTED_ACTUAL_NODETYPE_ENDPOINT_FILE"
-          jq --sort-keys . "$EXPECTED_NODETYPE_ENDPOINT_FILE" > "$SORTED_EXPECTED_NODETYPE_ENDPOINT_FILE"
+          jq --sort-keys 'sort_by(.properties.name)' "$ACTUAL_NODETYPE_ENDPOINT_FILE" > "$SORTED_ACTUAL_NODETYPE_ENDPOINT_FILE"
+          jq --sort-keys 'sort_by(.properties.name)' "$EXPECTED_NODETYPE_ENDPOINT_FILE" > "$SORTED_EXPECTED_NODETYPE_ENDPOINT_FILE"
 
           if diff --color=always -u "$SORTED_EXPECTED_NODETYPE_ENDPOINT_FILE" "$SORTED_ACTUAL_NODETYPE_ENDPOINT_FILE"; then
             echo "Nodetypes Response matches expected output ✅"
