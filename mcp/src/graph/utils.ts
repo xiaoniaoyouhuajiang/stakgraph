@@ -1,4 +1,4 @@
-import { Node, Neo4jNode, ReturnNode, NodeType } from "./types.js";
+import { Node, Neo4jNode, ReturnNode, NodeType, toNum } from "./types.js";
 import { Data_Bank } from "./neo4j.js";
 
 export function isTrue(value: string): boolean {
