@@ -1,4 +1,4 @@
-import { formatNode } from "./utils.js";
+import { formatNode, deser_multi } from "./utils.js";
 import { Neo4jNode } from "./types.js";
 
 export function extractNodesFromRecord(
@@ -38,7 +38,7 @@ export function extractNodesFromRecord(
 
     // Process allNodes from the updated query
     if (record.has("allNodes")) {
-      const nodes: Neo4jNode[] = record.get("allNodes");
+      const nodes: Neo4jNode[] = deser_multi(record, "allNodes");
       nodes.forEach((node: any, index: number) => {
         addNode(node);
       });
@@ -46,7 +46,7 @@ export function extractNodesFromRecord(
 
     // Process imports collection
     if (record.has("imports")) {
-      const imports: Neo4jNode[] = record.get("imports");
+      const imports: Neo4jNode[] = deser_multi(record, "imports");
       imports.forEach((importNode: any, index: number) => {
         addNode(importNode);
       });

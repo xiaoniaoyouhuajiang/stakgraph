@@ -2,7 +2,7 @@ import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
 import { Node, Edge, Neo4jNode, NodeType, all_node_types } from "./types.js";
-import { create_node_key } from "./utils.js";
+import { create_node_key, deser_node } from "./utils.js";
 import * as Q from "./queries.js";
 import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
 import { v4 as uuidv4 } from "uuid";
@@ -37,7 +37,7 @@ class Db {
     const session = this.driver.session();
     try {
       const r = await session.run(Q.PKGS_QUERY);
-      return r.records.map((record) => record.get("file"));
+      return r.records.map((record) => deser_node(record, "file"));
     } finally {
       await session.close();
     }
@@ -47,7 +47,7 @@ class Db {
     const session = this.driver.session();
     try {
       const r = await session.run(Q.LIST_QUERY, { node_label: label });
-      return r.records.map((record) => record.get("f"));
+      return r.records.map((record) => deser_node(record, "f"));
     } finally {
       await session.close();
     }
@@ -57,7 +57,7 @@ class Db {
     const session = this.driver.session();
     try {
       const r = await session.run(Q.REF_IDS_LIST_QUERY, { ref_ids });
-      return r.records.map((record) => record.get("n"));
+      return r.records.map((record) => deser_node(record, "n"));
     } finally {
       await session.close();
     }
@@ -101,7 +101,7 @@ class Db {
     const session = this.driver.session();
     try {
       const r = await session.run(Q.REPOSITORIES_QUERY);
-      return r.records.map((record) => record.get("r"));
+      return r.records.map((record) => deser_node(record, "r"));
     } finally {
       await session.close();
     }
@@ -328,7 +328,7 @@ class Db {
         skip_node_types,
       });
       const nodes = result.records.map((record) => {
-        const node: Neo4jNode = record.get("node");
+        const node: Neo4jNode = deser_node(record, "node");
         return {
           properties: node.properties,
           labels: node.labels,
@@ -375,7 +375,7 @@ class Db {
         similarityThreshold,
       });
       return result.records.map((record) => {
-        const node: Neo4jNode = record.get("node");
+        const node: Neo4jNode = deser_node(record, "node");
         return {
           properties: node.properties,
           labels: node.labels,
