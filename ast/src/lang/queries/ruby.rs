@@ -550,8 +550,7 @@ impl Stack for Ruby {
         if name.starts_with(".") {
             return "".to_string();
         }
-        tracing::debug!("camelize: {}", name);
-        inflection::camelize(name)
+        name.to_case(Case::Pascal)
     }
     fn class_contains_datamodel(
         &self,

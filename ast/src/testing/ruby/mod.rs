@@ -136,6 +136,12 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let import_edges = graph.count_edges_of_type(EdgeType::Imports);
     assert_eq!(import_edges, 4, "Expected 4 import edges");
 
+    let imports_edges =
+        graph.find_nodes_with_edge_type(NodeType::File, NodeType::Class, EdgeType::Imports);
+    for (imp_src, imp_target) in imports_edges {
+        println!("imp_edge: {} -> {}", imp_src.name, imp_target.name);
+    }
+
     let person_to_article_call = class_calls.iter().any(|(src, dst)| {
         (src.name == "Person" && dst.name == "Article")
             || (src.name == "Article" && dst.name == "Person")
