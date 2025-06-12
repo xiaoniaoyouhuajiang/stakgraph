@@ -4,6 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+#[cfg(feature = "neo4j")]
+use neo4rs::Node as BoltNode;
+#[cfg(feature = "neo4j")]
+use neo4rs::{BoltMap, BoltType};
+
 pub struct UniqueKey {
     pub kind: NodeType,
     pub name: String,
@@ -253,5 +258,83 @@ impl ToString for Operand {
     fn to_string(&self) -> String {
         let s = format!("{:?}", self.source.name);
         s //Given that the source is a class
+    }
+}
+#[cfg(feature = "neo4j")]
+impl From<&NodeData> for BoltMap {
+    fn from(node_data: &NodeData) -> Self {
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "name".into(),
+            BoltType::String(node_data.name.clone().into()),
+        );
+        map.insert(
+            "file".into(),
+            BoltType::String(node_data.file.clone().into()),
+        );
+        map.insert(
+            "body".into(),
+            BoltType::String(node_data.body.clone().into()),
+        );
+        map.insert(
+            "start".into(),
+            BoltType::Integer((node_data.start as i64).into()),
+        );
+        map.insert(
+            "end".into(),
+            BoltType::Integer((node_data.end as i64).into()),
+        );
+        if let Some(ref docs) = node_data.docs {
+            map.insert("docs".into(), BoltType::String(docs.clone().into()));
+        }
+        if let Some(ref hash) = node_data.hash {
+            map.insert("hash".into(), BoltType::String(hash.clone().into()));
+        }
+        if let Some(ref data_type) = node_data.data_type {
+            map.insert(
+                "data_type".into(),
+                BoltType::String(data_type.clone().into()),
+            );
+        }
+        for (k, v) in &node_data.meta {
+            map.insert(k.clone().into(), BoltType::String(v.clone().into()));
+        }
+        BoltMap { value: map }
+    }
+}
+
+#[cfg(feature = "neo4j")]
+impl TryFrom<&BoltNode> for NodeData {
+    type Error = anyhow::Error;
+    fn try_from(node: &BoltNode) -> Result<Self, Self::Error> {
+        let mut meta = BTreeMap::new();
+        let known_fields = [
+            "name",
+            "file",
+            "body",
+            "start",
+            "end",
+            "docs",
+            "hash",
+            "data_type",
+        ];
+        for k in node.keys() {
+            if !known_fields.contains(&k) {
+                if let Ok(val) = node.get::<String>(k) {
+                    meta.insert(k.to_string(), val);
+                }
+            }
+        }
+        Ok(NodeData {
+            name: node.get::<String>("name").unwrap_or_default(),
+            file: node.get::<String>("file").unwrap_or_default(),
+            body: node.get::<String>("body").unwrap_or_default(),
+            start: node.get::<i64>("start").unwrap_or(0) as usize,
+            end: node.get::<i64>("end").unwrap_or(0) as usize,
+            docs: node.get::<String>("docs").ok(),
+            hash: node.get::<String>("hash").ok(),
+            data_type: node.get::<String>("data_type").ok(),
+            meta,
+        })
     }
 }

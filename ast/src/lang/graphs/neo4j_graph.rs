@@ -1,6 +1,6 @@
 use super::{neo4j_utils::*, *};
 use anyhow::Result;
-use neo4rs::{query, Graph as Neo4jConnection};
+use neo4rs::{query, BoltType, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{
     sync::{Arc, Mutex},
@@ -185,11 +185,11 @@ impl Neo4jGraph {
 
                 let bpe = get_bpe_from_model("gpt-4")?;
                 for (node_key, body) in &updates {
-                    let token_count = bpe.encode_with_special_tokens(&body).len();
+                    let token_count = bpe.encode_with_special_tokens(&body).len() as i64;
                     let update_query = update_token_count_query();
                     let query_obj = neo4rs::query(&update_query)
                         .param("node_key", node_key.to_string())
-                        .param("token_count", token_count as i64);
+                        .param("token_count".into(), BoltType::Integer(token_count.into()));
                     conn.run(query_obj).await?;
                 }
                 Ok(())
@@ -254,8 +254,8 @@ impl Neo4jGraph {
         let connection = self.ensure_connected().await?;
         let (query_str, params) = get_repository_hash_query(repo_url);
         let mut query_obj = query(&query_str);
-        for (key, value) in &params {
-            query_obj = query_obj.param(key, value.as_str());
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
         }
         let mut result = connection.execute(query_obj).await?;
         if let Some(row) = result.next().await? {
@@ -269,8 +269,8 @@ impl Neo4jGraph {
         let connection = self.ensure_connected().await?;
         let (query_str, params) = remove_nodes_by_file_query(file_path);
         let mut query_obj = query(&query_str);
-        for (k, v) in &params {
-            query_obj = query_obj.param(k, v.as_str());
+        for (k, v) in params.value.iter() {
+            query_obj = query_obj.param(k.value.as_str(), v.clone());
         }
         let mut result = connection.execute(query_obj).await?;
         if let Some(row) = result.next().await? {
@@ -321,8 +321,8 @@ impl Neo4jGraph {
                     NodeType::from_str(&target_type),
                     EdgeType::from_str(&edge_type),
                 ) {
-                    let source_data = extract_node_data_from_neo4j_node(&source_node);
-                    let target_data = extract_node_data_from_neo4j_node(&target_node);
+                    let source_data = NodeData::try_from(&source_node).unwrap();
+                    let target_data = NodeData::try_from(&target_node).unwrap();
                     let source_ref = NodeRef::from(NodeKeys::from(&source_data), source_type);
                     let target_ref = NodeRef::from(NodeKeys::from(&target_data), target_type);
                     let edge = Edge::new(edge_type, source_ref, target_ref);
@@ -374,11 +374,7 @@ impl Neo4jGraph {
     pub async fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         let connection = self.get_connection();
 
-        let (query, params) = find_nodes_by_name_query(&node_type, name);
-
-        let query_builder = QueryBuilder::new(&query).with_params(params);
-        let (query_str, params_map) = query_builder.build();
-
+        let (query_str, params_map) = find_nodes_by_name_query(&node_type, name);
         match execute_node_query(&connection, query_str, params_map).await {
             Ok(nodes) => nodes,
             Err(e) => {
@@ -494,8 +490,8 @@ impl Neo4jGraph {
 
         let (query_str, params) = count_edges_by_type_query(&edge_type);
         let mut query_obj = query(&query_str);
-        for (key, value) in params {
-            query_obj = query_obj.param(&key, value.as_str());
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
         }
         match connection.execute(query_obj).await {
             Ok(mut result) => {
@@ -549,18 +545,18 @@ impl Neo4jGraph {
             find_nodes_with_edge_type_query(&source_type, &target_type, &edge_type);
 
         let mut query_obj = query(&query_str);
-        for (key, value) in params {
-            query_obj = query_obj.param(&key, value.as_str());
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
         }
         let mut node_pairs = Vec::new();
         let mut result = connection.execute(query_obj).await?;
         while let Some(row) = result.next().await? {
             let source_name: String = row.get("source_name").unwrap_or_default();
             let source_file: String = row.get("source_file").unwrap_or_default();
-            let source_start: i32 = row.get("source_start").unwrap_or_default();
+            let source_start: i64 = row.get("source_start").unwrap_or_default();
             let target_name: String = row.get("target_name").unwrap_or_default();
             let target_file: String = row.get("target_file").unwrap_or_default();
-            let target_start: i32 = row.get("target_start").unwrap_or_default();
+            let target_start: i64 = row.get("target_start").unwrap_or_default();
 
             let source_node = NodeData {
                 name: source_name,
