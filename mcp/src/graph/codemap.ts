@@ -37,8 +37,6 @@ export async function buildTree(
   // Extract data from the record
   const startNode: Neo4jNode = deser_node(record, "startNode");
   const allNodes: Neo4jNode[] = deser_multi(record, "allNodes");
-  console.log("allNodes", allNodes);
-  console.log("typeof allNodes[0].identity", typeof allNodes[0].identity);
   const relationships: Relationship[] = record.get("relationships");
 
   // Create maps to store nodes
