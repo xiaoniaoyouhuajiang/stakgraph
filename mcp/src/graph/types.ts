@@ -3,7 +3,10 @@ export interface Node {
   node_data: NodeData;
 }
 
+export type BoltInt = number | { low: number; hight: number };
+
 export interface Neo4jNode {
+  identity?: BoltInt; // built-in on some queries
   properties: NodeData;
   labels: string[];
   ref_id?: string;
@@ -130,4 +133,15 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
     Page: "A webpage or route within an application, representing a specific view or section of the system. It can serve as the starting point for a codemap.",
     Var: "A variable in source code, representing a value that can be used in the code.",
   };
+}
+
+export function toNum(bi: BoltInt): number {
+  if (typeof bi === "object") {
+    if (bi.low) {
+      return bi.low;
+    }
+  } else {
+    return bi;
+  }
+  return 0;
 }

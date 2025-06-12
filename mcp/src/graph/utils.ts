@@ -1,4 +1,4 @@
-import { Node, Neo4jNode, ReturnNode, NodeType } from "./types.js";
+import { Node, Neo4jNode, ReturnNode, NodeType, toNum } from "./types.js";
 import { Data_Bank } from "./neo4j.js";
 
 export function isTrue(value: string): boolean {
@@ -86,4 +86,30 @@ export function create_node_key(node: Node) {
       .replace(/[^a-zA-Z0-9]/g, "");
   });
   return sanitized_parts.join("-");
+}
+
+export function deser_node(record: any, key: string): Neo4jNode {
+  const n: Neo4jNode = record.get(key);
+  return clean_node(n);
+}
+
+export function deser_multi(record: any, key: string): Neo4jNode[] {
+  const nodes: Neo4jNode[] = record.get(key);
+  for (const n of nodes) {
+    clean_node(n);
+  }
+  return nodes;
+}
+
+function clean_node(n: Neo4jNode): Neo4jNode {
+  if (n.properties.start) {
+    n.properties.start = toNum(n.properties.start);
+  }
+  if (n.properties.end) {
+    n.properties.end = toNum(n.properties.end);
+  }
+  if (n.properties.token_count) {
+    n.properties.token_count = toNum(n.properties.token_count);
+  }
+  return n;
 }

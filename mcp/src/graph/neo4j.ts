@@ -63,37 +63,6 @@ class Db {
     }
   }
 
-  async files(prefix: string, limit: number): Promise<Neo4jNode[]> {
-    const session = this.driver.session();
-    try {
-      const r = await session.run(Q.FILES_QUERY, { prefix, limit });
-      return r.records.map((record) => record.get("path"));
-    } finally {
-      await session.close();
-    }
-  }
-
-  async get_function_path(
-    page: string | null,
-    func: string | null,
-    include_tests: boolean,
-    depth: number
-  ) {
-    const session = this.driver.session();
-    let page_name = page || null;
-    let function_name = func || null;
-    try {
-      return await session.run(Q.PATH_QUERY, {
-        page_name,
-        function_name,
-        include_tests,
-        depth: depth || 7,
-      });
-    } finally {
-      await session.close();
-    }
-  }
-
   skip_string(skips: NodeType[]) {
     return skips.map((skip) => `-${skip}`).join("|");
   }
@@ -359,7 +328,7 @@ class Db {
         skip_node_types,
       });
       const nodes = result.records.map((record) => {
-        const node = record.get("node");
+        const node: Neo4jNode = record.get("node");
         return {
           properties: node.properties,
           labels: node.labels,
@@ -406,7 +375,7 @@ class Db {
         similarityThreshold,
       });
       return result.records.map((record) => {
-        const node = record.get("node");
+        const node: Neo4jNode = record.get("node");
         return {
           properties: node.properties,
           labels: node.labels,

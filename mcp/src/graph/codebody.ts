@@ -38,7 +38,7 @@ export function extractNodesFromRecord(
 
     // Process allNodes from the updated query
     if (record.has("allNodes")) {
-      const nodes = record.get("allNodes");
+      const nodes: Neo4jNode[] = record.get("allNodes");
       nodes.forEach((node: any, index: number) => {
         addNode(node);
       });
@@ -46,7 +46,7 @@ export function extractNodesFromRecord(
 
     // Process imports collection
     if (record.has("imports")) {
-      const imports = record.get("imports");
+      const imports: Neo4jNode[] = record.get("imports");
       imports.forEach((importNode: any, index: number) => {
         addNode(importNode);
       });

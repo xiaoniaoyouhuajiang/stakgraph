@@ -25,11 +25,6 @@ export async function get_nodes(
   return toNodes(result, concise, output);
 }
 
-export async function get_files(prefix: string, limit: number) {
-  const result = await db.files(prefix, limit);
-  return result.map((f) => toNode(f, true));
-}
-
 export type OutputFormat = "snippet" | "json";
 
 export async function search(
@@ -158,17 +153,6 @@ export async function get_code(params: MapParams): Promise<string> {
   return `Total tokens: ${tokens.length}\n\n${text}`;
 }
 
-function toSnippets(path: any) {
-  let r = "";
-  for (const segment of path.segments) {
-    const snip = formatNode(segment.start);
-    r += snip;
-  }
-  const snip = formatNode(path.end);
-  r += snip;
-  return r;
-}
-
 export async function get_shortest_path(
   start_node_key: string,
   end_node_key: string,
@@ -177,11 +161,33 @@ export async function get_shortest_path(
 ) {
   if (start_ref_id && end_ref_id) {
     const result = await db.get_shortest_path_ref_id(start_ref_id, end_ref_id);
-    const path = result.records[0].get("path");
-    return toSnippets(path);
+    const record = result.records[0];
+    const path: ShortestPath = record.get("path");
+    return pathToSnippets(path);
   } else {
     const result = await db.get_shortest_path(start_node_key, end_node_key);
-    const path = result.records[0].get("path");
-    return toSnippets(path);
+    const record = result.records[0];
+    const path: ShortestPath = record.get("path");
+    return pathToSnippets(path);
   }
+}
+
+interface ShortestPath {
+  start: Neo4jNode;
+  end: Neo4jNode;
+  segments: {
+    start: Neo4jNode;
+    end: Neo4jNode;
+  }[];
+}
+
+function pathToSnippets(path: ShortestPath) {
+  let r = "";
+  for (const segment of path.segments) {
+    const snip = formatNode(segment.start);
+    r += snip;
+  }
+  const snip = formatNode(path.end);
+  r += snip;
+  return r;
 }
