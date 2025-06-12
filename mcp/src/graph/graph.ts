@@ -3,7 +3,7 @@ import archy from "archy";
 import { buildTree, alphabetizeNodeLabels } from "./codemap.js";
 import { extractNodesFromRecord } from "./codebody_files.js";
 import { Neo4jNode, NodeType } from "./types.js";
-import { nameFileOnly, toReturnNode, formatNode } from "./utils.js";
+import { nameFileOnly, toReturnNode, formatNode, clean_node } from "./utils.js";
 import { createByModelName } from "@microsoft/tiktokenizer";
 
 export type SearchMethod = "vector" | "fulltext";
@@ -184,10 +184,10 @@ interface ShortestPath {
 function pathToSnippets(path: ShortestPath) {
   let r = "";
   for (const segment of path.segments) {
-    const snip = formatNode(segment.start);
+    const snip = formatNode(clean_node(segment.start));
     r += snip;
   }
-  const snip = formatNode(path.end);
+  const snip = formatNode(clean_node(path.end));
   r += snip;
   return r;
 }

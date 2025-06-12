@@ -1,4 +1,4 @@
-import { formatNode } from "./utils.js";
+import { formatNode, deser_multi } from "./utils.js";
 import { Neo4jNode } from "./types.js";
 
 const FILE_SIZE_THRESHOLD = 5000;
@@ -52,7 +52,7 @@ export function extractNodesFromRecord(
 
     // Process allNodes from the updated query
     if (record.has("allNodes")) {
-      const nodes: Neo4jNode[] = record.get("allNodes");
+      const nodes: Neo4jNode[] = deser_multi(record, "allNodes");
       nodes.forEach((node: any) => {
         addNode(node);
       });
@@ -60,7 +60,7 @@ export function extractNodesFromRecord(
 
     // Process imports collection
     if (record.has("imports")) {
-      const imports: Neo4jNode[] = record.get("imports");
+      const imports: Neo4jNode[] = deser_multi(record, "imports");
       imports.forEach((importNode: any) => {
         addNode(importNode);
       });
@@ -68,7 +68,7 @@ export function extractNodesFromRecord(
 
     // Process files collection from the updated query
     if (record.has("files")) {
-      const files: Neo4jNode[] = record.get("files");
+      const files: Neo4jNode[] = deser_multi(record, "files");
       files.forEach((fileNode: any) => {
         addNode(fileNode);
       });

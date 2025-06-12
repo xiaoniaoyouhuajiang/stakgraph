@@ -101,7 +101,7 @@ export function deser_multi(record: any, key: string): Neo4jNode[] {
   return nodes;
 }
 
-function clean_node(n: Neo4jNode): Neo4jNode {
+export function clean_node(n: Neo4jNode): Neo4jNode {
   if (n.properties.start) {
     n.properties.start = toNum(n.properties.start);
   }
