@@ -134,3 +134,14 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
     Var: "A variable in source code, representing a value that can be used in the code.",
   };
 }
+
+export function toNum(bi: BoltInt): number {
+  if (typeof bi === "object") {
+    if (bi.low) {
+      return bi.low;
+    }
+  } else {
+    return bi;
+  }
+  return 0;
+}

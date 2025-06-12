@@ -1,5 +1,5 @@
 import { Record } from "neo4j-driver";
-import { getNodeLabel } from "./utils.js";
+import { deser_node, deser_multi, getNodeLabel } from "./utils.js";
 import { TikTokenizer } from "@microsoft/tiktokenizer";
 import { BoltInt, EdgeType, Neo4jNode } from "./types.js";
 
@@ -35,8 +35,10 @@ export async function buildTree(
   let total_tokens = 0;
 
   // Extract data from the record
-  const startNode: Neo4jNode = record.get("startNode");
-  const allNodes: Neo4jNode[] = record.get("allNodes");
+  const startNode: Neo4jNode = deser_node(record, "startNode");
+  const allNodes: Neo4jNode[] = deser_multi(record, "allNodes");
+  console.log("allNodes", allNodes);
+  console.log("typeof allNodes[0].identity", typeof allNodes[0].identity);
   const relationships: Relationship[] = record.get("relationships");
 
   // Create maps to store nodes
