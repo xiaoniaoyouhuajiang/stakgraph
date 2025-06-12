@@ -4,6 +4,7 @@ export interface Node {
 }
 
 export interface Neo4jNode {
+  identity?: any; // built-in on some queries
   properties: NodeData;
   labels: string[];
   ref_id?: string;

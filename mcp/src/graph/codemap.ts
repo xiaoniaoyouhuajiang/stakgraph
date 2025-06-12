@@ -1,6 +1,7 @@
 import { Record } from "neo4j-driver";
 import { getNodeLabel } from "./utils.js";
 import { TikTokenizer } from "@microsoft/tiktokenizer";
+import { Neo4jNode } from "./types.js";
 
 export interface TreeNode {
   label: string;
@@ -27,8 +28,8 @@ export async function buildTree(
   let total_tokens = 0;
 
   // Extract data from the record
-  const startNode = record.get("startNode");
-  const allNodes = record.get("allNodes");
+  const startNode: Neo4jNode = record.get("startNode");
+  const allNodes: Neo4jNode[] = record.get("allNodes");
   const relationships = record.get("relationships");
 
   // Create maps to store nodes
