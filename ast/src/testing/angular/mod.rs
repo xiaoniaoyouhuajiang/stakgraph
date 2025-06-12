@@ -17,8 +17,8 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 80, "Expected 80 nodes");
-    assert_eq!(num_edges, 90, "Expected 90 edges");
+    assert_eq!(num_nodes, 91, "Expected 91 nodes");
+    assert_eq!(num_edges, 98, "Expected 98 edges");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 10, "Expected 10 imports");
@@ -68,6 +68,12 @@ import {{ AppComponent }} from './app/app.component';"#
 
     let imports_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     assert_eq!(imports_edges_count, 8, "Expected 8 imports edges");
+    
+    let renders_edges_count = graph.count_edges_of_type(EdgeType::Renders);
+    assert!(renders_edges_count > 0, "Expected at least one RENDERS edge");
+    
+    let pages = graph.find_nodes_by_type(NodeType::Page);
+    assert!(pages.len() > 0, "Expected at least one Page node");
 
     Ok(())
 }

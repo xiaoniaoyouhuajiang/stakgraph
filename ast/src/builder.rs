@@ -5,7 +5,7 @@ use crate::lang::{ArrayGraph, BTreeMapGraph, Node};
 use crate::utils::create_node_key;
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
-use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
+use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen, Language};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tokio::fs;
@@ -368,6 +368,23 @@ impl Repo {
             }
         }
         info!("=> got {} pages", i);
+        
+        i = 0;
+        info!("=> get_component_templates");
+        for (filename, code) in &filez {
+            if let Some(ext) = self.lang.lang().template_ext() {
+                if filename.ends_with(ext) {
+                    let template_edges = self.lang.get_component_templates::<G>(&code, &filename, &graph)?;
+                    i += template_edges.len();
+                    for edge in template_edges {
+                        let page = NodeData::name_file(&edge.source.node_data.name, &edge.source.node_data.file);
+                        graph.add_node_with_parent(NodeType::Page, page, NodeType::File, &edge.source.node_data.file);
+                        graph.add_edge(edge);
+                    }
+                }
+            }
+        }
+        info!("=> got {} component templates/styles", i);
 
         if self.lang.lang().use_extra_page_finder() {
             info!("=> get_extra_pages");
