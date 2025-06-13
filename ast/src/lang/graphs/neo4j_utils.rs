@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use std::sync::{Arc, Once};
 use tracing::{debug, info};
+use crate::lang::FunctionCall;
 
 use super::*;
 
@@ -422,7 +423,7 @@ pub fn find_handlers_for_endpoint_query(endpoint: &NodeData) -> (String, BoltMap
     boltmap_insert_int(&mut params, "endpoint_start", endpoint.start as i64);
 
     let query = 
-        format!("MATCH (endpoint:Endpoint {name: $endpoint_name, file: $endpoint_file, start: $endpoint_start})-[:HANDLER]->(handler)
+        format!("MATCH (endpoint:Endpoint {{name: $endpoint_name, file: $endpoint_file, start: $endpoint_start}})-[:HANDLER]->(handler)
          RETURN handler");
 
     (query, params)
@@ -438,7 +439,7 @@ pub fn check_direct_data_model_usage_query(
     boltmap_insert_str(&mut params, "data_model", data_model);
 
     let query = 
-        format!("MATCH (f:Function {name: $function_name})-[:CONTAINS]->(n:Datamodel)
+        format!("MATCH (f:Function {{name: $function_name}})-[:CONTAINS]->(n:Datamodel)
          WHERE n.name CONTAINS $data_model
          RETURN COUNT(n) > 0 as exists");
 
@@ -447,12 +448,12 @@ pub fn check_direct_data_model_usage_query(
 
 pub fn find_functions_called_by_query(function: &NodeData) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    boltmap_insert_str(&mut params, "function_name", function.name);
-    boltmap_insert_str(&mut params, "function_file", function.file);
-    boltmap_insert_int(&mut params, "function_start", function.start);
+    boltmap_insert_str(&mut params, "function_name", &function.name);
+    boltmap_insert_str(&mut params, "function_file", &function.file);
+    boltmap_insert_int(&mut params, "function_start", function.start as i64);
 
     let query = 
-        format!("MATCH (source:Function {name: $function_name, file: $function_file, start: $function_start})-[:CALLS]->(target:Function)
+        format!("MATCH (source:Function {{name: $function_name, file: $function_file, start: $function_start}})-[:CALLS]->(target:Function)
          RETURN target");
 
     (query, params)
@@ -463,7 +464,7 @@ pub fn class_inherits_query() -> String {
      WHERE c.meta IS NOT NULL
      WITH c, apoc.convert.fromJsonMap(c.meta) AS meta_map
      WHERE meta_map.parent IS NOT NULL
-     MATCH (parent:Class {name: meta_map.parent})
+     MATCH (parent:Class {{name: meta_map.parent}})
      MERGE (parent)-[:PARENT_OF]->(c)")
 }
 pub fn class_includes_query() -> String {
@@ -473,7 +474,7 @@ pub fn class_includes_query() -> String {
      WHERE meta_map.includes IS NOT NULL
      WITH c, split(meta_map.includes, ',') AS modules
      UNWIND modules AS module
-     MATCH (m:Class {name: trim(module)})
+     MATCH (m:Class {{name: trim(module)}})
      MERGE (c)-[:IMPORTS]->(m)")
 }
 pub fn prefix_paths_query(root: &str) -> (String, BoltMap) {
@@ -782,7 +783,7 @@ pub fn data_bank_bodies_query_no_token_count() -> String {
 }
 
 pub fn update_token_count_query() -> String {
-    "MATCH (n {node_key: $node_key})
+    "MATCH (n {{node_key: $node_key}})
      SET n.token_count = $token_count"
         .to_string()
 }
