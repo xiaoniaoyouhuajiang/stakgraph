@@ -596,7 +596,7 @@ impl Graph for Neo4jGraph {
         Self::default()
     }
     fn analysis(&self) {
-        sync_fn(|| async { self.analysis_async().await }).unwrap();
+        sync_fn(|| async { self.analysis_async().await });
     }
     fn create_filtered_graph(&self, final_filter: &[String]) -> Self
     where
@@ -613,11 +613,11 @@ impl Graph for Neo4jGraph {
     }
 
     fn get_graph_size(&self) -> (u32, u32) {
-        sync_fn(|| async { self.get_graph_size_async().await.unwrap_or_default() }).unwrap()
+        sync_fn(|| async { self.get_graph_size_async().await.unwrap_or_default() })
     }
 
     fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
-        sync_fn(|| async { self.find_nodes_by_name_async(node_type, name).await }).unwrap()
+        sync_fn(|| async { self.find_nodes_by_name_async(node_type, name).await })
     }
     fn add_node_with_parent(
         &mut self,
@@ -629,7 +629,7 @@ impl Graph for Neo4jGraph {
         todo!("To be implemented in Neo4jGraph");
     }
     fn add_edge(&mut self, edge: Edge) {
-        sync_fn(|| async { self.add_edge_async(edge).await.unwrap_or_default() }).unwrap();
+        sync_fn(|| async { self.add_edge_async(edge).await.unwrap_or_default() });
     }
     fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
         sync_fn(|| async {
@@ -637,7 +637,6 @@ impl Graph for Neo4jGraph {
                 .await
                 .unwrap_or_default()
         })
-        .unwrap();
     }
     fn get_graph_keys(&self) -> (HashSet<String>, HashSet<String>) {
         todo!("To be implemented in Neo4jGraph");
@@ -719,7 +718,6 @@ impl Graph for Neo4jGraph {
                 .await
                 .unwrap_or_default()
         })
-        .unwrap()
     }
     fn find_nodes_with_edge_type(
         &self,
@@ -732,10 +730,9 @@ impl Graph for Neo4jGraph {
                 .await
                 .unwrap_or_default()
         })
-        .unwrap()
     }
     fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
-        sync_fn(|| async { self.count_edges_of_type_async(edge_type).await }).unwrap()
+        sync_fn(|| async { self.count_edges_of_type_async(edge_type).await })
     }
     fn find_nodes_by_name_contains(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         sync_fn(|| async {
@@ -743,7 +740,6 @@ impl Graph for Neo4jGraph {
                 .await
                 .unwrap_or_default()
         })
-        .unwrap()
     }
 
     fn find_node_by_name_in_file(
@@ -756,7 +752,6 @@ impl Graph for Neo4jGraph {
             self.find_node_by_name_in_file_async(node_type, name, file)
                 .await
         })
-        .unwrap()
     }
 
     fn find_nodes_by_file_ends_with(&self, node_type: NodeType, file: &str) -> Vec<NodeData> {
@@ -765,7 +760,6 @@ impl Graph for Neo4jGraph {
                 .await
                 .unwrap_or_default()
         })
-        .unwrap()
     }
 
     fn find_node_by_name_and_file_end_with(
