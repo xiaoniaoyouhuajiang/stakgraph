@@ -335,6 +335,44 @@ pub fn find_nodes_by_name_contains_query(
 
     (query, params)
 }
+pub fn find_nodes_in_range_query(
+    node_type: &NodeType,
+    file: &str,
+    row: u32,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_str(&mut params, "file", file);
+    boltmap_insert_int(&mut params, "row", row as i64);
+
+    let query = format!(
+        "MATCH (n:$node_type)
+         WHERE n.file = $file AND 
+               toInteger(n.start) <= toInteger($row) AND 
+               toInteger(n.end) >= toInteger($row)
+         RETURN n"
+    );
+
+    (query, params)
+}
+pub fn find_source_edge_by_name_and_file_query(
+    edge_type: &EdgeType,
+    target_name: &str,
+    target_file: &str,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+
+    boltmap_insert_str(&mut params, "edge_type", &edge_type.to_string());
+    boltmap_insert_str(&mut params, "target_name", target_name);
+    boltmap_insert_str(&mut params, "target_file", target_file);
+    let query = format!(
+        "MATCH (source)-[r:{}]->(target {{name: $target_name, file: $target_file}})
+         RETURN source.name as name, source.file as file, source.start as start, source.verb as verb
+         LIMIT 1",
+        edge_type.to_string()
+    );
+    (query, params)
+}
 
 pub fn find_nodes_with_edge_type_query(
     source_type: &NodeType,
@@ -357,6 +395,335 @@ pub fn find_nodes_with_edge_type_query(
     (query, params)
 }
 
+pub fn find_resource_nodes_query(
+    node_type: &NodeType,
+    verb: &str,
+    path: &str,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_str(&mut params, "verb", verb);
+    boltmap_insert_str(&mut params, "path", path);
+    let query = format!(
+        "MATCH (n:{})
+         WHERE n.name CONTAINS $path AND 
+               (n.verb IS NULL OR toUpper(n.verb) CONTAINS $verb)
+         RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn find_handlers_for_endpoint_query(endpoint: &NodeData) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "endpoint_name", &endpoint.name);
+    boltmap_insert_str(&mut params, "endpoint_file", &endpoint.file);
+    boltmap_insert_int(&mut params, "endpoint_start", endpoint.start as i64);
+
+    let query = 
+        format!("MATCH (endpoint:Endpoint {name: $endpoint_name, file: $endpoint_file, start: $endpoint_start})-[:HANDLER]->(handler)
+         RETURN handler");
+
+    (query, params)
+}
+
+pub fn check_direct_data_model_usage_query(
+    function_name: &str, 
+    data_model: &str
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+
+    boltmap_insert_str(&mut params, "function_name", function_name);
+    boltmap_insert_str(&mut params, "data_model", data_model);
+
+    let query = 
+        format!("MATCH (f:Function {name: $function_name})-[:CONTAINS]->(n:Datamodel)
+         WHERE n.name CONTAINS $data_model
+         RETURN COUNT(n) > 0 as exists");
+
+    (query, params)
+}
+
+pub fn find_functions_called_by_query(function: &NodeData) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "function_name", function.name);
+    boltmap_insert_str(&mut params, "function_file", function.file);
+    boltmap_insert_int(&mut params, "function_start", function.start);
+
+    let query = 
+        format!("MATCH (source:Function {name: $function_name, file: $function_file, start: $function_start})-[:CALLS]->(target:Function)
+         RETURN target");
+
+    (query, params)
+}
+
+pub fn class_inherits_query() -> String {
+    format!("MATCH (c:Class)
+     WHERE c.meta IS NOT NULL
+     WITH c, apoc.convert.fromJsonMap(c.meta) AS meta_map
+     WHERE meta_map.parent IS NOT NULL
+     MATCH (parent:Class {name: meta_map.parent})
+     MERGE (parent)-[:PARENT_OF]->(c)")
+}
+pub fn class_includes_query() -> String {
+    format!("MATCH (c:Class)
+     WHERE c.meta IS NOT NULL
+     WITH c, apoc.convert.fromJsonMap(c.meta) AS meta_map
+     WHERE meta_map.includes IS NOT NULL
+     WITH c, split(meta_map.includes, ',') AS modules
+     UNWIND modules AS module
+     MATCH (m:Class {name: trim(module)})
+     MERGE (c)-[:IMPORTS]->(m)")
+}
+pub fn prefix_paths_query(root: &str) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    let root = if root.ends_with('/') { root.to_string() } else { format!("{}/", root) };
+
+    boltmap_insert_str(&mut params, "root", &root);
+
+    let query = format!("MATCH (n)
+                WHERE n.file IS NOT NULL AND NOT n.file STARTS WITH $root
+                SET n.file = $root + n.file");
+
+    (query, params)
+}
+
+pub fn add_node_with_parent_query(
+    node_type: &NodeType,
+    node_data: &NodeData,
+    parent_type: &NodeType,
+    parent_file: &str,
+) -> Vec<(String, BoltMap)> {
+    let mut queries = Vec::new();
+
+    queries.push(add_node_query(node_type, node_data));
+
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "parent_type", &parent_type.to_string());
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_str(&mut params, "name", &node_data.name);
+    boltmap_insert_str(&mut params, "file", &node_data.file);
+    boltmap_insert_int(&mut params, "start", node_data.start as i64);
+    boltmap_insert_str(&mut params, "parent_file", parent_file);
+
+    let query_str = format!(
+        "MATCH (parent:{} {{file: $parent_file}}),
+               (node:{} {{name: $name, file: $file, start: $start}})
+         MERGE (parent)-[:CONTAINS]->(node)",
+        parent_type.to_string(),
+        node_type.to_string()
+    );
+    queries.push((query_str, params));
+    queries
+}
+
+pub fn add_functions_query(
+    function_node: &NodeData,
+    method_of: Option<&Operand>,
+    reqs: &[NodeData],
+    dms: &[Edge],
+    trait_operand: Option<&Edge>,
+    return_types: &[Edge],
+) -> Vec<(String, BoltMap)> {
+    let mut queries = Vec::new();
+
+    queries.push(add_node_query(&NodeType::Function, function_node));
+
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "function_name", &function_node.name);
+    boltmap_insert_str(&mut params, "function_file", &function_node.file);
+    boltmap_insert_int(&mut params, "function_start", function_node.start as i64);
+
+
+    let query_str = format!(
+        "MATCH (function:Function {{name: $function_name, file: $function_file, start: $function_start}}),
+               (file:File {{file: $function_file}})
+         MERGE (file)-[:CONTAINS]->(function)"
+    );
+    queries.push((query_str, params));
+
+    if let Some(operand) = method_of {
+        let edge = (*operand).clone().into();
+        queries.push(add_edge_query(&edge));
+    }
+
+    if let Some(edge) = trait_operand {
+        queries.push(add_edge_query(edge));
+    }
+
+    for edge in return_types {
+        queries.push(add_edge_query(edge));
+    }
+
+    for req in reqs {
+        queries.push(add_node_query(&NodeType::Request, req));
+
+        let mut params = BoltMap::new();
+        boltmap_insert_str(&mut params, "function_name", &function_node.name);
+        boltmap_insert_str(&mut params, "function_file", &function_node.file);
+        boltmap_insert_int(&mut params, "function_start", function_node.start as i64);
+        boltmap_insert_str(&mut params, "req_name", &req.name);
+        boltmap_insert_str(&mut params, "req_file", &req.file);
+        boltmap_insert_int(&mut params, "req_start", req.start as i64);
+        let query_str = format!(
+            "MATCH (function:Function {{name: $function_name, file: $function_file, start: $function_start}}),
+                   (request:Request {{name: $req_name, file: $req_file, start: $req_start}})
+             MERGE (function)-[:HANDLER]->(request)"
+        );
+        queries.push((query_str, params));
+    }
+
+    for dm_edge in dms {
+        queries.push(add_edge_query(dm_edge));
+    }
+    queries
+}
+pub fn add_test_node_query(
+    test_data: &NodeData,
+    test_type: &NodeType,
+    test_edge: &Option<Edge>
+) -> Vec<(String, BoltMap)> {
+    let mut queries = Vec::new();
+
+    queries.push(add_node_query(test_type, test_data));
+
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "test_type", &test_type.to_string());
+    boltmap_insert_str(&mut params, "test_name", &test_data.name);
+    boltmap_insert_str(&mut params, "test_file", &test_data.file);
+    boltmap_insert_int(&mut params, "test_start", test_data.start as i64);
+
+    let mut query_str = format!(
+        "MATCH (test:{} {{name: $test_name, file: $test_file, start: $test_start}}),
+               (file:File {{file: $test_file}})
+         MERGE (file)-[:CONTAINS]->(test)",
+        test_type.to_string()
+    );
+
+    queries.push((query_str, params));
+
+    if let Some(edge) = test_edge {
+        queries.push(add_edge_query(edge));
+    }
+    queries
+}
+
+pub fn add_page_query(
+    page_data: &NodeData,
+    edge_opt: &Option<Edge>
+) -> Vec<(String, BoltMap)> {
+    let mut queries = Vec::new();
+
+    queries.push(add_node_query(&NodeType::Page, page_data));
+
+    if let Some(edge) = edge_opt {
+        queries.push(add_edge_query(edge));
+    }
+
+    queries
+}
+
+pub fn add_pages_query(
+    pages: &[(NodeData, Vec<Edge>)]
+) -> Vec<(String, BoltMap)> {
+    let mut queries = Vec::new();
+
+    for (page_data, edges) in pages {
+        queries.push(add_node_query(&NodeType::Page, page_data));
+
+        for edge in edges {
+            queries.push(add_edge_query(edge));
+        }
+    }
+
+    queries
+}
+
+pub fn add_endpoints_query(
+    endpoints: &[(NodeData, Option<Edge>)]
+) -> Vec<(String, BoltMap)> {
+    let mut queries = Vec::new();
+
+    for (endpoint_data, handler_edge) in endpoints {
+
+        queries.push(add_node_query(&NodeType::Endpoint, endpoint_data));
+
+        if let Some(edge) = handler_edge {
+            queries.push(add_edge_query(edge));
+        }
+    }
+
+    queries
+}
+
+pub fn add_calls_query(
+    funcs: &[FunctionCall],
+    tests: &[FunctionCall],
+    int_tests: &[Edge]
+) -> Vec<(String, BoltMap)> {
+    let mut queries = Vec::new();
+
+    for (func_call, ext_func, class_call) in funcs {
+        if let Some(class_call) = class_call{
+            let edge = Edge::new(
+                EdgeType::Calls,
+                NodeRef::from(func_call.source.clone(), NodeType::Function),
+                NodeRef::from(class_call.into(), NodeType::Class)
+            );
+            queries.push(add_edge_query(&edge));
+        }
+
+         if func_call.target.is_empty() {
+            continue;
+        }
+        if let Some(ext_nd) = ext_func {
+            queries.push(add_node_query(&NodeType::Function, ext_nd));
+            let edge = Edge::uses(func_call.source.clone(), ext_nd);
+            queries.push(add_edge_query(&edge));
+        } else {
+            let edge = func_call.clone().into();
+            queries.push(add_edge_query(&edge));
+        }
+    }
+
+    for (test_call, ext_func,_class_call) in tests {
+        if let Some(ext_nd) = ext_func {
+
+            queries.push(add_node_query(&NodeType::Function, ext_nd));
+
+            let edge = Edge::uses(test_call.source.clone(), ext_nd);
+            queries.push(add_edge_query(&edge));
+        } else {
+            let edge = Edge::new_test_call(test_call.clone());
+            queries.push(add_edge_query(&edge));
+        }
+    }
+
+    for edge in int_tests {
+        queries.push(add_edge_query(edge));
+    }
+
+    queries
+}
+pub fn find_endpoint_query(
+    name: &str,
+    file: &str,
+    verb: &str
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "name", name);
+    boltmap_insert_str(&mut params, "verb", verb.to_uppercase().as_str());
+    boltmap_insert_str(&mut params, "file", file);
+    boltmap_insert_str(&mut params, "node_type", &NodeType::Endpoint.to_string());
+
+    let query = 
+        "MATCH (n:Endpoint {name: $name, file: $file})
+         WHERE n.verb IS NULL OR toUpper(n.verb) CONTAINS $verb
+         RETURN n";
+
+    (query.to_string(), params)
+}
 pub fn get_repository_hash_query(repo_url: &str) -> (String, BoltMap) {
     let mut params = BoltMap::new();
 
