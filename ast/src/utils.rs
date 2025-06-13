@@ -147,3 +147,19 @@ pub fn print_json_vec<T: Serialize>(data: &Vec<T>, name: &str) -> anyhow::Result
     }
     Ok(())
 }
+pub fn sync_fn<T, F, Fut>(async_fn: F) -> std::result::Result<T, BlockOnError>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = T>,
+{
+    tokio::task::block_in_place(|| {
+        let handle = tokio::runtime::Handle::try_current().map_err(|_| BlockOnError::NoRuntime)?;
+        Ok(handle.block_on(async_fn()))
+    })
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BlockOnError {
+    #[error("Must be called from within a tokio runtime")]
+    NoRuntime,
+}

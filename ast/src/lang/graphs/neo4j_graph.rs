@@ -1,8 +1,14 @@
 use super::{neo4j_utils::*, *};
+use crate::utils::sync_fn;
+use crate::{
+    lang::{Function, FunctionCall},
+    Lang,
+};
 use anyhow::Result;
 use neo4rs::{query, BoltType, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{
+    collections::HashSet,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -130,15 +136,15 @@ impl Neo4jGraph {
             return Ok(conn.clone());
         }
 
-        if let Some(conn) = Neo4jConnectionManager::get_connection().await {
-            self.connection = Some(conn.clone());
-            if let Ok(mut conn_status) = self.connected.lock() {
-                *conn_status = true;
-            }
-            return Ok(conn);
-        }
+        // if let Some(conn) = Neo4jConnectionManager::get_connection().await {
+        //     self.connection = Some(conn.clone());
+        //     if let Ok(mut conn_status) = self.connected.lock() {
+        //         *conn_status = true;
+        //     }
+        //     return Ok(conn);
+        // }
 
-        self.connect().await?;
+        // self.connect().await?;
 
         match &self.connection {
             Some(conn) => Ok(conn.clone()),
@@ -355,7 +361,7 @@ impl std::fmt::Debug for Neo4jGraph {
 }
 
 impl Neo4jGraph {
-    pub async fn add_node(&mut self, node_type: NodeType, node_data: NodeData) -> Result<()> {
+    pub async fn add_node_async(&mut self, node_type: NodeType, node_data: NodeData) -> Result<()> {
         self.execute_with_transaction(|txn_manager| {
             txn_manager.add_node(&node_type, &node_data);
             Ok(())
@@ -363,7 +369,7 @@ impl Neo4jGraph {
         .await
     }
 
-    pub async fn add_edge(&mut self, edge: Edge) -> Result<()> {
+    pub async fn add_edge_async(&mut self, edge: Edge) -> Result<()> {
         self.execute_with_transaction(|txn_manager| {
             txn_manager.add_edge(&edge);
             Ok(())
@@ -371,7 +377,7 @@ impl Neo4jGraph {
         .await
     }
 
-    pub async fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
+    pub async fn find_nodes_by_name_async(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         let connection = self.get_connection();
 
         let (query_str, params_map) = find_nodes_by_name_query(&node_type, name);
@@ -384,7 +390,7 @@ impl Neo4jGraph {
         }
     }
 
-    pub async fn find_node_by_name_in_file(
+    pub async fn find_node_by_name_in_file_async(
         &self,
         node_type: NodeType,
         name: &str,
@@ -403,8 +409,8 @@ impl Neo4jGraph {
         }
     }
 
-    pub async fn get_graph_size(&mut self) -> Result<(u32, u32)> {
-        let connection = self.ensure_connected().await?;
+    pub async fn get_graph_size_async(&self) -> Result<(u32, u32)> {
+        let connection = self.get_connection();
         let query_str = count_nodes_edges_query();
         let mut result = connection.execute(query(&query_str)).await?;
         if let Some(row) = result.next().await? {
@@ -415,9 +421,9 @@ impl Neo4jGraph {
             Ok((0, 0))
         }
     }
-    pub async fn analysis(&mut self) -> Result<()> {
+    pub async fn analysis_async(&self) -> Result<()> {
         let connection = self.get_connection();
-        let (nodes, edges) = self.get_graph_size().await?;
+        let (nodes, edges) = self.get_graph_size();
         println!("Graph contains {} nodes and {} edges", nodes, edges);
 
         let query_str = graph_node_analysis_query();
@@ -485,7 +491,7 @@ impl Neo4jGraph {
         }
         Ok(())
     }
-    pub async fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
+    pub async fn count_edges_of_type_async(&self, edge_type: EdgeType) -> usize {
         let connection = self.get_connection();
 
         let (query_str, params) = count_edges_by_type_query(&edge_type);
@@ -508,39 +514,39 @@ impl Neo4jGraph {
         }
     }
 
-    pub async fn find_nodes_by_type(&mut self, node_type: NodeType) -> Result<Vec<NodeData>> {
-        let connection = self.ensure_connected().await?;
+    pub async fn find_nodes_by_type_async(&self, node_type: NodeType) -> Result<Vec<NodeData>> {
+        let connection = self.get_connection();
         let (query, params) = find_nodes_by_type_query(&node_type);
         execute_node_query(&connection, query, params).await
     }
 
-    pub async fn find_nodes_by_name_contains(
-        &mut self,
+    pub async fn find_nodes_by_name_contains_async(
+        &self,
         node_type: NodeType,
         name_part: &str,
     ) -> Result<Vec<NodeData>> {
-        let connection = self.ensure_connected().await?;
+        let connection = self.get_connection();
         let (query, params) = find_nodes_by_name_contains_query(&node_type, name_part);
         execute_node_query(&connection, query, params).await
     }
 
-    pub async fn find_nodes_by_file_ends_with(
-        &mut self,
+    pub async fn find_nodes_by_file_ends_with_async(
+        &self,
         node_type: NodeType,
         file: &str,
     ) -> Result<Vec<NodeData>> {
-        let connection = self.ensure_connected().await?;
+        let connection = self.get_connection();
         let (query, params) = find_nodes_by_file_pattern_query(&node_type, file);
         execute_node_query(&connection, query, params).await
     }
 
-    pub async fn find_nodes_with_edge_type(
-        &mut self,
+    pub async fn find_nodes_with_edge_type_async(
+        &self,
         source_type: NodeType,
         target_type: NodeType,
         edge_type: EdgeType,
     ) -> Result<Vec<(NodeData, NodeData)>> {
-        let connection = self.ensure_connected().await?;
+        let connection = self.get_connection();
         let (query_str, params) =
             find_nodes_with_edge_type_query(&source_type, &target_type, &edge_type);
 
@@ -573,5 +579,212 @@ impl Neo4jGraph {
             node_pairs.push((source_node, target_node));
         }
         Ok(node_pairs)
+    }
+}
+
+impl Graph for Neo4jGraph {
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self::default()
+    }
+    fn with_capacity(_nodes: usize, _edges: usize) -> Self
+    where
+        Self: Sized,
+    {
+        Self::default()
+    }
+    fn analysis(&self) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn create_filtered_graph(&self, final_filter: &[String]) -> Self
+    where
+        Self: Sized,
+    {
+        todo!("To be implemented in Neo4jGraph");
+    }
+
+    fn extend_graph(&mut self, other: Self)
+    where
+        Self: Sized,
+    {
+        todo!("To be implemented in Neo4jGraph");
+    }
+
+    fn get_graph_size(&self) -> (u32, u32) {
+        sync_fn(|| async { self.get_graph_size_async().await.unwrap_or_default() }).unwrap()
+    }
+
+    fn find_nodes_by_name(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
+        sync_fn(|| async { self.find_nodes_by_name_async(node_type, name).await }).unwrap()
+    }
+    fn add_node_with_parent(
+        &mut self,
+        node_type: NodeType,
+        node_data: NodeData,
+        parent_type: NodeType,
+        parent_file: &str,
+    ) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_edge(&mut self, edge: Edge) {
+        sync_fn(|| async { self.add_edge_async(edge).await.unwrap_or_default() }).unwrap();
+    }
+    fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
+        sync_fn(|| async {
+            self.add_node_async(node_type, node_data)
+                .await
+                .unwrap_or_default()
+        })
+        .unwrap();
+    }
+    fn get_graph_keys(&self) -> (HashSet<String>, HashSet<String>) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+
+    fn find_source_edge_by_name_and_file(
+        &self,
+        edge_type: EdgeType,
+        target_name: &str,
+        target_file: &str,
+    ) -> Option<NodeKeys> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn process_endpoint_groups(&mut self, eg: Vec<NodeData>, lang: &Lang) -> Result<()> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn class_inherits(&mut self) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn class_includes(&mut self) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_instances(&mut self, nodes: Vec<NodeData>) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_functions(&mut self, functions: Vec<Function>) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_page(&mut self, page: (NodeData, Option<Edge>)) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_pages(&mut self, pages: Vec<(NodeData, Vec<Edge>)>) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_endpoints(&mut self, endpoints: Vec<(NodeData, Option<Edge>)>) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_test_node(&mut self, test_data: NodeData, test_type: NodeType, test_edge: Option<Edge>) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>)) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn filter_out_nodes_without_children(
+        &mut self,
+        parent_type: NodeType,
+        child_type: NodeType,
+        child_meta_key: &str,
+    ) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn get_data_models_within(&mut self, lang: &Lang) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn prefix_paths(&mut self, root: &str) {
+        todo!("To be implemented in Neo4jGraph");
+    }
+
+    //Specific
+    fn find_endpoint(&self, name: &str, file: &str, verb: &str) -> Option<NodeData> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+
+    fn find_resource_nodes(&self, node_type: NodeType, verb: &str, path: &str) -> Vec<NodeData> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn find_handlers_for_endpoint(&self, endpoint: &NodeData) -> Vec<NodeData> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn check_direct_data_model_usage(&self, function_name: &str, data_model: &str) -> bool {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn find_functions_called_by(&self, function: &NodeData) -> Vec<NodeData> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+    fn find_nodes_by_type(&self, node_type: NodeType) -> Vec<NodeData> {
+        sync_fn(|| async {
+            self.find_nodes_by_type_async(node_type)
+                .await
+                .unwrap_or_default()
+        })
+        .unwrap()
+    }
+    fn find_nodes_with_edge_type(
+        &self,
+        source_type: NodeType,
+        target_type: NodeType,
+        edge_type: EdgeType,
+    ) -> Vec<(NodeData, NodeData)> {
+        sync_fn(|| async {
+            self.find_nodes_with_edge_type_async(source_type, target_type, edge_type)
+                .await
+                .unwrap_or_default()
+        })
+        .unwrap()
+    }
+    fn count_edges_of_type(&self, edge_type: EdgeType) -> usize {
+        sync_fn(|| async { self.count_edges_of_type_async(edge_type).await }).unwrap()
+    }
+    fn find_nodes_by_name_contains(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
+        sync_fn(|| async {
+            self.find_nodes_by_name_contains_async(node_type, name)
+                .await
+                .unwrap_or_default()
+        })
+        .unwrap()
+    }
+
+    fn find_node_by_name_in_file(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        file: &str,
+    ) -> Option<NodeData> {
+        Some(
+            sync_fn(|| async {
+                self.find_node_by_name_in_file_async(node_type, name, file)
+                    .await
+                    .unwrap_or_default()
+            })
+            .unwrap(),
+        )
+    }
+
+    fn find_nodes_by_file_ends_with(&self, node_type: NodeType, file: &str) -> Vec<NodeData> {
+        sync_fn(|| async {
+            self.find_nodes_by_file_ends_with_async(node_type, file)
+                .await
+                .unwrap_or_default()
+        })
+        .unwrap()
+    }
+
+    fn find_node_by_name_and_file_end_with(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        suffix: &str,
+    ) -> Option<NodeData> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+
+    fn find_node_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
+        todo!("To be implemented in Neo4jGraph");
+    }
+
+    fn find_node_at(&self, node_type: NodeType, file: &str, line: u32) -> Option<NodeData> {
+        todo!("To be implemented in Neo4jGraph");
     }
 }
