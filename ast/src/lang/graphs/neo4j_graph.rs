@@ -596,7 +596,7 @@ impl Graph for Neo4jGraph {
         Self::default()
     }
     fn analysis(&self) {
-        todo!("To be implemented in Neo4jGraph");
+        sync_fn(|| async { self.analysis_async().await }).unwrap();
     }
     fn create_filtered_graph(&self, final_filter: &[String]) -> Self
     where
@@ -752,14 +752,11 @@ impl Graph for Neo4jGraph {
         name: &str,
         file: &str,
     ) -> Option<NodeData> {
-        Some(
-            sync_fn(|| async {
-                self.find_node_by_name_in_file_async(node_type, name, file)
-                    .await
-                    .unwrap_or_default()
-            })
-            .unwrap(),
-        )
+        sync_fn(|| async {
+            self.find_node_by_name_in_file_async(node_type, name, file)
+                .await
+        })
+        .unwrap()
     }
 
     fn find_nodes_by_file_ends_with(&self, node_type: NodeType, file: &str) -> Vec<NodeData> {

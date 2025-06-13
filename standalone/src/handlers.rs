@@ -1,5 +1,6 @@
 use crate::types::{AppError, ProcessBody, ProcessResponse, Result};
 use ast::lang::graphs::graph_ops::GraphOps;
+use ast::lang::Graph;
 use ast::repo::Repo;
 use axum::Json;
 use lsp::git::{get_commit_hash, git_pull_or_clone};
@@ -53,7 +54,7 @@ pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
 
     if let Some(hash) = &stored_hash {
         if hash == &current_hash {
-            let (nodes, edges) = graph_ops.graph.get_graph_size().await?;
+            let (nodes, edges) = graph_ops.graph.get_graph_size();
             return Ok(Json(ProcessResponse {
                 status: "success".to_string(),
                 message: "Repository already processed".to_string(),
