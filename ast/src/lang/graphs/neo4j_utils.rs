@@ -3,6 +3,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use std::sync::{Arc, Once};
+use tiktoken_rs::get_bpe_from_model;
 use tracing::{debug, info};
 use crate::lang::FunctionCall;
 
@@ -76,15 +77,25 @@ impl NodeQueryBuilder {
     pub fn build(&self) -> (String, BoltMap) {
         let mut properties: BoltMap = (&self.node_data).into();
 
+        boltmap_insert_str(
+            &mut properties,
+            "node_data",
+            &self.node_type.to_string(),
+        );
         let ref_id = if std::env::var("TEST_REF_ID").is_ok() {
             "test_ref_id".to_string()
         } else {
             uuid::Uuid::new_v4().to_string()
         };
-        properties.value.insert("ref_id".into(), ref_id.into());
+
+        boltmap_insert_str(&mut properties, "ref_id", &ref_id);
 
         let node_key = create_node_key(&Node::new(self.node_type.clone(), self.node_data.clone()));
-        properties.value.insert("node_key".into(), node_key.into());
+        boltmap_insert_str(&mut properties, "node_key", &node_key);
+
+        let token_count = calculate_token_count(&self.node_data.body).unwrap_or(0);
+        boltmap_insert_int(&mut properties, "token_count", token_count);
+        
 
         let query = format!(
             "MERGE (node:{}:{} {{node_key: $node_key}})
@@ -196,7 +207,7 @@ pub async fn execute_node_query(
     conn: &Neo4jConnection,
     query_str: String,
     params: BoltMap,
-) -> Result<Vec<NodeData>> {
+) -> Vec<NodeData> {
     let mut query_obj = query(&query_str);
     for (key, value) in params.value.iter() {
         query_obj = query_obj.param(key.value.as_str(), value.clone());
@@ -204,18 +215,18 @@ pub async fn execute_node_query(
     match conn.execute(query_obj).await {
         Ok(mut result) => {
             let mut nodes = Vec::new();
-            while let Some(row) = result.next().await? {
+            while let Ok(Some(row)) = result.next().await {
                 if let Ok(node) = row.get::<neo4rs::Node>("n") {
                     if let Ok(node_data) = NodeData::try_from(&node) {
                         nodes.push(node_data);
                     }
                 }
             }
-            Ok(nodes)
+            nodes
         }
         Err(e) => {
             debug!("Error executing query: {}", e);
-            Ok(vec![])
+            Vec::new()
         }
     }
 }
@@ -775,19 +786,6 @@ pub fn update_repository_hash_query(repo_name: &str, new_hash: &str) -> (String,
     (query.to_string(), params)
 }
 
-pub fn data_bank_bodies_query_no_token_count() -> String {
-    "MATCH (n:Data_Bank) 
-     WHERE n.token_count IS NULL AND n.body IS NOT NULL
-     RETURN n.node_key as node_key, n.body as body"
-        .to_string()
-}
-
-pub fn update_token_count_query() -> String {
-    "MATCH (n {{node_key: $node_key}})
-     SET n.token_count = $token_count"
-        .to_string()
-}
-
 pub fn boltmap_insert_str(map: &mut BoltMap, key: &str, value: &str) {
     map.value.insert(key.into(), BoltType::String(value.into()));
 }
@@ -801,4 +799,9 @@ fn boltmap_to_bolttype_map(bolt_map: &BoltMap) -> BoltType {
         map.insert(k.clone(), v.clone());
     }
     BoltType::Map(BoltMap { value: map })
+}
+pub fn calculate_token_count(body: &str) -> Result<i64> {
+    let bpe = get_bpe_from_model("gpt-4")?;
+    let token_count = bpe.encode_with_special_tokens(body).len() as i64;
+    Ok(token_count)
 }
