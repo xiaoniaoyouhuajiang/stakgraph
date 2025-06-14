@@ -653,7 +653,7 @@ pub fn add_test_node_query(
     boltmap_insert_str(&mut params, "test_file", &test_data.file);
     boltmap_insert_int(&mut params, "test_start", test_data.start as i64);
 
-    let mut query_str = format!(
+    let query_str = format!(
         "MATCH (test:{} {{name: $test_name, file: $test_file, start: $test_start}}),
                (file:File {{file: $test_file}})
          MERGE (file)-[:CONTAINS]->(test)",

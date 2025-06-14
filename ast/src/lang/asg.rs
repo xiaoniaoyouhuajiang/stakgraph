@@ -7,9 +7,9 @@ use std::str::FromStr;
 #[cfg(feature = "neo4j")]
 use crate::lang::graphs::neo4j_utils::{boltmap_insert_int, boltmap_insert_str};
 #[cfg(feature = "neo4j")]
-use neo4rs::Node as BoltNode;
+use neo4rs::BoltMap;
 #[cfg(feature = "neo4j")]
-use neo4rs::{BoltMap, BoltType};
+use neo4rs::Node as BoltNode;
 
 pub struct UniqueKey {
     pub kind: NodeType,
