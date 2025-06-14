@@ -76,12 +76,6 @@ impl NodeQueryBuilder {
 
     pub fn build(&self) -> (String, BoltMap) {
         let mut properties: BoltMap = (&self.node_data).into();
-
-        boltmap_insert_str(
-            &mut properties,
-            "node_type",
-            &self.node_type.to_string(),
-        );
         let ref_id = if std::env::var("TEST_REF_ID").is_ok() {
             "test_ref_id".to_string()
         } else {
@@ -299,7 +293,6 @@ pub fn find_node_by_name_file_query(
     file: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
     boltmap_insert_str(&mut params, "name", name);
     boltmap_insert_str(&mut params, "file", file);
 
@@ -318,7 +311,6 @@ pub fn find_nodes_by_file_pattern_query(
     file_pattern: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
     boltmap_insert_str(&mut params, "file_pattern", file_pattern);
     let query = format!(
         "MATCH (n:{}) 
@@ -335,7 +327,6 @@ pub fn find_nodes_by_name_contains_query(
     name_part: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
     boltmap_insert_str(&mut params, "name_part", name_part);
 
     let query = format!(
@@ -413,7 +404,6 @@ pub fn find_resource_nodes_query(
     path: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
     boltmap_insert_str(&mut params, "verb", verb);
     boltmap_insert_str(&mut params, "path", path);
     let query = format!(
@@ -513,7 +503,6 @@ pub fn add_node_with_parent_query(
 
     let mut params = BoltMap::new();
     boltmap_insert_str(&mut params, "parent_type", &parent_type.to_string());
-    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
     boltmap_insert_str(&mut params, "name", &node_data.name);
     boltmap_insert_str(&mut params, "file", &node_data.file);
     boltmap_insert_int(&mut params, "start", node_data.start as i64);
