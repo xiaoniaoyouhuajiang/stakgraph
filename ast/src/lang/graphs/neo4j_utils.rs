@@ -460,6 +460,64 @@ pub fn find_functions_called_by_query(function: &NodeData) -> (String, BoltMap) 
     (query, params)
 }
 
+pub fn find_node_at_query(
+    node_type: &NodeType,
+    file: &str,
+    line: u32,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_str(&mut params, "file", file);
+    boltmap_insert_int(&mut params, "line", line as i64);
+
+    let query = format!(
+        "MATCH (n:{}) 
+         WHERE n.file = $file AND 
+               toInteger(n.start) <= toInteger($line) AND 
+               toInteger(n.end) >= toInteger($line)
+         RETURN n",
+        node_type.to_string()
+    );
+
+    (query, params)
+}
+
+pub fn all_nodes_and_edges_query() -> (String, String) {
+    let node_query = "MATCH (n) WHERE n.node_key IS NOT NULL RETURN DISTINCT n.node_key as key";
+    let edge_query = "MATCH ()-[r]->() RETURN DISTINCT type(r) as edge_type";
+
+    (node_query.to_string(), edge_query.to_string())
+
+}
+
+pub fn filter_out_nodes_without_children_query(
+    parent_type: NodeType,
+    child_type: NodeType,
+    _child_meta_key: &str,
+) -> (String, BoltMap) {
+
+    let mut params = BoltMap::new();
+    
+    boltmap_insert_str(&mut params, "parent_type", &parent_type.to_string());
+    boltmap_insert_str(&mut params, "child_type", &child_type.to_string());
+
+    let query = format!(
+        "MATCH (parent:{}) 
+         WHERE NOT EXISTS {{
+             MATCH (parent)<-[:OPERAND]-(child:{})
+         }}
+         AND NOT EXISTS {{
+             MATCH (instance:Instance)-[:OF]->(parent)
+         }}
+         DETACH DELETE parent",
+        parent_type.to_string(),
+        child_type.to_string()
+    );
+
+    (query, params)
+}
+
+
 pub fn class_inherits_query() -> String {
     format!("MATCH (c:Class)
      WHERE c.meta IS NOT NULL

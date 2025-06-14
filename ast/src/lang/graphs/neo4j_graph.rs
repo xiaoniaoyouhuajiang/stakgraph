@@ -135,16 +135,6 @@ impl Neo4jGraph {
             return Ok(conn.clone());
         }
 
-        // if let Some(conn) = Neo4jConnectionManager::get_connection().await {
-        //     self.connection = Some(conn.clone());
-        //     if let Ok(mut conn_status) = self.connected.lock() {
-        //         *conn_status = true;
-        //     }
-        //     return Ok(conn);
-        // }
-
-        // self.connect().await?;
-
         match &self.connection {
             Some(conn) => Ok(conn.clone()),
             None => Err(anyhow::anyhow!("Failed to connect to Neo4j")),
@@ -568,6 +558,288 @@ impl Neo4jGraph {
         let (query, params) = find_resource_nodes_query(&node_type, verb, path);
 
         execute_node_query(&connection, query, params).await
+    }
+    pub async fn find_handlers_for_endpoint_async(&self, endpoint: &NodeData) -> Vec<NodeData> {
+        let connection = self.get_connection();
+        let (query, params) = find_handlers_for_endpoint_query(endpoint);
+
+        execute_node_query(&connection, query, params).await
+    }
+
+    pub async fn check_direct_data_model_usage_async(
+        &self,
+        function_name: &str,
+        data_model: &str,
+    ) -> bool {
+        let connection = self.get_connection();
+        let (query_str, params) = check_direct_data_model_usage_query(function_name, data_model);
+
+        let mut query_obj = query(&query_str);
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
+        }
+
+        if let Ok(mut result) = connection.execute(query_obj).await {
+            if let Ok(Some(row)) = result.next().await {
+                return row.get::<bool>("exists").unwrap_or(false);
+            }
+        }
+        false
+    }
+    pub async fn find_functions_called_by_async(&self, function: &NodeData) -> Vec<NodeData> {
+        let connection = self.get_connection();
+        let (query, params) = find_functions_called_by_query(function);
+
+        execute_node_query(&connection, query, params).await
+    }
+    pub async fn find_source_edge_by_name_and_file_async(
+        &self,
+        edge_type: EdgeType,
+        target_name: &str,
+        target_file: &str,
+    ) -> Option<NodeKeys> {
+        let connection = self.get_connection();
+        let (query_str, params) =
+            find_source_edge_by_name_and_file_query(&edge_type, target_name, target_file);
+
+        let mut query_obj = query(&query_str);
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
+        }
+
+        if let Ok(mut result) = connection.execute(query_obj).await {
+            if let Ok(Some(row)) = result.next().await {
+                let name = row.get::<String>("name").unwrap_or_default();
+                let file = row.get::<String>("file").unwrap_or_default();
+                let start = row.get::<i64>("start").unwrap_or_default() as usize;
+                let verb = row.get::<String>("verb").ok();
+
+                return Some(NodeKeys {
+                    name,
+                    file,
+                    start,
+                    verb,
+                });
+            }
+        }
+        None
+    }
+    pub async fn find_node_in_range_async(
+        &self,
+        node_type: NodeType,
+        row: u32,
+        file: &str,
+    ) -> Option<NodeData> {
+        let connection = self.get_connection();
+        let (query, params) = find_nodes_in_range_query(&node_type, file, row);
+
+        let nodes = execute_node_query(&connection, query, params).await;
+        nodes.into_iter().next()
+    }
+    pub async fn find_node_at_async(
+        &self,
+        node_type: NodeType,
+        file: &str,
+        line: u32,
+    ) -> Option<NodeData> {
+        let connection = self.get_connection();
+        let (query, params) = find_node_at_query(&node_type, file, line);
+        let nodes = execute_node_query(&connection, query, params).await;
+        nodes.into_iter().next()
+    }
+    pub async fn find_node_by_name_and_file_end_with_async(
+        &self,
+        node_type: NodeType,
+        name: &str,
+        suffix: &str,
+    ) -> Option<NodeData> {
+        let nodes = self.find_nodes_by_name_async(node_type, name).await;
+        nodes.into_iter().find(|node| node.file.ends_with(suffix))
+    }
+    pub async fn prefix_paths_async(&mut self, root: &str) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let (query_str, params) = prefix_paths_query(root);
+
+        let mut query_obj = query(&query_str);
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
+        }
+
+        connection.execute(query_obj).await?;
+        Ok(())
+    }
+
+    pub async fn add_node_with_parent_async(
+        &mut self,
+        node_type: NodeType,
+        node_data: NodeData,
+        parent_type: NodeType,
+        parent_file: &str,
+    ) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries = add_node_with_parent_query(&node_type, &node_data, &parent_type, parent_file);
+
+        let mut txn_manager = TransactionManager::new(&connection);
+        for query in queries {
+            txn_manager.add_query(query);
+        }
+
+        txn_manager.execute().await
+    }
+    pub async fn class_inherits_async(&mut self) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let query_str = class_inherits_query();
+
+        connection.execute(query(&query_str)).await?;
+        Ok(())
+    }
+
+    pub async fn class_includes_async(&mut self) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let query_str = class_includes_query();
+
+        connection.execute(query(&query_str)).await?;
+        Ok(())
+    }
+    pub async fn add_instances_async(&mut self, nodes: Vec<NodeData>) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
+        for node in nodes {
+            txn_manager.add_node(&NodeType::Instance, &node);
+        }
+
+        txn_manager.execute().await
+    }
+    pub async fn add_functions_async(&mut self, functions: Vec<Function>) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
+        for (function_node, method_of, reqs, dms, trait_operand, return_types) in &functions {
+            let queries = add_functions_query(
+                function_node,
+                method_of.as_ref(),
+                reqs,
+                dms,
+                trait_operand.as_ref(),
+                return_types,
+            );
+            for query in queries {
+                txn_manager.add_query(query);
+            }
+        }
+
+        txn_manager.execute().await
+    }
+    pub async fn add_page_async(&mut self, page: (NodeData, Option<Edge>)) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries = add_page_query(&page.0, &page.1);
+
+        let mut txn_manager = TransactionManager::new(&connection);
+        for query in queries {
+            txn_manager.add_query(query);
+        }
+
+        txn_manager.execute().await
+    }
+
+    pub async fn add_pages_async(&mut self, pages: Vec<(NodeData, Vec<Edge>)>) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries = add_pages_query(&pages);
+
+        let mut txn_manager = TransactionManager::new(&connection);
+        for query in queries {
+            txn_manager.add_query(query);
+        }
+
+        txn_manager.execute().await
+    }
+    pub async fn add_endpoints_async(
+        &mut self,
+        endpoints: Vec<(NodeData, Option<Edge>)>,
+    ) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries = add_endpoints_query(&endpoints);
+
+        let mut txn_manager = TransactionManager::new(&connection);
+        for query in queries {
+            txn_manager.add_query(query);
+        }
+
+        txn_manager.execute().await
+    }
+
+    pub async fn add_test_node_async(
+        &mut self,
+        test_data: NodeData,
+        test_type: NodeType,
+        test_edge: Option<Edge>,
+    ) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries = add_test_node_query(&test_data, &test_type, &test_edge);
+
+        let mut txn_manager = TransactionManager::new(&connection);
+        for query in queries {
+            txn_manager.add_query(query);
+        }
+
+        txn_manager.execute().await
+    }
+    pub async fn add_calls_async(
+        &mut self,
+        calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>),
+    ) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries = add_calls_query(&calls.0, &calls.1, &calls.3);
+
+        let mut txn_manager = TransactionManager::new(&connection);
+        for query in queries {
+            txn_manager.add_query(query);
+        }
+
+        txn_manager.execute().await
+    }
+
+    pub async fn get_graph_keys_async(&self) -> (HashSet<String>, HashSet<String>) {
+        let connection = self.get_connection();
+        let mut node_keys = HashSet::new();
+        let mut edge_keys = HashSet::new();
+
+        let (node_query, edge_query) = all_nodes_and_edges_query();
+        if let Ok(mut result) = connection.execute(query(&node_query)).await {
+            while let Ok(Some(row)) = result.next().await {
+                if let Ok(key) = row.get::<String>("key") {
+                    node_keys.insert(key);
+                }
+            }
+        }
+
+        if let Ok(mut result) = connection.execute(query(&edge_query)).await {
+            while let Ok(Some(row)) = result.next().await {
+                if let Ok(edge_type) = row.get::<String>("edge_type") {
+                    edge_keys.insert(edge_type);
+                }
+            }
+        }
+
+        (node_keys, edge_keys)
+    }
+
+    pub async fn filter_out_nodes_without_children_async(
+        &mut self,
+        parent_type: NodeType,
+        child_type: NodeType,
+        child_meta_key: &str,
+    ) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let queries =
+            filter_out_nodes_without_children_query(parent_type, child_type, child_meta_key);
+
+        let mut txn_manager = TransactionManager::new(&connection);
+        txn_manager.add_query(queries);
+        txn_manager.execute().await;
+
+        Ok(())
     }
 }
 
