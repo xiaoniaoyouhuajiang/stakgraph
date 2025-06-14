@@ -79,7 +79,7 @@ impl NodeQueryBuilder {
 
         boltmap_insert_str(
             &mut properties,
-            "node_data",
+            "node_type",
             &self.node_type.to_string(),
         );
         let ref_id = if std::env::var("TEST_REF_ID").is_ok() {
