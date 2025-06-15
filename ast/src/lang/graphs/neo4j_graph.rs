@@ -275,8 +275,8 @@ impl Neo4jGraph {
                     NodeType::from_str(&target_type),
                     EdgeType::from_str(&edge_type),
                 ) {
-                    let source_data = NodeData::try_from(&source_node).unwrap();
-                    let target_data = NodeData::try_from(&target_node).unwrap();
+                    let source_data = NodeData::try_from(&source_node).unwrap_or_default();
+                    let target_data = NodeData::try_from(&target_node).unwrap_or_default();
                     let source_ref = NodeRef::from(NodeKeys::from(&source_data), source_type);
                     let target_ref = NodeRef::from(NodeKeys::from(&target_data), target_type);
                     let edge = Edge::new(edge_type, source_ref, target_ref);
@@ -887,7 +887,7 @@ impl Graph for Neo4jGraph {
         sync_fn(|| async {
             self.add_node_with_parent_async(node_type, node_data, parent_type, parent_file)
                 .await
-                .unwrap()
+                .unwrap_or_default()
         });
     }
     fn add_edge(&mut self, edge: Edge) {
