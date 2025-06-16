@@ -133,20 +133,16 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_go() {
-    #[cfg(feature = "neo4j")]
-    use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
-    println!("\n\nTesting GoGraph with ArrayGraph...");
     test_go_generic::<ArrayGraph>().await.unwrap();
-    println!("\n\nTesting GoGraph with BTreeMapGraph...");
     test_go_generic::<BTreeMapGraph>().await.unwrap();
 
     #[cfg(feature = "neo4j")]
     {
+        use crate::lang::graphs::Neo4jGraph;
         let mut graph = Neo4jGraph::default();
         graph.connect().await.unwrap();
         graph.clear().await.unwrap();
-        println!("\n\nTesting Neo4jGraph with Go...");
         test_go_generic::<Neo4jGraph>().await.unwrap();
     }
 }

@@ -20,8 +20,8 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
 
-    assert_eq!(num_nodes, 24, "Expected 24 nodes");
-    assert_eq!(num_edges, 27, "Expected 27 edges");
+    assert_eq!(num_nodes, 26, "Expected 26 nodes");
+    assert_eq!(num_edges, 29, "Expected 29 edges");
 
     let language_nodes = graph.find_nodes_by_name(NodeType::Language, "cpp");
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -97,7 +97,7 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(function_calls, 3, "Expected 3 function calls");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
-    assert_eq!(contains, 21, "Expected 21 contains edges");
+    assert_eq!(contains, 23, "Expected 23 contains edges");
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(variables.len(), 1, "Expected 1 variables");
@@ -110,4 +110,13 @@ async fn test_cpp() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_cpp_generic::<ArrayGraph>().await.unwrap();
     test_cpp_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::default();
+        graph.connect().await.unwrap();
+        graph.clear().await.unwrap();
+        test_cpp_generic::<Neo4jGraph>().await.unwrap();
+    }
 }

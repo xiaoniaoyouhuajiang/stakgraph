@@ -871,6 +871,28 @@ impl Neo4jGraph {
 
         Ok(())
     }
+
+    pub async fn get_data_models_within_async(&mut self, lang: &Lang) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
+        let data_models = self.find_nodes_by_type_async(NodeType::DataModel).await;
+
+        for data_model in data_models {
+            let edges = lang.lang().data_model_within_finder(&data_model, &|file| {
+                sync_fn(|| async {
+                    self.find_nodes_by_file_ends_with_async(NodeType::Function, file)
+                        .await
+                })
+            });
+
+            for edge in edges {
+                txn_manager.add_edge(&edge);
+            }
+        }
+
+        txn_manager.execute().await
+    }
 }
 
 impl Graph for Neo4jGraph {
@@ -1008,8 +1030,12 @@ impl Graph for Neo4jGraph {
                 .unwrap_or_default()
         });
     }
-    fn get_data_models_within(&mut self, _lang: &Lang) {
-        todo!("To be implemented in Neo4jGraph");
+    fn get_data_models_within(&mut self, lang: &Lang) {
+        sync_fn(|| async {
+            self.get_data_models_within_async(lang)
+                .await
+                .unwrap_or_default()
+        });
     }
     fn prefix_paths(&mut self, root: &str) {
         sync_fn(|| async { self.prefix_paths_async(root).await.unwrap_or_default() });
