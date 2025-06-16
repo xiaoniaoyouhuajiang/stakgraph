@@ -131,21 +131,22 @@ impl Neo4jGraph {
     }
 
     pub async fn ensure_connected(&mut self) -> Result<Arc<Neo4jConnection>> {
-        if let Some(conn) = &self.connection {
-            return Ok(conn.clone());
+        if !self.is_connected() {
+            self.connect().await?;
         }
 
-        match &self.connection {
-            Some(conn) => Ok(conn.clone()),
-            None => Err(anyhow::anyhow!("Failed to connect to Neo4j")),
-        }
+        Ok(self.get_connection())
     }
 
     pub fn get_connection(&self) -> Arc<Neo4jConnection> {
-        match &self.connection {
-            Some(conn) => conn.clone(),
-            None => panic!("No Neo4j connection available. Make sure Neo4j is running and connect() was called."),
+        if let Some(conn) = &self.connection {
+            return conn.clone();
         }
+
+        let conn = sync_fn(|| async { Neo4jConnectionManager::get_connection().await })
+            .expect("Failed to get Neo4j connection from manager");
+
+        return conn;
     }
 
     pub async fn create_indexes(&mut self) -> anyhow::Result<()> {
