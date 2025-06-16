@@ -541,7 +541,7 @@ pub fn prefix_paths_query(root: &str) -> (String, BoltMap) {
     println!("Root path for prefixing: {}", root);
     boltmap_insert_str(&mut params, "root", &root);
 
-    let query = "MATCH (n)More actions
+    let query = "MATCH (n)
     WHERE n.file IS NOT NULL AND NOT n.file STARTS WITH $root
     SET n.file = $root + n.file";
 
