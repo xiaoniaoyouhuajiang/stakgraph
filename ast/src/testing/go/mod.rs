@@ -136,9 +136,9 @@ async fn test_go() {
     #[cfg(feature = "neo4j")]
     use crate::lang::graphs::Neo4jGraph;
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
-    println!("Testing GoGraph with ArrayGraph...");
+    println!("\n\nTesting GoGraph with ArrayGraph...");
     test_go_generic::<ArrayGraph>().await.unwrap();
-    println!("Testing GoGraph with BTreeMapGraph...");
+    println!("\n\nTesting GoGraph with BTreeMapGraph...");
     test_go_generic::<BTreeMapGraph>().await.unwrap();
 
     #[cfg(feature = "neo4j")]
@@ -146,7 +146,7 @@ async fn test_go() {
         let mut graph = Neo4jGraph::default();
         graph.connect().await.unwrap();
         graph.clear().await.unwrap();
-        println!("Testing Neo4jGraph with Go...");
+        println!("\n\nTesting Neo4jGraph with Go...");
         test_go_generic::<Neo4jGraph>().await.unwrap();
     }
 }

@@ -126,9 +126,10 @@ impl EdgeQueryBuilder {
         let target_type = self.edge.target.node_type.to_string();
 
         let query = format!(
-            "MATCH (source:{} {{name: $source_name, file: $source_file}}), \
-                       (target:{} {{name: $target_name, file: $target_file}}) \
-                 MERGE (source)-[r:{}]->(target)",
+            "MATCH (source:{} {{name: $source_name, file: $source_file}})
+            MATCH (target:{} {{name: $target_name, file: $target_file}})
+            MERGE (source)-[r:{}]->(target)
+            RETURN r",
             source_type, target_type, rel_type
         );
         (query, params)
@@ -234,7 +235,7 @@ pub fn count_nodes_edges_query() -> String {
 }
 pub fn graph_node_analysis_query() -> String {
     "MATCH (n) 
-     RETURN labels(n)[0] as node_type, n.name as name, n.file as file, n.start as start, 
+     RETURN labels(n)[1] as node_type, n.name as name, n.file as file, n.start as start, 
             n.end as end, n.body as body, n.data_type as data_type, n.docs as docs, 
             n.hash as hash, n.meta as meta
      ORDER BY node_type, name"
@@ -242,8 +243,8 @@ pub fn graph_node_analysis_query() -> String {
 }
 pub fn graph_edges_analysis_query() -> String {
     "MATCH (source)-[r]->(target) 
-     RETURN labels(source)[0] as source_type, source.name as source_name, source.file as source_file, source.start as source_start,
-            type(r) as edge_type, labels(target)[0] as target_type, 
+     RETURN labels(source)[1] as source_type, source.name as source_name, source.file as source_file, source.start as source_start,
+            type(r) as edge_type, labels(target)[1] as target_type, 
             target.name as target_name, target.file as target_file, target.start as target_start
      ORDER BY source_type, source_name, edge_type, target_type, target_name"
         .to_string()
@@ -502,14 +503,14 @@ pub fn filter_out_nodes_without_children_query(
     boltmap_insert_str(&mut params, "child_type", &child_type.to_string());
 
     let query = format!(
-        "MATCH (parent:{}) 
-         WHERE NOT EXISTS {{
-             MATCH (parent)<-[:OPERAND]-(child:{})
-         }}
-         AND NOT EXISTS {{
-             MATCH (instance:Instance)-[:OF]->(parent)
-         }}
-         DETACH DELETE parent",
+        "MATCH (parent:{})
+        WHERE NOT EXISTS {{
+            MATCH (parent)<-[:OPERAND]-(child:{})
+        }}
+        AND NOT EXISTS {{
+            MATCH (instance:Instance)-[:OF]->(parent)
+        }}
+        DETACH DELETE parent",
         parent_type.to_string(),
         child_type.to_string()
     );
@@ -519,22 +520,20 @@ pub fn filter_out_nodes_without_children_query(
 
 
 pub fn class_inherits_query() -> String {
-    format!("MATCH (c:Class)
-     WHERE c.meta IS NOT NULL
-     WITH c, apoc.convert.fromJsonMap(c.meta) AS meta_map
-     WHERE meta_map.parent IS NOT NULL
-     MATCH (parent:Class {{name: meta_map.parent}})
-     MERGE (parent)-[:PARENT_OF]->(c)")
+    "MATCH (c:Class)
+    WHERE c.parent IS NOT NULL
+    MATCH (parent:Class {name: c.parent})
+    MERGE (parent)-[:PARENT_OF]->(c)"
+        .to_string()
 }
 pub fn class_includes_query() -> String {
-    format!("MATCH (c:Class)
-     WHERE c.meta IS NOT NULL
-     WITH c, apoc.convert.fromJsonMap(c.meta) AS meta_map
-     WHERE meta_map.includes IS NOT NULL
-     WITH c, split(meta_map.includes, ',') AS modules
-     UNWIND modules AS module
-     MATCH (m:Class {{name: trim(module)}})
-     MERGE (c)-[:IMPORTS]->(m)")
+    "MATCH (c:Class)
+    WHERE c.includes IS NOT NULL
+    WITH c, split(c.includes, ',') AS modules
+    UNWIND modules AS module
+    MATCH (m:Class {name: trim(module)})
+    MERGE (c)-[:IMPORTS]->(m)"
+        .to_string()
 }
 pub fn prefix_paths_query(root: &str) -> (String, BoltMap) {
     let mut params = BoltMap::new();
@@ -560,15 +559,14 @@ pub fn add_node_with_parent_query(
     queries.push(add_node_query(node_type, node_data));
 
     let mut params = BoltMap::new();
-    boltmap_insert_str(&mut params, "parent_type", &parent_type.to_string());
-    boltmap_insert_str(&mut params, "name", &node_data.name);
-    boltmap_insert_str(&mut params, "file", &node_data.file);
-    boltmap_insert_int(&mut params, "start", node_data.start as i64);
+    boltmap_insert_str(&mut params, "node_name", &node_data.name);
+    boltmap_insert_str(&mut params, "node_file", &node_data.file);
+    boltmap_insert_int(&mut params, "node_start", node_data.start as i64);
     boltmap_insert_str(&mut params, "parent_file", parent_file);
 
     let query_str = format!(
-        "MATCH (parent:{} {{file: $parent_file}}),
-               (node:{} {{name: $name, file: $file, start: $start}})
+        "MATCH (parent:{} {{file: $parent_file}})
+         MATCH (node:{} {{name: $node_name, file: $node_file, start: $node_start}})
          MERGE (parent)-[:CONTAINS]->(node)",
         parent_type.to_string(),
         node_type.to_string()
@@ -923,4 +921,30 @@ pub fn process_endpoint_groups_queries(
     }
 
     queries
+}
+pub fn add_instance_contains_query(instance: &NodeData) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "instance_name", &instance.name);
+    boltmap_insert_str(&mut params, "instance_file", &instance.file);
+    boltmap_insert_int(&mut params, "instance_start", instance.start as i64);
+
+    let query = "MATCH (file:File {file: $instance_file}),
+                       (instance:Instance {name: $instance_name, file: $instance_file, start: $instance_start})
+                 MERGE (file)-[:CONTAINS]->(instance)";
+
+    (query.to_string(), params)
+}
+
+pub fn add_instance_of_query(instance: &NodeData, class_name: &str) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "instance_name", &instance.name);
+    boltmap_insert_str(&mut params, "instance_file", &instance.file);
+    boltmap_insert_int(&mut params, "instance_start", instance.start as i64);
+    boltmap_insert_str(&mut params, "class_name", class_name);
+
+    let query = "MATCH (instance:Instance {name: $instance_name, file: $instance_file, start: $instance_start}), 
+                       (class:Class {name: $class_name}) 
+                 MERGE (instance)-[:OF]->(class)";
+
+    (query.to_string(), params)
 }

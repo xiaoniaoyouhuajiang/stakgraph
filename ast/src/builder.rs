@@ -284,7 +284,6 @@ impl Repo {
 
             graph.add_instances(instances);
         }
-
         i = 0;
         info!("=> get_traits...");
         for (filename, code) in &filez {
