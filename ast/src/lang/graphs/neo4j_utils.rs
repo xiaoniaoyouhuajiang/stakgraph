@@ -538,14 +538,14 @@ pub fn class_includes_query() -> String {
 pub fn prefix_paths_query(root: &str) -> (String, BoltMap) {
     let mut params = BoltMap::new();
     let root = if root.ends_with('/') { root.to_string() } else { format!("{}/", root) };
-
+    println!("Root path for prefixing: {}", root);
     boltmap_insert_str(&mut params, "root", &root);
 
-    let query = format!("MATCH (n)
-                WHERE n.file IS NOT NULL AND NOT n.file STARTS WITH $root
-                SET n.file = $root + n.file");
+    let query = "MATCH (n)More actions
+    WHERE n.file IS NOT NULL AND NOT n.file STARTS WITH $root
+    SET n.file = $root + n.file";
 
-    (query, params)
+    (query.to_string(), params)
 }
 
 pub fn add_node_with_parent_query(

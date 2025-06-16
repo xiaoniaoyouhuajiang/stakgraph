@@ -54,7 +54,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
     let main = imports
         .iter()
-        .find(|i| i.file == "src/testing/go/main.go")
+        .find(|i| i.file.ends_with("main.go"))
         .unwrap();
 
     assert_eq!(
