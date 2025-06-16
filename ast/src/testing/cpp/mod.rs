@@ -102,6 +102,9 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let variables = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(variables.len(), 1, "Expected 1 variables");
 
+    let instances = graph.find_nodes_by_type(NodeType::Instance);
+    assert_eq!(instances.len(), 3, "Expected 3 instances");
+
     Ok(())
 }
 

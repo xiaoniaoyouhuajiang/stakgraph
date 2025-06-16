@@ -19,8 +19,8 @@ pub async fn test_java_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
 
     //graph.analysis();
-    assert_eq!(num_nodes, 38, "Expected 38 nodes");
-    assert_eq!(num_edges, 45, "Expected 45 edges");
+    assert_eq!(num_nodes, 42, "Expected 42 nodes");
+    assert_eq!(num_edges, 49, "Expected 49 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -107,6 +107,9 @@ import java.util.Optional;"#
     let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     assert_eq!(import_edges_count, 2, "Expected at 2 import edges");
 
+    let instances = graph.find_nodes_by_type(NodeType::Instance);
+    assert_eq!(instances.len(), 4, "Expected 4 instances");
+
     Ok(())
 }
 
@@ -115,4 +118,13 @@ async fn test_java() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_java_generic::<ArrayGraph>().await.unwrap();
     test_java_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::default();
+        graph.connect().await.unwrap();
+        graph.clear().await.unwrap();
+        test_java_generic::<Neo4jGraph>().await.unwrap();
+    }
 }
