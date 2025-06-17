@@ -136,7 +136,7 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
     Page: "A webpage or route within an application, representing a specific view or section of the system. It can serve as the starting point for a codemap.",
     Var: "A variable in source code, representing a value that can be used in the code.",
     Message:
-      "A message in a conversation between devs, projects managers, or other stakeholders.",
+      "A message in a conversation between developers, projects managers, or other stakeholders.",
   };
 }
 
