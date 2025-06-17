@@ -16,7 +16,7 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let graph = repo.build_graph_inner::<G>().await?;
 
-    graph.analysis();
+    //graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     assert_eq!(num_nodes, 67, "Expected 67 nodes");
@@ -43,9 +43,6 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 6, "Expected 6 import node");
 
-    for imp in &imports {
-        println!("Import: {} in file: {}", imp.name, imp.file);
-    }
     let import_body = imports
         .iter()
         .find(|i| i.file == "src/testing/ruby/config/environment.rb")
@@ -163,6 +160,11 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
         person_contains_data_model,
         "Expects a PeopleController -> CONTAINS -> people Data Model Edge"
     );
+
+    let calls = graph.count_edges_of_type(EdgeType::Calls);
+    assert_eq!(calls, 14, "Expected 14 call edges");
+    let contains = graph.count_edges_of_type(EdgeType::Contains);
+    assert_eq!(contains, 68, "Expected 68 contains edges");
     Ok(())
 }
 

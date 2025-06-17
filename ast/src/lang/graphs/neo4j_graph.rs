@@ -737,12 +737,42 @@ impl Neo4jGraph {
         &mut self,
         endpoints: Vec<(NodeData, Option<Edge>)>,
     ) -> Result<()> {
+        use std::collections::HashSet;
         let connection = self.ensure_connected().await?;
-        let queries = add_endpoints_query(&endpoints);
-
         let mut txn_manager = TransactionManager::new(&connection);
-        for query in queries {
-            txn_manager.add_query(query);
+
+        let mut to_add = Vec::new();
+        let mut seen = HashSet::new();
+
+        for (endpoint_data, handler_edge) in &endpoints {
+            if endpoint_data.meta.get("handler").is_some() {
+                let default_verb = "".to_string();
+                let verb = endpoint_data.meta.get("verb").unwrap_or(&default_verb);
+                let key = (
+                    endpoint_data.name.clone(),
+                    endpoint_data.file.clone(),
+                    verb.clone(),
+                );
+                if seen.contains(&key) {
+                    continue;
+                }
+
+                let exists = self
+                    .find_endpoint_async(&endpoint_data.name, &endpoint_data.file, verb)
+                    .await
+                    .is_some();
+                if !exists {
+                    to_add.push((endpoint_data.clone(), handler_edge.clone()));
+                    seen.insert(key);
+                }
+            }
+        }
+
+        for (endpoint_data, handler_edge) in &to_add {
+            txn_manager.add_node(&NodeType::Endpoint, endpoint_data);
+            if let Some(edge) = handler_edge {
+                txn_manager.add_edge(edge);
+            }
         }
 
         txn_manager.execute().await
