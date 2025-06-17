@@ -171,4 +171,13 @@ async fn test_ruby() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_ruby_generic::<ArrayGraph>().await.unwrap();
     test_ruby_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::default();
+        graph.connect().await.unwrap();
+        graph.clear().await.unwrap();
+        test_ruby_generic::<Neo4jGraph>().await.unwrap();
+    }
 }

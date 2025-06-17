@@ -1,9 +1,6 @@
 use super::{neo4j_utils::*, *};
 use crate::utils::sync_fn;
-use crate::{
-    lang::{Function, FunctionCall},
-    Lang,
-};
+use crate::{lang::Function, Lang};
 use anyhow::Result;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
@@ -769,16 +766,51 @@ impl Neo4jGraph {
     }
     pub async fn add_calls_async(
         &mut self,
-        calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>),
+        calls: (
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<Edge>,
+            Vec<Edge>,
+        ),
     ) -> Result<()> {
+        let (funcs, tests, _unused, int_tests) = calls;
         let connection = self.ensure_connected().await?;
-        let queries = add_calls_query(&calls.0, &calls.1, &calls.3);
-
         let mut txn_manager = TransactionManager::new(&connection);
-        for query in queries {
-            txn_manager.add_query(query);
-        }
 
+        for (calls, ext_func, class_call) in &funcs {
+            if let Some(cls_call) = class_call {
+                let edge = Edge::new(
+                    EdgeType::Calls,
+                    NodeRef::from(calls.source.clone(), NodeType::Function),
+                    NodeRef::from(cls_call.into(), NodeType::Class),
+                );
+                txn_manager.add_edge(&edge);
+            }
+            if calls.target.is_empty() {
+                continue;
+            }
+            if let Some(ext_nd) = ext_func {
+                txn_manager.add_node(&NodeType::Function, ext_nd);
+                let edge = Edge::uses(calls.source.clone(), ext_nd);
+                txn_manager.add_edge(&edge);
+            } else {
+                let edge: Edge = calls.clone().into();
+                txn_manager.add_edge(&edge);
+            }
+        }
+        for (test_call, ext_func, _class_call) in &tests {
+            if let Some(ext_nd) = ext_func {
+                txn_manager.add_node(&NodeType::Function, ext_nd);
+                let edge = Edge::uses(test_call.source.clone(), ext_nd);
+                txn_manager.add_edge(&edge);
+            } else {
+                let edge = Edge::new_test_call(test_call.clone());
+                txn_manager.add_edge(&edge);
+            }
+        }
+        for edge in int_tests {
+            txn_manager.add_edge(&edge);
+        }
         txn_manager.execute().await
     }
 
@@ -1015,7 +1047,15 @@ impl Graph for Neo4jGraph {
                 .unwrap_or_default()
         });
     }
-    fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>)) {
+    fn add_calls(
+        &mut self,
+        calls: (
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<Edge>,
+            Vec<Edge>,
+        ),
+    ) {
         sync_fn(|| async { self.add_calls_async(calls).await.unwrap_or_default() });
     }
     fn filter_out_nodes_without_children(

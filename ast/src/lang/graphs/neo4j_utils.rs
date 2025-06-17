@@ -5,7 +5,7 @@ use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use std::sync::{Arc, Once};
 use tiktoken_rs::get_bpe_from_model;
 use tracing::{debug, info};
-use crate::lang::FunctionCall;
+
 
 use super::*;
 
@@ -715,40 +715,38 @@ pub fn add_endpoints_query(
 }
 
 pub fn add_calls_query(
-    funcs: &[FunctionCall],
-    tests: &[FunctionCall],
-    int_tests: &[Edge]
+    funcs: &[(Calls, Option<NodeData>, Option<NodeData>)],
+    tests: &[(Calls, Option<NodeData>, Option<NodeData>)],
+    int_tests: &[Edge],
 ) -> Vec<(String, BoltMap)> {
     let mut queries = Vec::new();
 
-    for (func_call, ext_func, class_call) in funcs {
-        if let Some(class_call) = class_call{
+    for (calls, ext_func, class_call) in funcs {
+        if let Some(class_call) = class_call {
             let edge = Edge::new(
                 EdgeType::Calls,
-                NodeRef::from(func_call.source.clone(), NodeType::Function),
-                NodeRef::from(class_call.into(), NodeType::Class)
+                NodeRef::from(calls.source.clone(), NodeType::Function),
+                NodeRef::from(class_call.into(), NodeType::Class),
             );
             queries.push(add_edge_query(&edge));
         }
 
-         if func_call.target.is_empty() {
+        if calls.target.is_empty() {
             continue;
         }
         if let Some(ext_nd) = ext_func {
             queries.push(add_node_query(&NodeType::Function, ext_nd));
-            let edge = Edge::uses(func_call.source.clone(), ext_nd);
+            let edge = Edge::uses(calls.source.clone(), ext_nd);
             queries.push(add_edge_query(&edge));
         } else {
-            let edge = func_call.clone().into();
+            let edge: Edge = calls.clone().into();
             queries.push(add_edge_query(&edge));
         }
     }
 
-    for (test_call, ext_func,_class_call) in tests {
+    for (test_call, ext_func, _class_call) in tests {
         if let Some(ext_nd) = ext_func {
-
             queries.push(add_node_query(&NodeType::Function, ext_nd));
-
             let edge = Edge::uses(test_call.source.clone(), ext_nd);
             queries.push(add_edge_query(&edge));
         } else {
