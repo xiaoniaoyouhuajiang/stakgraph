@@ -626,7 +626,7 @@ pub fn add_functions_query(
         let query_str = format!(
             "MATCH (function:Function {{name: $function_name, file: $function_file, start: $function_start}}),
                    (request:Request {{name: $req_name, file: $req_file, start: $req_start}})
-             MERGE (function)-[:HANDLER]->(request)"
+             MERGE (function)-[:CALLS]->(request)"
         );
         queries.push((query_str, params));
     }
