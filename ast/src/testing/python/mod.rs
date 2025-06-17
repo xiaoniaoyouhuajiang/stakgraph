@@ -104,7 +104,6 @@ async fn test_python() {
     {
         use crate::lang::graphs::Neo4jGraph;
         let mut graph = Neo4jGraph::default();
-        graph.connect().await.unwrap();
         graph.clear().await.unwrap();
         test_python_generic::<Neo4jGraph>().await.unwrap();
     }

@@ -18,7 +18,7 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
 
-    //graph.analysis();
+    graph.analysis();
     assert_eq!(num_nodes, 124, "Expected 124 nodes");
     assert_eq!(num_edges, 144, "Expected 144 edges");
 
@@ -78,9 +78,6 @@ import com.kotlintestapp.db.PersonDatabase"#
     assert_eq!(classes.len(), 6, "Expected 6 classes");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
-    for imp in &imports {
-        println!("Import: {:?}\n\n", imp);
-    }
     assert_eq!(imports.len(), 9, "Expected 9 imports");
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
@@ -122,4 +119,12 @@ async fn test_kotlin() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_kotlin_generic::<ArrayGraph>().await.unwrap();
     test_kotlin_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::default();
+        graph.clear().await.unwrap();
+        test_kotlin_generic::<Neo4jGraph>().await.unwrap();
+    }
 }

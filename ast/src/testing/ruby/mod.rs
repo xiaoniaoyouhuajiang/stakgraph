@@ -178,7 +178,6 @@ async fn test_ruby() {
     {
         use crate::lang::graphs::Neo4jGraph;
         let mut graph = Neo4jGraph::default();
-        graph.connect().await.unwrap();
         graph.clear().await.unwrap();
         test_ruby_generic::<Neo4jGraph>().await.unwrap();
     }

@@ -132,7 +132,6 @@ async fn test_typescript() {
     {
         use crate::lang::graphs::Neo4jGraph;
         let mut graph = Neo4jGraph::new();
-        graph.connect().await.unwrap();
         graph.clear().await.unwrap();
         test_typescript_generic::<Neo4jGraph>().await.unwrap();
     }
