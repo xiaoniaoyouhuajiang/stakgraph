@@ -48,7 +48,9 @@ export type NodeType =
   | "Datamodel"
   | "Page"
   | "Var"
-  | "Message";
+  | "Message"
+  | "Person"
+  | "Video";
 
 export type EdgeType =
   | "CALLS"
@@ -82,6 +84,8 @@ export function relevant_node_types(): NodeType[] {
     "E2etest",
     "Var",
     "Message",
+    "Person",
+    "Video",
   ];
 }
 
@@ -104,6 +108,8 @@ export function all_node_types(): NodeType[] {
     "Page",
     "Var",
     "Message",
+    "Person",
+    "Video",
   ];
 }
 
@@ -137,6 +143,8 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
     Var: "A variable in source code, representing a value that can be used in the code.",
     Message:
       "A message in a conversation between developers, projects managers, or other stakeholders.",
+    Person: "A person working on the project.",
+    Video: "A recorded video conversation between stakeholders.",
   };
 }
 
