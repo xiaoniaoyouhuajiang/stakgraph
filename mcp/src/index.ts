@@ -9,6 +9,7 @@ import cors from "cors";
 import { App as SageApp } from "./sage/src/app.js";
 import dotenv from "dotenv";
 import { cacheMiddleware, cacheInfo, clearCache } from "./graph/cache.js";
+import { evalRoutes } from "./eval/route.js";
 
 dotenv.config();
 
@@ -41,6 +42,8 @@ app.use("/app", express.static(path.join(__dirname, "../app")));
 app.use("/demo", express.static(path.join(__dirname, "../app/vendor")));
 app.get("/schema", r.schema);
 app.get("/ontology", r.schema);
+
+evalRoutes(app);
 
 app.use(r.authMiddleware);
 app.use(r.logEndpoint);
