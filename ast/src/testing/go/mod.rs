@@ -136,4 +136,12 @@ async fn test_go() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_go_generic::<ArrayGraph>().await.unwrap();
     test_go_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::default();
+        graph.clear().await.unwrap();
+        test_go_generic::<Neo4jGraph>().await.unwrap();
+    }
 }

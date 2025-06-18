@@ -99,4 +99,12 @@ async fn test_python() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_python_generic::<ArrayGraph>().await.unwrap();
     test_python_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::default();
+        graph.clear().await.unwrap();
+        test_python_generic::<Neo4jGraph>().await.unwrap();
+    }
 }

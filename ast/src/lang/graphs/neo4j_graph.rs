@@ -1,11 +1,8 @@
 use super::{neo4j_utils::*, *};
 use crate::utils::sync_fn;
-use crate::{
-    lang::{Function, FunctionCall},
-    Lang,
-};
+use crate::{lang::Function, Lang};
 use anyhow::Result;
-use neo4rs::{query, Graph as Neo4jConnection};
+use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{
     collections::HashSet,
@@ -131,21 +128,22 @@ impl Neo4jGraph {
     }
 
     pub async fn ensure_connected(&mut self) -> Result<Arc<Neo4jConnection>> {
-        if let Some(conn) = &self.connection {
-            return Ok(conn.clone());
+        if !self.is_connected() {
+            self.connect().await?;
         }
 
-        match &self.connection {
-            Some(conn) => Ok(conn.clone()),
-            None => Err(anyhow::anyhow!("Failed to connect to Neo4j")),
-        }
+        Ok(self.get_connection())
     }
 
     pub fn get_connection(&self) -> Arc<Neo4jConnection> {
-        match &self.connection {
-            Some(conn) => conn.clone(),
-            None => panic!("No Neo4j connection available. Make sure Neo4j is running and connect() was called."),
+        if let Some(conn) = &self.connection {
+            return conn.clone();
         }
+
+        let conn = sync_fn(|| async { Neo4jConnectionManager::get_connection().await })
+            .expect("Failed to get Neo4j connection from manager");
+
+        return conn;
     }
 
     pub async fn create_indexes(&mut self) -> anyhow::Result<()> {
@@ -185,25 +183,6 @@ impl Neo4jGraph {
         Ok(())
     }
 
-    async fn execute_with_transaction<F, T>(&mut self, operation: F) -> Result<T>
-    where
-        F: FnOnce(&mut TransactionManager) -> Result<T>,
-    {
-        let connection = self.ensure_connected().await?;
-        let mut txn_manager = TransactionManager::new(&connection);
-
-        let result = operation(&mut txn_manager);
-
-        if result.is_ok() {
-            match txn_manager.execute().await {
-                Ok(_) => result,
-                Err(e) => Err(e),
-            }
-        } else {
-            result
-        }
-    }
-
     pub async fn get_repository_hash(&mut self, repo_url: &str) -> Result<String> {
         let connection = self.ensure_connected().await?;
         let (query_str, params) = get_repository_hash_query(repo_url);
@@ -235,12 +214,13 @@ impl Neo4jGraph {
     }
 
     pub async fn update_repository_hash(&mut self, repo_name: &str, new_hash: &str) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| {
-            let (query, params) = update_repository_hash_query(repo_name, new_hash);
-            txn_manager.add_query((query, params));
-            Ok(())
-        })
-        .await
+        let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
+        let (query, params) = update_repository_hash_query(repo_name, new_hash);
+        txn_manager.add_query((query, params));
+
+        txn_manager.execute().await
     }
 
     pub async fn get_incoming_edges_for_file(
@@ -310,19 +290,21 @@ impl std::fmt::Debug for Neo4jGraph {
 
 impl Neo4jGraph {
     pub async fn add_node_async(&mut self, node_type: NodeType, node_data: NodeData) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| {
-            txn_manager.add_node(&node_type, &node_data);
-            Ok(())
-        })
-        .await
+        let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
+        txn_manager.add_node(&node_type, &node_data);
+
+        txn_manager.execute().await
     }
 
     pub async fn add_edge_async(&mut self, edge: Edge) -> Result<()> {
-        self.execute_with_transaction(|txn_manager| {
-            txn_manager.add_edge(&edge);
-            Ok(())
-        })
-        .await
+        let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
+        txn_manager.add_edge(&edge);
+
+        txn_manager.execute().await
     }
 
     pub async fn find_nodes_by_name_async(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
@@ -373,7 +355,7 @@ impl Neo4jGraph {
                         row.get::<String>("node_type"),
                         row.get::<String>("name"),
                         row.get::<String>("file"),
-                        row.get::<String>("start"),
+                        row.get::<i64>("start"),
                     ) {
                         println!("Node: \"{}\"-{}-{}-{}", node_type, name, file, start);
                     }
@@ -402,12 +384,12 @@ impl Neo4jGraph {
                         row.get::<String>("source_type"),
                         row.get::<String>("source_name"),
                         row.get::<String>("source_file"),
-                        row.get::<String>("source_start"),
+                        row.get::<i64>("source_start"),
                         row.get::<String>("edge_type"),
                         row.get::<String>("target_type"),
                         row.get::<String>("target_name"),
                         row.get::<String>("target_file"),
-                        row.get::<String>("target_start"),
+                        row.get::<i64>("target_start"),
                     ) {
                         println!(
                             "From {}-{}-{}-{} to {}-{}-{}-{} : {}",
@@ -647,15 +629,12 @@ impl Neo4jGraph {
     }
     pub async fn prefix_paths_async(&mut self, root: &str) -> Result<()> {
         let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
         let (query_str, params) = prefix_paths_query(root);
+        txn_manager.add_query((query_str, params));
 
-        let mut query_obj = query(&query_str);
-        for (key, value) in params.value.iter() {
-            query_obj = query_obj.param(key.value.as_str(), value.clone());
-        }
-
-        let _ = connection.execute(query_obj).await?;
-        Ok(())
+        txn_manager.execute().await
     }
 
     pub async fn add_node_with_parent_async(
@@ -673,34 +652,51 @@ impl Neo4jGraph {
             txn_manager.add_query(query);
         }
 
-        let _ = txn_manager.execute().await;
-        Ok(())
+        txn_manager.execute().await
     }
     pub async fn class_inherits_async(&mut self) -> Result<()> {
         let connection = self.ensure_connected().await?;
-        let query_str = class_inherits_query();
+        let mut txn_manager = TransactionManager::new(&connection);
 
-        let _ = connection.execute(query(&query_str)).await?;
-        Ok(())
+        let query_str = class_inherits_query();
+        txn_manager.add_query((query_str, BoltMap::new()));
+
+        txn_manager.execute().await
     }
 
     pub async fn class_includes_async(&mut self) -> Result<()> {
         let connection = self.ensure_connected().await?;
-        let query_str = class_includes_query();
+        let mut txn_manager = TransactionManager::new(&connection);
 
-        let _ = connection.execute(query(&query_str)).await?;
-        Ok(())
+        let query_str = class_includes_query();
+        txn_manager.add_query((query_str, BoltMap::new()));
+
+        txn_manager.execute().await
     }
     pub async fn add_instances_async(&mut self, nodes: Vec<NodeData>) -> Result<()> {
         let connection = self.ensure_connected().await?;
         let mut txn_manager = TransactionManager::new(&connection);
 
-        for node in nodes {
-            txn_manager.add_node(&NodeType::Instance, &node);
+        for inst in &nodes {
+            if let Some(of) = &inst.data_type {
+                let class_nodes = self.find_nodes_by_name_async(NodeType::Class, of).await;
+                if let Some(_class_node) = class_nodes.first() {
+                    let queries = add_node_with_parent_query(
+                        &NodeType::Instance,
+                        inst,
+                        &NodeType::File,
+                        &inst.file,
+                    );
+                    for query in queries {
+                        txn_manager.add_query(query);
+                    }
+                    let of_query = add_instance_of_query(inst, of);
+                    txn_manager.add_query(of_query);
+                }
+            }
         }
 
-        let _ = txn_manager.execute().await;
-        Ok(())
+        txn_manager.execute().await
     }
     pub async fn add_functions_async(&mut self, functions: Vec<Function>) -> Result<()> {
         let connection = self.ensure_connected().await?;
@@ -720,8 +716,7 @@ impl Neo4jGraph {
             }
         }
 
-        let _ = txn_manager.execute().await;
-        Ok(())
+        txn_manager.execute().await
     }
     pub async fn add_page_async(&mut self, page: (NodeData, Option<Edge>)) -> Result<()> {
         let connection = self.ensure_connected().await?;
@@ -732,8 +727,7 @@ impl Neo4jGraph {
             txn_manager.add_query(query);
         }
 
-        let _ = txn_manager.execute().await;
-        Ok(())
+        txn_manager.execute().await
     }
 
     pub async fn add_pages_async(&mut self, pages: Vec<(NodeData, Vec<Edge>)>) -> Result<()> {
@@ -744,24 +738,51 @@ impl Neo4jGraph {
         for query in queries {
             txn_manager.add_query(query);
         }
-
-        let _ = txn_manager.execute().await;
-        Ok(())
+        txn_manager.execute().await
     }
     pub async fn add_endpoints_async(
         &mut self,
         endpoints: Vec<(NodeData, Option<Edge>)>,
     ) -> Result<()> {
+        use std::collections::HashSet;
         let connection = self.ensure_connected().await?;
-        let queries = add_endpoints_query(&endpoints);
-
         let mut txn_manager = TransactionManager::new(&connection);
-        for query in queries {
-            txn_manager.add_query(query);
+
+        let mut to_add = Vec::new();
+        let mut seen = HashSet::new();
+
+        for (endpoint_data, handler_edge) in &endpoints {
+            if endpoint_data.meta.get("handler").is_some() {
+                let default_verb = "".to_string();
+                let verb = endpoint_data.meta.get("verb").unwrap_or(&default_verb);
+                let key = (
+                    endpoint_data.name.clone(),
+                    endpoint_data.file.clone(),
+                    verb.clone(),
+                );
+                if seen.contains(&key) {
+                    continue;
+                }
+
+                let exists = self
+                    .find_endpoint_async(&endpoint_data.name, &endpoint_data.file, verb)
+                    .await
+                    .is_some();
+                if !exists {
+                    to_add.push((endpoint_data.clone(), handler_edge.clone()));
+                    seen.insert(key);
+                }
+            }
         }
 
-        let _ = txn_manager.execute().await;
-        Ok(())
+        for (endpoint_data, handler_edge) in &to_add {
+            txn_manager.add_node(&NodeType::Endpoint, endpoint_data);
+            if let Some(edge) = handler_edge {
+                txn_manager.add_edge(edge);
+            }
+        }
+
+        txn_manager.execute().await
     }
 
     pub async fn add_test_node_async(
@@ -778,23 +799,56 @@ impl Neo4jGraph {
             txn_manager.add_query(query);
         }
 
-        let _ = txn_manager.execute().await;
-        Ok(())
+        txn_manager.execute().await
     }
     pub async fn add_calls_async(
         &mut self,
-        calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>),
+        calls: (
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<Edge>,
+            Vec<Edge>,
+        ),
     ) -> Result<()> {
+        let (funcs, tests, _unused, int_tests) = calls;
         let connection = self.ensure_connected().await?;
-        let queries = add_calls_query(&calls.0, &calls.1, &calls.3);
-
         let mut txn_manager = TransactionManager::new(&connection);
-        for query in queries {
-            txn_manager.add_query(query);
-        }
 
-        let _ = txn_manager.execute().await;
-        Ok(())
+        for (calls, ext_func, class_call) in &funcs {
+            if let Some(cls_call) = class_call {
+                let edge = Edge::new(
+                    EdgeType::Calls,
+                    NodeRef::from(calls.source.clone(), NodeType::Function),
+                    NodeRef::from(cls_call.into(), NodeType::Class),
+                );
+                txn_manager.add_edge(&edge);
+            }
+            if calls.target.is_empty() {
+                continue;
+            }
+            if let Some(ext_nd) = ext_func {
+                txn_manager.add_node(&NodeType::Function, ext_nd);
+                let edge = Edge::uses(calls.source.clone(), ext_nd);
+                txn_manager.add_edge(&edge);
+            } else {
+                let edge: Edge = calls.clone().into();
+                txn_manager.add_edge(&edge);
+            }
+        }
+        for (test_call, ext_func, _class_call) in &tests {
+            if let Some(ext_nd) = ext_func {
+                txn_manager.add_node(&NodeType::Function, ext_nd);
+                let edge = Edge::uses(test_call.source.clone(), ext_nd);
+                txn_manager.add_edge(&edge);
+            } else {
+                let edge = Edge::new_test_call(test_call.clone());
+                txn_manager.add_edge(&edge);
+            }
+        }
+        for edge in int_tests {
+            txn_manager.add_edge(&edge);
+        }
+        txn_manager.execute().await
     }
 
     pub async fn get_graph_keys_async(&self) -> (HashSet<String>, HashSet<String>) {
@@ -829,14 +883,84 @@ impl Neo4jGraph {
         child_meta_key: &str,
     ) -> Result<()> {
         let connection = self.ensure_connected().await?;
-        let queries =
-            filter_out_nodes_without_children_query(parent_type, child_type, child_meta_key);
-
         let mut txn_manager = TransactionManager::new(&connection);
-        txn_manager.add_query(queries);
-        let _ = txn_manager.execute().await;
+
+        let (query, params) =
+            filter_out_nodes_without_children_query(parent_type, child_type, child_meta_key);
+        txn_manager.add_query((query, params));
+
+        txn_manager.execute().await
+    }
+
+    pub async fn process_endpoint_groups_async(
+        &mut self,
+        eg: Vec<NodeData>,
+        lang: &Lang,
+    ) -> Result<()> {
+        let mut groups_with_endpoints = Vec::new();
+
+        for group in &eg {
+            if let Some(group_function_name) = group.meta.get("group") {
+                let group_functions = self
+                    .find_nodes_by_name_async(NodeType::Function, group_function_name)
+                    .await;
+
+                if let Some(group_function) = group_functions.first() {
+                    let mut all_endpoints = Vec::new();
+
+                    for finder_query in lang.lang().endpoint_finders() {
+                        if let Ok(endpoints) = lang.get_query_opt::<Self>(
+                            Some(finder_query),
+                            &group_function.body,
+                            &group_function.file,
+                            NodeType::Endpoint,
+                        ) {
+                            all_endpoints.extend(endpoints);
+                        }
+                    }
+
+                    if !all_endpoints.is_empty() {
+                        groups_with_endpoints.push((group.clone(), all_endpoints));
+                    }
+                }
+            }
+        }
+
+        if !groups_with_endpoints.is_empty() {
+            let connection = self.ensure_connected().await?;
+            let mut txn_manager = TransactionManager::new(&connection);
+
+            let queries = process_endpoint_groups_queries(&groups_with_endpoints);
+            for query in queries {
+                txn_manager.add_query(query);
+            }
+
+            txn_manager.execute().await?;
+        }
 
         Ok(())
+    }
+
+    pub async fn get_data_models_within_async(&mut self, lang: &Lang) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&connection);
+
+        let data_models = self.find_nodes_by_type_async(NodeType::DataModel).await;
+
+        for data_model in data_models {
+            let edges = lang.lang().data_model_within_finder(&data_model, &|file| {
+                sync_fn(|| async {
+                    self.find_nodes_by_file_ends_with_async(NodeType::Function, file)
+                        .await
+                })
+            });
+
+            for edge in edges {
+                txn_manager.add_edge(&edge);
+            }
+        }
+
+        txn_manager.execute().await
     }
 }
 
@@ -915,8 +1039,14 @@ impl Graph for Neo4jGraph {
                 .await
         })
     }
-    fn process_endpoint_groups(&mut self, _eg: Vec<NodeData>, _lang: &Lang) -> Result<()> {
-        todo!("To be implemented in Neo4jGraph");
+
+    fn process_endpoint_groups(&mut self, eg: Vec<NodeData>, lang: &Lang) -> Result<()> {
+        sync_fn(|| async {
+            self.process_endpoint_groups_async(eg, lang)
+                .await
+                .unwrap_or_default()
+        });
+        Ok(())
     }
     fn class_inherits(&mut self) {
         sync_fn(|| async { self.class_inherits_async().await.unwrap_or_default() });
@@ -954,7 +1084,15 @@ impl Graph for Neo4jGraph {
                 .unwrap_or_default()
         });
     }
-    fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>)) {
+    fn add_calls(
+        &mut self,
+        calls: (
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<(Calls, Option<NodeData>, Option<NodeData>)>,
+            Vec<Edge>,
+            Vec<Edge>,
+        ),
+    ) {
         sync_fn(|| async { self.add_calls_async(calls).await.unwrap_or_default() });
     }
     fn filter_out_nodes_without_children(
@@ -969,8 +1107,12 @@ impl Graph for Neo4jGraph {
                 .unwrap_or_default()
         });
     }
-    fn get_data_models_within(&mut self, _lang: &Lang) {
-        todo!("To be implemented in Neo4jGraph");
+    fn get_data_models_within(&mut self, lang: &Lang) {
+        sync_fn(|| async {
+            self.get_data_models_within_async(lang)
+                .await
+                .unwrap_or_default()
+        });
     }
     fn prefix_paths(&mut self, root: &str) {
         sync_fn(|| async { self.prefix_paths_async(root).await.unwrap_or_default() });

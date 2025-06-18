@@ -68,12 +68,12 @@ import {{ AppComponent }} from './app/app.component';"#
 
     let imports_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     assert_eq!(imports_edges_count, 8, "Expected 8 imports edges");
-    
+
     let renders_edges_count = graph.count_edges_of_type(EdgeType::Renders);
-    assert!(renders_edges_count > 0, "Expected at least one RENDERS edge");
-    
+    assert_eq!(renders_edges_count, 5, "Expected at least one RENDERS edge");
+
     let pages = graph.find_nodes_by_type(NodeType::Page);
-    assert!(pages.len() > 0, "Expected at least one Page node");
+    assert_eq!(pages.len(), 11, "Expected at least one Page node");
 
     Ok(())
 }

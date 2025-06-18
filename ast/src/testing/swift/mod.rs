@@ -78,6 +78,15 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "First request URL should be '/people'"
     );
 
+    let calls = graph.count_edges_of_type(crate::lang::EdgeType::Calls);
+    assert_eq!(calls, 2, "Expected 2 call edges");
+
+    let contains = graph.count_edges_of_type(crate::lang::EdgeType::Contains);
+    assert_eq!(contains, 55, "Expected 55 contains edges");
+
+    let operands = graph.count_edges_of_type(crate::lang::EdgeType::Operand);
+    assert_eq!(operands, 26, "Expected 26 operand edges");
+
     Ok(())
 }
 

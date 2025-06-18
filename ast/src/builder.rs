@@ -1,11 +1,13 @@
 use super::repo::{check_revs_files, Repo};
 use crate::lang::graphs::Graph;
+#[cfg(feature = "neo4j")]
+use crate::lang::graphs::Neo4jGraph;
 use crate::lang::{asg::NodeData, graphs::NodeType};
 use crate::lang::{ArrayGraph, BTreeMapGraph, Node};
 use crate::utils::create_node_key;
 use anyhow::{Ok, Result};
 use git_url_parse::GitUrl;
-use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen, Language};
+use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tokio::fs;
@@ -21,6 +23,12 @@ impl Repo {
     pub async fn build_graph_btree(&self) -> Result<BTreeMapGraph> {
         self.build_graph_inner().await
     }
+
+    #[cfg(feature = "neo4j")]
+    pub async fn build_graph_neo4j(&self) -> Result<Neo4jGraph> {
+        self.build_graph_inner().await
+    }
+
     pub async fn build_graph_inner<G: Graph>(&self) -> Result<G> {
         #[cfg(feature = "neo4j")]
         {
@@ -276,7 +284,6 @@ impl Repo {
 
             graph.add_instances(instances);
         }
-
         i = 0;
         info!("=> get_traits...");
         for (filename, code) in &filez {
@@ -330,7 +337,6 @@ impl Repo {
                 self.lang
                     .get_functions_and_tests(&code, &filename, &graph, &self.lsp_tx)?;
             i += funcs.len();
-
             graph.add_functions(funcs.clone());
 
             for func in &funcs {
@@ -368,17 +374,26 @@ impl Repo {
             }
         }
         info!("=> got {} pages", i);
-        
         i = 0;
         info!("=> get_component_templates");
         for (filename, code) in &filez {
             if let Some(ext) = self.lang.lang().template_ext() {
                 if filename.ends_with(ext) {
-                    let template_edges = self.lang.get_component_templates::<G>(&code, &filename, &graph)?;
+                    let template_edges = self
+                        .lang
+                        .get_component_templates::<G>(&code, &filename, &graph)?;
                     i += template_edges.len();
                     for edge in template_edges {
-                        let page = NodeData::name_file(&edge.source.node_data.name, &edge.source.node_data.file);
-                        graph.add_node_with_parent(NodeType::Page, page, NodeType::File, &edge.source.node_data.file);
+                        let page = NodeData::name_file(
+                            &edge.source.node_data.name,
+                            &edge.source.node_data.file,
+                        );
+                        graph.add_node_with_parent(
+                            NodeType::Page,
+                            page,
+                            NodeType::File,
+                            &edge.source.node_data.file,
+                        );
                         graph.add_edge(edge);
                     }
                 }

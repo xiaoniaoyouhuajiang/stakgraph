@@ -72,6 +72,11 @@ jobs:
           done'
           echo "Neo4j is healthy!"
 
+      - name: Run Rust Tests behind Neo4j
+        run: |
+          export USE_LSP=false
+          cargo test --features neo4j -- --test-threads=1
+
       - name: Run Graph Update Tests
         run: |
           export TEST_REF_ID="test_ref_id"

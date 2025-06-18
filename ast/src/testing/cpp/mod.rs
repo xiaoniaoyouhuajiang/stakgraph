@@ -102,6 +102,9 @@ pub async fn test_cpp_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let variables = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(variables.len(), 1, "Expected 1 variables");
 
+    let instances = graph.find_nodes_by_type(NodeType::Instance);
+    assert_eq!(instances.len(), 1, "Expected 1 instances");
+
     Ok(())
 }
 
@@ -110,4 +113,12 @@ async fn test_cpp() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_cpp_generic::<ArrayGraph>().await.unwrap();
     test_cpp_generic::<BTreeMapGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::default();
+        graph.clear().await.unwrap();
+        test_cpp_generic::<Neo4jGraph>().await.unwrap();
+    }
 }

@@ -127,4 +127,12 @@ async fn test_typescript() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     test_typescript_generic::<BTreeMapGraph>().await.unwrap();
     test_typescript_generic::<ArrayGraph>().await.unwrap();
+
+    #[cfg(feature = "neo4j")]
+    {
+        use crate::lang::graphs::Neo4jGraph;
+        let mut graph = Neo4jGraph::new();
+        graph.clear().await.unwrap();
+        test_typescript_generic::<Neo4jGraph>().await.unwrap();
+    }
 }
