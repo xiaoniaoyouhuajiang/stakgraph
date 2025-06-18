@@ -1,4 +1,4 @@
-docker pull sphinxlightning/repo2graph:latest
+docker pull ghcr.io/stakwork/stakgraph-mcp:latest
 
 docker stop mcp.sphinx &> /dev/null
 docker rm mcp.sphinx &> /dev/null
