@@ -538,7 +538,6 @@ pub fn class_includes_query() -> String {
 pub fn prefix_paths_query(root: &str) -> (String, BoltMap) {
     let mut params = BoltMap::new();
     let root = if root.ends_with('/') { root.to_string() } else { format!("{}/", root) };
-    println!("Root path for prefixing: {}", root);
     boltmap_insert_str(&mut params, "root", &root);
 
     let query = "MATCH (n)
@@ -601,7 +600,6 @@ pub fn add_functions_query(
     queries.push((query_str, params));
 
     if let Some(operand) = method_of {
-        println!("Adding method_of edge for function: {}", function_node.name);
         let edge = (*operand).clone().into();
         queries.push(add_edge_query(&edge));
     }
