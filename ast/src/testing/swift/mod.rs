@@ -20,7 +20,7 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
     graph.analysis();
 
     assert_eq!(num_nodes, 57, "Expected 57 nodes");
-    //assert_eq!(num_edges, 83, "Expected 83 edges");
+    assert_eq!(num_edges, 83, "Expected 83 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -83,6 +83,9 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let contains = graph.count_edges_of_type(crate::lang::EdgeType::Contains);
     assert_eq!(contains, 55, "Expected 55 contains edges");
+
+    let operands = graph.count_edges_of_type(crate::lang::EdgeType::Operand);
+    assert_eq!(operands, 26, "Expected 26 operand edges");
 
     Ok(())
 }
