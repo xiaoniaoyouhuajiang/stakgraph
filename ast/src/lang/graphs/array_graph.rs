@@ -264,13 +264,13 @@ impl Graph for ArrayGraph {
     fn add_instances(&mut self, instances: Vec<NodeData>) {
         for inst in instances {
             if let Some(of) = &inst.data_type {
-                self.add_node_with_parent(
-                    NodeType::Instance,
-                    inst.clone(),
-                    NodeType::File,
-                    &inst.file,
-                );
                 if let Some(cl) = self.find_nodes_by_name(NodeType::Class, &of).first() {
+                    self.add_node_with_parent(
+                        NodeType::Instance,
+                        inst.clone(),
+                        NodeType::File,
+                        &inst.file,
+                    );
                     let of_edge = Edge::of(&inst, &cl);
                     self.add_edge(of_edge);
                 }

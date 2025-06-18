@@ -679,13 +679,20 @@ impl Neo4jGraph {
 
         for inst in &nodes {
             if let Some(of) = &inst.data_type {
-                txn_manager.add_node(&NodeType::Instance, inst);
-
-                let contains_query = add_instance_contains_query(inst);
-                txn_manager.add_query(contains_query);
-
-                let of_query = add_instance_of_query(inst, of);
-                txn_manager.add_query(of_query);
+                let class_nodes = self.find_nodes_by_name_async(NodeType::Class, of).await;
+                if let Some(_class_node) = class_nodes.first() {
+                    let queries = add_node_with_parent_query(
+                        &NodeType::Instance,
+                        inst,
+                        &NodeType::File,
+                        &inst.file,
+                    );
+                    for query in queries {
+                        txn_manager.add_query(query);
+                    }
+                    let of_query = add_instance_of_query(inst, of);
+                    txn_manager.add_query(of_query);
+                }
             }
         }
 

@@ -224,14 +224,15 @@ impl Graph for BTreeMapGraph {
     fn add_instances(&mut self, instances: Vec<NodeData>) {
         for inst in instances {
             if let Some(of) = &inst.data_type {
-                self.add_node_with_parent(
-                    NodeType::Instance,
-                    inst.clone(),
-                    NodeType::File,
-                    &inst.file,
-                );
-                if let Some(class_node_data) = self.find_nodes_by_name(NodeType::Class, &of).first()
+                if let Some(class_node_data) = self.find_nodes_by_name(NodeType::Class, of).first()
                 {
+                    self.add_node_with_parent(
+                        NodeType::Instance,
+                        inst.clone(),
+                        NodeType::File,
+                        &inst.file,
+                    );
+
                     let edge = Edge::of(&inst, class_node_data);
                     self.add_edge(edge);
                 }
