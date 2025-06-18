@@ -53,6 +53,24 @@ pub async fn git_pull_or_clone(
 
         run_res_in_dir("git", &["reset", "--hard", "HEAD"], path).await?;
 
+        let current_branch_result =
+            run_res_in_dir("git", &["branch", "--show-current"], path).await;
+
+        if let Ok(current_branch) = current_branch_result {
+            if current_branch.trim().is_empty() {
+                info!("In detached HEAD state, checking out main branch");
+                let checkout_main = run_res_in_dir("git", &["checkout", "main"], path).await;
+                if checkout_main.is_err() {
+                    let checkout_master =
+                        run_res_in_dir("git", &["checkout", "master"], path).await;
+                    if checkout_master.is_err() {
+                        info!("Could not checkout main/master, skipping pull");
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
         run_res_in_dir("git", &["pull"], path).await?;
 
         Ok(())

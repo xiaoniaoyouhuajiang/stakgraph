@@ -48,7 +48,7 @@ async fn test_graph_update() {
         .await
         .unwrap();
 
-    println!("Before: {} nodes and {} edges", nodes_before, edges_before);
+    info!("Before: {} nodes and {} edges", nodes_before, edges_before);
 
     let _ = graph_ops.graph.analysis();
 
