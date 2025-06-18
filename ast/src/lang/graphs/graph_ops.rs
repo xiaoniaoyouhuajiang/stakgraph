@@ -59,40 +59,43 @@ impl GraphOps {
                 )
                 .await?;
 
+                let mut file_graph = Neo4jGraph::default();
+                file_graph.connect().await?;
+                file_graph.clear().await?;
+
                 for repo in &file_repos.0 {
-                    let file_graph = repo.build_graph_inner::<BTreeMapGraph>().await?;
-
-                    self.upload_btreemap_to_neo4j(&file_graph).await?;
-                    self.graph.create_indexes().await?;
-
-                    for (edge, _target_data) in &all_incoming_edges {
-                        let source_exists = self
-                            .graph
-                            .find_nodes_by_name(
-                                edge.source.node_type.clone(),
-                                &edge.source.node_data.name,
-                            )
-                            .iter()
-                            .any(|n| n.file == edge.source.node_data.file);
-                        let target_exists = self
-                            .graph
-                            .find_nodes_by_name(
-                                edge.target.node_type.clone(),
-                                &edge.target.node_data.name,
-                            )
-                            .iter()
-                            .any(|n| n.file == edge.target.node_data.file);
-                        if source_exists && target_exists {
-                            self.graph.add_edge(edge.clone());
-                        }
-                    }
-
-                    let (nodes_after, edges_after) = self.graph.get_graph_size();
-                    info!(
-                        "Updated files: added {} nodes and {} edges",
-                        nodes_after, edges_after
-                    );
+                    let subgraph = repo.build_graph_inner::<Neo4jGraph>().await?;
+                    file_graph.extend_graph_async(subgraph).await?;
                 }
+
+                self.graph.extend_graph_async(file_graph).await?;
+                self.graph.create_indexes().await?;
+
+                for (edge, _target_data) in &all_incoming_edges {
+                    let source_exists = !self
+                        .graph
+                        .find_nodes_by_name(
+                            edge.source.node_type.clone(),
+                            &edge.source.node_data.name,
+                        )
+                        .is_empty();
+                    let target_exists = !self
+                        .graph
+                        .find_nodes_by_name(
+                            edge.target.node_type.clone(),
+                            &edge.target.node_data.name,
+                        )
+                        .is_empty();
+                    if source_exists && target_exists {
+                        self.graph.add_edge_async(edge.clone()).await?;
+                    }
+                }
+
+                let (nodes_after, edges_after) = self.graph.get_graph_size();
+                info!(
+                    "Updated files: total {} nodes and {} edges",
+                    nodes_after, edges_after
+                );
             }
         }
         self.graph
