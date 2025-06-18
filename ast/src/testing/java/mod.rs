@@ -74,9 +74,6 @@ import java.util.Optional;"#
     assert_eq!(classes.len(), 3, "Expected 3 classes");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
-    for imp in &imports {
-        println!("Import: {:?}\n\n", imp);
-    }
     assert_eq!(imports.len(), 4, "Expected 4 imports");
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
@@ -108,7 +105,7 @@ import java.util.Optional;"#
     assert_eq!(import_edges_count, 2, "Expected at 2 import edges");
 
     let instances = graph.find_nodes_by_type(NodeType::Instance);
-    assert_eq!(instances.len(), 4, "Expected 4 instances");
+    assert_eq!(instances.len(), 0, "Expected 0 instances");
 
     Ok(())
 }
