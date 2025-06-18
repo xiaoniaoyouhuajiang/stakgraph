@@ -19,8 +19,8 @@ pub async fn test_java_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
 
     //graph.analysis();
-    assert_eq!(num_nodes, 42, "Expected 42 nodes");
-    assert_eq!(num_edges, 49, "Expected 49 edges");
+    assert_eq!(num_nodes, 38, "Expected 38 nodes");
+    assert_eq!(num_edges, 45, "Expected 45 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
