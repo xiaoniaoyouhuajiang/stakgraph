@@ -68,7 +68,6 @@ impl Neo4jGraph {
 
         info!("Connecting to Neo4j database at {}", self.config.uri);
 
-        // Initialize the connection manager with our config
         match Neo4jConnectionManager::initialize(
             &self.config.uri,
             &self.config.username,
@@ -962,6 +961,155 @@ impl Neo4jGraph {
 
         txn_manager.execute().await
     }
+    pub async fn create_filtered_graph_async(&self, final_filter: &[String]) -> Result<Self> {
+        if final_filter.is_empty() {
+            return Ok(self.clone());
+        }
+
+        let mut filtered_graph = Neo4jGraph::with_config(self.config.clone());
+        filtered_graph.connect().await?;
+        filtered_graph.clear().await?;
+
+        let source_connection = self.get_connection();
+        let target_connection = filtered_graph.ensure_connected().await?;
+        let mut txn_manager = TransactionManager::new(&target_connection);
+
+        let files_list = final_filter
+            .iter()
+            .map(|f| format!("'{}'", f.replace("'", "\\'")))
+            .collect::<Vec<_>>()
+            .join(",");
+
+        let repo_query = "MATCH (n:Repository) RETURN n";
+        let mut result = source_connection.execute(query(repo_query)).await?;
+        while let Some(row) = result.next().await? {
+            if let Ok(node) = row.get::<neo4rs::Node>("n") {
+                let node_data = NodeData::try_from(&node).unwrap_or_default();
+                txn_manager.add_node(&NodeType::Repository, &node_data);
+            }
+        }
+
+        let filtered_nodes_query = format!(
+            "MATCH (n) WHERE n.file IN [{}] RETURN n, labels(n)[0] as node_type",
+            files_list
+        );
+        let mut result = source_connection
+            .execute(query(&filtered_nodes_query))
+            .await?;
+        while let Some(row) = result.next().await? {
+            if let (Ok(node), Ok(node_type_str)) =
+                (row.get::<neo4rs::Node>("n"), row.get::<String>("node_type"))
+            {
+                if let Ok(node_type) = NodeType::from_str(&node_type_str) {
+                    let node_data = NodeData::try_from(&node).unwrap_or_default();
+                    txn_manager.add_node(&node_type, &node_data);
+                }
+            }
+        }
+
+        let edges_query = format!(
+            "MATCH (source)-[r]->(target)
+             WHERE (source.file IN [{}] OR labels(source)[0] = 'Repository')
+               AND (target.file IN [{}] OR labels(target)[0] = 'Repository')
+             RETURN source, type(r) as edge_type, r, target, labels(source)[0] as source_type, labels(target)[0] as target_type",
+            files_list, files_list
+        );
+        let mut result = source_connection.execute(query(&edges_query)).await?;
+        while let Some(row) = result.next().await? {
+            if let (
+                Ok(source_node),
+                Ok(edge_type_str),
+                Ok(target_node),
+                Ok(source_type_str),
+                Ok(target_type_str),
+            ) = (
+                row.get::<neo4rs::Node>("source"),
+                row.get::<String>("edge_type"),
+                row.get::<neo4rs::Node>("target"),
+                row.get::<String>("source_type"),
+                row.get::<String>("target_type"),
+            ) {
+                if let (Ok(source_type), Ok(target_type)) = (
+                    NodeType::from_str(&source_type_str),
+                    NodeType::from_str(&target_type_str),
+                ) {
+                    if let Ok(edge_type) = EdgeType::from_str(&edge_type_str) {
+                        let source_data = NodeData::try_from(&source_node).unwrap_or_default();
+                        let target_data = NodeData::try_from(&target_node).unwrap_or_default();
+                        let source_ref = NodeRef::from(NodeKeys::from(&source_data), source_type);
+                        let target_ref = NodeRef::from(NodeKeys::from(&target_data), target_type);
+                        let edge = Edge::new(edge_type, source_ref, target_ref);
+                        txn_manager.add_edge(&edge);
+                    }
+                }
+            }
+        }
+
+        txn_manager.execute().await?;
+        Ok(filtered_graph)
+    }
+
+    pub async fn extend_graph_async(&mut self, other: Self) -> Result<()> {
+        let (other_nodes, other_edges) = other.get_graph_size_async().await?;
+        if other_nodes == 0 && other_edges == 0 {
+            debug!("Warning: Attempting to extend with an empty graph");
+            return Ok(());
+        }
+
+        let target_connection = self.ensure_connected().await?;
+        let source_connection = other.get_connection();
+        let mut txn_manager = TransactionManager::new(&target_connection);
+
+        let nodes_query = "MATCH (n) RETURN n, labels(n)[0] as node_type";
+        let mut result = source_connection.execute(query(nodes_query)).await?;
+        while let Some(row) = result.next().await? {
+            if let (Ok(node), Ok(node_type_str)) =
+                (row.get::<neo4rs::Node>("n"), row.get::<String>("node_type"))
+            {
+                if let Ok(node_type) = NodeType::from_str(&node_type_str) {
+                    let node_data = NodeData::try_from(&node).unwrap_or_default();
+                    txn_manager.add_node(&node_type, &node_data);
+                }
+            }
+        }
+
+        let edges_query = "MATCH (source)-[r]->(target)
+                           RETURN source, type(r) as edge_type, r, target,
+                                  labels(source)[0] as source_type,
+                                  labels(target)[0] as target_type";
+        let mut result = source_connection.execute(query(edges_query)).await?;
+        while let Some(row) = result.next().await? {
+            if let (
+                Ok(source_node),
+                Ok(edge_type_str),
+                Ok(target_node),
+                Ok(source_type_str),
+                Ok(target_type_str),
+            ) = (
+                row.get::<neo4rs::Node>("source"),
+                row.get::<String>("edge_type"),
+                row.get::<neo4rs::Node>("target"),
+                row.get::<String>("source_type"),
+                row.get::<String>("target_type"),
+            ) {
+                if let (Ok(source_type), Ok(target_type)) = (
+                    NodeType::from_str(&source_type_str),
+                    NodeType::from_str(&target_type_str),
+                ) {
+                    if let Ok(edge_type) = EdgeType::from_str(&edge_type_str) {
+                        let source_data = NodeData::try_from(&source_node).unwrap_or_default();
+                        let target_data = NodeData::try_from(&target_node).unwrap_or_default();
+                        let source_ref = NodeRef::from(NodeKeys::from(&source_data), source_type);
+                        let target_ref = NodeRef::from(NodeKeys::from(&target_data), target_type);
+                        let edge = Edge::new(edge_type, source_ref, target_ref);
+                        txn_manager.add_edge(&edge);
+                    }
+                }
+            }
+        }
+
+        txn_manager.execute().await
+    }
 }
 
 impl Graph for Neo4jGraph {
@@ -984,14 +1132,18 @@ impl Graph for Neo4jGraph {
     where
         Self: Sized,
     {
-        todo!("To be implemented in Neo4jGraph");
+        sync_fn(|| async {
+            self.create_filtered_graph_async(final_filter)
+                .await
+                .unwrap_or_else(|_| self.clone())
+        })
     }
 
-    fn extend_graph(&mut self, _other: Self)
+    fn extend_graph(&mut self, other: Self)
     where
         Self: Sized,
     {
-        todo!("To be implemented in Neo4jGraph");
+        sync_fn(|| async { self.extend_graph_async(other).await.unwrap_or_default() });
     }
 
     fn get_graph_size(&self) -> (u32, u32) {
