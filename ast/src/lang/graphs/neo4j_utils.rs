@@ -126,8 +126,8 @@ impl EdgeQueryBuilder {
         let target_type = self.edge.target.node_type.to_string();
 
         let query = format!(
-            "MATCH (source:{} {{name: $source_name, file: $source_file}})
-            MATCH (target:{} {{name: $target_name, file: $target_file}})
+            "MATCH (source:{} {{name: $source_name, file: $source_file}}),
+                 (target:{} {{name: $target_name, file: $target_file}})
             MERGE (source)-[r:{}]->(target)
             RETURN r",
             source_type, target_type, rel_type
@@ -601,6 +601,7 @@ pub fn add_functions_query(
     queries.push((query_str, params));
 
     if let Some(operand) = method_of {
+        println!("Adding method_of edge for function: {}", function_node.name);
         let edge = (*operand).clone().into();
         queries.push(add_edge_query(&edge));
     }

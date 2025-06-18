@@ -260,6 +260,7 @@ impl Repo {
                 .collect_classes::<G>(&qo, &code, &filename, &graph)?;
             i += classes.len();
             for (class, assoc_edges) in classes {
+                info!("Adding class node: {} in file {}", class.name, class.file);
                 graph.add_node_with_parent(
                     NodeType::Class,
                     class.clone(),
@@ -267,6 +268,7 @@ impl Repo {
                     &class.file,
                 );
                 for edge in assoc_edges {
+                    println!("Adding class association edge: {:?}", edge);
                     graph.add_edge(edge);
                 }
             }
@@ -337,7 +339,7 @@ impl Repo {
                 self.lang
                     .get_functions_and_tests(&code, &filename, &graph, &self.lsp_tx)?;
             i += funcs.len();
-
+            println!("Adding {:#?} ", funcs);
             graph.add_functions(funcs.clone());
 
             for func in &funcs {
