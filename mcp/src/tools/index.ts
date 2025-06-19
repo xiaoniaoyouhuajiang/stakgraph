@@ -11,6 +11,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Request, Response, NextFunction, Express } from "express";
+import { stagehandToolCall } from "./stagehand/tools.js";
 
 const server = new Server(
   {
@@ -75,6 +76,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await repo_map.repoMap(fa);
     }
     default:
+      if (name.startsWith("stagehand_")) {
+        return await stagehandToolCall(name, args || {});
+      }
       throw new Error(`Unknown tool: ${name}`);
   }
 });
