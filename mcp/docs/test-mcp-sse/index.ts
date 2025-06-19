@@ -1,15 +1,9 @@
 import { experimental_createMCPClient } from "ai";
-import { getModel } from "aieo";
 import * as dotenv from "dotenv";
 
 dotenv.config();
 
 async function runAgent() {
-  const model = await getModel(
-    "anthropic",
-    process.env.ANTHROPIC_API_KEY as string
-  );
-
   try {
     const client = await experimental_createMCPClient({
       transport: {
