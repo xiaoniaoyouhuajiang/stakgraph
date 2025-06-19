@@ -44,6 +44,10 @@ impl GraphOps {
             );
 
             if !modified_files.is_empty() {
+                for file in &modified_files {
+                    self.graph.remove_nodes_by_file(file).await?;
+                }
+
                 let subgraph_repos = Repo::new_multi_detect(
                     repo_path,
                     Some(repo_url.to_string()),
@@ -52,16 +56,11 @@ impl GraphOps {
                 )
                 .await?;
 
-                let mut subgraph = Neo4jGraph::default();
-                subgraph.connect().await?;
-                subgraph.clear().await?;
-
                 for repo in &subgraph_repos.0 {
-                    let repo_subgraph = repo.build_graph_inner::<Neo4jGraph>().await?;
-                    subgraph.extend_graph_async(repo_subgraph).await?;
+                    let subgraph = repo.build_graph_inner::<Neo4jGraph>().await?;
+                    self.graph.extend_graph_async(subgraph).await?;
                 }
 
-                self.graph.extend_graph_async(subgraph).await?;
                 self.graph.create_indexes().await?;
 
                 let (nodes_after, edges_after) = self.graph.get_graph_size();
