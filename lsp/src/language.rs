@@ -38,7 +38,12 @@ impl Language {
     pub fn is_frontend(&self) -> bool {
         matches!(
             self,
-            Self::Typescript | Self::React | Self::Kotlin | Self::Swift
+            Self::Typescript
+                | Self::React
+                | Self::Kotlin
+                | Self::Swift
+                | Self::Svelte
+                | Self::Angular
         )
     }
     pub fn pkg_files(&self) -> Vec<&'static str> {
@@ -48,7 +53,7 @@ impl Language {
             Self::Typescript | Self::React => vec!["package.json"],
             Self::Python => vec!["requirements.txt"],
             Self::Ruby => vec!["Gemfile"],
-            Self::Kotlin => vec!["build.gradle.kts", "build.gradle"],
+            Self::Kotlin => vec![".gradle.kts", ".gradle", ".properties"],
             Self::Swift => vec!["Podfile"],
             Self::Java => vec!["pom.xml"],
             Self::Bash => vec![],
@@ -65,7 +70,7 @@ impl Language {
             Self::Go => vec!["go"],
             Self::Python => vec!["py", "ipynb"],
             Self::Ruby => vec!["rb"],
-            Self::Kotlin => vec!["kt", "kts"],
+            Self::Kotlin => vec!["kt", "kts", "java"],
             Self::Swift => vec!["swift", "xcodeproj", "xcworkspace"],
             Self::Java => vec!["java", "gradle", "gradlew"],
             Self::Bash => vec!["sh"],
@@ -76,6 +81,58 @@ impl Language {
             Self::Svelte => vec!["svelte", "ts", "js"],
             Self::Angular => vec!["ts", "js"],
             Self::Cpp => vec!["cpp", "h"],
+        }
+    }
+
+    pub fn config_exts(&self) -> Vec<&'static str> {
+        match self {
+            Self::Rust => vec!["toml", "yaml", "yml", "json"],
+            Self::Go => vec!["yaml", "yml", "json", "env"],
+            Self::Python => vec!["cfg", "ini", "yaml", "yml", "json", "env"],
+            Self::Ruby => Vec::new(),
+            Self::Kotlin => vec!["json", "yaml", "yml", "pro"],
+            Self::Swift => Vec::new(),
+            Self::Java => Vec::new(),
+            Self::Typescript | Self::React => Vec::new(),
+            Self::Svelte => Vec::new(),
+            Self::Angular => Vec::new(),
+            Self::Cpp => Vec::new(),
+            Self::Bash => Vec::new(),
+            Self::Toml => Vec::new(),
+        }
+    }
+    pub fn presentation_exts(&self) -> Vec<&'static str> {
+        match self {
+            Self::Rust => vec!["html"],                //Rust templates with Tera
+            Self::Go => vec!["html", "css", "js"],     // Go web templates
+            Self::Python => vec!["html", "css", "js"], // Django/Flask templates
+            Self::Ruby => vec![],
+            Self::Kotlin => vec!["xml"], // Android layouts
+            Self::Swift => vec![],
+            Self::Java => vec![],
+            Self::Typescript | Self::React => vec![],
+            Self::Svelte => vec![],
+            Self::Angular => vec![],
+            Self::Cpp => vec![],
+            Self::Bash => vec![],
+            Self::Toml => vec![],
+        }
+    }
+    pub fn third_party_exts(&self) -> Vec<&'static str> {
+        match self {
+            Self::Rust => vec![],
+            Self::Go => vec![],
+            Self::Typescript | Self::React => vec![],
+            Self::Python => vec![],
+            Self::Ruby => vec![],
+            Self::Kotlin => vec![],
+            Self::Swift => vec![],
+            Self::Java => vec![],
+            Self::Bash => vec![],
+            Self::Toml => vec![],
+            Self::Svelte => vec![],
+            Self::Angular => vec![],
+            Self::Cpp => vec![],
         }
     }
 
@@ -194,6 +251,15 @@ impl Language {
             Self::Cpp => "--version",
         }
         .to_string()
+    }
+    pub fn is_config_file(&self, filename: &str) -> bool {
+        let extension = filename.split('.').last().unwrap_or("");
+        self.config_exts().contains(&extension)
+    }
+
+    pub fn is_presentation_file(&self, filename: &str) -> bool {
+        let extension = filename.split('.').last().unwrap_or("");
+        self.presentation_exts().contains(&extension)
     }
 
     pub fn lsp_args(&self) -> Vec<String> {
