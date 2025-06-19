@@ -11,7 +11,10 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Request, Response, NextFunction, Express } from "express";
-import { stagehandToolCall } from "./stagehand/tools.js";
+import * as stagehand from "./stagehand/tools.js";
+
+const USE_STAGEHAND =
+  process.env.USE_STAGEHAND === "true" || process.env.USE_STAGEHAND === "1";
 
 const server = new Server(
   {
@@ -34,7 +37,7 @@ export interface Tool {
 }
 
 function getMcpTools(): Tool[] {
-  return [
+  const coreTools = [
     search.SearchTool,
     get_nodes.GetNodesTool,
     get_map.GetMapTool,
@@ -42,6 +45,10 @@ function getMcpTools(): Tool[] {
     get_code.GetCodeTool,
     shortest_path.ShortestPathTool,
   ];
+  if (USE_STAGEHAND) {
+    coreTools.push(...stagehand.TOOLS);
+  }
+  return coreTools;
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -77,7 +84,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     default:
       if (name.startsWith("stagehand_")) {
-        return await stagehandToolCall(name, args || {});
+        return await stagehand.call(name, args || {});
       }
       throw new Error(`Unknown tool: ${name}`);
   }
