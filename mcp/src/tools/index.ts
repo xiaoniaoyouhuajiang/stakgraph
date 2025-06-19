@@ -13,7 +13,7 @@ import {
 import { Request, Response, NextFunction, Express } from "express";
 import * as stagehand from "./stagehand/tools.js";
 
-const USE_STAGEHAND =
+const USE_STAGEHAND: boolean =
   process.env.USE_STAGEHAND === "true" || process.env.USE_STAGEHAND === "1";
 
 const server = new Server(
@@ -83,7 +83,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await repo_map.repoMap(fa);
     }
     default:
-      if (name.startsWith("stagehand_")) {
+      if (USE_STAGEHAND && name.startsWith("stagehand_")) {
         return await stagehand.call(name, args || {});
       }
       throw new Error(`Unknown tool: ${name}`);
