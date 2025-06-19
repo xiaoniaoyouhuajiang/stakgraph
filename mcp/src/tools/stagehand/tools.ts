@@ -93,10 +93,15 @@ export const TOOLS: Tool[] = [
   AgentTool,
 ];
 
-function createStagehand(browser_url?: string) {
+let STAGEHAND: Stagehand | null = null;
+
+async function getOrCreateStagehand(browser_url?: string) {
+  if (STAGEHAND) {
+    return STAGEHAND;
+  }
   const cdpUrl =
     browser_url || process.env.BROWSER_URL || "http://chrome.sphinx:9222";
-  return new Stagehand({
+  const sh = new Stagehand({
     env: "LOCAL",
     domSettleTimeoutMs: 30000,
     localBrowserLaunchOptions: {
@@ -108,33 +113,51 @@ function createStagehand(browser_url?: string) {
       apiKey: process.env.OPENAI_API_KEY,
     },
   });
+  await sh.init();
+  STAGEHAND = sh;
+  return sh;
 }
+
+type TextResult = {
+  [x: string]: unknown;
+  type: "text";
+  text: string;
+};
+
+type ImageResult = {
+  [x: string]: unknown;
+  type: "image";
+  data: string;
+  mimeType: string;
+};
+
+type SimpleResult = TextResult | ImageResult;
 
 export async function call(
   name: string,
   args: Record<string, any>
 ): Promise<CallToolResult> {
-  const stagehand = createStagehand();
+  const stagehand = await getOrCreateStagehand();
 
   const error = (msg: string): CallToolResult => ({
     content: [{ type: "text" as const, text: msg }],
     isError: true,
   });
 
-  const success = (text: string, extra?: any): CallToolResult => ({
-    content: [{ type: "text" as const, text }, ...(extra ? [extra] : [])],
-    isError: false,
-  });
+  const success = (text: string, extra?: SimpleResult): CallToolResult => {
+    const content: SimpleResult[] = [{ type: "text" as const, text }];
+    if (extra) {
+      content.push(extra as SimpleResult);
+    }
+    return { content, isError: false };
+  };
 
   try {
     switch (name) {
       case NavigateTool.name: {
         const parsedArgs = NavigateSchema.parse(args);
         await stagehand.page.goto(parsedArgs.url);
-        return success(`Navigated to: ${parsedArgs.url}`, {
-          type: "text" as const,
-          text: `View session: https://browserbase.com/sessions/${stagehand.browserbaseSessionID}`,
-        });
+        return success(`Navigated to: ${parsedArgs.url}`);
       }
 
       case ActTool.name: {
