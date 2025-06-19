@@ -60,8 +60,6 @@ impl GraphOps {
                     self.graph = repo.build_graph_inner::<Neo4jGraph>().await?;
                 }
 
-                self.graph.create_indexes().await?;
-
                 let (nodes_after, edges_after) = self.graph.get_graph_size();
                 info!(
                     "Updated files: total {} nodes and {} edges",
