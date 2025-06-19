@@ -57,8 +57,7 @@ impl GraphOps {
                 .await?;
 
                 for repo in &subgraph_repos.0 {
-                    let subgraph = repo.build_graph_inner::<Neo4jGraph>().await?;
-                    self.graph.extend_graph_async(subgraph).await?;
+                    self.graph = repo.build_graph_inner::<Neo4jGraph>().await?;
                 }
 
                 self.graph.create_indexes().await?;
