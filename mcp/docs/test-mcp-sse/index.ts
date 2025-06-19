@@ -26,7 +26,7 @@ async function runAgent() {
 
     const result = await tools.stagehand_navigate.execute(
       {
-        url: "https://news.ycombinator.com/",
+        url: "https://community.sphinx.chat/leaderboard",
       },
       {
         toolCallId: "1",
@@ -37,7 +37,7 @@ async function runAgent() {
 
     const result2 = await tools.stagehand_observe.execute(
       {
-        instruction: "describe the page",
+        instruction: "find the name of the #1 user on the leaderboard",
       },
       {
         toolCallId: "2",

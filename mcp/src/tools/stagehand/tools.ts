@@ -158,7 +158,7 @@ export async function call(
           instruction: parsedArgs.instruction,
           returnAction: false,
         });
-        return success(`Observations: ${JSON.stringify(observations)}`);
+        return success(`${JSON.stringify(observations)}`);
       }
 
       case ScreenshotTool.name: {
