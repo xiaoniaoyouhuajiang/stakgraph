@@ -18,6 +18,7 @@ pub struct Neo4jConfig {
     pub uri: String,
     pub username: String,
     pub password: String,
+    pub database: String,
     pub connection_timeout: Duration,
     pub max_connections: usize,
 }
@@ -28,6 +29,7 @@ impl Default for Neo4jConfig {
             uri: std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string()),
             username: std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string()),
             password: std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string()),
+            database: std::env::var("NEO4J_DATABASE").unwrap_or_else(|_| "neo4j".to_string()),
             connection_timeout: Duration::from_secs(30),
             max_connections: 10,
         }
@@ -68,11 +70,11 @@ impl Neo4jGraph {
 
         info!("Connecting to Neo4j database at {}", self.config.uri);
 
-        // Initialize the connection manager with our config
         match Neo4jConnectionManager::initialize(
             &self.config.uri,
             &self.config.username,
             &self.config.password,
+            &self.config.database,
         )
         .await
         {
@@ -962,6 +964,15 @@ impl Neo4jGraph {
 
         txn_manager.execute().await
     }
+    pub async fn create_filtered_graph_async(&self, _final_filter: &[String]) -> Result<Self> {
+        //Not needed for Neo4j
+        Ok(self.clone())
+    }
+
+    pub async fn extend_graph_async(&mut self, other: Self) -> Result<()> {
+        //not needed for Neo4j
+        Ok(())
+    }
 }
 
 impl Graph for Neo4jGraph {
@@ -980,18 +991,22 @@ impl Graph for Neo4jGraph {
     fn analysis(&self) {
         let _ = sync_fn(|| async { self.analysis_async().await });
     }
-    fn create_filtered_graph(&self, _final_filter: &[String]) -> Self
+    fn create_filtered_graph(&self, final_filter: &[String]) -> Self
     where
         Self: Sized,
     {
-        todo!("To be implemented in Neo4jGraph");
+        sync_fn(|| async {
+            self.create_filtered_graph_async(final_filter)
+                .await
+                .unwrap_or_else(|_| self.clone())
+        })
     }
 
-    fn extend_graph(&mut self, _other: Self)
+    fn extend_graph(&mut self, other: Self)
     where
         Self: Sized,
     {
-        todo!("To be implemented in Neo4jGraph");
+        sync_fn(|| async { self.extend_graph_async(other).await.unwrap_or_default() });
     }
 
     fn get_graph_size(&self) -> (u32, u32) {

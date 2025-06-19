@@ -44,14 +44,11 @@ impl GraphOps {
             );
 
             if !modified_files.is_empty() {
-                let mut all_incoming_edges = Vec::new();
                 for file in &modified_files {
-                    let incoming = self.graph.get_incoming_edges_for_file(file).await?;
-                    all_incoming_edges.extend(incoming);
                     self.graph.remove_nodes_by_file(file).await?;
                 }
 
-                let file_repos = Repo::new_multi_detect(
+                let subgraph_repos = Repo::new_multi_detect(
                     repo_path,
                     Some(repo_url.to_string()),
                     modified_files.clone(),
@@ -59,40 +56,15 @@ impl GraphOps {
                 )
                 .await?;
 
-                for repo in &file_repos.0 {
-                    let file_graph = repo.build_graph_inner::<BTreeMapGraph>().await?;
-
-                    self.upload_btreemap_to_neo4j(&file_graph).await?;
-                    self.graph.create_indexes().await?;
-
-                    for (edge, _target_data) in &all_incoming_edges {
-                        let source_exists = self
-                            .graph
-                            .find_nodes_by_name(
-                                edge.source.node_type.clone(),
-                                &edge.source.node_data.name,
-                            )
-                            .iter()
-                            .any(|n| n.file == edge.source.node_data.file);
-                        let target_exists = self
-                            .graph
-                            .find_nodes_by_name(
-                                edge.target.node_type.clone(),
-                                &edge.target.node_data.name,
-                            )
-                            .iter()
-                            .any(|n| n.file == edge.target.node_data.file);
-                        if source_exists && target_exists {
-                            self.graph.add_edge(edge.clone());
-                        }
-                    }
-
-                    let (nodes_after, edges_after) = self.graph.get_graph_size();
-                    info!(
-                        "Updated files: added {} nodes and {} edges",
-                        nodes_after, edges_after
-                    );
+                for repo in &subgraph_repos.0 {
+                    self.graph = repo.build_graph_inner::<Neo4jGraph>().await?;
                 }
+
+                let (nodes_after, edges_after) = self.graph.get_graph_size();
+                info!(
+                    "Updated files: total {} nodes and {} edges",
+                    nodes_after, edges_after
+                );
             }
         }
         self.graph
