@@ -1,3 +1,49 @@
+import { Stagehand } from "@browserbasehq/stagehand";
+import { promises as dns } from "dns";
+
+let STAGEHAND: Stagehand | null = null;
+
+export async function getOrCreateStagehand(browser_url?: string) {
+  if (STAGEHAND) {
+    return STAGEHAND;
+  }
+  const url =
+    browser_url || process.env.BROWSER_URL || "http://chrome.sphinx:9222";
+  const cdpUrl = await resolve_browser_url(url);
+  const sh = new Stagehand({
+    env: "LOCAL",
+    domSettleTimeoutMs: 30000,
+    localBrowserLaunchOptions: {
+      cdpUrl,
+    },
+    enableCaching: true,
+    modelName: "gpt-4o",
+    modelClientOptions: {
+      apiKey: process.env.OPENAI_API_KEY,
+    },
+  });
+  await sh.init();
+  STAGEHAND = sh;
+  return sh;
+}
+
+export async function resolve_browser_url(
+  browser_url: string
+): Promise<string> {
+  let resolvedUrl = browser_url;
+  // If using hostname, resolve to IP
+  if (browser_url.includes("chrome.sphinx")) {
+    try {
+      const { address } = await dns.lookup("chrome.sphinx");
+      resolvedUrl = browser_url.replace("chrome.sphinx", address);
+      console.log(`Resolved ${browser_url} to ${resolvedUrl}`);
+    } catch (error) {
+      console.error("DNS resolution failed:", error);
+    }
+  }
+  return resolvedUrl;
+}
+
 export function sanitize(bodyText: string) {
   const content = bodyText
     .split("\n")

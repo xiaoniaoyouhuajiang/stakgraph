@@ -1,10 +1,8 @@
 import { z } from "zod";
-import { Stagehand } from "@browserbasehq/stagehand";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../index.js";
 import { parseSchema } from "../utils.js";
-import { sanitize } from "./utils.js";
-import { promises as dns } from "dns";
+import { getOrCreateStagehand, sanitize } from "./utils.js";
 
 // Schemas
 export const NavigateSchema = z.object({
@@ -93,49 +91,6 @@ export const TOOLS: Tool[] = [
   ScreenshotTool,
   AgentTool,
 ];
-
-let STAGEHAND: Stagehand | null = null;
-
-async function getOrCreateStagehand(browser_url?: string) {
-  if (STAGEHAND) {
-    return STAGEHAND;
-  }
-  const url =
-    browser_url || process.env.BROWSER_URL || "http://chrome.sphinx:9222";
-  const cdpUrl = await resolve_browser_url(url);
-  const sh = new Stagehand({
-    env: "LOCAL",
-    domSettleTimeoutMs: 30000,
-    localBrowserLaunchOptions: {
-      cdpUrl,
-    },
-    enableCaching: true,
-    modelName: "gpt-4o",
-    modelClientOptions: {
-      apiKey: process.env.OPENAI_API_KEY,
-    },
-  });
-  await sh.init();
-  STAGEHAND = sh;
-  return sh;
-}
-
-export async function resolve_browser_url(
-  browser_url: string
-): Promise<string> {
-  let resolvedUrl = browser_url;
-  // If using hostname, resolve to IP
-  if (browser_url.includes("chrome.sphinx")) {
-    try {
-      const { address } = await dns.lookup("chrome.sphinx");
-      resolvedUrl = browser_url.replace("chrome.sphinx", address);
-      console.log(`Resolved ${browser_url} to ${resolvedUrl}`);
-    } catch (error) {
-      console.error("DNS resolution failed:", error);
-    }
-  }
-  return resolvedUrl;
-}
 
 type TextResult = {
   [x: string]: unknown;
