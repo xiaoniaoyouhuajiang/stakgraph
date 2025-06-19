@@ -18,6 +18,7 @@ pub struct Neo4jConfig {
     pub uri: String,
     pub username: String,
     pub password: String,
+    pub database: String,
     pub connection_timeout: Duration,
     pub max_connections: usize,
 }
@@ -28,6 +29,7 @@ impl Default for Neo4jConfig {
             uri: std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string()),
             username: std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string()),
             password: std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string()),
+            database: std::env::var("NEO4J_DATABASE").unwrap_or_else(|_| "neo4j".to_string()),
             connection_timeout: Duration::from_secs(30),
             max_connections: 10,
         }
@@ -72,6 +74,7 @@ impl Neo4jGraph {
             &self.config.uri,
             &self.config.username,
             &self.config.password,
+            &self.config.database,
         )
         .await
         {
@@ -966,7 +969,14 @@ impl Neo4jGraph {
             return Ok(self.clone());
         }
 
-        let mut filtered_graph = Neo4jGraph::with_config(self.config.clone());
+        let mut filtered_config = self.config.clone();
+        filtered_config.database = format!(
+            "{}_filtered_{}",
+            self.config.database,
+            uuid::Uuid::new_v4().to_string()[..8].to_string()
+        );
+
+        let mut filtered_graph = Neo4jGraph::with_config(filtered_config);
         filtered_graph.connect().await?;
         filtered_graph.clear().await?;
 

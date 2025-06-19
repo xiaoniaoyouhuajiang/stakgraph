@@ -20,7 +20,7 @@ const DATA_BANK: &str = "Data_Bank";
 pub struct Neo4jConnectionManager;
 
 impl Neo4jConnectionManager {
-    pub async fn initialize(uri: &str, username: &str, password: &str) -> Result<()> {
+    pub async fn initialize(uri: &str, username: &str, password: &str, database: &str) -> Result<()> {
         let mut conn_guard = CONNECTION.lock().await;
         if conn_guard.is_some() {
             return Ok(());
@@ -31,6 +31,7 @@ impl Neo4jConnectionManager {
             .uri(uri)
             .user(username)
             .password(password)
+            .db(database)
             .build()?;
 
         match Neo4jConnection::connect(config).await {
@@ -56,8 +57,9 @@ impl Neo4jConnectionManager {
             std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
         let username = std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
         let password = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string());
+        let database = std::env::var("NEO4J_DATABASE").unwrap_or_else(|_| "neo4j".to_string());
 
-        Self::initialize(&uri, &username, &password).await
+        Self::initialize(&uri, &username, &password, &database).await
     }
 }
 
