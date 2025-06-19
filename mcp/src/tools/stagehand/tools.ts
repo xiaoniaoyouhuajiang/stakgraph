@@ -181,8 +181,8 @@ export async function call(
           provider: "openai",
           model: "computer-use-preview",
         });
-        await agent.execute(parsedArgs.instruction);
-        return success(`Agent executed: ${parsedArgs.instruction}`);
+        const rez = await agent.execute(parsedArgs.instruction);
+        return success(rez.message);
       }
 
       default:
