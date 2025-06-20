@@ -300,6 +300,7 @@ impl Repo {
         let mut exts = self.lang.kind.exts();
         exts.extend(self.lang.kind.config_exts());
         exts.extend(self.lang.kind.presentation_exts());
+        exts.extend(self.lang.kind.third_party_exts());
         exts.push("md");
         Config {
             skip_dirs,

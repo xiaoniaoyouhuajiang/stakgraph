@@ -38,12 +38,7 @@ impl Language {
     pub fn is_frontend(&self) -> bool {
         matches!(
             self,
-            Self::Typescript
-                | Self::React
-                | Self::Kotlin
-                | Self::Swift
-                | Self::Svelte
-                | Self::Angular
+            Self::Typescript | Self::React | Self::Kotlin | Self::Swift
         )
     }
     pub fn pkg_files(&self) -> Vec<&'static str> {
@@ -86,9 +81,9 @@ impl Language {
 
     pub fn config_exts(&self) -> Vec<&'static str> {
         match self {
-            Self::Rust => vec!["toml", "yaml", "yml", "json"],
-            Self::Go => vec!["yaml", "yml", "json", "env"],
-            Self::Python => vec!["cfg", "ini", "yaml", "yml", "json", "env"],
+            Self::Rust => Vec::new(),
+            Self::Go => Vec::new(),
+            Self::Python => Vec::new(),
             Self::Ruby => Vec::new(),
             Self::Kotlin => vec!["json", "yaml", "yml", "pro"],
             Self::Swift => Vec::new(),
@@ -103,11 +98,11 @@ impl Language {
     }
     pub fn presentation_exts(&self) -> Vec<&'static str> {
         match self {
-            Self::Rust => vec!["html"],                //Rust templates with Tera
-            Self::Go => vec!["html", "css", "js"],     // Go web templates
-            Self::Python => vec!["html", "css", "js"], // Django/Flask templates
+            Self::Rust => Vec::new(),
+            Self::Go => Vec::new(),
+            Self::Python => Vec::new(),
             Self::Ruby => vec![],
-            Self::Kotlin => vec!["xml"], // Android layouts
+            Self::Kotlin => vec!["xml"],
             Self::Swift => vec![],
             Self::Java => vec![],
             Self::Typescript | Self::React => vec![],
@@ -125,7 +120,7 @@ impl Language {
             Self::Typescript | Self::React => vec![],
             Self::Python => vec![],
             Self::Ruby => vec![],
-            Self::Kotlin => vec![],
+            Self::Kotlin => vec!["sq", "sqm", "hilt"],
             Self::Swift => vec![],
             Self::Java => vec![],
             Self::Bash => vec![],
@@ -251,15 +246,6 @@ impl Language {
             Self::Cpp => "--version",
         }
         .to_string()
-    }
-    pub fn is_config_file(&self, filename: &str) -> bool {
-        let extension = filename.split('.').last().unwrap_or("");
-        self.config_exts().contains(&extension)
-    }
-
-    pub fn is_presentation_file(&self, filename: &str) -> bool {
-        let extension = filename.split('.').last().unwrap_or("");
-        self.presentation_exts().contains(&extension)
     }
 
     pub fn lsp_args(&self) -> Vec<String> {
