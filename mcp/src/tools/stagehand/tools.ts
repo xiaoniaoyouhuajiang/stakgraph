@@ -182,9 +182,9 @@ export async function call(
           model: "computer-use-preview",
         });
         const rez = await agent.execute(parsedArgs.instruction);
-        return success(`${JSON.stringify(rez.actions)}`, {
+        return success(rez.message, {
           type: "text" as const,
-          text: rez.message,
+          text: `${JSON.stringify(rez.actions)}`,
         });
       }
 
