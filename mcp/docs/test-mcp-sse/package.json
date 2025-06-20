@@ -8,7 +8,8 @@
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node index.ts"
+    "start": "ts-node index.ts",
+    "agent": "ts-node agent.ts"
   },
   "dependencies": {
     "ai": "^4.3.16",
