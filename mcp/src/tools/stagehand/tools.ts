@@ -182,7 +182,10 @@ export async function call(
           model: "computer-use-preview",
         });
         const rez = await agent.execute(parsedArgs.instruction);
-        return success(rez.message);
+        return success(`${JSON.stringify(rez.actions)}`, {
+          type: "text" as const,
+          text: rez.message,
+        });
       }
 
       default:
