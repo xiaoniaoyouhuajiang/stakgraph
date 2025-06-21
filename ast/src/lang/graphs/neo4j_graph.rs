@@ -964,15 +964,6 @@ impl Neo4jGraph {
 
         txn_manager.execute().await
     }
-    pub async fn create_filtered_graph_async(&self, _final_filter: &[String]) -> Result<Self> {
-        //Not needed for Neo4j
-        Ok(self.clone())
-    }
-
-    pub async fn extend_graph_async(&mut self, other: Self) -> Result<()> {
-        //not needed for Neo4j
-        Ok(())
-    }
 }
 
 impl Graph for Neo4jGraph {
@@ -991,22 +982,17 @@ impl Graph for Neo4jGraph {
     fn analysis(&self) {
         let _ = sync_fn(|| async { self.analysis_async().await });
     }
-    fn create_filtered_graph(&self, final_filter: &[String]) -> Self
+    fn create_filtered_graph(self, final_filter: &[String]) -> Self
     where
         Self: Sized,
     {
-        sync_fn(|| async {
-            self.create_filtered_graph_async(final_filter)
-                .await
-                .unwrap_or_else(|_| self.clone())
-        })
+        self
     }
 
     fn extend_graph(&mut self, other: Self)
     where
         Self: Sized,
     {
-        sync_fn(|| async { self.extend_graph_async(other).await.unwrap_or_default() });
     }
 
     fn get_graph_size(&self) -> (u32, u32) {

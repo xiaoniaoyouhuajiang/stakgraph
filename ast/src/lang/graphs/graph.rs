@@ -20,7 +20,7 @@ pub trait Graph: Default + Debug {
         Self::default()
     }
     fn analysis(&self);
-    fn create_filtered_graph(&self, final_filter: &[String]) -> Self
+    fn create_filtered_graph(self, final_filter: &[String]) -> Self
     where
         Self: Sized;
 

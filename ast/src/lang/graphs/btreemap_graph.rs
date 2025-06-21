@@ -124,7 +124,7 @@ impl Graph for BTreeMapGraph {
         }
     }
 
-    fn create_filtered_graph(&self, final_filter: &[String]) -> Self {
+    fn create_filtered_graph(self, final_filter: &[String]) -> Self {
         let mut filtered = Self::new();
 
         for (key, node) in &self.nodes {
