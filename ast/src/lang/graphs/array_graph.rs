@@ -54,7 +54,7 @@ impl Graph for ArrayGraph {
             );
         }
     }
-    fn create_filtered_graph(&self, final_filter: &[String]) -> Self {
+    fn create_filtered_graph(self, final_filter: &[String]) -> Self {
         let mut new_graph = Self::new();
 
         for node in &self.nodes {
