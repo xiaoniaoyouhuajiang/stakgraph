@@ -388,3 +388,12 @@ impl FromStr for Language {
         }
     }
 }
+
+pub fn common_binary_exts() -> Vec<&'static str> {
+    vec![
+        "png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "tif", "tiff", "mp4", "mov", "avi",
+        "mkv", "webm", "mp3", "wav", "ogg", "flac", "ttf", "otf", "woff", "woff2", "zip", "rar",
+        "7z", "tar", "gz", "deb", "pkg", "dmg", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+        "exe", "dll", "so", "a", "o", "jar", "class", "pyc",
+    ]
+}

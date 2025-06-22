@@ -5,7 +5,7 @@ use crate::lang::graphs::Neo4jGraph;
 use crate::lang::{asg::NodeData, graphs::NodeType};
 use crate::lang::{ArrayGraph, BTreeMapGraph, Node};
 use crate::utils::create_node_key;
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
 use std::collections::HashSet;
@@ -144,7 +144,16 @@ impl Repo {
                 debug!("Skipping large file: {:?}", filename);
                 "".to_string()
             } else {
-                std::fs::read_to_string(&filepath)?
+                match std::fs::read_to_string(&filepath) {
+                    Ok(content) => content,
+                    Err(_) => {
+                        debug!(
+                            "Could not read file as string (likely binary): {:?}",
+                            filename
+                        );
+                        "".to_string()
+                    }
+                }
             };
 
             let path = filename.display().to_string();
