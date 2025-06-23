@@ -96,7 +96,7 @@ impl Language {
             Self::Typescript | Self::React => vec!["node_modules", ".git"],
             Self::Python => vec!["__pycache__", ".git", ".venv", "venv"],
             Self::Ruby => vec!["migrate", "tmp", ".git"],
-            Self::Kotlin => vec![".idea", "build", ".git"],
+            Self::Kotlin => vec!["build", ".git"],
             Self::Swift => vec![".git", "Pods"],
             Self::Java => vec![".idea", "build", ".git"],
             Self::Bash => vec![".git"],
@@ -112,6 +112,7 @@ impl Language {
             Self::Typescript | Self::React => vec![".min.js"],
             Self::Svelte => vec![".config.ts", ".config.ts"],
             Self::Angular => vec!["spec.ts"],
+            Self::Kotlin => vec!["gradlew"],
             _ => Vec::new(),
         }
     }
@@ -341,7 +342,6 @@ pub fn common_binary_exts() -> Vec<&'static str> {
 pub fn junk_directories() -> Vec<&'static str> {
     vec![
         ".git",
-        ".idea",
         ".vscode",
         "target",
         "build",

@@ -71,11 +71,13 @@ impl Repo {
         debug!("collecting dirs...");
         let dirs = self.collect_dirs()?;
         let all_files = self.collect_all_files()?;
-        let files: Vec<PathBuf> = all_files
+        let mut files: Vec<PathBuf> = all_files
             .into_iter()
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
+
+        files.sort();
 
         info!("Collected {} files using collect_all_files", files.len());
 
