@@ -33,5 +33,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/stakwork/stakgraph:standalone-${{ github.ref_name }}
-            ghcr.io/stakwork/stakgraph:standalone-latest
+            ghcr.io/stakwork/stakgraph-standalone:${{ github.ref_name }}
+            ghcr.io/stakwork/stakgraph-standalone:latest

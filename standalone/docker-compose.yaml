@@ -36,7 +36,7 @@ services:
       retries: 20
 
   standalone:
-    image: ghcr.io/stakwork/stakgraph:standalone-latest
+    image: ghcr.io/stakwork/stakgraph-standalone:latest
     environment:
       PORT: "7777"
       NEO4J_URI: "bolt://neo4j:7687"
