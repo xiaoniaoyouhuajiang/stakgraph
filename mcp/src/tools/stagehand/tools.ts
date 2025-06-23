@@ -197,10 +197,7 @@ export async function call(
           model,
         });
         const rez = await agent.execute(parsedArgs.instruction);
-        return success(rez.message, {
-          type: "text" as const,
-          text: `${JSON.stringify(rez.actions)}`,
-        });
+        return success(`${JSON.stringify(rez)}`);
       }
 
       default:
