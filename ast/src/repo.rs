@@ -414,6 +414,16 @@ impl Repo {
             }
         }
 
+        if self.lang.kind.is_package_file(relative_path) {
+            return false;
+        }
+
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            if self.lang.kind.exts().contains(&ext) {
+                return false;
+            }
+        }
+
         for other_lang in PROGRAMMING_LANGUAGES {
             if other_lang == self.lang.kind {
                 continue;
