@@ -31,8 +31,7 @@ async function runAgent() {
 
     const result2 = await tools.stagehand_agent.execute(
       {
-        instruction:
-          "find the bounties list and tell me the name of the first bounty",
+        instruction: "find the name of the #1 user on the leaderboard",
       },
       {
         toolCallId: "2",
