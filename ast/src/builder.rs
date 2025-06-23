@@ -583,8 +583,14 @@ fn fileys(files: &Vec<PathBuf>, root: &PathBuf) -> Result<Vec<(String, String)>>
     let mut ret = Vec::new();
     for f in files {
         let filename = strip_root(&f, root).display().to_string();
-        let code = std::fs::read_to_string(&f)?;
-        ret.push((filename, code));
+        match std::fs::read_to_string(&f) {
+            Ok(code) => {
+                ret.push((filename, code));
+            }
+            Err(_) => {
+                debug!("Skipping non-text file during parsing: {}", filename);
+            }
+        }
     }
     Ok(ret)
 }

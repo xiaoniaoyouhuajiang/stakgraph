@@ -405,54 +405,79 @@ impl Repo {
     fn should_not_include(&self, path: &std::path::Path, relative_path: &str) -> bool {
         let conf = self.merge_config_with_lang();
         let fname = path.display().to_string();
-        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
-        // Skip .git dir
-        if path.to_string_lossy().contains("/.git/") {
+        if path.components().any(|c| {
+            lsp::language::junk_directories().contains(&c.as_os_str().to_str().unwrap_or(""))
+        }) {
             return true;
         }
-
-        if filename.starts_with('.') {
-            if filename == ".gitignore" {
-                return false;
-            }
-            return !only_files(path, &conf.only_include_files);
-        }
-
-        //common exts we don't need but may appear in repo
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
             if lsp::language::common_binary_exts().contains(&ext) {
                 return true;
             }
         }
 
-        let file_ext = path.extension().and_then(|s| s.to_str());
         for other_lang in PROGRAMMING_LANGUAGES {
             if other_lang == self.lang.kind {
                 continue;
             }
 
-            if let Some(ext) = file_ext {
-                if other_lang.exts().contains(&ext) {
-                    return true;
-                }
-            }
-
             if other_lang.is_package_file(relative_path) {
                 return true;
+            }
+
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                if other_lang.exts().contains(&ext) && !self.lang.kind.exts().contains(&ext) {
+                    return true;
+                }
             }
         }
 
         if skip_end(&fname, &conf.skip_file_ends) {
             return true;
         }
-
         if !conf.only_include_files.is_empty() && !only_files(path, &conf.only_include_files) {
             return true;
         }
-
         false
     }
+
+    // fn is_other_language_file(&self, filename: &str, relative_path: &str) -> bool {
+    //     let this_lang_exts = self.lang.kind.exts();
+
+    //     if relative_path.ends_with(".md") {
+    //         return false;
+    //     }
+
+    //     if self.lang.kind.is_package_file(relative_path) {
+    //         return false;
+    //     }
+
+    //     if let Some(ext) = std::path::Path::new(filename).extension() {
+    //         if let Some(ext_str) = ext.to_str() {
+    //             if this_lang_exts.contains(&ext_str) {
+    //                 return false;
+    //             }
+    //         }
+    //     }
+
+    //     for other_lang in PROGRAMMING_LANGUAGES {
+    //         if other_lang != self.lang.kind {
+    //             if other_lang.is_package_file(relative_path) {
+    //                 return true;
+    //             }
+    //         }
+    //     }
+    //     if let Some(ext) = std::path::Path::new(filename).extension() {
+    //         if let Some(ext_str) = ext.to_str() {
+    //             if !this_lang_exts.contains(&ext_str) {
+    //                 return true;
+    //             }
+    //         }
+    //     }
+
+    //     false
+    // }
 }
 
 fn walk_dirs(dir: &PathBuf, conf: &Config) -> Result<Vec<PathBuf>> {
