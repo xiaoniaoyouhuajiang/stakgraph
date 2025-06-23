@@ -117,18 +117,24 @@ jobs:
           sleep 10
           curl "http://localhost:3000/map?name=App&node_type=Function" -o ./testing/actual-map-response.html
 
-      # - name: Compare actual and expected output
-      #   working-directory: ./mcp
-      #   run: |
-      #     ACTUAL_MAP_FILE="./testing/actual-map-response.html"
-      #     EXPECTED_MAP_FILE="./testing/map.html"
+      - name: Compare actual and expected output
+        working-directory: ./mcp
+        run: |
+          ACTUAL_MAP_FILE="./testing/actual-map-response.html"
+          EXPECTED_MAP_FILE="./testing/map.html"
 
-      #     if diff --color=always -u "$ACTUAL_MAP_FILE" "$EXPECTED_MAP_FILE"; then
-      #       echo "✅ Output matches expected"
-      #     else
-      #       echo "❌ Output does not match expected"
-      #       exit 1
-      #     fi
+          SORTED_ACTUAL_MAP_FILE="/tmp/sorted_actual.html"
+          SORTED_EXPECTED_MAP_FILE="/tmp/sorted_expected.html"
+
+          sed '1d;$d' "$ACTUAL_MAP_FILE" | sed 's/^[[:space:]]*[├└│┬─][├└│┬─[:space:]]*//' | sort > "$SORTED_ACTUAL_MAP_FILE"
+          sed '1d;$d' "$EXPECTED_MAP_FILE" | sed 's/^[[:space:]]*[├└│┬─][├└│┬─[:space:]]*//' | sort > "$SORTED_EXPECTED_MAP_FILE"
+
+          if diff --color=always -u "$SORTED_EXPECTED_MAP_FILE" "$SORTED_ACTUAL_MAP_FILE"; then
+            echo "✅ Output matches expected"
+          else
+            echo "❌ Output does not match expected"
+            exit 1
+          fi
       - name: Check NodeType Endpoint
         working-directory: ./mcp
         run: |
