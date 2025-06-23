@@ -43,6 +43,7 @@ export const AgentSchema = z.object({
   provider: z
     .enum(["openai", "anthropic"])
     .optional()
+    .default("openai")
     .describe("The provider to use for agent functionality."),
 });
 
@@ -184,7 +185,10 @@ export async function call(
         const parsedArgs = AgentSchema.parse(args);
         let provider = "openai";
         let model = "computer-use-preview";
-        if (parsedArgs.provider === "anthropic") {
+        if (
+          parsedArgs.provider === "anthropic" ||
+          process.env.LLM_PROVIDER === "anthropic"
+        ) {
           provider = "anthropic";
           model = "claude-3-7-sonnet-20250219";
         }
