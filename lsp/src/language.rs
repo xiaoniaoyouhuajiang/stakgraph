@@ -79,65 +79,6 @@ impl Language {
         }
     }
 
-    pub fn config_exts(&self) -> Vec<&'static str> {
-        match self {
-            Self::Rust => Vec::new(),
-            Self::Go => Vec::new(),
-            Self::Python => Vec::new(),
-            Self::Ruby => Vec::new(),
-            Self::Kotlin => vec!["json", "yaml", "yml", "pro"],
-            Self::Swift => vec![
-                "plist",
-                "entitlements",
-                "xcconfig",
-                "xcodeproj",
-                "xcworkspace",
-                "json",
-            ],
-            Self::Java => Vec::new(),
-            Self::Typescript | Self::React => Vec::new(),
-            Self::Svelte => Vec::new(),
-            Self::Angular => Vec::new(),
-            Self::Cpp => Vec::new(),
-            Self::Bash => Vec::new(),
-            Self::Toml => Vec::new(),
-        }
-    }
-    pub fn presentation_exts(&self) -> Vec<&'static str> {
-        match self {
-            Self::Rust => Vec::new(),
-            Self::Go => Vec::new(),
-            Self::Python => Vec::new(),
-            Self::Ruby => vec![],
-            Self::Kotlin => vec!["xml"],
-            Self::Swift => vec!["storyboard", "xib", "nib", "strings"],
-            Self::Java => vec![],
-            Self::Typescript | Self::React => vec![],
-            Self::Svelte => vec![],
-            Self::Angular => vec![],
-            Self::Cpp => vec![],
-            Self::Bash => vec![],
-            Self::Toml => vec![],
-        }
-    }
-    pub fn third_party_exts(&self) -> Vec<&'static str> {
-        match self {
-            Self::Rust => vec![],
-            Self::Go => vec![],
-            Self::Typescript | Self::React => vec![],
-            Self::Python => vec![],
-            Self::Ruby => vec![],
-            Self::Kotlin => vec!["sq", "sqm", "hilt"],
-            Self::Swift => vec![],
-            Self::Java => vec![],
-            Self::Bash => vec![],
-            Self::Toml => vec![],
-            Self::Svelte => vec![],
-            Self::Angular => vec![],
-            Self::Cpp => vec![],
-        }
-    }
-
     // React overrides Typescript if detected
     pub fn overrides(&self) -> Vec<Language> {
         match self {
@@ -155,9 +96,9 @@ impl Language {
             Self::Typescript | Self::React => vec!["node_modules", ".git"],
             Self::Python => vec!["__pycache__", ".git", ".venv", "venv"],
             Self::Ruby => vec!["migrate", "tmp", ".git"],
-            Self::Kotlin => vec![".gradle", ".idea", "build", ".git"],
+            Self::Kotlin => vec!["build", ".git"],
             Self::Swift => vec![".git", "Pods"],
-            Self::Java => vec![".gradle", ".idea", "build", ".git"],
+            Self::Java => vec![".idea", "build", ".git"],
             Self::Bash => vec![".git"],
             Self::Toml => vec![".git"],
             Self::Svelte => vec![".git", " node_modules"],
@@ -171,6 +112,7 @@ impl Language {
             Self::Typescript | Self::React => vec![".min.js"],
             Self::Svelte => vec![".config.ts", ".config.ts"],
             Self::Angular => vec!["spec.ts"],
+            Self::Kotlin => vec!["gradlew"],
             _ => Vec::new(),
         }
     }
@@ -333,6 +275,11 @@ impl Language {
             _ => None,
         }
     }
+    pub fn is_package_file(&self, file_name: &str) -> bool {
+        self.pkg_files()
+            .iter()
+            .any(|pkg_file| file_name.ends_with(pkg_file))
+    }
 }
 
 impl FromStr for Language {
@@ -382,4 +329,24 @@ impl FromStr for Language {
             _ => Err(anyhow::anyhow!("unsupported language")),
         }
     }
+}
+
+pub fn common_binary_exts() -> Vec<&'static str> {
+    vec![
+        "png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "tif", "tiff", "webp", "mp4", "mov",
+        "avi", "mkv", "webm", "mp3", "wav", "ogg", "flac", "ttf", "otf", "woff", "woff2", "zip",
+        "rar", "7z", "tar", "gz", "deb", "pkg", "dmg", "pdf", "doc", "docx", "xls", "xlsx", "ppt",
+        "pptx", "exe", "dll", "so", "a", "o", "jar", "class", "pyc",
+    ]
+}
+pub fn junk_directories() -> Vec<&'static str> {
+    vec![
+        ".git",
+        ".vscode",
+        "target",
+        "build",
+        "dist",
+        "venv",
+        "node_modules",
+    ]
 }

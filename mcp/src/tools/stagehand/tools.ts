@@ -3,6 +3,7 @@ import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../index.js";
 import { parseSchema } from "../utils.js";
 import { getOrCreateStagehand, sanitize } from "./utils.js";
+import { AgentProviderType } from "@browserbasehq/stagehand";
 
 // Schemas
 export const NavigateSchema = z.object({
@@ -39,6 +40,11 @@ export const AgentSchema = z.object({
   instruction: z
     .string()
     .describe("The high-level instruction for the agent to execute"),
+  provider: z
+    .enum(["openai", "anthropic"])
+    .optional()
+    .default("openai")
+    .describe("The provider to use for agent functionality."),
 });
 
 // Tools
@@ -177,9 +183,18 @@ export async function call(
 
       case AgentTool.name: {
         const parsedArgs = AgentSchema.parse(args);
+        let provider = "openai";
+        let model = "computer-use-preview";
+        if (
+          parsedArgs.provider === "anthropic" ||
+          process.env.LLM_PROVIDER === "anthropic"
+        ) {
+          provider = "anthropic";
+          model = "claude-3-7-sonnet-20250219";
+        }
         const agent = stagehand.agent({
-          provider: "openai",
-          model: "computer-use-preview",
+          provider: provider as AgentProviderType,
+          model,
         });
         const rez = await agent.execute(parsedArgs.instruction);
         return success(rez.message, {

@@ -9,6 +9,16 @@ export async function getOrCreateStagehand(browser_url?: string) {
   }
   const url =
     browser_url || process.env.BROWSER_URL || "http://chrome.sphinx:9222";
+  let modelName = "gpt-4o";
+  let modelClientOptions = {
+    apiKey: process.env.OPENAI_API_KEY,
+  };
+  if (process.env.LLM_PROVIDER === "anthropic") {
+    modelName = "claude-3-7-sonnet-20250219";
+    modelClientOptions = {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    };
+  }
   const cdpUrl = await resolve_browser_url(url);
   const sh = new Stagehand({
     env: "LOCAL",
@@ -17,10 +27,8 @@ export async function getOrCreateStagehand(browser_url?: string) {
       cdpUrl,
     },
     enableCaching: true,
-    modelName: "gpt-4o",
-    modelClientOptions: {
-      apiKey: process.env.OPENAI_API_KEY,
-    },
+    modelName,
+    modelClientOptions,
   });
   await sh.init();
   STAGEHAND = sh;

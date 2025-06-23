@@ -2,6 +2,7 @@ use crate::lang::graphs::Graph;
 use crate::lang::{linker, ArrayGraph, BTreeMapGraph, Lang};
 use anyhow::{anyhow, Context, Result};
 use git_url_parse::GitUrl;
+use ignore::WalkBuilder;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
 use lsp::{git::git_clone, spawn_analyzer, strip_root, CmdSender};
 use std::str::FromStr;
@@ -298,9 +299,6 @@ impl Repo {
             only_include_files.extend(self.files_filter.clone());
         }
         let mut exts = self.lang.kind.exts();
-        exts.extend(self.lang.kind.config_exts());
-        exts.extend(self.lang.kind.presentation_exts());
-        exts.extend(self.lang.kind.third_party_exts());
         exts.push("md");
         Config {
             skip_dirs,
@@ -369,6 +367,86 @@ impl Repo {
     pub fn get_path_from_url(url: &str) -> Result<String> {
         let gurl = GitUrl::parse(url)?;
         Ok(format!("/tmp/{}", gurl.fullname))
+    }
+    pub fn collect_all_files(&self) -> Result<Vec<PathBuf>> {
+        let mut all_files = Vec::new();
+
+        let walker = WalkBuilder::new(&self.root)
+            .hidden(false)
+            .git_ignore(true)
+            .git_global(true)
+            .git_exclude(true)
+            .build();
+
+        for result in walker {
+            match result {
+                Ok(entry) => {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let relative_path = strip_root(path, &self.root).display().to_string();
+
+                        if self.should_not_include(path, &relative_path) {
+                            continue;
+                        }
+
+                        all_files.push(path.to_path_buf());
+                    }
+                }
+                Err(err) => {
+                    warn!("Error walking directory: {}", err);
+                }
+            }
+        }
+        Ok(all_files)
+    }
+    fn should_not_include(&self, path: &std::path::Path, relative_path: &str) -> bool {
+        let conf = self.merge_config_with_lang();
+        let fname = path.display().to_string();
+
+        if path.components().any(|c| {
+            lsp::language::junk_directories().contains(&c.as_os_str().to_str().unwrap_or(""))
+        }) {
+            return true;
+        }
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            if lsp::language::common_binary_exts().contains(&ext) {
+                return true;
+            }
+        }
+
+        if self.lang.kind.is_package_file(relative_path) {
+            return false;
+        }
+
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            if self.lang.kind.exts().contains(&ext) {
+                return false;
+            }
+        }
+
+        for other_lang in PROGRAMMING_LANGUAGES {
+            if other_lang == self.lang.kind {
+                continue;
+            }
+
+            if other_lang.is_package_file(relative_path) {
+                return true;
+            }
+
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                if other_lang.exts().contains(&ext) && !self.lang.kind.exts().contains(&ext) {
+                    return true;
+                }
+            }
+        }
+
+        if skip_end(&fname, &conf.skip_file_ends) {
+            return true;
+        }
+        if !conf.only_include_files.is_empty() && !only_files(path, &conf.only_include_files) {
+            return true;
+        }
+        false
     }
 }
 
