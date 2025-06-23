@@ -299,9 +299,6 @@ impl Repo {
             only_include_files.extend(self.files_filter.clone());
         }
         let mut exts = self.lang.kind.exts();
-        exts.extend(self.lang.kind.config_exts());
-        exts.extend(self.lang.kind.presentation_exts());
-        exts.extend(self.lang.kind.third_party_exts());
         exts.push("md");
         Config {
             skip_dirs,
@@ -441,43 +438,6 @@ impl Repo {
         }
         false
     }
-
-    // fn is_other_language_file(&self, filename: &str, relative_path: &str) -> bool {
-    //     let this_lang_exts = self.lang.kind.exts();
-
-    //     if relative_path.ends_with(".md") {
-    //         return false;
-    //     }
-
-    //     if self.lang.kind.is_package_file(relative_path) {
-    //         return false;
-    //     }
-
-    //     if let Some(ext) = std::path::Path::new(filename).extension() {
-    //         if let Some(ext_str) = ext.to_str() {
-    //             if this_lang_exts.contains(&ext_str) {
-    //                 return false;
-    //             }
-    //         }
-    //     }
-
-    //     for other_lang in PROGRAMMING_LANGUAGES {
-    //         if other_lang != self.lang.kind {
-    //             if other_lang.is_package_file(relative_path) {
-    //                 return true;
-    //             }
-    //         }
-    //     }
-    //     if let Some(ext) = std::path::Path::new(filename).extension() {
-    //         if let Some(ext_str) = ext.to_str() {
-    //             if !this_lang_exts.contains(&ext_str) {
-    //                 return true;
-    //             }
-    //         }
-    //     }
-
-    //     false
-    // }
 }
 
 fn walk_dirs(dir: &PathBuf, conf: &Config) -> Result<Vec<PathBuf>> {

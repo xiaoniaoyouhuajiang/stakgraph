@@ -79,65 +79,6 @@ impl Language {
         }
     }
 
-    pub fn config_exts(&self) -> Vec<&'static str> {
-        match self {
-            Self::Rust => Vec::new(),
-            Self::Go => Vec::new(),
-            Self::Python => Vec::new(),
-            Self::Ruby => Vec::new(),
-            Self::Kotlin => vec!["json", "yaml", "yml", "pro"],
-            Self::Swift => vec![
-                "plist",
-                "entitlements",
-                "xcconfig",
-                "xcodeproj",
-                "xcworkspace",
-                "json",
-            ],
-            Self::Java => Vec::new(),
-            Self::Typescript | Self::React => Vec::new(),
-            Self::Svelte => Vec::new(),
-            Self::Angular => Vec::new(),
-            Self::Cpp => Vec::new(),
-            Self::Bash => Vec::new(),
-            Self::Toml => Vec::new(),
-        }
-    }
-    pub fn presentation_exts(&self) -> Vec<&'static str> {
-        match self {
-            Self::Rust => Vec::new(),
-            Self::Go => Vec::new(),
-            Self::Python => Vec::new(),
-            Self::Ruby => vec![],
-            Self::Kotlin => vec!["xml"],
-            Self::Swift => vec!["storyboard", "xib", "nib", "strings"],
-            Self::Java => vec![],
-            Self::Typescript | Self::React => vec![],
-            Self::Svelte => vec![],
-            Self::Angular => vec![],
-            Self::Cpp => vec![],
-            Self::Bash => vec![],
-            Self::Toml => vec![],
-        }
-    }
-    pub fn third_party_exts(&self) -> Vec<&'static str> {
-        match self {
-            Self::Rust => vec![],
-            Self::Go => vec![],
-            Self::Typescript | Self::React => vec![],
-            Self::Python => vec![],
-            Self::Ruby => vec![],
-            Self::Kotlin => vec!["sq", "sqm", "hilt"],
-            Self::Swift => vec![],
-            Self::Java => vec![],
-            Self::Bash => vec![],
-            Self::Toml => vec![],
-            Self::Svelte => vec![],
-            Self::Angular => vec![],
-            Self::Cpp => vec![],
-        }
-    }
-
     // React overrides Typescript if detected
     pub fn overrides(&self) -> Vec<Language> {
         match self {
