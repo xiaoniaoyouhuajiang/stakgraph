@@ -16,12 +16,14 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let graph = repo.build_graph_inner::<G>().await?;
 
+    graph.analysis();
+
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 91, "Expected 91 nodes");
-    assert_eq!(num_edges, 98, "Expected 98 edges");
+    assert_eq!(num_nodes, 112, "Expected 112 nodes");
+    assert_eq!(num_edges, 123, "Expected 123 edges");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
-    assert_eq!(imports.len(), 10, "Expected 10 imports");
+    assert_eq!(imports.len(), 14, "Expected 14 imports");
 
     let main_import_body = format!(
         r#"import {{ bootstrapApplication }} from '@angular/platform-browser';
@@ -67,7 +69,7 @@ import {{ AppComponent }} from './app/app.component';"#
     assert_eq!(calls_edges_count, 8, "Expected 8 calls edges");
 
     let imports_edges_count = graph.count_edges_of_type(EdgeType::Imports);
-    assert_eq!(imports_edges_count, 8, "Expected 8 imports edges");
+    assert_eq!(imports_edges_count, 12, "Expected 12 imports edges");
 
     let renders_edges_count = graph.count_edges_of_type(EdgeType::Renders);
     assert_eq!(renders_edges_count, 5, "Expected at least one RENDERS edge");

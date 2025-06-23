@@ -16,8 +16,8 @@ pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let graph = repo.build_graph_inner::<G>().await?;
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 49, "Expected 49 nodes");
-    assert_eq!(num_edges, 72, "Expected 72 edges");
+    assert_eq!(num_nodes, 50, "Expected 50 nodes");
+    assert_eq!(num_edges, 73, "Expected 73 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -30,7 +30,7 @@ pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Language node file path is incorrect"
     );
     let files = graph.find_nodes_by_type(NodeType::File);
-    assert_eq!(files.len(), 7, "Expected 7 files");
+    assert_eq!(files.len(), 8, "Expected 8 files");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 5, "Expected 5 imports");
@@ -67,7 +67,7 @@ use std::net::SocketAddr;"#
     assert_eq!(imported_edges, 4, "Expected 4 import edges");
 
     let calls_edges = graph.count_edges_of_type(EdgeType::Contains);
-    assert_eq!(calls_edges, 62, "Expected 62 contains edges");
+    assert_eq!(calls_edges, 63, "Expected 63 contains edges");
 
     Ok(())
 }
