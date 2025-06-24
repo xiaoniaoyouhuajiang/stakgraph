@@ -3,7 +3,7 @@ use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::Repo;
 use axum::Json;
-use lsp::git::{get_commit_hash, git_pull_or_clone};
+use lsp::git::{get_commit_hash, git_clone};
 use std::time::Instant;
 use tracing::info;
 #[axum::debug_handler]
@@ -103,30 +103,22 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
 #[axum::debug_handler]
 pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let start_total = Instant::now();
-    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
+    let (_final_repo_path, final_repo_url, _need_clone, username, pat) = resolve_repo(&body)?;
 
-    let start_clone = Instant::now();
-    clone_repo(
-        need_clone,
-        &final_repo_url,
-        &final_repo_path,
-        username.clone(),
-        pat.clone(),
-    )
-    .await?;
-    info!(
-        "\n\n ==>> Cloning repo took {:.2?} \n\n",
-        start_clone.elapsed()
-    );
-
-    let repo_path = final_repo_path.clone();
     let repo_url = final_repo_url.clone();
 
     let start_build = Instant::now();
 
-    let repos = Repo::new_multi_detect(&repo_path, Some(repo_url.clone()), Vec::new(), Vec::new())
-        .await
-        .map_err(|e| anyhow::anyhow!("Repo detect failed: {}", e))?;
+    let repos = Repo::new_clone_multi_detect(
+        &repo_url,
+        username.clone(),
+        pat.clone(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Repo detection failed: {}", e))?;
+
     let btree_graph = repos
         .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
         .await
@@ -200,7 +192,7 @@ async fn clone_repo(
 ) -> Result<()> {
     if need_clone {
         info!("Cloning or Pulling repo from {} to {}", repo_url, repo_path);
-        if let Err(e) = git_pull_or_clone(repo_url, repo_path, username, pat).await {
+        if let Err(e) = git_clone(repo_url, repo_path, username, pat).await {
             return Err(AppError::Anyhow(anyhow::anyhow!(
                 "Git pull or clone failed : {}",
                 e

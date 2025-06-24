@@ -17,8 +17,17 @@ pub async fn git_clone(
     } else {
         repo.to_string()
     };
-    run("git", &["clone", &repo_url, "--single-branch", path]).await?;
-    Ok(())
+    let repo_path = Path::new(path);
+
+    if repo_path.exists() && repo_path.join(".git").exists() {
+        info!("Repository exists at {}, pulling latest changes", path);
+        run_res_in_dir("git", &["pull"], path).await?;
+        Ok(())
+    } else {
+        info!("Repository doesn't exist at {}, cloning it", path);
+        run("git", &["clone", &repo_url, "--single-branch", path]).await?;
+        Ok(())
+    }
 }
 
 pub async fn get_commit_hash(dir: &str) -> Result<String> {

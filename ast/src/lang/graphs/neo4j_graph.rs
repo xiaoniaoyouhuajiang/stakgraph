@@ -982,14 +982,14 @@ impl Graph for Neo4jGraph {
     fn analysis(&self) {
         let _ = sync_fn(|| async { self.analysis_async().await });
     }
-    fn create_filtered_graph(self, final_filter: &[String]) -> Self
+    fn create_filtered_graph(self, _final_filter: &[String]) -> Self
     where
         Self: Sized,
     {
         self
     }
 
-    fn extend_graph(&mut self, other: Self)
+    fn extend_graph(&mut self, _other: Self)
     where
         Self: Sized,
     {
