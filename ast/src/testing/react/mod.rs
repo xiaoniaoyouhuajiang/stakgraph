@@ -1,5 +1,5 @@
 use crate::lang::graphs::{EdgeType, NodeType};
-use crate::lang::Graph;
+use crate::lang::{Graph, Node};
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
@@ -188,6 +188,45 @@ import NewPerson from "./components/NewPerson";"#
         normalize_path(&people_page.file),
         "src/testing/react/src/App.tsx",
         "Page file path is incorrect"
+    );
+
+    let people_fn = functions
+        .iter()
+        .find(|f| {
+            f.name == "People"
+                && normalize_path(&f.file) == "src/testing/react/src/components/People.tsx"
+        })
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("People component not found");
+    let new_person_fn = functions
+        .iter()
+        .find(|f| {
+            f.name == "NewPerson"
+                && normalize_path(&f.file) == "src/testing/react/src/components/NewPerson.tsx"
+        })
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("NewPerson component not found");
+    let submit_button_fn = functions
+        .iter()
+        .find(|f| {
+            f.name == "SubmitButton"
+                && normalize_path(&f.file) == "src/testing/react/src/components/NewPerson.tsx"
+        })
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("SubmitButton component not found");
+    let people_page = pages
+        .iter()
+        .find(|p| p.name == "/people" && normalize_path(&p.file) == "src/testing/react/src/App.tsx")
+        .map(|n| Node::new(NodeType::Page, n.clone()))
+        .expect("'/people' page not found");
+
+    assert!(
+        graph.has_edge(&people_page, &people_fn, EdgeType::Renders),
+        "Expected '/people' page to render People component"
+    );
+    assert!(
+        graph.has_edge(&new_person_fn, &submit_button_fn, EdgeType::Calls),
+        "Expected NewPerson component to call SubmitButton component"
     );
 
     Ok(())
