@@ -17,7 +17,6 @@ async fn test_graph_consistency() {
     use tracing::info;
 
     let repo_url = "https://github.com/stakwork/demo-repo.git";
-    let repo_path = "/tmp/consistent";
 
     clear_neo4j().await;
 
