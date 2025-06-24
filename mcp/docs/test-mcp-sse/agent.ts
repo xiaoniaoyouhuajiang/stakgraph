@@ -9,6 +9,7 @@ async function runAgent() {
       transport: {
         type: "sse",
         url: "https://repo2graph.swarm38.sphinx.chat/sse",
+        // url: "http://localhost:3000/sse",
         headers: {
           Authorization: `Bearer ${process.env.API_TOKEN}`,
         },
@@ -31,7 +32,8 @@ async function runAgent() {
 
     const result2 = await tools.stagehand_agent.execute(
       {
-        instruction: "find the name of the #1 user on the leaderboard",
+        instruction:
+          "click on the 'Ivana' user and describe the profile page that appears",
       },
       {
         toolCallId: "2",
