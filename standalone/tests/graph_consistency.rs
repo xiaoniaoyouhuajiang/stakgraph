@@ -14,27 +14,17 @@ async fn test_graph_consistency() {
     use ast::lang::graphs::{BTreeMapGraph, EdgeType};
     use ast::lang::Graph;
     use ast::repo::Repo;
-    use lsp::git::git_pull_or_clone;
     use tracing::info;
 
     let repo_url = "https://github.com/stakwork/demo-repo.git";
     let repo_path = "/tmp/consistent";
 
-    git_pull_or_clone(repo_url, repo_path, None, None)
-        .await
-        .unwrap();
-
     clear_neo4j().await;
 
     info!("Building BTreeMapGraph...");
-    let repos = Repo::new_multi_detect(
-        repo_path,
-        Some(repo_url.to_string()),
-        Vec::new(),
-        Vec::new(),
-    )
-    .await
-    .unwrap();
+    let repos = Repo::new_clone_multi_detect(repo_url, None, None, Vec::new(), Vec::new(), None)
+        .await
+        .unwrap();
 
     let btree_graph = repos.build_graphs_inner::<BTreeMapGraph>().await.unwrap();
 

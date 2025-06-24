@@ -32,12 +32,15 @@ impl GraphOps {
     pub async fn update_incremental(
         &mut self,
         repo_url: &str,
-        repo_path: &str,
+        username: Option<String>,
+        pat: Option<String>,
         current_hash: &str,
         stored_hash: &str,
+        commit: Option<&str>,
     ) -> Result<(u32, u32)> {
         let revs = vec![stored_hash.to_string(), current_hash.to_string()];
-        if let Some(modified_files) = check_revs_files(repo_path, revs.clone()) {
+        let repo_path = Repo::get_path_from_url(repo_url)?;
+        if let Some(modified_files) = check_revs_files(&repo_path, revs.clone()) {
             info!(
                 "Processing {} changed files between commits",
                 modified_files.len()
@@ -48,11 +51,13 @@ impl GraphOps {
                     self.graph.remove_nodes_by_file(file).await?;
                 }
 
-                let subgraph_repos = Repo::new_multi_detect(
-                    repo_path,
-                    Some(repo_url.to_string()),
+                let subgraph_repos = Repo::new_clone_multi_detect(
+                    repo_url,
+                    username.clone(),
+                    pat.clone(),
                     modified_files.clone(),
                     Vec::new(),
+                    commit,
                 )
                 .await?;
 
@@ -76,14 +81,18 @@ impl GraphOps {
     pub async fn update_full(
         &mut self,
         repo_url: &str,
-        repo_path: &str,
+        username: Option<String>,
+        pat: Option<String>,
         current_hash: &str,
+        commit: Option<&str>,
     ) -> Result<(u32, u32)> {
-        let repos = Repo::new_multi_detect(
-            repo_path,
-            Some(repo_url.to_string()),
+        let repos = Repo::new_clone_multi_detect(
+            repo_url,
+            username.clone(),
+            pat.clone(),
             Vec::new(),
             Vec::new(),
+            commit,
         )
         .await?;
 
@@ -100,6 +109,7 @@ impl GraphOps {
             .await?;
         Ok(self.graph.get_graph_size())
     }
+
     pub async fn upload_btreemap_to_neo4j(
         &mut self,
         btree_graph: &BTreeMapGraph,
