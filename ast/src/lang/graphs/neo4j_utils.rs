@@ -5,6 +5,7 @@ use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use std::sync::{Arc, Once};
 use tiktoken_rs::get_bpe_from_model;
 use tracing::{debug, info};
+use crate::lang::Node;
 
 
 use super::*;
@@ -946,4 +947,34 @@ pub fn add_instance_of_query(instance: &NodeData, class_name: &str) -> (String, 
                  MERGE (instance)-[:OF]->(class)";
 
     (query.to_string(), params)
+}
+
+pub fn has_edge_query(
+    source: &Node,
+    target: &Node,
+    edge_type: &EdgeType,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    let source_type = &source.node_type;
+    let target_type = &target.node_type;
+
+    boltmap_insert_str(&mut params, "source_type", &source.node_type.to_string());
+    boltmap_insert_str(&mut params, "target_type", &target.node_type.to_string());
+    boltmap_insert_str(&mut params, "edge_type", &edge_type.to_string());
+    boltmap_insert_str(&mut params, "source_name", &source.node_data.name);
+    boltmap_insert_str(&mut params, "source_file", &source.node_data.file);
+    boltmap_insert_str(&mut params, "target_name", &target.node_data.name);
+    boltmap_insert_str(&mut params, "target_file", &target.node_data.file);
+
+    let query = format!(
+        "MATCH (source:{})-[r:{}]->(target:{})
+         WHERE source.name = $source_name AND source.file = $source_file
+           AND target.name = $target_name AND target.file = $target_file
+         RETURN COUNT(r) > 0 as exists",
+        source_type.to_string(),
+        edge_type.to_string(),
+        target_type.to_string()
+    );
+
+    (query, params)
 }
