@@ -3,28 +3,14 @@ use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::Repo;
 use axum::Json;
-use lsp::git::{get_commit_hash, git_clone};
+use lsp::git::get_commit_hash;
 use std::time::Instant;
 use tracing::info;
 #[axum::debug_handler]
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
-    let (final_repo_path, final_repo_url, need_clone, username, pat) = resolve_repo(&body)?;
+    let (final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
 
-    let clone_start = Instant::now();
     let total_start = Instant::now();
-
-    clone_repo(
-        need_clone,
-        &final_repo_url,
-        &final_repo_path,
-        username.clone(),
-        pat.clone(),
-    )
-    .await?;
-    info!(
-        "\n\n ==>> Cloning repo took {:.2?} \n\n",
-        clone_start.elapsed()
-    );
 
     let repo_path = &final_repo_path;
     let repo_url = &final_repo_url;
@@ -67,12 +53,25 @@ pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let (nodes, edges) = if let Some(hash) = stored_hash {
         info!("Updating repository hash from {} to {}", hash, current_hash);
         graph_ops
-            .update_incremental(&repo_url, &repo_path, &current_hash, &hash)
+            .update_incremental(
+                &repo_url,
+                username.clone(),
+                pat.clone(),
+                &current_hash,
+                &hash,
+                None,
+            )
             .await?
     } else {
         info!("Adding new repository hash: {}", current_hash);
         graph_ops
-            .update_full(&repo_url, &repo_path, &current_hash)
+            .update_full(
+                &repo_url,
+                username.clone(),
+                pat.clone(),
+                &current_hash,
+                None,
+            )
             .await?
     };
     info!(
@@ -103,7 +102,7 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
 #[axum::debug_handler]
 pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let start_total = Instant::now();
-    let (_final_repo_path, final_repo_url, _need_clone, username, pat) = resolve_repo(&body)?;
+    let (_final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
 
     let repo_url = final_repo_url.clone();
 
@@ -115,6 +114,7 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
         pat.clone(),
         Vec::new(),
         Vec::new(),
+        None,
     )
     .await
     .map_err(|e| anyhow::anyhow!("Repo detection failed: {}", e))?;
@@ -158,9 +158,7 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
 fn env_not_empty(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
 }
-fn resolve_repo(
-    body: &ProcessBody,
-) -> Result<(String, String, bool, Option<String>, Option<String>)> {
+fn resolve_repo(body: &ProcessBody) -> Result<(String, String, Option<String>, Option<String>)> {
     let repo_path = body
         .repo_path
         .clone()
@@ -176,28 +174,10 @@ fn resolve_repo(
     }
 
     if let Some(path) = repo_path {
-        Ok((path, repo_url.unwrap_or_default(), false, username, pat))
+        Ok((path, repo_url.unwrap_or_default(), username, pat))
     } else {
         let url = repo_url.unwrap();
         let tmp_path = Repo::get_path_from_url(&url)?;
-        Ok((tmp_path, url, true, username, pat))
+        Ok((tmp_path, url, username, pat))
     }
-}
-async fn clone_repo(
-    need_clone: bool,
-    repo_url: &str,
-    repo_path: &str,
-    username: Option<String>,
-    pat: Option<String>,
-) -> Result<()> {
-    if need_clone {
-        info!("Cloning or Pulling repo from {} to {}", repo_url, repo_path);
-        if let Err(e) = git_clone(repo_url, repo_path, username, pat).await {
-            return Err(AppError::Anyhow(anyhow::anyhow!(
-                "Git pull or clone failed : {}",
-                e
-            )));
-        }
-    }
-    Ok(())
 }

@@ -17,8 +17,9 @@ pub async fn clone_repo(
     path: &str,
     username: Option<String>,
     pat: Option<String>,
+    commit: Option<&str>,
 ) -> Result<()> {
-    Ok(git_clone(url, path, username, pat).await?)
+    Ok(git_clone(url, path, username, pat, commit).await?)
 }
 
 pub struct Repo {
@@ -109,6 +110,7 @@ impl Repo {
         pat: Option<String>,
         files_filter: Vec<String>,
         revs: Vec<String>,
+        commit: Option<&str>,
     ) -> Result<Repos> {
         let urls = urls
             .split(',')
@@ -134,7 +136,7 @@ impl Repo {
             let root = format!("/tmp/{}", gurl.fullname);
             println!("Cloning to {:?}...", &root);
             fs::remove_dir_all(&root).ok();
-            clone_repo(url, &root, username.clone(), pat.clone()).await?;
+            clone_repo(url, &root, username.clone(), pat.clone(), commit).await?;
             // Extract the revs for this specific repository
             let repo_revs = if revs_per_repo > 0 {
                 revs[i * revs_per_repo..(i + 1) * revs_per_repo].to_vec()
@@ -235,7 +237,7 @@ impl Repo {
         let root = format!("/tmp/{}", gurl.fullname);
         println!("Cloning to {:?}... lsp: {}", &root, lsp);
         fs::remove_dir_all(&root).ok();
-        clone_repo(url, &root, username, pat).await?;
+        clone_repo(url, &root, username, pat, None).await?;
         // if let Some(new_files) = check_revs(&root, revs) {
         //     files_filter = new_files;
         // }
