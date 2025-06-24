@@ -140,6 +140,19 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
         graph.has_edge(&main_fn, &init_db_fn, EdgeType::Calls),
         "Expected 'main' to call 'InitDB'"
     );
+
+    let new_router_fn = graph
+        .find_nodes_by_name(NodeType::Function, "NewRouter")
+        .into_iter()
+        .find(|n| n.file == "src/testing/go/routes.go")
+        .map(|nd| Node::new(NodeType::Function, nd))
+        .expect("NewRouter function not found in routes.go");
+    assert_eq!(new_router_fn.node_data.name, "NewRouter");
+    assert!(
+        graph.has_edge(&main_fn, &new_router_fn, EdgeType::Calls),
+        "Expected 'main' to call 'NewRouter'"
+    );
+
     let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
     assert_eq!(handler_edges_count, 2, "Expected 2 handler edges");
 
