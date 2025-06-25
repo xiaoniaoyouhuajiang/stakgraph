@@ -108,13 +108,6 @@ impl Graph for ArrayGraph {
             self.edges.push(edge);
         }
     }
-    // fn add_edge(&mut self, edge: Edge) {
-    //     let key = self.create_edge_key(&edge);
-    //     if !self.edge_keys.contains(&key) {
-    //         self.edge_keys.insert(key);
-    //         self.edges.push(edge);
-    //     }
-    // }
 
     fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
         let new_node = Node::new(node_type, node_data);
