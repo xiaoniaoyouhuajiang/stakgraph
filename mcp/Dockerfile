@@ -10,8 +10,8 @@ WORKDIR /usr/src/app
 RUN apt update
 RUN apt install -y sed git vim
 
-RUN npx playwright install-deps
-RUN npx playwright install
+RUN npx -y playwright install-deps
+RUN npx -y playwright install
 
 # Copy package.json and package-lock.json (if available)
 COPY ./package.json ./package.json
