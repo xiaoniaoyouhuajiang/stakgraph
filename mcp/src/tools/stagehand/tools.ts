@@ -6,6 +6,15 @@ import { getOrCreateStagehand, sanitize } from "./utils.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
+// human logs + session tracking to generate a tracker
+// integrate click tracker (puppeteer or playwright)
+// saving steps in the graph (fixtures). storing all the agent logs
+// how to feed a fixture back into a larger agentic flow
+// console logs as mcp tool, and networking
+// high level agentic workflow
+// session id: connecting backend with frontend
+// pm2 logs endpoint GET /logs
+
 // Schemas
 export const NavigateSchema = z.object({
   url: z.string().describe("The URL to navigate to"),

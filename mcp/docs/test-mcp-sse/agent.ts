@@ -32,7 +32,7 @@ async function runAgent() {
 
     // const instruction = "click on the 'Ivana' user and describe the profile page that appears"
     const instruction =
-      "find the bounties section, anf filter by Assigned. Then click on the first bounty and give a one sentence solution summary";
+      "find the bounties section, and filter by Assigned. Then click on the first bounty and give a one sentence solution summary";
 
     const result2 = await tools.stagehand_agent.execute(
       {
