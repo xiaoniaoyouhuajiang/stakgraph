@@ -8,7 +8,7 @@ use std::str::FromStr;
 use test_log::test;
 use tracing::{debug, info};
 
-const PROGRAMMING_LANGUAGE: [&str; 12] = [
+const PROGRAMMING_LANGUAGES: [&str; 12] = [
     "angular",
     "go",
     "kotlin",
@@ -22,8 +22,6 @@ const PROGRAMMING_LANGUAGE: [&str; 12] = [
     "rust",
     "cpp",
 ];
-
-const PROGRAMMING_LANGUAGES: [&str; 1] = ["go"];
 
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn compare_graphs() {

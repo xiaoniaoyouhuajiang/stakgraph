@@ -1423,8 +1423,10 @@ impl Lang {
                 continue;
             }
 
-            if let Some(var) =
-                graph.find_node_by_name_and_file_end_with(NodeType::Var, target_name, &target_file)
+            let all_vars_with_name = graph.find_nodes_by_name(NodeType::Var, target_name);
+            if let Some(var) = all_vars_with_name
+                .iter()
+                .find(|v| target_file.ends_with(&v.file))
             {
                 edges.push(Edge::contains(
                     NodeType::Function,

@@ -62,42 +62,31 @@ pub fn logger() {
         .init();
 }
 
-// pub fn create_node_key(node: &Node) -> String {
-//     let node_type = node.node_type.to_string();
-//     let node_data = &node.node_data;
-//     let name = &node_data.name;
-//     let file = &node_data.file;
-//     let start = node_data.start.to_string();
-//     let meta = &node_data.meta;
-
-//     let mut result = String::new();
-
-//     result.push_str(&sanitize_string(&node_type));
-//     result.push('-');
-//     result.push_str(&sanitize_string(name));
-//     result.push('-');
-//     result.push_str(&sanitize_string(file));
-//     result.push('-');
-//     result.push_str(&sanitize_string(&start));
-
-//     if let Some(v) = meta.get("verb") {
-//         result.push('-');
-//         result.push_str(&sanitize_string(v));
-//     }
-//     result
-// }
 pub fn create_node_key(node: &Node) -> String {
     let node_type = node.node_type.to_string();
     let node_data = &node.node_data;
     let name = &node_data.name;
     let file = &node_data.file;
-    format!(
-        "{}-{}-{}",
-        sanitize_string(&node_type),
-        sanitize_string(name),
-        sanitize_string(file)
-    )
+    let start = node_data.start.to_string();
+    let meta = &node_data.meta;
+
+    let mut result = String::new();
+
+    result.push_str(&sanitize_string(&node_type));
+    result.push('-');
+    result.push_str(&sanitize_string(name));
+    result.push('-');
+    result.push_str(&sanitize_string(file));
+    result.push('-');
+    result.push_str(&sanitize_string(&start));
+
+    if let Some(v) = meta.get("verb") {
+        result.push('-');
+        result.push_str(&sanitize_string(v));
+    }
+    result
 }
+
 pub fn get_use_lsp() -> bool {
     println!("===-==> Getting use LSP");
     env::set_var("LSP_SKIP_POST_CLONE", "true");
@@ -116,39 +105,28 @@ fn delete_react_testing_node_modules() -> std::io::Result<()> {
     }
     Ok(())
 }
-// pub fn create_node_key_from_ref(node_ref: &NodeRef) -> String {
-//     let node_type = node_ref.node_type.to_string().to_lowercase();
-//     let name = &node_ref.node_data.name;
-//     let file = &node_ref.node_data.file;
-//     let start = &node_ref.node_data.start.to_string();
-
-//     let mut result = String::new();
-
-//     result.push_str(&sanitize_string(&node_type));
-//     result.push('-');
-//     result.push_str(&sanitize_string(name));
-//     result.push('-');
-//     result.push_str(&sanitize_string(file));
-//     result.push('-');
-//     result.push_str(&sanitize_string(&start));
-
-//     if let Some(v) = &node_ref.node_data.verb {
-//         result.push('-');
-//         result.push_str(&sanitize_string(v));
-//     }
-
-//     result
-// }
 pub fn create_node_key_from_ref(node_ref: &NodeRef) -> String {
     let node_type = node_ref.node_type.to_string().to_lowercase();
     let name = &node_ref.node_data.name;
     let file = &node_ref.node_data.file;
-    format!(
-        "{}-{}-{}",
-        sanitize_string(&node_type),
-        sanitize_string(name),
-        sanitize_string(file)
-    )
+    let start = &node_ref.node_data.start.to_string();
+
+    let mut result = String::new();
+
+    result.push_str(&sanitize_string(&node_type));
+    result.push('-');
+    result.push_str(&sanitize_string(name));
+    result.push('-');
+    result.push_str(&sanitize_string(file));
+    result.push('-');
+    result.push_str(&sanitize_string(&start));
+
+    if let Some(v) = &node_ref.node_data.verb {
+        result.push('-');
+        result.push_str(&sanitize_string(v));
+    }
+
+    result
 }
 
 pub fn sanitize_string(input: &str) -> String {
