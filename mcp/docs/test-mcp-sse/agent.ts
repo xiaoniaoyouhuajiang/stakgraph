@@ -8,8 +8,8 @@ async function runAgent() {
     const client = await experimental_createMCPClient({
       transport: {
         type: "sse",
-        url: "https://repo2graph.swarm38.sphinx.chat/sse",
-        // url: "http://localhost:3000/sse",
+        // url: "https://repo2graph.swarm38.sphinx.chat/sse",
+        url: "http://localhost:3000/sse",
         headers: {
           Authorization: `Bearer ${process.env.API_TOKEN}`,
         },
@@ -30,10 +30,13 @@ async function runAgent() {
     );
     console.log(result);
 
+    // const instruction = "click on the 'Ivana' user and describe the profile page that appears"
+    const instruction =
+      "find the bounties section, anf filter by Assigned. Then click on the first bounty and give a one sentence solution summary";
+
     const result2 = await tools.stagehand_agent.execute(
       {
-        instruction:
-          "click on the 'Ivana' user and describe the profile page that appears",
+        instruction,
       },
       {
         toolCallId: "2",

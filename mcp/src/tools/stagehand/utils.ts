@@ -1,4 +1,5 @@
 import { Stagehand } from "@browserbasehq/stagehand";
+import { getProvider } from "./providers.js";
 
 let STAGEHAND: Stagehand | null = null;
 
@@ -6,17 +7,8 @@ export async function getOrCreateStagehand() {
   if (STAGEHAND) {
     return STAGEHAND;
   }
-  let modelName = "gpt-4o";
-  let modelClientOptions = {
-    apiKey: process.env.OPENAI_API_KEY,
-  };
-  if (process.env.LLM_PROVIDER === "anthropic") {
-    modelName = "claude-3-7-sonnet-20250219";
-    modelClientOptions = {
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    };
-  }
-  console.log("initializing stagehand!", modelName);
+  let provider = getProvider();
+  console.log("initializing stagehand!", provider.model);
   const sh = new Stagehand({
     env: "LOCAL",
     domSettleTimeoutMs: 30000,
@@ -25,8 +17,10 @@ export async function getOrCreateStagehand() {
       viewport: { width: 1024, height: 768 },
     },
     enableCaching: true,
-    modelName,
-    modelClientOptions,
+    modelName: provider.model,
+    modelClientOptions: {
+      apiKey: process.env[provider.api_key_env_var_name],
+    },
   });
   await sh.init();
   STAGEHAND = sh;
