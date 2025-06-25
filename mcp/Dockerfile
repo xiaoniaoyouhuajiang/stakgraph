@@ -1,7 +1,7 @@
 # docker build -t repo2graph .
 
 # Use an official Node.js runtime as a parent image
-FROM node:20-bullseye-slim
+FROM node:22-bookworm-slim
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
@@ -10,6 +10,7 @@ WORKDIR /usr/src/app
 RUN apt update
 RUN apt install -y sed git vim
 
+RUN npx playwright install-deps
 RUN npx playwright install
 
 # Copy package.json and package-lock.json (if available)
