@@ -4,6 +4,7 @@ import { Tool } from "../index.js";
 import { parseSchema } from "../utils.js";
 import { getOrCreateStagehand, sanitize } from "./utils.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
+import { getProvider } from "./providers.js";
 
 // Schemas
 export const NavigateSchema = z.object({
@@ -183,20 +184,16 @@ export async function call(
 
       case AgentTool.name: {
         const parsedArgs = AgentSchema.parse(args);
-        let provider = "openai";
-        let model = "computer-use-preview";
-        if (
-          parsedArgs.provider === "anthropic" ||
-          process.env.LLM_PROVIDER === "anthropic"
-        ) {
-          provider = "anthropic";
-          model = "claude-3-7-sonnet-20250219";
-        }
+        let provider = getProvider(parsedArgs.provider);
+        console.log("agent provider:", provider.computer_use_model);
         const agent = stagehand.agent({
-          provider: provider as AgentProviderType,
-          model,
+          provider: provider.name as AgentProviderType,
+          model: provider.computer_use_model,
         });
-        const rez = await agent.execute(parsedArgs.instruction);
+        const rez = await agent.execute({
+          instruction: parsedArgs.instruction,
+          maxSteps: 25,
+        });
         return success(`${JSON.stringify(rez)}`);
       }
 

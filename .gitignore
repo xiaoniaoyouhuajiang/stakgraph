@@ -45,3 +45,5 @@ local_cache
 # Neo4j Docker Volumes
 ast/.neo4j/
 ast/conf/
+
+mcp/tmp
