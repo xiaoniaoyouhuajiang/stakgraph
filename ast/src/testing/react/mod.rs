@@ -21,7 +21,7 @@ pub async fn test_react_typescript_generic<G: Graph>() -> Result<(), anyhow::Err
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 76, "Expected 76 nodes");
-        assert_eq!(num_edges, 101, "Expected 101 edges");
+        assert_eq!(num_edges, 102, "Expected 102 edges");
     } else {
         assert_eq!(num_nodes, 70, "Expected 70 nodes");
         assert_eq!(num_edges, 88, "Expected 88 edges");
@@ -264,6 +264,14 @@ import NewPerson from "./components/NewPerson";"#
         })
         .map(|n| Node::new(NodeType::DataModel, n.clone()))
         .expect("Person DataModel not found in Person.tsx");
+    let initial_state_var = variables
+        .iter()
+        .find(|v| {
+            v.name == "initialState"
+                && normalize_path(&v.file) == "src/testing/react/src/components/Person.tsx"
+        })
+        .map(|n| Node::new(NodeType::Var, n.clone()))
+        .expect("initialState variable not found in Person.tsx");
 
     assert!(
         graph.has_edge(
@@ -304,6 +312,11 @@ import NewPerson from "./components/NewPerson";"#
     assert!(
         graph.has_edge(&person_tsx_file, &person_dm, EdgeType::Contains),
         "Expected Person.tsx file to contain Person DataModel"
+    );
+
+    assert!(
+        graph.has_edge(&use_store_fn, &initial_state_var, EdgeType::Contains),
+        "Expected useStore to contain initialState variable"
     );
     Ok(())
 }

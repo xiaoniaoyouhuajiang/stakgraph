@@ -1397,7 +1397,8 @@ impl Lang {
         identifiers.sort();
 
         for (target_name, row, col) in &identifiers {
-            let pos = Position::new(&func.file, *row, *col).unwrap();
+            let absolute_line = func.start as u32 + *row;
+            let pos = Position::new(&func.file, absolute_line, *col).unwrap();
 
             let mut lsp_result = None;
             for _ in 0..2 {
