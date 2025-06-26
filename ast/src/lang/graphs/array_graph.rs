@@ -103,8 +103,8 @@ impl Graph for ArrayGraph {
     }
     fn add_edge(&mut self, edge: Edge) {
         let key = self.create_edge_key(&edge);
-        if !self.edge_keys.contains(&key) {
-            self.edge_keys.insert(key);
+
+        if self.edge_keys.insert(key) {
             self.edges.push(edge);
         }
     }
@@ -803,7 +803,7 @@ impl ArrayGraph {
     fn create_edge_key(&self, edge: &Edge) -> String {
         let source_key = create_node_key_from_ref(&edge.source);
         let target_key = create_node_key_from_ref(&edge.target);
-        let edge_type = sanitize_string(&format!("{:?}", edge.edge));
+        let edge_type = sanitize_string(&format!("{}", edge.edge.to_string()));
         format!("{}-{}-{}", source_key, target_key, edge_type,)
     }
 }
