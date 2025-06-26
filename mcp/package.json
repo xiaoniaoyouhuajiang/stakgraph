@@ -4,7 +4,7 @@
   "description": "MCP Server with Stackgraph tool",
   "type": "module",
   "scripts": {
-    "dev": "tsc --noEmit && node --loader ts-node/esm src/index.ts",
+    "dev": "node --loader ts-node/esm src/index.ts",
     "build": "tsc",
     "start": "node build/index.js",
     "gen-redoc": "tsc --noEmit && tsx docs/gen-redoc.ts",
