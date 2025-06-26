@@ -53,7 +53,7 @@ IMPORTANT GUIDELINES FOR CONTENT VERIFICATION:
 STEP SELECTION GUIDE:
 1. Navigate to the specified page
 2. For text content verification (titles, specific words, etc.): Use EXTRACT
-3. For element existence verification: Use OBSERVE  
+3. For element existence verification: Use OBSERVE
 4. Take a screenshot for evidence
 5. Focus on specific, testable criteria
 
@@ -61,7 +61,7 @@ Example for text verification:
 {
   "steps": [
     {
-      "type": "navigate", 
+      "type": "navigate",
       "url": "https://example.com/page"
     },
     {
@@ -84,14 +84,14 @@ Example for element existence:
   "steps": [
     {
       "type": "navigate",
-      "url": "https://example.com/page" 
+      "url": "https://example.com/page"
     },
     {
       "type": "observe",
       "instruction": "Find the navigation menu on the page"
     },
     {
-      "type": "screenshot", 
+      "type": "screenshot",
       "path": "screenshots/verification.png",
       "fullPage": false
     }
@@ -104,15 +104,13 @@ Example for element existence:
 export class SimpleEvaluator {
   stagehand: any;
   model: any;
-  browserUrl?: string;
   currentProvider: 'anthropic' | 'openai';
 
-  constructor(browserUrl?: string) {
-    this.browserUrl = browserUrl;
-    
+  constructor() {
+
     // Determine which LLM provider to use based on environment
     this.currentProvider = process.env.LLM_PROVIDER === 'anthropic' ? 'anthropic' : 'openai';
-    
+
     // Initialize the AI model for generateObject based on provider
     this.model = this.createModel(this.currentProvider);
   }
@@ -127,7 +125,7 @@ export class SimpleEvaluator {
 
   async initStagehand() {
     if (!this.stagehand) {
-      this.stagehand = await getOrCreateStagehand(this.browserUrl);
+      this.stagehand = await getOrCreateStagehand();
     }
     return this.stagehand;
   }
@@ -137,8 +135,8 @@ export class SimpleEvaluator {
   }
 
   private isRetryableError(error: any): boolean {
-    return error.message?.includes("529") || 
-           error.message?.includes("Overloaded") || 
+    return error.message?.includes("529") ||
+           error.message?.includes("Overloaded") ||
            error.message?.includes("rate limit") ||
            error.status === 429 ||
            error.status === 529;
@@ -191,7 +189,7 @@ export class SimpleEvaluator {
       } catch (error: any) {
         lastError = error;
         console.error(`❌ Attempt ${attempt + 1}/3 failed with ${this.currentProvider}:`, error.message);
-        
+
         if (!this.isRetryableError(error)) {
           // Non-retryable error, fail immediately
           throw new Error(`Step generation failed: ${error}`);
@@ -202,7 +200,7 @@ export class SimpleEvaluator {
     // All retries with primary provider failed, try fallback provider
     const fallbackProvider = this.currentProvider === 'anthropic' ? 'openai' : 'anthropic';
     console.log(`🔄 Primary provider exhausted, switching to ${fallbackProvider} provider...`);
-    
+
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         if (attempt > 0) {
@@ -230,7 +228,7 @@ export class SimpleEvaluator {
         };
       } catch (fallbackError: any) {
         console.error(`❌ Fallback attempt ${attempt + 1}/2 failed with ${fallbackProvider}:`, fallbackError.message);
-        
+
         if (!this.isRetryableError(fallbackError)) {
           throw new Error(`Step generation failed with both providers. Primary: ${lastError.message}, Fallback: ${fallbackError.message}`);
         }
@@ -288,17 +286,17 @@ export class SimpleEvaluator {
                 console.log(`🔍 DEBUG: Raw extract result:`, JSON.stringify(extractResult, null, 2));
               } catch (extractError: any) {
                 console.log(`⚠️ Extract step failed, will retry with exponential backoff...`);
-                
+
                 if (this.isRetryableError(extractError)) {
                   // Try up to 2 more times with exponential backoff
                   let lastRetryError = extractError;
                   let success = false;
-                  
+
                   for (let retryAttempt = 0; retryAttempt < 2; retryAttempt++) {
                     const delay = this.calculateBackoffDelay(retryAttempt);
                     console.log(`⏳ Waiting ${Math.round(delay)}ms before extract retry ${retryAttempt + 1}/2...`);
                     await this.sleep(delay);
-                    
+
                     try {
                       const retryResult = await this.stagehand.page.extract(
                         step.instruction || "",
@@ -316,7 +314,7 @@ export class SimpleEvaluator {
                       console.log(`❌ Extract retry ${retryAttempt + 1}/2 failed:`, retryError.message);
                     }
                   }
-                  
+
                   if (!success) {
                     console.log(`❌ All extract retries exhausted. Provider overload persists.`);
                     results[i] = { error: `Extract failed after all retries: ${lastRetryError.message}` };
@@ -409,29 +407,29 @@ export class SimpleEvaluator {
       } else if (step.type === "extract") {
         console.log(`🔍 Evaluating extract step: ${step.instruction}`);
         console.log(`🔍 DEBUG: Extract result:`, result);
-        
+
         // For extract steps, verify the content against test criteria
         const extractedContent = result?.extraction || result?.content || "";
         console.log(`🔍 DEBUG: Extracted content: "${extractedContent}"`);
-        
+
         // Check if extracted content matches any of our test criteria
         let criteriaMatched = false;
         const contentLower = extractedContent.toLowerCase();
-        
+
         for (const criterion of testCriteria) {
           console.log(`🔍 DEBUG: Checking criterion: "${criterion}"`);
-          
+
           // Extract quoted words and other significant words from the criterion
           const quotedMatches = criterion.match(/['"]([^'"]+)['"]/g) || [];
           const wordMatches = criterion.match(/\b[a-zA-Z]{3,}\b/g) || [];
-          
+
           const wordsToCheck = [
             ...quotedMatches.map(w => w.replace(/['"]/g, '')),
             ...wordMatches
           ].filter(w => w.length > 2 && !['the', 'and', 'that', 'contains', 'word', 'page', 'title'].includes(w.toLowerCase()));
-          
+
           console.log(`🔍 DEBUG: Words to check: ${JSON.stringify(wordsToCheck)}`);
-          
+
           for (const word of wordsToCheck) {
             const wordLower = word.toLowerCase();
             if (contentLower.includes(wordLower)) {
@@ -440,10 +438,10 @@ export class SimpleEvaluator {
               break;
             }
           }
-          
+
           if (criteriaMatched) break;
         }
-        
+
         if (!result || result.error) {
           console.log(`❌ Extract failed due to error: ${result?.error}`);
           failedCriteria.push(step.instruction || "Unknown criterion");
@@ -460,7 +458,7 @@ export class SimpleEvaluator {
     console.log(`🔍 DEBUG: Final evaluation - Failed criteria count: ${failedCriteria.length}`);
     console.log(`🔍 DEBUG: Failed criteria:`, failedCriteria);
     console.log(`🔍 DEBUG: Final status: ${status}`);
-    
+
     const description =
       status === "PASS"
         ? "All criteria were successfully verified."
