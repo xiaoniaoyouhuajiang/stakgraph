@@ -23,6 +23,7 @@ use crate::lang::{Function, NodeData, NodeType};
 use anyhow::Result;
 use lsp::Language as LspLanguage;
 use lsp::{CmdSender, Position};
+use std::collections::HashMap;
 use tree_sitter::{Node as TreeNode, Query, Tree};
 
 #[derive(Default, Debug)]
@@ -234,6 +235,21 @@ pub trait Stack {
     }
     fn component_template_query(&self) -> Option<String> {
         None
+    }
+    fn component_selector_to_template_map(
+        &self,
+        _files: &[(String, String)],
+    ) -> HashMap<String, String> {
+        HashMap::new()
+    }
+    fn page_component_renders_finder(
+        &self,
+        _file_path: &str,
+        _code: &str,
+        _selector_map: &std::collections::HashMap<String, String>,
+        _find_page_fn: &dyn Fn(&str) -> Option<NodeData>,
+    ) -> Vec<Edge> {
+        Vec::new()
     }
     fn template_ext(&self) -> Option<&str> {
         None

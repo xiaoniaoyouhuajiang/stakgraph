@@ -1,5 +1,5 @@
 use crate::lang::graphs::{EdgeType, NodeType};
-use crate::lang::Graph;
+use crate::lang::{Graph, Node};
 use crate::{lang::Lang, repo::Repo};
 use anyhow::Ok;
 use std::str::FromStr;
@@ -20,7 +20,7 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     assert_eq!(num_nodes, 112, "Expected 112 nodes");
-    assert_eq!(num_edges, 123, "Expected 123 edges");
+    assert_eq!(num_edges, 124, "Expected 124 edges");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 14, "Expected 14 imports");
@@ -72,10 +72,39 @@ import {{ AppComponent }} from './app/app.component';"#
     assert_eq!(imports_edges_count, 12, "Expected 12 imports edges");
 
     let renders_edges_count = graph.count_edges_of_type(EdgeType::Renders);
-    assert_eq!(renders_edges_count, 5, "Expected at least one RENDERS edge");
+    assert_eq!(renders_edges_count, 6, "Expected 6 RENDERS edge");
 
     let pages = graph.find_nodes_by_type(NodeType::Page);
     assert_eq!(pages.len(), 11, "Expected at least one Page node");
+
+    let index_page_nodes = graph.find_nodes_by_file_ends_with(NodeType::Page, "src/index.html");
+    assert_eq!(
+        index_page_nodes.len(),
+        1,
+        "Expected to find the index.html page"
+    );
+    let index_page = index_page_nodes.first().unwrap();
+
+    let app_component_page_nodes =
+        graph.find_nodes_by_file_ends_with(NodeType::Page, "src/app/app.component.html");
+    assert_eq!(
+        app_component_page_nodes.len(),
+        1,
+        "Expected to find the app.component.html page"
+    );
+    let app_component_page = app_component_page_nodes.first().unwrap();
+
+    let app_node = Node::new(NodeType::Page, app_component_page.clone());
+    let index_node = Node::new(NodeType::Page, index_page.clone());
+
+    println!("Index page: {:?}", index_page);
+    println!("App component page: {:?}", app_component_page);
+
+    let has_render_edge = graph.has_edge(&index_node, &app_node, EdgeType::Renders);
+    assert!(
+        has_render_edge,
+        "Expected index.html to render app.component.html"
+    );
 
     Ok(())
 }
