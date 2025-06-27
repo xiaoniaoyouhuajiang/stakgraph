@@ -452,18 +452,17 @@ impl Repo {
                 if let Some(pagename) = get_page_name(&pagepath) {
                     let code = filez
                         .iter()
-                        .find(|(f, _)| f == &pagepath)
+                        .find(|(f, _)| f.ends_with(&pagepath) || pagepath.ends_with(f))
                         .map(|(_, c)| c.as_str())
                         .unwrap_or("");
                     let mut nd = NodeData::name_file(&pagename, &pagepath);
                     nd.body = code.to_string();
-
                     let edge = self
                         .lang
                         .lang()
                         .extra_page_finder(&pagepath, &|name, filename| {
                             graph.find_node_by_name_and_file_end_with(
-                                NodeType::Function,
+                                NodeType::Class,
                                 name,
                                 filename,
                             )
@@ -483,10 +482,11 @@ impl Repo {
                         .get_component_templates::<G>(&code, &filename, &graph)?;
                     i += template_edges.len();
                     for edge in template_edges {
-                        let page = NodeData::name_file(
+                        let mut page = NodeData::name_file(
                             &edge.source.node_data.name,
                             &edge.source.node_data.file,
                         );
+                        page.body = code.clone();
                         graph.add_node_with_parent(
                             NodeType::Page,
                             page,
