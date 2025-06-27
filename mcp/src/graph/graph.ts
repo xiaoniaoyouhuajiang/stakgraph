@@ -52,16 +52,17 @@ export async function search(
     return toNodes(result, concise, output);
   }
 }
-export async function get_rules_files(concise: boolean = false) {
+export async function get_rules_files() {
   const files = await db.get_rules_files();
-  return files.map((file) => ({
-    name: `File: ${file.properties.name}`,
-    ref_id: file.properties.node_key || "rules_file",
-    file: file.properties.file,
-    start: file.properties.start || 0,
-    end: file.properties.end || 0,
-    body: concise ? "" : file.properties.body || "",
-  }));
+  return files
+    .filter(
+      (file) => file.properties.body && file.properties.body.trim() !== ""
+    )
+    .map(
+      (file) =>
+        `File: ${file.properties.name}\n Content: ${file.properties.body}\n`
+    )
+    .join("\n");
 }
 
 export function toNodes(

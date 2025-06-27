@@ -102,8 +102,7 @@ export async function search(req: Request, res: Response) {
 }
 export async function get_rules_files(req: Request, res: Response) {
   try {
-    const concise = isTrue(req.query.concise as string);
-    const snippets = await G.get_rules_files(concise);
+    const snippets = await G.get_rules_files();
     res.json(snippets);
   } catch (error) {
     console.error("Error fetching rules files:", error);

@@ -85,8 +85,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await repo_map.repoMap(fa);
     }
     case get_rules_files.GetRulesFilesTool.name: {
-      const fa = get_rules_files.GetRulesFilesSchema.parse(args);
-      return await get_rules_files.getRulesFiles(fa);
+      return await get_rules_files.getRulesFiles();
     }
     default:
       if (USE_STAGEHAND && name.startsWith("stagehand_")) {
