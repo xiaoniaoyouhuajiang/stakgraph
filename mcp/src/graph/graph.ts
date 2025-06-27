@@ -60,7 +60,7 @@ export async function get_rules_files() {
     )
     .map(
       (file) =>
-        `File: ${file.properties.name}\n Content: ${file.properties.body}\n`
+        `File: ${file.properties.name}\n Content: \n ${file.properties.body}\n`
     )
     .join("\n");
 }
