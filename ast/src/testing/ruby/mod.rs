@@ -213,6 +213,30 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
         graph.has_edge(&get_person_endpoint, &get_person_fn, EdgeType::Handler),
         "Expected 'person/:id' endpoint to be handled by get_person"
     );
+
+    let pages = graph.find_nodes_by_type(NodeType::Page);
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+    let functions = graph.find_nodes_by_type(NodeType::Function);
+
+    let mut missing_renders = Vec::new();
+    for page in &pages {
+        let page_node = Node::new(NodeType::Page, page.clone());
+        let has_renders = classes.iter().any(|class| {
+            let class_node = Node::new(NodeType::Class, class.clone());
+            graph.has_edge(&page_node, &class_node, EdgeType::Renders)
+        }) || functions.iter().any(|func| {
+            let func_node = Node::new(NodeType::Function, func.clone());
+            graph.has_edge(&page_node, &func_node, EdgeType::Renders)
+        });
+        if !has_renders {
+            missing_renders.push(page.name.clone());
+        }
+    }
+    assert!(
+        missing_renders.is_empty(),
+        "Some Page nodes are missing Renders edges: {:?}",
+        missing_renders
+    );
     Ok(())
 }
 

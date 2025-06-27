@@ -462,7 +462,7 @@ impl Repo {
                         .lang()
                         .extra_page_finder(&pagepath, &|name, filename| {
                             graph.find_node_by_name_and_file_end_with(
-                                NodeType::Class,
+                                NodeType::Function,
                                 name,
                                 filename,
                             )
