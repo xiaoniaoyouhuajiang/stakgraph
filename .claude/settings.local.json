@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebFetch(domain:docs.stagehand.dev)",
-      "WebFetch(domain:playwright.dev)"
-    ],
-    "deny": []
-  }
-}
