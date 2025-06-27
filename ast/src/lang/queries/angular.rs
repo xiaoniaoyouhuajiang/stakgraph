@@ -29,7 +29,7 @@ impl Stack for Angular {
                     arguments: (arguments
                         (object
                             (pair
-                                key: (property_identifier) @{TEMPLATE_KEY} (#match? @{TEMPLATE_KEY} "^(templateUrl|styleUrls)$")
+                                key: (property_identifier) @{TEMPLATE_KEY} (#match? @{TEMPLATE_KEY} "^(templateUrl|styleUrls|selector)$")
                                 value: (_) @{TEMPLATE_VALUE}
                             )
                         )
@@ -246,55 +246,131 @@ impl Stack for Angular {
         find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
     ) -> Option<Edge> {
         let path = std::path::Path::new(file_path);
-        let extension = path.extension()?.to_str()?;
         let file_stem = path.file_stem()?.to_str()?;
 
-        if extension == "html" {
-            let component_name = format!(
-                "{}Component",
-                file_stem
-                    .replace("-", " ")
-                    .split_whitespace()
-                    .map(|s| {
-                        let mut c = s.chars();
-                        match c.next() {
-                            None => String::new(),
-                            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                        }
-                    })
-                    .collect::<String>()
-            );
+        let component_name = format!(
+            "{}Component",
+            file_stem
+                .replace("-", " ")
+                .split_whitespace()
+                .map(|s| {
+                    let mut c = s.chars();
+                    match c.next() {
+                        None => String::new(),
+                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                    }
+                })
+                .collect::<String>()
+        );
 
-            let component_file = format!("{}.component.ts", file_stem);
+        let component_file = format!("{}.component.ts", file_stem);
 
-            if let Some(component) = find_fn(&component_name, &component_file) {
-                let page = NodeData::name_file(file_stem, file_path);
-                return Some(Edge::renders(&component, &page));
-            }
-        } else if extension == "css" || extension == "scss" || extension == "sass" {
-            let component_name = format!(
-                "{}Component",
-                file_stem
-                    .replace("-", " ")
-                    .split_whitespace()
-                    .map(|s| {
-                        let mut c = s.chars();
-                        match c.next() {
-                            None => String::new(),
-                            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                        }
-                    })
-                    .collect::<String>()
-            );
-
-            let component_file = format!("{}.component.ts", file_stem);
-
-            if let Some(component) = find_fn(&component_name, &component_file) {
-                let page = NodeData::name_file(file_stem, file_path);
-                return Some(Edge::renders(&component, &page));
-            }
+        if let Some(component) = find_fn(&component_name, &component_file) {
+            let page = NodeData::name_file(file_stem, file_path);
+            return Some(Edge::new(
+                EdgeType::Renders,
+                NodeRef::from((&component).into(), NodeType::Class),
+                NodeRef::from((&page).into(), NodeType::Page),
+            ));
         }
 
         None
+    }
+
+    fn component_selector_to_template_map(
+        &self,
+        files: &[(String, String)],
+    ) -> std::collections::HashMap<String, String> {
+        let mut map = std::collections::HashMap::new();
+
+        for (filename, code) in files {
+            if !filename.ends_with(".component.ts") {
+                continue;
+            }
+
+            if let Some(query_str) = self.component_template_query() {
+                let tree = match self.parse(code, &NodeType::Class) {
+                    Ok(tree) => tree,
+                    Err(_) => continue,
+                };
+
+                let query = self.q(&query_str, &NodeType::Class);
+                let mut cursor = tree_sitter::QueryCursor::new();
+                let mut matches = cursor.matches(&query, tree.root_node(), code.as_bytes());
+
+                let mut selector = None;
+                let mut template_url = None;
+
+                while let Some(m) = matches.next() {
+                    let mut key = String::new();
+                    let mut value = String::new();
+
+                    for o in query.capture_names().iter() {
+                        if let Some(ci) = query.capture_index_for_name(o) {
+                            let mut nodes = m.nodes_for_capture_index(ci);
+                            if let Some(node) = nodes.next() {
+                                if let Ok(text) = node.utf8_text(code.as_bytes()) {
+                                    if o == &TEMPLATE_KEY {
+                                        key = text.to_string();
+                                    } else if o == &TEMPLATE_VALUE {
+                                        value = text.to_string();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !key.is_empty() && !value.is_empty() {
+                        match key.as_str() {
+                            "selector" => {
+                                selector = Some(parse::trim_quotes(&value).to_string());
+                            }
+                            "templateUrl" => {
+                                template_url = Some(parse::trim_quotes(&value).to_string());
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                if let (Some(sel), Some(tmpl)) = (selector, template_url) {
+                    let resolved_template = self.resolve_import_path(&tmpl, filename);
+                    let base = std::path::Path::new(filename).parent().unwrap();
+                    let full_template_path =
+                        base.join(&resolved_template).to_string_lossy().to_string();
+                    map.insert(sel, full_template_path);
+                }
+            }
+        }
+        map
+    }
+
+    fn page_component_renders_finder(
+        &self,
+        file_path: &str,
+        code: &str,
+        selector_map: &std::collections::HashMap<String, String>,
+        find_page_fn: &dyn Fn(&str) -> Option<NodeData>,
+    ) -> Vec<Edge> {
+        let mut edges = Vec::new();
+
+        if !file_path.ends_with(".html") {
+            return edges;
+        }
+
+        if let Some(current_page) = find_page_fn(file_path) {
+            for (selector, target_html_path) in selector_map {
+                if code.contains(&format!("<{}", selector)) {
+                    if let Some(target_page) = find_page_fn(target_html_path) {
+                        edges.push(Edge::new(
+                            EdgeType::Renders,
+                            NodeRef::from((&current_page).into(), NodeType::Page),
+                            NodeRef::from((&target_page).into(), NodeType::Page),
+                        ));
+                    }
+                }
+            }
+        }
+        edges
     }
 }

@@ -766,10 +766,10 @@ impl Graph for ArrayGraph {
             edge.edge == edge_type
                 && edge.source.node_type == source.node_type
                 && edge.source.node_data.name == source.node_data.name
-                && edge.source.node_data.file == source.node_data.file
+                && edge.source.node_data.file.ends_with(&source.node_data.file)
                 && edge.target.node_type == target.node_type
                 && edge.target.node_data.name == target.node_data.name
-                && edge.target.node_data.file == target.node_data.file
+                && edge.target.node_data.file.ends_with(&target.node_data.file)
         })
     }
 }

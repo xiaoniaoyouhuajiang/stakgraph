@@ -1,6 +1,4 @@
 use crate::lang::graphs::Graph;
-#[cfg(feature = "neo4j")]
-use crate::lang::graphs::Neo4jGraph;
 use crate::lang::Node;
 use crate::lang::{asg::NodeData, graphs::NodeType};
 use crate::repo::{check_revs_files, Repo};

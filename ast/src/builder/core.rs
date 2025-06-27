@@ -442,32 +442,6 @@ impl Repo {
             }
         }
         info!("=> got {} pages", i);
-        i = 0;
-        info!("=> get_component_templates");
-        for (filename, code) in filez {
-            if let Some(ext) = self.lang.lang().template_ext() {
-                if filename.ends_with(ext) {
-                    let template_edges = self
-                        .lang
-                        .get_component_templates::<G>(&code, &filename, &graph)?;
-                    i += template_edges.len();
-                    for edge in template_edges {
-                        let page = NodeData::name_file(
-                            &edge.source.node_data.name,
-                            &edge.source.node_data.file,
-                        );
-                        graph.add_node_with_parent(
-                            NodeType::Page,
-                            page,
-                            NodeType::File,
-                            &edge.source.node_data.file,
-                        );
-                        graph.add_edge(edge);
-                    }
-                }
-            }
-        }
-        info!("=> got {} component templates/styles", i);
 
         if self.lang.lang().use_extra_page_finder() {
             info!("=> get_extra_pages");
@@ -476,7 +450,13 @@ impl Repo {
             info!("=> got {} extra pages", extra_pages.len());
             for pagepath in extra_pages {
                 if let Some(pagename) = get_page_name(&pagepath) {
-                    let nd = NodeData::name_file(&pagename, &pagepath);
+                    let code = filez
+                        .iter()
+                        .find(|(f, _)| f.ends_with(&pagepath) || pagepath.ends_with(f))
+                        .map(|(_, c)| c.as_str())
+                        .unwrap_or("");
+                    let mut nd = NodeData::name_file(&pagename, &pagepath);
+                    nd.body = code.to_string();
                     let edge = self
                         .lang
                         .lang()
@@ -491,6 +471,59 @@ impl Repo {
                 }
             }
         }
+
+        i = 0;
+        info!("=> get_component_templates");
+        for (filename, code) in filez {
+            if let Some(ext) = self.lang.lang().template_ext() {
+                if filename.ends_with(ext) {
+                    let template_edges = self
+                        .lang
+                        .get_component_templates::<G>(&code, &filename, &graph)?;
+                    i += template_edges.len();
+                    for edge in template_edges {
+                        let mut page = NodeData::name_file(
+                            &edge.source.node_data.name,
+                            &edge.source.node_data.file,
+                        );
+                        page.body = code.clone();
+                        graph.add_node_with_parent(
+                            NodeType::Page,
+                            page,
+                            NodeType::File,
+                            &edge.source.node_data.file,
+                        );
+                        graph.add_edge(edge);
+                    }
+                }
+            }
+        }
+        info!("=> got {} component templates/styles", i);
+
+        let selector_map = self.lang.lang().component_selector_to_template_map(filez);
+        if !selector_map.is_empty() {
+            info!("=> get_page_component_renders");
+            let mut page_renders_count = 0;
+            for (filename, code) in filez {
+                let page_edges = self.lang.lang().page_component_renders_finder(
+                    filename,
+                    code,
+                    &selector_map,
+                    &|file_path| {
+                        graph
+                            .find_nodes_by_file_ends_with(NodeType::Page, file_path)
+                            .first()
+                            .cloned()
+                    },
+                );
+                page_renders_count += page_edges.len();
+                for edge in page_edges {
+                    graph.add_edge(edge);
+                }
+            }
+            info!("=> got {} page component renders", page_renders_count);
+        }
+
         Ok(())
     }
     fn process_endpoints<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
