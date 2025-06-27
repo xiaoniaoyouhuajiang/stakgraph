@@ -270,7 +270,7 @@ impl Lang {
                     .unwrap_or("template");
 
                 let page = NodeData::name_file(template_name, &full_path);
-                edges.push(Edge::renders(&component, &page));
+                edges.push(Edge::render_from_class(&component, &page));
             }
 
             for style_url in style_urls {
@@ -296,7 +296,7 @@ impl Lang {
                     .unwrap_or("style");
 
                 let page = NodeData::name_file(style_name, &full_path);
-                edges.push(Edge::renders(&component, &page));
+                edges.push(Edge::render_from_class(&component, &page));
             }
 
             return Ok(edges);

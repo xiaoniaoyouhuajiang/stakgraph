@@ -162,6 +162,14 @@ impl Edge {
             NodeRef::from(f.into(), NodeType::Function),
         )
     }
+    pub fn render_from_class(class: &NodeData, page: &NodeData) -> Edge {
+        Edge::new(
+            EdgeType::Renders,
+            NodeRef::from(class.into(), NodeType::Class),
+            NodeRef::from(page.into(), NodeType::Page),
+        )
+    }
+
     pub fn trait_operand(t: &NodeData, f: &NodeData) -> Edge {
         Edge::new(
             EdgeType::Operand,
