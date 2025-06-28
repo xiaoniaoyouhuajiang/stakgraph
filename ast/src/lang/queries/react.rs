@@ -342,39 +342,40 @@ impl Stack for ReactTs {
         )]
     }
 
-    // fn request_finder(&self) -> Option<String> {
-    //     Some(
-    //         r#"
-    //         (call_expression
-    //             function: [
-    //                 (identifier) @{REQUEST_CALL}
-    //                 (member_expression
-    //                     property: (property_identifier) @{REQUEST_CALL}
-    //                 )
-    //             ] (#match? @{REQUEST_CALL} "^fetch$|^get$|^post$|^put$|^delete$")
-    //             arguments: (arguments
-    //                 [(string) (template_string)] @{ENDPOINT}
-    //             )
-    //         ) @{FUNCTION_CALL}
-    //     "#
-    //         .to_string(),
-    //     )
-    // }
-    // fn request_finder(&self) -> Option<String> {
-    //     Some(format!(
-    //         r#"(call_expression
-    //             function: [
-    //                 (identifier) @{REQUEST_CALL}
-    //                 (member_expression
-    //                     property: (property_identifier) @{REQUEST_CALL}
-    //                 )
-    //             ] (#match? @{REQUEST_CALL} "^fetch$|^get$|^post$|^put$|^delete$")
-    //             arguments: (arguments
-    //                 [(string) (template_string)] @{ENDPOINT}
-    //             )
-    //         ) @{ROUTE}"#
-    //     ))
-    // }
+    fn request_finder(&self) -> Option<String> {
+        Some(format!(
+            r#"
+                ;; Matches: fetch('/api/...')
+                (call_expression
+                    function: (identifier) @{REQUEST_CALL} (#eq? @{REQUEST_CALL} "fetch")
+                    arguments: (arguments [ (string) (template_string) ] @{ENDPOINT})
+                ) @{ROUTE}
+
+                ;; Matches: axios.get('/api/...'), ky.post('/api/...') etc.
+                (call_expression
+                    function: (member_expression
+                        object: (identifier) @lib (#match? @lib "^(axios|ky|superagent)$")
+                        property: (property_identifier) @{REQUEST_CALL} (#match? @{REQUEST_CALL} "^(get|post|put|delete|patch)$")
+                    )
+                    arguments: (arguments [ (string) (template_string) ] @{ENDPOINT})
+                ) @{ROUTE}
+
+                ;; Matches: axios({{ url: '/api/...' }})
+                (call_expression
+                    function: (identifier) @lib (#match? @lib "^(axios|ky|superagent)$")
+                    arguments: (arguments
+                        (object
+                            (pair
+                                key: (property_identifier) @url_key (#eq? @url_key "url")
+                                value: [ (string) (template_string) ] @{ENDPOINT}
+                            )
+                        )
+                    )
+                ) @{ROUTE}
+            "#
+        ))
+    }
+
     fn function_call_query(&self) -> String {
         format!(
             "[
