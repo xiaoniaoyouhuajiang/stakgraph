@@ -530,6 +530,7 @@ impl Repo {
         let mut i = 0;
         info!("=> get_endpoints...");
         for (filename, code) in filez {
+            println!("Processing endpoints in: {}", filename);
             if let Some(epf) = self.lang.lang().endpoint_path_filter() {
                 if !filename.contains(&epf) {
                     continue;
@@ -543,6 +544,8 @@ impl Repo {
                 self.lang
                     .collect_endpoints(&code, &filename, Some(graph), &self.lsp_tx)?;
             i += endpoints.len();
+
+            println!("Found {} endpoints in: {}", i, filename);
 
             graph.add_endpoints(endpoints);
         }

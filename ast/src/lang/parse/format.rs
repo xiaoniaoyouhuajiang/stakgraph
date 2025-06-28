@@ -315,7 +315,7 @@ impl Lang {
         if endp.meta.get("verb").is_none() {
             self.lang.add_endpoint_verb(&mut endp, &call);
         }
-        self.lang.update_endpoint_verb(&mut endp, &call);
+        self.lang.update_endpoint(&mut endp, &call);
         // for multi-handle endpoints with no "name:" (ENDPOINT)
         if endp.name.is_empty() {
             if let Some(handler) = endp.meta.get("handler") {

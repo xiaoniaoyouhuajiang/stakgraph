@@ -336,18 +336,29 @@ impl Graph for ArrayGraph {
     // one endpoint can have multiple handlers like in Ruby on Rails (resources)
     fn add_endpoints(&mut self, endpoints: Vec<(NodeData, Option<Edge>)>) {
         for (e, h) in endpoints {
+            println!("Adding endpoint: {:?}", e);
             if let Some(_handler) = e.meta.get("handler") {
+                println!("Endpoint has handler: {:?}", _handler);
                 let default_verb = "".to_string();
                 let verb = e.meta.get("verb").unwrap_or(&default_verb);
 
                 if self.find_endpoint(&e.name, &e.file, verb).is_some() {
+                    println!(
+                        "Endpoint already exists: {} in file: {} with verb: {}",
+                        e.name, e.file, verb
+                    );
                     continue;
                 }
+                println!(
+                    "Adding endpoint: {} in file: {} with verb: {}",
+                    e.name, e.file, verb
+                );
                 self.add_node(NodeType::Endpoint, e);
                 if let Some(edge) = h {
                     self.add_edge(edge);
                 }
             } else {
+                println!("Endpoint missing handler: {:?}", e);
                 debug!("err missing handler on endpoint!");
             }
         }
