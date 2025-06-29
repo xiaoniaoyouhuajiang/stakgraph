@@ -21,8 +21,8 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 99, "Expected 99 nodes in Next.js");
-    assert_eq!(num_edges, 135, "Expected 135 edges in Next.js");
+    assert_eq!(num_nodes, 114, "Expected 114 nodes in Next.js");
+    assert_eq!(num_edges, 161, "Expected 161 edges in Next.js");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -32,13 +32,13 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
-    assert_eq!(endpoints.len(), 4, "Expected 4 Endpoint nodes");
+    assert_eq!(endpoints.len(), 6, "Expected 6 Endpoint nodes");
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
-    assert_eq!(requests.len(), 6, "Expected 6 Request nodes");
+    assert_eq!(requests.len(), 9, "Expected 9 Request nodes");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
-    assert_eq!(functions.len(), 20, "Expected 20 Function nodes");
+    assert_eq!(functions.len(), 26, "Expected 26 Function nodes");
 
     let items_page_func = functions
         .iter()
@@ -89,6 +89,56 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
         })
         .map(|n| Node::new(NodeType::Request, n.clone()))
         .expect("POST request to /api/items not found");
+    let person_page_func = functions
+        .iter()
+        .find(|f| f.name == "PersonPage")
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'PersonPage' not found");
+    let get_person_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/api/person/:param" && e.meta.get("verb") == Some(&"GET".to_string()))
+        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
+        .expect("GET /api/person/:param endpoint not found");
+
+    let delete_person_endpoint = endpoints
+        .iter()
+        .find(|e| {
+            e.name == "/api/person/:param" && e.meta.get("verb") == Some(&"DELETE".to_string())
+        })
+        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
+        .expect("DELETE /api/person/:param endpoint not found");
+
+    let get_person_handler_func = functions
+        .iter()
+        .find(|f| f.name == "GET" && f.file.ends_with("app/api/person/[id]/route.ts"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("GET handler function for dynamic person route not found");
+
+    let delete_person_handler_func = functions
+        .iter()
+        .find(|f| f.name == "DELETE" && f.file.ends_with("app/api/person/[id]/route.ts"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("DELETE handler function for dynamic person route not found");
+
+    let get_person_request = requests
+        .iter()
+        .find(|r| {
+            r.name == "/api/person/:param"
+                && r.meta.get("verb") == Some(&"GET".to_string())
+                && r.file.ends_with("app/person/page.tsx")
+        })
+        .map(|n| Node::new(NodeType::Request, n.clone()))
+        .expect("GET request to dynamic person route not found");
+
+    let delete_person_request = requests
+        .iter()
+        .find(|r| {
+            r.name == "/api/person/:param"
+                && r.meta.get("verb") == Some(&"DELETE".to_string())
+                && r.file.ends_with("app/person/page.tsx")
+        })
+        .map(|n| Node::new(NodeType::Request, n.clone()))
+        .expect("DELETE request to dynamic person route not found");
 
     assert!(
         graph.has_edge(
@@ -123,6 +173,44 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert!(
         graph.has_edge(&post_items_request, &post_items_endpoint, EdgeType::Calls),
         "Expected POST request to call the POST /api/items endpoint"
+    );
+    assert!(
+        graph.has_edge(
+            &get_person_endpoint,
+            &get_person_handler_func,
+            EdgeType::Handler
+        ),
+        "Expected GET dynamic endpoint to be handled by its GET function"
+    );
+    assert!(
+        graph.has_edge(
+            &delete_person_endpoint,
+            &delete_person_handler_func,
+            EdgeType::Handler
+        ),
+        "Expected DELETE dynamic endpoint to be handled by its DELETE function"
+    );
+
+    assert!(
+        graph.has_edge(&person_page_func, &get_person_request, EdgeType::Calls),
+        "Expected PersonPage to call the dynamic GET person request"
+    );
+    assert!(
+        graph.has_edge(&person_page_func, &delete_person_request, EdgeType::Calls),
+        "Expected PersonPage to call the dynamic DELETE person request"
+    );
+
+    assert!(
+        graph.has_edge(&get_person_request, &get_person_endpoint, EdgeType::Calls),
+        "Expected dynamic GET request to call the dynamic GET endpoint"
+    );
+    assert!(
+        graph.has_edge(
+            &delete_person_request,
+            &delete_person_endpoint,
+            EdgeType::Calls
+        ),
+        "Expected dynamic DELETE request to call the dynamic DELETE endpoint"
     );
     Ok(())
 }
