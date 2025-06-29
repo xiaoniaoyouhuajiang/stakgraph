@@ -2,6 +2,7 @@ use super::utils::*;
 use crate::lang::graphs::Graph;
 #[cfg(feature = "neo4j")]
 use crate::lang::graphs::Neo4jGraph;
+use crate::lang::linker;
 use crate::lang::{asg::NodeData, graphs::NodeType};
 use crate::lang::{ArrayGraph, BTreeMapGraph};
 use crate::repo::Repo;
@@ -621,28 +622,7 @@ impl Repo {
             info!("=> got {} function calls", i);
         }
 
-        info!("=> Linking Requests to Endpoints...");
-        let requests = graph.find_nodes_by_type(NodeType::Request);
-        let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
-        let mut new_edges = 0;
-
-        for request in &requests {
-            let req_verb = request.meta.get("verb").cloned().unwrap_or_default();
-            if let Some(endpoint) = endpoints.iter().find(|e| {
-                let endpoint_verb = e.meta.get("verb").cloned().unwrap_or_default();
-                e.name == request.name && endpoint_verb == req_verb
-            }) {
-                let edge = crate::lang::Edge::calls(
-                    NodeType::Request,
-                    request,
-                    NodeType::Endpoint,
-                    endpoint,
-                );
-                graph.add_edge(edge);
-                new_edges += 1;
-            }
-        }
-        info!("=> Created {} Request -> Endpoint edges", new_edges);
+        linker::link_api_nodes(graph)?;
 
         self.lang
             .lang()
