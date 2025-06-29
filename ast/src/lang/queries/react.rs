@@ -442,8 +442,10 @@ impl Stack for ReactTs {
         }
     }
     fn update_request(&self, nd: &mut NodeData) {
-        if let Some(normalized_path) = normalize_frontend_path(&nd.name) {
-            nd.name = normalized_path;
+        if nd.name.starts_with('/') || nd.name.starts_with("api/") {
+            if let Some(normalized_path) = normalize_frontend_path(&nd.name) {
+                nd.name = normalized_path;
+            }
         }
     }
     fn use_handler_finder(&self) -> bool {
