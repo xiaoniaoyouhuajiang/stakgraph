@@ -422,23 +422,10 @@ impl Stack for ReactTs {
         if inst.meta.get("verb").is_none() {
             inst.add_verb("GET");
         }
-
-        //next.js
-        println!(
-            "Adding handler verb: {}",
-            inst.meta.get("verb").unwrap_or(&"Howdy".to_string())
-        );
-
-        if let Some(verb) = inst.meta.get("verb") {
-            inst.meta.insert("handler".to_string(), verb.to_string());
-        } else {
-            inst.meta.insert("handler".to_string(), "GET".to_string());
-        }
     }
 
     fn update_endpoint(&self, nd: &mut NodeData, _call: &Option<String>) {
         // for next.js
-
         if matches!(
             nd.name.as_str(),
             "GET" | "POST" | "PUT" | "DELETE" | "PATCH"
@@ -465,18 +452,9 @@ impl Stack for ReactTs {
             let handler_name = verb;
             if let Some(handler_node) = find_fn(handler_name, &endpoint.file) {
                 let edge = Edge::handler(&endpoint, &handler_node);
-                println!(
-                    "Found handler {} for endpoint {} in file {}",
-                    handler_name, endpoint.name, endpoint.file
-                );
                 return vec![(endpoint, Some(edge))];
             }
         }
-
-        println!(
-            "No handler found for endpoint {} in file {}",
-            endpoint.name, endpoint.file
-        );
         vec![(endpoint, None)]
     }
     fn is_router_file(&self, file_name: &str, _code: &str) -> bool {

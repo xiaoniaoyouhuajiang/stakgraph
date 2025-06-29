@@ -530,7 +530,6 @@ impl Repo {
         let mut i = 0;
         info!("=> get_endpoints...");
         for (filename, code) in filez {
-            println!("Processing endpoints in: {}", filename);
             if let Some(epf) = self.lang.lang().endpoint_path_filter() {
                 if !filename.contains(&epf) {
                     continue;
@@ -544,8 +543,6 @@ impl Repo {
                 self.lang
                     .collect_endpoints(&code, &filename, Some(graph), &self.lsp_tx)?;
             i += endpoints.len();
-
-            println!("Found {} endpoints in: {}", i, filename);
 
             graph.add_endpoints(endpoints);
         }
@@ -623,6 +620,29 @@ impl Repo {
             }
             info!("=> got {} function calls", i);
         }
+
+        info!("=> Linking Requests to Endpoints...");
+        let requests = graph.find_nodes_by_type(NodeType::Request);
+        let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
+        let mut new_edges = 0;
+
+        for request in &requests {
+            let req_verb = request.meta.get("verb").cloned().unwrap_or_default();
+            if let Some(endpoint) = endpoints.iter().find(|e| {
+                let endpoint_verb = e.meta.get("verb").cloned().unwrap_or_default();
+                e.name == request.name && endpoint_verb == req_verb
+            }) {
+                let edge = crate::lang::Edge::calls(
+                    NodeType::Request,
+                    request,
+                    NodeType::Endpoint,
+                    endpoint,
+                );
+                graph.add_edge(edge);
+                new_edges += 1;
+            }
+        }
+        info!("=> Created {} Request -> Endpoint edges", new_edges);
 
         self.lang
             .lang()
