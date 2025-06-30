@@ -1,7 +1,10 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::{Graph, Node};
 use crate::utils::get_use_lsp;
-use crate::{lang::Lang, repo::Repo};
+use crate::{
+    lang::Lang,
+    repo::{Repo, Repos},
+};
 use anyhow::Result;
 use std::str::FromStr;
 
@@ -16,7 +19,8 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     )
     .unwrap();
 
-    let graph = repo.build_graph_inner::<G>().await?;
+    let repos = Repos(vec![repo]);
+    let graph = repos.build_graphs_inner::<G>().await?;
 
     graph.analysis();
 
