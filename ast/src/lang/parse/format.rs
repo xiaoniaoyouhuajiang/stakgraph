@@ -460,7 +460,7 @@ impl Lang {
                             &None,
                         )?;
                         if !reqs.is_empty() {
-                            let mut request_node = reqs[0].clone().0;
+                            let request_node = reqs[0].clone().0;
                             requests_within.push(request_node);
                         }
                     }
