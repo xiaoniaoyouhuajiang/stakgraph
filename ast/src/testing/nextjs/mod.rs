@@ -1,4 +1,5 @@
 use crate::lang::graphs::{EdgeType, NodeType};
+use crate::lang::linker::{normalize_backend_path, normalize_frontend_path};
 use crate::lang::{Graph, Node};
 use crate::utils::get_use_lsp;
 use crate::{
@@ -39,6 +40,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(endpoints.len(), 6, "Expected 6 Endpoint nodes");
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
+    println!("Requests: {:#?}", requests);
     assert_eq!(requests.len(), 9, "Expected 9 Request nodes");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
@@ -98,19 +100,17 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
         .find(|f| f.name == "PersonPage")
         .map(|n| Node::new(NodeType::Function, n.clone()))
         .expect("Function 'PersonPage' not found");
+    let expected_endpoint_path = normalize_backend_path("/api/person/[id]").unwrap();
+
     let get_person_endpoint = endpoints
         .iter()
-        .find(|e| e.name == "/api/person/:param" && e.meta.get("verb") == Some(&"GET".to_string()))
-        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
-        .expect("GET /api/person/:param endpoint not found");
-
-    let delete_person_endpoint = endpoints
-        .iter()
         .find(|e| {
-            e.name == "/api/person/:param" && e.meta.get("verb") == Some(&"DELETE".to_string())
+            let normalized_endpoint = normalize_backend_path(&e.name).unwrap_or(e.name.clone());
+            normalized_endpoint == expected_endpoint_path
+                && e.meta.get("verb") == Some(&"GET".to_string())
         })
         .map(|n| Node::new(NodeType::Endpoint, n.clone()))
-        .expect("DELETE /api/person/:param endpoint not found");
+        .expect("GET /api/person/[id] endpoint not found");
 
     let get_person_handler_func = functions
         .iter()
@@ -124,10 +124,13 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
         .map(|n| Node::new(NodeType::Function, n.clone()))
         .expect("DELETE handler function for dynamic person route not found");
 
+    let expected_request_path = normalize_frontend_path("/api/person/${id}").unwrap();
+
     let get_person_request = requests
         .iter()
         .find(|r| {
-            r.name == "/api/person/:param"
+            let normalized_request = normalize_frontend_path(&r.name).unwrap_or(r.name.clone());
+            normalized_request == expected_request_path
                 && r.meta.get("verb") == Some(&"GET".to_string())
                 && r.file.ends_with("app/person/page.tsx")
         })
@@ -137,12 +140,23 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let delete_person_request = requests
         .iter()
         .find(|r| {
-            r.name == "/api/person/:param"
+            let normalized_request = normalize_frontend_path(&r.name).unwrap_or(r.name.clone());
+            normalized_request == expected_request_path
                 && r.meta.get("verb") == Some(&"DELETE".to_string())
                 && r.file.ends_with("app/person/page.tsx")
         })
         .map(|n| Node::new(NodeType::Request, n.clone()))
         .expect("DELETE request to dynamic person route not found");
+
+    let delete_person_endpoint = endpoints
+        .iter()
+        .find(|e| {
+            let normalized_endpoint = normalize_backend_path(&e.name).unwrap_or(e.name.clone());
+            normalized_endpoint == expected_endpoint_path
+                && e.meta.get("verb") == Some(&"DELETE".to_string())
+        })
+        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
+        .expect("DELETE /api/person/[id] endpoint not found");
 
     assert!(
         graph.has_edge(

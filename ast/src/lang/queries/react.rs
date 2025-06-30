@@ -1,6 +1,3 @@
-use crate::lang::linker::normalize_backend_path;
-use crate::lang::linker::normalize_frontend_path;
-
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
@@ -441,13 +438,6 @@ impl Stack for ReactTs {
             nd.meta.insert("handler".to_string(), "GET".to_string());
         }
     }
-    fn update_request(&self, nd: &mut NodeData) {
-        if nd.name.starts_with('/') || nd.name.starts_with("api/") {
-            if let Some(normalized_path) = normalize_frontend_path(&nd.name) {
-                nd.name = normalized_path;
-            }
-        }
-    }
     fn use_handler_finder(&self) -> bool {
         true
     }
@@ -620,5 +610,5 @@ pub fn endpoint_name_from_file(file: &str) -> String {
         file.to_string()
     };
 
-    normalize_backend_path(&route_path).unwrap_or(route_path)
+    route_path
 }
