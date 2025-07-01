@@ -1,11 +1,13 @@
 import * as path from "path";
 import * as yaml from "js-yaml";
 import { db } from "./neo4j.js";
-import { NodeType } from "./types.js";
+import { Neo4jNode } from "./types.js";
 
-export async function generate_services_config(): Promise<any[]> {
+export function generate_services_config(
+  pkgFiles: Neo4jNode[],
+  allFiles: Neo4jNode[]
+): any[] {
   const serviceMap = new Map<string, any>();
-  const pkgFiles = await db.get_pkg_files();
 
   for (const file of pkgFiles) {
     const name = file.properties.name;
@@ -49,8 +51,6 @@ export async function generate_services_config(): Promise<any[]> {
     }
   }
 
-  let node_type: NodeType = "File";
-  const allFiles = await db.nodes_by_type(node_type);
   const dcFiles = allFiles.filter(
     (f) =>
       f.properties.name.endsWith("docker-compose.yml") ||

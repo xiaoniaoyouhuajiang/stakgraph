@@ -67,7 +67,9 @@ export async function get_rules_files() {
 }
 
 export async function get_services() {
-  return generate_services_config();
+  const pkgFiles = await db.get_pkg_files();
+  const allFiles = await db.nodes_by_type("File");
+  return generate_services_config(pkgFiles, allFiles);
 }
 
 export function toNodes(
