@@ -501,33 +501,68 @@ impl Lang {
                         }
                     }
                 }
-            } else if let Some(vuq) = self.lang.variable_usage_query() {
-                let mut cursor = QueryCursor::new();
-                let qqq = self.q(&vuq, &NodeType::Var);
-                let mut matches = cursor.matches(&qqq, node, code.as_bytes());
-                let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, file);
-                let import_body = imports.get(0).map(|i| i.body.clone()).unwrap_or_default();
+                // find type identifiers
+                if !self.lang.identifier_query().is_empty() {
+                    let vuq = self.lang.identifier_query();
+                    let mut cursor = QueryCursor::new();
+                    let qqq = self.q(&vuq, &NodeType::Var);
+                    let mut matches = cursor.matches(&qqq, node, code.as_bytes());
+                    let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, file);
+                    let import_body = imports.get(0).map(|i| i.body.clone()).unwrap_or_default();
+                    let all_vars = graph.find_nodes_by_type(NodeType::Var);
 
-                while let Some(m) = matches.next() {
-                    Self::loop_captures(&qqq, &m, code, |body, _node, o| {
-                        if o == VARIABLE_NAME {
-                            let var_name = body;
+                    while let Some(m) = matches.next() {
+                        Self::loop_captures(&qqq, &m, code, |body, _node, o| {
+                            if o == VARIABLE_NAME || o == "identifier" {
+                                let var_name = body;
 
-                            let candidate_vars = graph.find_nodes_by_name(NodeType::Var, &var_name);
-                            for var in candidate_vars {
-                                if var.file == *file || import_body.contains(&var_name) {
-                                    models.push(Edge::contains(
-                                        NodeType::Function,
-                                        &func,
-                                        NodeType::Var,
-                                        &var,
-                                    ));
-                                    break;
+                                for var in &all_vars {
+                                    if var.name.is_empty() {
+                                        continue;
+                                    }
+                                    if var.name == var_name {
+                                        if var.file == *file {
+                                            models.push(Edge::contains(
+                                                NodeType::Function,
+                                                &func,
+                                                NodeType::Var,
+                                                &var,
+                                            ));
+                                            break;
+                                        }
+                                        // Imported
+                                        if !import_body.is_empty()
+                                            && import_body.contains(&var.name)
+                                        {
+                                            models.push(Edge::contains(
+                                                NodeType::Function,
+                                                &func,
+                                                NodeType::Var,
+                                                &var,
+                                            ));
+                                            break;
+                                        }
+
+                                        let func_dir = std::path::Path::new(file).parent();
+                                        let var_dir = std::path::Path::new(&var.file).parent();
+
+                                        if let (Some(fdir), Some(vdir)) = (func_dir, var_dir) {
+                                            if fdir == vdir {
+                                                models.push(Edge::contains(
+                                                    NodeType::Function,
+                                                    &func,
+                                                    NodeType::Var,
+                                                    &var,
+                                                ));
+                                                break;
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                        }
-                        Ok(())
-                    })?;
+                            Ok(())
+                        })?;
+                    }
                 }
             } else if o == ARGUMENTS {
                 // skipping args
