@@ -341,6 +341,20 @@ WHERE
 RETURN f
 ORDER BY f.file
 `;
+
+// TODO: Add support for other languages (e.g., Python's os.environ.get)
+export const ENV_VARS_QUERY = `
+MATCH (n)
+WHERE (n:Function OR n:Var)
+  AND (
+    n.body CONTAINS 'process.env' OR
+    n.body CONTAINS 'os.Getenv' OR
+    n.body CONTAINS 'os.LookupEnv' OR
+    n.body CONTAINS 'ENV[' OR
+    n.body CONTAINS 'std::env::var'
+  )
+RETURN n
+`;
 /*
 
 CALL db.index.fulltext.queryNodes('nameIndex', 'bounty') YIELD node, score
