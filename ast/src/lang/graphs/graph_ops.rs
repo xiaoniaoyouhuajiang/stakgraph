@@ -1,7 +1,7 @@
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
-use crate::lang::neo4j_utils::TransactionManager;
+use crate::lang::neo4j_utils::{add_edge_query, add_node_query};
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
@@ -125,29 +125,28 @@ impl GraphOps {
         &mut self,
         btree_graph: &BTreeMapGraph,
     ) -> anyhow::Result<(u32, u32)> {
-        let connection = self.graph.ensure_connected().await?;
+        self.graph.ensure_connected().await?;
 
-        debug!("uploading nodes {}", btree_graph.nodes.len());
-        let mut nodes_txn_manager = TransactionManager::new(&connection);
-        for node in btree_graph.nodes.values() {
-            nodes_txn_manager.add_node(&node.node_type, &node.node_data);
-            debug!("added node {}", node.node_data.name);
-        }
-        debug!("executing node upload");
-        nodes_txn_manager.execute().await?;
+        debug!("preparing node upload {}", btree_graph.nodes.len());
+        let node_queries: Vec<_> = btree_graph
+            .nodes
+            .values()
+            .map(|node| add_node_query(&node.node_type, &node.node_data))
+            .collect();
 
-        debug!("uploading edges {}", btree_graph.edges.len());
-        let mut edges_txn_manager = TransactionManager::new(&connection);
-        let edges = btree_graph.to_array_graph_edges();
-        for edge in edges {
-            edges_txn_manager.add_edge(&edge);
-            debug!(
-                "added edge {} -> {}",
-                edge.source.node_data.name, edge.target.node_data.name
-            );
-        }
-        debug!("executing edge upload");
-        edges_txn_manager.execute().await?;
+        debug!("executing node upload in batches");
+        self.graph.execute_in_batches(node_queries).await?;
+        debug!("node upload complete");
+
+        debug!("preparing edge upload {}", btree_graph.edges.len());
+        let edge_queries: Vec<_> = btree_graph
+            .to_array_graph_edges()
+            .iter()
+            .map(|edge| add_edge_query(edge))
+            .collect();
+
+        debug!("executing edge upload in batches");
+        self.graph.execute_in_batches(edge_queries).await?;
         debug!("edge upload complete!");
 
         let (nodes, edges) = self.graph.get_graph_size();

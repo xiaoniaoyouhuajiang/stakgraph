@@ -13,6 +13,8 @@ use tracing::{debug, info};
 
 use super::neo4j_utils::Neo4jConnectionManager;
 
+const BATCH_SIZE: usize = 500;
+
 #[derive(Clone, Debug)]
 pub struct Neo4jConfig {
     pub uri: String,
@@ -135,6 +137,20 @@ impl Neo4jGraph {
         }
 
         Ok(self.get_connection())
+    }
+    pub async fn execute_in_batches(
+        &self,
+        queries: Vec<(String, BoltMap)>,
+    ) -> Result<(), anyhow::Error> {
+        let connection = self.get_connection();
+        for chunk in queries.chunks(BATCH_SIZE) {
+            let mut txn_manager = TransactionManager::new(&connection);
+            for query in chunk {
+                txn_manager.add_query(query.clone());
+            }
+            txn_manager.execute().await?;
+        }
+        Ok(())
     }
 
     pub fn get_connection(&self) -> Arc<Neo4jConnection> {
