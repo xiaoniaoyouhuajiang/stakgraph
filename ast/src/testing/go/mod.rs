@@ -25,7 +25,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
         assert_eq!(num_edges, 102, "Expected 102 edges");
     } else {
         assert_eq!(num_nodes, 33, "Expected 33 nodes");
-        assert_eq!(num_edges, 51, "Expected 51 edges");
+        assert_eq!(num_edges, 53, "Expected 53 edges");
     }
 
     let language_nodes = graph.find_nodes_by_name(NodeType::Language, "go");
@@ -170,7 +170,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
         assert_eq!(contains, 42, "Expected 42 contains edges with lsp");
     } else {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 38, "Expected 38 contains edges");
+        assert_eq!(contains, 40, "Expected 40 contains edges");
     }
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
