@@ -37,3 +37,20 @@ export const LoadingSvg = () => html`
     </path>
   </svg>
 `;
+
+const fetchHeaders = {
+  "Content-Type": "application/json",
+};
+
+export const GET = async (url) =>
+  await fetch(url, {
+    method: "GET",
+    headers: fetchHeaders,
+  });
+
+export const POST = async (url, body) =>
+  await fetch(url, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: fetchHeaders,
+  });
