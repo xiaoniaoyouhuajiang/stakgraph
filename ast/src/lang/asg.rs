@@ -51,7 +51,7 @@ impl From<&NodeData> for NodeKeys {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct NodeData {
     pub name: String,
     pub file: String,

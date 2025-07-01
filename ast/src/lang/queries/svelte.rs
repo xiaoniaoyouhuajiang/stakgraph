@@ -128,6 +128,9 @@ impl Stack for Svelte {
             "#
         ))
     }
+    fn identifier_query(&self) -> String {
+        format!(r#"(tag_name) @identifier"#)
+    }
 
     fn data_model_within_query(&self) -> Option<String> {
         Some(format!(
