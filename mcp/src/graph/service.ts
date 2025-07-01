@@ -97,8 +97,6 @@ export function generate_services_config(
     const nodeFile = envVarNode.properties.file;
     const varNames = extractEnvVarNames(envVarNode.properties.body);
 
-    console.log("Extracted env var names:", varNames, "from file:", nodeFile);
-
     for (const [serviceName, service] of serviceMap.entries()) {
       if (service.pkgFile) {
         const serviceDir = path.dirname(service.pkgFile);
@@ -119,6 +117,5 @@ export function generate_services_config(
     delete service.pkgFile;
   }
 
-  console.log("Generated services config:", serviceMap);
   return Array.from(serviceMap.values());
 }
