@@ -4,7 +4,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use std::sync::{Arc, Once};
-use tiktoken_rs::get_bpe_from_model;
+use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tracing::{debug, info};
 
 use super::*;
@@ -13,6 +13,7 @@ lazy_static! {
     static ref CONNECTION: tokio::sync::Mutex<Option<Arc<Neo4jConnection>>> =
         tokio::sync::Mutex::new(None);
     static ref INIT: Once = Once::new();
+    static ref TOKENIZER: CoreBPE = get_bpe_from_model("gpt-4").unwrap();
 }
 
 const DATA_BANK: &str = "Data_Bank";
@@ -831,7 +832,7 @@ fn boltmap_to_bolttype_map(bolt_map: &BoltMap) -> BoltType {
     BoltType::Map(BoltMap { value: map })
 }
 pub fn calculate_token_count(body: &str) -> Result<i64> {
-    let bpe = get_bpe_from_model("gpt-4")?;
+    let bpe = &TOKENIZER;
     let token_count = bpe.encode_with_special_tokens(body).len() as i64;
     Ok(token_count)
 }
