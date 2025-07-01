@@ -20,6 +20,15 @@ pub struct ProcessResponse {
     pub nodes: usize,
     pub edges: usize,
 }
+#[derive(Serialize, Deserialize)]
+pub struct FetchRepoBody {
+    pub repo_name: String,
+}
+#[derive(Serialize, Deserialize)]
+pub struct FetchRepoResponse {
+    pub status: String,
+    pub repo_name: String,
+}
 
 #[derive(Debug)]
 pub enum AppError {

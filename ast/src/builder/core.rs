@@ -5,7 +5,7 @@ use crate::lang::graphs::Neo4jGraph;
 
 use crate::lang::{asg::NodeData, graphs::NodeType};
 use crate::lang::{ArrayGraph, BTreeMapGraph};
-use crate::repo::Repo;
+use crate::repo::{Repo, StatusUpdate};
 use anyhow::Result;
 use git_url_parse::GitUrl;
 use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
@@ -68,10 +68,25 @@ impl Repo {
         );
         Ok(graph)
     }
+    pub fn send_status_update(&self, msg: &str, step: u32, progress: f32) {
+        let su = StatusUpdate {
+            status: "".to_string(),
+            message: msg.to_string(),
+            step,
+            total_steps: 15,
+            progress,
+        };
+        if let Some(status_tx) = &self.status_tx {
+            if let Err(e) = status_tx.send(su) {
+                tracing::error!("Error sending status update: {}", e);
+            }
+        }
+    }
 }
 
 impl Repo {
     fn collect_and_add_directories<G: Graph>(&self, graph: &mut G) -> Result<Vec<PathBuf>> {
+        self.send_status_update("collect_and_add_directories", 2, 0.0);
         debug!("collecting dirs...");
         let dirs = self.collect_dirs()?;
         let all_files = self.collect_all_files()?;
@@ -148,6 +163,7 @@ impl Repo {
         graph: &mut G,
         files: &[PathBuf],
     ) -> Result<()> {
+        self.send_status_update("process_and_add_files", 3, 0.0);
         info!("parsing {} files...", files.len());
         for filepath in files {
             let filename = strip_root(filepath, &self.root);
@@ -189,6 +205,7 @@ impl Repo {
         Ok(())
     }
     fn setup_lsp(&self, filez: &[(String, String)]) -> Result<()> {
+        self.send_status_update("setup_lsp", 4, 0.0);
         info!("=> DidOpen...");
         if let Some(lsp_tx) = self.lsp_tx.as_ref() {
             for (filename, code) in filez {
@@ -204,6 +221,7 @@ impl Repo {
         Ok(())
     }
     fn process_libraries<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
+        self.send_status_update("process_libraries", 5, 0.0);
         let mut i = 0;
         let pkg_files = filez
             .iter()
@@ -229,6 +247,7 @@ impl Repo {
         Ok(())
     }
     fn process_imports<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
+        self.send_status_update("process_imports", 6, 0.0);
         let mut i = 0;
         info!("=> get_imports...");
         for (filename, code) in filez {
@@ -251,6 +270,7 @@ impl Repo {
         Ok(())
     }
     fn process_variables<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
+        self.send_status_update("process_variables", 7, 0.0);
         let mut i = 0;
         info!("=> get_vars...");
         for (filename, code) in filez {
@@ -270,6 +290,7 @@ impl Repo {
         Ok(())
     }
     async fn add_repository_and_language_nodes<G: Graph>(&self, graph: &mut G) -> Result<()> {
+        self.send_status_update("add_repository_and_language_nodes", 1, 0.0);
         println!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
         println!("Commit(commit_hash): {:?}", commit_hash);
@@ -300,6 +321,7 @@ impl Repo {
         Ok(())
     }
     fn process_classes<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
+        self.send_status_update("process_classes", 8, 0.0);
         let mut i = 0;
         info!("=> get_classes...");
         for (filename, code) in filez {
@@ -332,6 +354,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
+        self.send_status_update("process_instances_and_traits", 9, 0.0);
         info!("=> get_instances...");
         for (filename, code) in filez {
             let q = self.lang.lang().instance_definition_query();
@@ -359,6 +382,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
+        self.send_status_update("process_data_models", 10, 0.0);
         let mut i = 0;
         info!("=> get_structs...");
         for (filename, code) in filez {
@@ -396,6 +420,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
+        self.send_status_update("process_functions_and_tests", 11, 0.0);
         let mut i = 0;
         info!("=> get_functions_and_tests...");
         for (filename, code) in filez {
@@ -423,6 +448,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
+        self.send_status_update("process_pages_and_templates", 12, 0.0);
         let mut i = 0;
         info!("=> get_pages");
         for (filename, code) in filez {
@@ -518,6 +544,7 @@ impl Repo {
         Ok(())
     }
     fn process_endpoints<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
+        self.send_status_update("process_endpoints", 13, 0.0);
         let mut i = 0;
         info!("=> get_endpoints...");
         for (filename, code) in filez {
@@ -563,6 +590,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
+        self.send_status_update("process_function_calls", 14, 0.0);
         let mut i = 0;
         info!("=> get_import_edges...");
         for (filename, code) in filez {

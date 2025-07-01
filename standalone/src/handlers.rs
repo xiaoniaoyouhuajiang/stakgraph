@@ -1,12 +1,16 @@
-use crate::types::{AppError, ProcessBody, ProcessResponse, Result};
+use crate::types::{
+    AppError, FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result,
+};
+use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::Repo;
-use axum::Json;
+use axum::{extract::State, Json};
 use lsp::git::get_commit_hash;
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 use tracing::info;
 #[axum::debug_handler]
+
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let (final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
 
@@ -99,8 +103,21 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
     }))
 }
 
+pub async fn fetch_repo(body: Json<FetchRepoBody>) -> Result<Json<FetchRepoResponse>> {
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+    let repo_node = graph_ops.fetch_repo(&body.repo_name).await?;
+    Ok(Json(FetchRepoResponse {
+        status: "success".to_string(),
+        repo_name: repo_node.name,
+    }))
+}
+
 #[axum::debug_handler]
-pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
+pub async fn ingest(
+    State(state): State<Arc<AppState>>,
+    body: Json<ProcessBody>,
+) -> Result<Json<ProcessResponse>> {
     let start_total = Instant::now();
     let (_final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
 
@@ -108,7 +125,7 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
 
     let start_build = Instant::now();
 
-    let repos = Repo::new_clone_multi_detect(
+    let mut repos = Repo::new_clone_multi_detect(
         &repo_url,
         username.clone(),
         pat.clone(),
@@ -118,6 +135,8 @@ pub async fn ingest(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     )
     .await
     .map_err(|e| anyhow::anyhow!("Repo detection failed: {}", e))?;
+
+    repos.set_status_tx(state.tx.clone()).await;
 
     let btree_graph = repos
         .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()

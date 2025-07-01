@@ -2,6 +2,7 @@ use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
 use crate::lang::neo4j_utils::TransactionManager;
+use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
 use tracing::info;
@@ -27,6 +28,16 @@ impl GraphOps {
         let (nodes, edges) = self.graph.get_graph_size();
         info!("Graph cleared - Nodes: {}, Edges: {}", nodes, edges);
         Ok((nodes, edges))
+    }
+
+    pub async fn fetch_repo(&mut self, repo_name: &str) -> Result<NodeData> {
+        let repo = self
+            .graph
+            .find_nodes_by_name(NodeType::Repository, repo_name);
+        if repo.is_empty() {
+            return Err(anyhow::anyhow!("Repo not found"));
+        }
+        Ok(repo[0].clone())
     }
 
     pub async fn update_incremental(

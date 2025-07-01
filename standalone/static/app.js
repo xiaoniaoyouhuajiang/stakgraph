@@ -1,5 +1,5 @@
 import { h, render } from "https://esm.sh/preact";
-import { useState } from "https://esm.sh/preact/hooks";
+import { useEffect, useState } from "https://esm.sh/preact/hooks";
 import { html, getRepoNameFromUrl, LoadingSvg, POST } from "./utils.js";
 
 const App = () => {
@@ -9,9 +9,32 @@ const App = () => {
 
   const [currentRepoName, setCurrentRepoName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [repoExists, setRepoExists] = useState(false);
+
+  useEffect(() => {
+    const fetchRepo = async () => {
+      try {
+        const response = await POST("/fetch-repo", {
+          repo_name: currentRepoName,
+        });
+        if (response.status === "success") {
+          setRepoExists(true);
+        }
+      } catch (e) {}
+    };
+    if (currentRepoName) {
+      fetchRepo();
+    }
+  }, [currentRepoName]);
 
   const handleRepoUrlChange = (event) => {
+    console.log("handleRepoUrlChange", event.target.value);
     setRepoUrl(event.target.value);
+    const repoName = getRepoNameFromUrl(event.target.value);
+    if (repoName) {
+      console.log("repoName", repoName);
+      setCurrentRepoName(repoName);
+    }
   };
   const handleUsernameChange = (event) => {
     setUsername(event.target.value);
@@ -21,11 +44,17 @@ const App = () => {
   };
 
   const handleSubmit = async () => {
-    setCurrentRepoName(getRepoNameFromUrl(repoUrl));
     setIsLoading(true);
     await POST("/ingest", { repo_url: repoUrl, username, pat });
     setIsLoading(false);
   };
+
+  const handleSync = async () => {
+    setIsLoading(true);
+    await POST("/process", { repo_url: repoUrl, username, pat });
+    setIsLoading(false);
+  };
+
   return html`
     <div class="app-container">
       <div class="app-header">
@@ -53,8 +82,14 @@ const App = () => {
         <button onClick=${handleSubmit} disabled=${!repoUrl || isLoading}>
           ${isLoading
             ? html`<div class="loading"><${LoadingSvg} /></div>`
-            : "Submit"}
+            : "Ingest Repo"}
         </button>
+        ${repoExists &&
+        html`<button onClick=${handleSync} disabled=${isLoading}>
+          ${isLoading
+            ? html`<div class="loading"><${LoadingSvg} /></div>`
+            : "Sync Repo to Latest"}
+        </button>`}
       </div>
     </div>
   `;
