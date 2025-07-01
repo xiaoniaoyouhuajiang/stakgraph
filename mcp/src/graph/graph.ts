@@ -5,6 +5,7 @@ import { extractNodesFromRecord } from "./codebody_files.js";
 import { Neo4jNode, NodeType } from "./types.js";
 import { nameFileOnly, toReturnNode, formatNode, clean_node } from "./utils.js";
 import { createByModelName } from "@microsoft/tiktokenizer";
+import { generate_services_config } from "./service.js";
 
 export type SearchMethod = "vector" | "fulltext";
 
@@ -63,6 +64,10 @@ export async function get_rules_files() {
         `File: ${file.properties.name}\n Content: \n ${file.properties.body}\n`
     )
     .join("\n");
+}
+
+export async function get_services() {
+  return generate_services_config();
 }
 
 export function toNodes(

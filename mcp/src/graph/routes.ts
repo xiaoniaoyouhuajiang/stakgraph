@@ -110,6 +110,18 @@ export async function get_rules_files(req: Request, res: Response) {
   }
 }
 
+export async function get_services(_: Request, res: Response) {
+  try {
+    const services = await G.get_services();
+    res.json(services);
+  } catch (error) {
+    console.error("Error getting services config:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to generate services configuration" });
+  }
+}
+
 export function toNode(node: Neo4jNode, concise: boolean): any {
   return concise ? nameFileOnly(node) : toReturnNode(node);
 }
