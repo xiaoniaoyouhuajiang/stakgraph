@@ -1,5 +1,6 @@
 import htm from "https://esm.sh/htm";
 import { h } from "https://esm.sh/preact";
+import { useEffect, useRef } from "https://esm.sh/preact/hooks";
 
 export const html = htm.bind(h);
 
@@ -54,3 +55,74 @@ export const POST = async (url, body) =>
     body: JSON.stringify(body),
     headers: fetchHeaders,
   });
+
+export const useSSE = (url, options = {}) => {
+  const eventSourceRef = useRef(null);
+
+  const {
+    onMessage,
+    onError,
+    onOpen,
+    onClose,
+    autoReconnect = true,
+    customEvents = [],
+  } = options;
+
+  useEffect(() => {
+    // Create EventSource connection
+    eventSourceRef.current = new EventSource(url);
+    const eventSource = eventSourceRef.current;
+
+    // Handle incoming messages
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onMessage?.(data, event);
+      } catch (error) {
+        onMessage?.(event.data, event);
+      }
+    };
+
+    // Handle connection open
+    eventSource.onopen = (event) => {
+      console.log("SSE Connection opened");
+      onOpen?.(event);
+    };
+
+    // Handle errors
+    eventSource.onerror = (error) => {
+      console.error("SSE Error:", error);
+      onError?.(error);
+    };
+
+    // Handle custom event types
+    customEvents.forEach((eventType) => {
+      eventSource.addEventListener(eventType, (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log(`SSE Custom Event (${eventType}):`, data);
+        } catch (error) {
+          console.log(`SSE Custom Event (${eventType}):`, event.data);
+        }
+      });
+    });
+
+    // Cleanup function
+    return () => {
+      console.log("Closing SSE connection");
+      onClose?.();
+      eventSource.close();
+    };
+  }, [url]);
+
+  // Method to manually close connection
+  const closeConnection = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+  };
+
+  return { closeConnection };
+};
+
+export default useSSE;

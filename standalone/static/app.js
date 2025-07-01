@@ -1,6 +1,6 @@
 import { h, render } from "https://esm.sh/preact";
 import { useEffect, useState } from "https://esm.sh/preact/hooks";
-import { html, getRepoNameFromUrl, LoadingSvg, POST } from "./utils.js";
+import { html, getRepoNameFromUrl, LoadingSvg, POST, useSSE } from "./utils.js";
 
 const App = () => {
   const [repoUrl, setRepoUrl] = useState("");
@@ -26,6 +26,12 @@ const App = () => {
       fetchRepo();
     }
   }, [currentRepoName]);
+
+  const { closeConnection } = useSSE("/events", {
+    onMessage: (data, event) => {
+      console.log("=>", data);
+    },
+  });
 
   const handleRepoUrlChange = (event) => {
     console.log("handleRepoUrlChange", event.target.value);
