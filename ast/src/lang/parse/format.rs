@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::lang::call_finder::func_target_file_finder;
 use crate::lang::{graphs::Graph, *};
 use anyhow::Result;
@@ -502,66 +504,72 @@ impl Lang {
                     }
                 }
                 // find type identifiers
-                if !self.lang.identifier_query().is_empty() {
-                    let vuq = self.lang.identifier_query();
+                let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, file);
+                let import_body = imports.get(0).map(|i| i.body.clone()).unwrap_or_default();
+                let all_vars = graph.find_nodes_by_type(NodeType::Var);
+                let mut found_vars = HashSet::new();
+
+                let vuq = self.lang.identifier_query();
+                if !vuq.is_empty() {
                     let mut cursor = QueryCursor::new();
                     let qqq = self.q(&vuq, &NodeType::Var);
                     let mut matches = cursor.matches(&qqq, node, code.as_bytes());
-                    let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, file);
-                    let import_body = imports.get(0).map(|i| i.body.clone()).unwrap_or_default();
-                    let all_vars = graph.find_nodes_by_type(NodeType::Var);
-
                     while let Some(m) = matches.next() {
                         Self::loop_captures(&qqq, &m, code, |body, _node, o| {
                             if o == VARIABLE_NAME || o == "identifier" {
-                                let var_name = body;
-
                                 for var in &all_vars {
-                                    if var.name.is_empty() {
-                                        continue;
-                                    }
-                                    if var.name == var_name {
-                                        if var.file == *file {
-                                            models.push(Edge::contains(
-                                                NodeType::Function,
-                                                &func,
-                                                NodeType::Var,
-                                                &var,
-                                            ));
-                                            break;
-                                        }
-                                        // Imported
-                                        if !import_body.is_empty()
-                                            && import_body.contains(&var.name)
-                                        {
-                                            models.push(Edge::contains(
-                                                NodeType::Function,
-                                                &func,
-                                                NodeType::Var,
-                                                &var,
-                                            ));
-                                            break;
-                                        }
-
-                                        let func_dir = std::path::Path::new(file).parent();
-                                        let var_dir = std::path::Path::new(&var.file).parent();
-
-                                        if let (Some(fdir), Some(vdir)) = (func_dir, var_dir) {
-                                            if fdir == vdir {
-                                                models.push(Edge::contains(
-                                                    NodeType::Function,
-                                                    &func,
-                                                    NodeType::Var,
-                                                    &var,
-                                                ));
-                                                break;
-                                            }
-                                        }
+                                    if var.name == body {
+                                        found_vars.insert(var.clone());
+                                        break;
                                     }
                                 }
                             }
                             Ok(())
                         })?;
+                    }
+                }
+
+                if self.lang.use_string_contains_fallback() {
+                    for var in &all_vars {
+                        if !var.name.is_empty() && func.body.contains(&var.name) {
+                            found_vars.insert(var.clone());
+                        }
+                    }
+                }
+
+                for var in found_vars {
+                    if var.file == *file {
+                        models.push(Edge::contains(
+                            NodeType::Function,
+                            &func,
+                            NodeType::Var,
+                            &var,
+                        ));
+                        continue;
+                    }
+
+                    if !import_body.is_empty() && import_body.contains(&var.name) {
+                        models.push(Edge::contains(
+                            NodeType::Function,
+                            &func,
+                            NodeType::Var,
+                            &var,
+                        ));
+                        continue;
+                    }
+
+                    let func_dir = std::path::Path::new(file).parent();
+                    let var_dir = std::path::Path::new(&var.file).parent();
+                    if let (Some(fdir), Some(vdir)) = (func_dir, var_dir) {
+                        if fdir == vdir {
+                            println!("Found var {} in same dir as func {}", var.name, func.name);
+                            models.push(Edge::contains(
+                                NodeType::Function,
+                                &func,
+                                NodeType::Var,
+                                &var,
+                            ));
+                        }
                     }
                 }
             } else if o == ARGUMENTS {

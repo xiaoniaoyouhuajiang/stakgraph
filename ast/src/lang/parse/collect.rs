@@ -1,7 +1,7 @@
 use super::utils::trim_quotes;
 use crate::lang::{graphs::Graph, *};
 use anyhow::Result;
-use lsp::Position;
+use lsp::{Cmd as LspCmd, Position, Res as LspRes};
 use streaming_iterator::StreamingIterator;
 use tree_sitter::Node as TreeNode;
 impl Lang {
@@ -380,6 +380,133 @@ impl Lang {
         }
 
         Ok(edges)
+    }
+    pub fn collect_var_call_in_function<G: Graph>(
+        &self,
+        func: &NodeData,
+        graph: &G,
+        lsp_tsx: &Option<CmdSender>,
+    ) -> Vec<Edge> {
+        if let Some(lsp) = lsp_tsx {
+            return self.collect_var_call_in_function_lsp(func, graph, lsp);
+        }
+        let mut edges = Vec::new();
+        if func.body.is_empty() {
+            return edges;
+        }
+
+        let all_vars = graph.find_nodes_by_type(NodeType::Var);
+
+        let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, &func.file);
+        let import_body = imports
+            .get(0)
+            .map(|imp| imp.body.clone())
+            .unwrap_or_default();
+
+        for var in all_vars {
+            if var.name.is_empty() {
+                continue;
+            }
+
+            if func.body.contains(&var.name) {
+                if var.file == func.file {
+                    edges.push(Edge::contains(
+                        NodeType::Function,
+                        func,
+                        NodeType::Var,
+                        &var,
+                    ));
+                    continue;
+                }
+
+                if !import_body.is_empty() && import_body.contains(&var.name) {
+                    edges.push(Edge::contains(
+                        NodeType::Function,
+                        func,
+                        NodeType::Var,
+                        &var,
+                    ));
+                }
+            }
+        }
+        edges
+    }
+    pub fn collect_var_call_in_function_lsp<G: Graph>(
+        &self,
+        func: &NodeData,
+        graph: &G,
+        lsp: &CmdSender,
+    ) -> Vec<Edge> {
+        let mut edges = Vec::new();
+        let mut processed = std::collections::HashSet::new();
+
+        if func.body.is_empty() {
+            return edges;
+        }
+
+        let code = &func.body;
+        let tree = match self.lang.parse(code, &NodeType::Function) {
+            Ok(tree) => tree,
+            Err(_) => return edges,
+        };
+        let query = self.q(&self.lang.identifier_query(), &NodeType::Var);
+        let mut cursor = tree_sitter::QueryCursor::new();
+        let mut matches = cursor.matches(&query, tree.root_node(), code.as_bytes());
+
+        let mut identifiers = Vec::new();
+        while let Some(m) = matches.next() {
+            Self::loop_captures(&query, &m, code, |body, node, _o| {
+                let p = node.start_position();
+                identifiers.push((body.clone(), p.row as u32, p.column as u32));
+                Ok(())
+            })
+            .ok();
+        }
+        identifiers.sort();
+
+        for (target_name, row, col) in &identifiers {
+            let absolute_line = func.start as u32 + *row;
+            let pos = Position::new(&func.file, absolute_line, *col).unwrap();
+
+            let mut lsp_result = None;
+            for _ in 0..2 {
+                let res = LspCmd::GotoDefinition(pos.clone()).send(lsp);
+                if let Ok(LspRes::GotoDefinition(Some(gt))) = res {
+                    lsp_result = Some(gt);
+                    break;
+                }
+            }
+            let gt = match lsp_result {
+                Some(gt) => gt,
+                None => continue,
+            };
+            let target_file = gt.file.display().to_string();
+
+            let key = format!(
+                "{}:{}:{}:{}",
+                func.file, func.name, target_name, target_file
+            );
+
+            if processed.contains(&key) {
+                continue;
+            }
+
+            let all_vars_with_name = graph.find_nodes_by_name(NodeType::Var, target_name);
+            if let Some(var) = all_vars_with_name
+                .iter()
+                .find(|v| target_file.ends_with(&v.file))
+            {
+                edges.push(Edge::contains(
+                    NodeType::Function,
+                    func,
+                    NodeType::Var,
+                    &var,
+                ));
+                processed.insert(key);
+            }
+        }
+
+        edges
     }
 
     pub fn collect_class_contains_datamodel_edge<G: Graph>(

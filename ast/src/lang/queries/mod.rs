@@ -74,6 +74,9 @@ pub trait Stack {
     fn variables_query(&self) -> Option<String> {
         None
     }
+    fn use_string_contains_fallback(&self) -> bool {
+        false
+    }
     fn trait_query(&self) -> Option<String> {
         None
     }

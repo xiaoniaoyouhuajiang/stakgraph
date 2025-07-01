@@ -134,6 +134,10 @@ impl Stack for Python {
         )
     }
 
+    fn use_string_contains_fallback(&self) -> bool {
+        true
+    }
+
     fn endpoint_finders(&self) -> Vec<String> {
         vec![
             format!(

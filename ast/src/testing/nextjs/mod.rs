@@ -27,7 +27,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     assert_eq!(num_nodes, 114, "Expected 114 nodes in Next.js");
-    assert_eq!(num_edges, 161, "Expected 161 edges in Next.js");
+    assert_eq!(num_edges, 159, "Expected 161 edges in Next.js");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");

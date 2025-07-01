@@ -233,6 +233,9 @@ impl Stack for Kotlin {
     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
         func_name.starts_with("test")
     }
+    fn use_string_contains_fallback(&self) -> bool {
+        true
+    }
 
     fn resolve_import_name(&self, import_name: &str) -> String {
         let import_name = import_name.to_string();
