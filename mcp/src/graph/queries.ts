@@ -341,6 +341,17 @@ WHERE
 RETURN f
 ORDER BY f.file
 `;
+
+export const ENV_VARS_QUERY = `
+MATCH (n)
+WHERE (n:Function OR n:Var)
+  AND (
+    n.body CONTAINS 'process.env' OR
+    n.body CONTAINS 'os.Getenv' OR
+    n.body CONTAINS 'os.LookupEnv'
+  )
+RETURN n
+`;
 /*
 
 CALL db.index.fulltext.queryNodes('nameIndex', 'bounty') YIELD node, score

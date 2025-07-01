@@ -422,6 +422,16 @@ class Db {
       await session.close();
     }
   }
+
+  async get_env_vars(): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.ENV_VARS_QUERY);
+      return result.records.map((record) => deser_node(record, "n"));
+    } finally {
+      await session.close();
+    }
+  }
 }
 
 export const db = new Db();

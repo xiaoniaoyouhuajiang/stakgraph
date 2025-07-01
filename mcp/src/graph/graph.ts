@@ -69,7 +69,8 @@ export async function get_rules_files() {
 export async function get_services() {
   const pkgFiles = await db.get_pkg_files();
   const allFiles = await db.nodes_by_type("File");
-  return generate_services_config(pkgFiles, allFiles);
+  const envVarNodes = await db.get_env_vars();
+  return generate_services_config(pkgFiles, allFiles, envVarNodes);
 }
 
 export function toNodes(
