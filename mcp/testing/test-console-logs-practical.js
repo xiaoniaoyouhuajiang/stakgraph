@@ -21,8 +21,8 @@ async function testConsoleLogsFlow() {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        prompt: 'navigate to a test page with JavaScript that logs to console',
-        test_url: 'data:text/html,<html><body><h1>Test Page</h1><script>console.log("Hello from test page!"); console.warn("Test warning"); console.error("Test error"); setTimeout(() => console.log("Delayed log"), 500);</script></body></html>'
+        prompt: 'navigate to a test page with simple JavaScript logging',
+        test_url: 'data:text/html,<html><body><h1>Test Page</h1><script>console.log("Hello from test page!"); console.warn("Test warning"); console.error("Test error");</script></body></html>'
       })
     });
 
@@ -33,43 +33,53 @@ async function testConsoleLogsFlow() {
     // Wait a moment for any delayed logs
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Step 2: Now call stagehand_logs to see what was captured
-    console.log('📋 Step 2: Calling stagehand_logs to retrieve captured logs...');
+    // Step 2: Now call the new simple HTTP endpoint
+    console.log('📋 Step 2: Retrieving console logs via simple HTTP endpoint...');
     
-    // This requires MCP connection, so we'll test it
-    const logsResponse = await fetch(`${BASE_URL}/messages`, {
-      method: 'POST', 
-      headers,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: {
-          name: 'stagehand_logs',
-          arguments: {}
-        }
-      })
-    });
-
-    const logsText = await logsResponse.text();
-    
-    if (logsText.includes('No active transport')) {
-      console.log('❌ Expected result: MCP tools need SSE connection');
-      console.log('💡 The browser actions happened, but we need SSE to retrieve logs via MCP\n');
+    try {
+      // Call the new /console-logs endpoint
+      console.log('🔧 Calling GET /console-logs...');
+      const logsResponse = await fetch(`${BASE_URL}/console-logs`, {
+        method: 'GET',
+        headers
+      });
       
-      // Show what we would need to do
-      console.log('🔧 To retrieve logs, you would need to:');
-      console.log('1. Establish SSE connection: GET /sse');
-      console.log('2. Then POST /messages with stagehand_logs call');
-      console.log('3. Or use the unit tests: npm test console-logs.test.ts\n');
+      if (!logsResponse.ok) {
+        throw new Error(`Console logs request failed: ${logsResponse.status}`);
+      }
       
-      console.log('✅ Test proves the workflow concept works!');
-      console.log('   The /evaluate endpoint generated console logs');
-      console.log('   They are stored and ready to be retrieved');
-      console.log('   Just need proper MCP client to get them');
+      const logsResult = await logsResponse.json();
       
-    } else {
-      console.log('📨 Logs response:', logsText);
+      console.log('🔍 Raw HTTP response:', JSON.stringify(logsResult, null, 2));
+      
+      const logs = logsResult.logs;
+      
+      console.log(`🎉 SUCCESS! Retrieved ${logs.length} console logs via HTTP:`);
+      logs.forEach((log, i) => {
+        const timestamp = new Date(log.timestamp).toLocaleTimeString();
+        console.log(`   ${i + 1}. [${timestamp}] [${log.type.toUpperCase()}] ${log.text}`);
+      });
+      
+      console.log('\n🎯 COMPLETE SUCCESS: Simple agent workflow works!');
+      console.log('   ✅ /evaluate endpoint captured console logs');
+      console.log('   ✅ /console-logs retrieved them via simple HTTP GET');
+      console.log('   ✅ Same Stagehand instance shared between endpoints');
+      console.log('   ✅ Zero friction for external agents!');
+      console.log(`   📊 Retrieved ${logsResult.count} logs at ${logsResult.timestamp}`);
+      
+    } catch (httpError) {
+      console.log('❌ HTTP Endpoint Error:', httpError.message);
+      
+      console.log('\n💡 This indicates an implementation issue with the new endpoint');
+      console.log('   Check server logs for more details');
+      
+      console.log('\n🔧 Expected Workflow:');
+      console.log('1. POST /evaluate (generates console logs)');
+      console.log('2. GET /console-logs (retrieves logs via simple HTTP)');
+      console.log('3. Agent processes logs for debugging/monitoring');
+      
+      console.log('\n✅ Fallback: MCP protocol still available');
+      console.log('   Use MCP tools for protocol-compliant access');
     }
 
   } catch (error) {

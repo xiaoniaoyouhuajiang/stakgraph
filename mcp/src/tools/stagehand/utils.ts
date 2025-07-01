@@ -38,7 +38,7 @@ export async function getOrCreateStagehand() {
   });
   await sh.init();
   
-  // Clear any existing logs when stagehand is recreated
+  // Clear any existing logs when stagehand is recreated (only on new creation)
   clearConsoleLogs();
   
   // Set up console log listener
