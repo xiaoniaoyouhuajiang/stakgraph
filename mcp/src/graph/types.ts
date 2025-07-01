@@ -158,3 +158,18 @@ export function toNum(bi: BoltInt): number {
   }
   return 0;
 }
+
+export interface Service {
+  name: string;
+  language: string;
+  dev: boolean;
+  scripts: Record<string, string>;
+  env: Record<string, string>;
+  pkgFile: string;
+}
+
+export interface ServiceParser {
+  pkgFileName: string;
+  envRegex: RegExp;
+  build(pkgFile: Neo4jNode): Service;
+}
