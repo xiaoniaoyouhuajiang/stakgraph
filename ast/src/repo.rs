@@ -5,8 +5,10 @@ use git_url_parse::GitUrl;
 use ignore::WalkBuilder;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
 use lsp::{git::git_clone, spawn_analyzer, strip_root, CmdSender};
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::{fs, path::PathBuf};
+use tokio::sync::broadcast::Sender;
 use tracing::{info, warn};
 use walkdir::{DirEntry, WalkDir};
 
@@ -29,15 +31,41 @@ pub struct Repo {
     pub lsp_tx: Option<CmdSender>,
     pub files_filter: Vec<String>,
     pub revs: Vec<String>,
+    pub status_tx: Option<Sender<StatusUpdate>>,
 }
 
 pub struct Repos(pub Vec<Repo>);
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct StatusUpdate {
+    pub status: String,
+    pub message: String,
+    pub step: u32,
+    pub total_steps: u32,
+    pub progress: f32,
+}
+
+impl StatusUpdate {
+    pub fn as_json_str(&self) -> String {
+        match serde_json::to_string(self) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Error serializing StatusUpdate: {}", e);
+                "{}".to_string()
+            }
+        }
+    }
+}
+
 impl Repos {
+    pub async fn set_status_tx(&mut self, status_tx: Sender<StatusUpdate>) {
+        for repo in &mut self.0 {
+            repo.status_tx = Some(status_tx.clone());
+        }
+    }
     pub async fn build_graphs(&self) -> Result<ArrayGraph> {
         self.build_graphs_inner().await
     }
-
     pub async fn build_graphs_btree(&self) -> Result<BTreeMapGraph> {
         self.build_graphs_inner::<BTreeMapGraph>().await
     }
@@ -49,6 +77,9 @@ impl Repos {
             graph.extend_graph(subgraph);
         }
 
+        if let Some(first_repo) = &self.0.get(0) {
+            first_repo.send_status_update("linking_graphs", 15, 0.0);
+        }
         info!("linking e2e tests");
         linker::link_e2e_tests(&mut graph)?;
         info!("linking api nodes");
@@ -102,6 +133,7 @@ impl Repo {
             lsp_tx,
             files_filter,
             revs,
+            status_tx: None,
         })
     }
     pub async fn new_clone_multi_detect(
@@ -217,6 +249,7 @@ impl Repo {
                 lsp_tx,
                 files_filter: files_filter.clone(),
                 revs: revs.clone(),
+                status_tx: None,
             });
         }
         println!("REPOS!!! {:?}", repos);
@@ -252,6 +285,7 @@ impl Repo {
             lsp_tx,
             files_filter,
             revs,
+            status_tx: None,
         })
     }
     fn run_cmd(cmd: &str, root: &str) -> Result<()> {
