@@ -405,15 +405,15 @@ impl Repo {
             i += funcs.len();
             graph.add_functions(funcs.clone());
 
-            let function_nodes: Vec<NodeData> = graph.find_nodes_by_type(NodeType::Function);
-            for func_node in &function_nodes {
-                let var_edges =
-                    self.lang
-                        .collect_var_call_in_function(func_node, graph, &self.lsp_tx);
-                for edge in var_edges {
-                    graph.add_edge(edge);
-                }
-            }
+            // let function_nodes: Vec<NodeData> = graph.find_nodes_by_type(NodeType::Function);
+            // for func_node in &function_nodes {
+            //     let var_edges =
+            //         self.lang
+            //             .collect_var_call_in_function(func_node, graph, &self.lsp_tx);
+            //     for edge in var_edges {
+            //         graph.add_edge(edge);
+            //     }
+            // }
             i += tests.len();
 
             for test in tests {

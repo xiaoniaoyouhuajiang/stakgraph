@@ -299,6 +299,9 @@ impl Stack for ReactTs {
             )"#
         ))
     }
+    fn variable_usage_query(&self) -> Option<String> {
+        Some(format!(r#"(identifier) @{VARIABLE_NAME}"#))
+    }
     fn test_query(&self) -> Option<String> {
         Some(format!(
             r#"[

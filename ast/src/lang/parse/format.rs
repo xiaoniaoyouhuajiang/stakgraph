@@ -460,7 +460,7 @@ impl Lang {
                             &None,
                         )?;
                         if !reqs.is_empty() {
-                            let mut request_node = reqs[0].clone().0;
+                            let request_node = reqs[0].clone().0;
                             requests_within.push(request_node);
                         }
                     }
@@ -500,6 +500,34 @@ impl Lang {
                             None => (),
                         }
                     }
+                }
+            } else if let Some(vuq) = self.lang.variable_usage_query() {
+                let mut cursor = QueryCursor::new();
+                let qqq = self.q(&vuq, &NodeType::Var);
+                let mut matches = cursor.matches(&qqq, node, code.as_bytes());
+                let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, file);
+                let import_body = imports.get(0).map(|i| i.body.clone()).unwrap_or_default();
+
+                while let Some(m) = matches.next() {
+                    Self::loop_captures(&qqq, &m, code, |body, _node, o| {
+                        if o == VARIABLE_NAME {
+                            let var_name = body;
+
+                            let candidate_vars = graph.find_nodes_by_name(NodeType::Var, &var_name);
+                            for var in candidate_vars {
+                                if var.file == *file || import_body.contains(&var_name) {
+                                    models.push(Edge::contains(
+                                        NodeType::Function,
+                                        &func,
+                                        NodeType::Var,
+                                        &var,
+                                    ));
+                                    break;
+                                }
+                            }
+                        }
+                        Ok(())
+                    })?;
                 }
             } else if o == ARGUMENTS {
                 // skipping args

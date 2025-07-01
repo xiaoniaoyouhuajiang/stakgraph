@@ -178,6 +178,9 @@ pub trait Stack {
     }
     fn add_endpoint_verb(&self, _nd: &mut NodeData, _call: &Option<String>) {}
     fn update_endpoint(&self, _nd: &mut NodeData, _call: &Option<String>) {}
+    fn variable_usage_query(&self) -> Option<String> {
+        None
+    }
     // this one should be the same for all langs?
     fn filter_tests(&self, funcs: Vec<Function>) -> (Vec<Function>, Vec<Function>) {
         let mut fs = Vec::new();

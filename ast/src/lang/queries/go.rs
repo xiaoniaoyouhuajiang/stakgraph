@@ -272,6 +272,27 @@ impl Stack for Go {
         );
         Some(type_finder)
     }
+
+    fn variable_usage_query(&self) -> Option<String> {
+        Some(format!(
+            r#"(source_file
+                 (var_declaration
+                    (var_spec
+                        name: (identifier) @{VARIABLE_NAME}
+                        type: (type_identifier)? @{VARIABLE_TYPE}
+                        value: (expression_list)? @{VARIABLE_VALUE}
+                    )
+                )? @{VARIABLE_DECLARATION}
+                (const_declaration
+                    (const_spec
+                        name: (identifier) @{VARIABLE_NAME}
+                        type: (type_identifier)? @{VARIABLE_TYPE}
+                        value: (expression_list)? @{VARIABLE_VALUE}
+                    )
+                )? @{VARIABLE_DECLARATION}
+            )"#
+        ))
+    }
     fn is_test(&self, func_name: &str, _func_file: &str) -> bool {
         func_name.starts_with("Test")
     }
