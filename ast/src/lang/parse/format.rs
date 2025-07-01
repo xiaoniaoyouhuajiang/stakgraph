@@ -503,72 +503,60 @@ impl Lang {
                         }
                     }
                 }
-                // find type identifiers
-                let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, file);
-                let import_body = imports.get(0).map(|i| i.body.clone()).unwrap_or_default();
-                let all_vars = graph.find_nodes_by_type(NodeType::Var);
-                let mut found_vars = HashSet::new();
-
+                // find variables in functions
                 let vuq = self.lang.identifier_query();
                 if !vuq.is_empty() {
                     let mut cursor = QueryCursor::new();
                     let qqq = self.q(&vuq, &NodeType::Var);
                     let mut matches = cursor.matches(&qqq, node, code.as_bytes());
+                    let imports = graph.find_nodes_by_file_ends_with(NodeType::Import, file);
+                    let import_body = imports.get(0).map(|i| i.body.clone()).unwrap_or_default();
+                    let mut found_vars = HashSet::new();
+
                     while let Some(m) = matches.next() {
                         Self::loop_captures(&qqq, &m, code, |body, _node, o| {
                             if o == VARIABLE_NAME || o == "identifier" {
-                                for var in &all_vars {
-                                    if var.name == body {
-                                        found_vars.insert(var.clone());
-                                        break;
-                                    }
+                                let candidate_vars = graph.find_nodes_by_name(NodeType::Var, &body);
+                                for var in candidate_vars {
+                                    found_vars.insert(var);
                                 }
                             }
                             Ok(())
                         })?;
                     }
-                }
 
-                if self.lang.use_string_contains_fallback() {
-                    for var in &all_vars {
-                        if !var.name.is_empty() && func.body.contains(&var.name) {
-                            found_vars.insert(var.clone());
-                        }
-                    }
-                }
-
-                for var in found_vars {
-                    if var.file == *file {
-                        models.push(Edge::contains(
-                            NodeType::Function,
-                            &func,
-                            NodeType::Var,
-                            &var,
-                        ));
-                        continue;
-                    }
-
-                    if !import_body.is_empty() && import_body.contains(&var.name) {
-                        models.push(Edge::contains(
-                            NodeType::Function,
-                            &func,
-                            NodeType::Var,
-                            &var,
-                        ));
-                        continue;
-                    }
-
-                    let func_dir = std::path::Path::new(file).parent();
-                    let var_dir = std::path::Path::new(&var.file).parent();
-                    if let (Some(fdir), Some(vdir)) = (func_dir, var_dir) {
-                        if fdir == vdir {
-                            println!("Found var {} in same dir as func {}", var.name, func.name);
+                    for var in found_vars {
+                        if var.file == *file {
                             models.push(Edge::contains(
                                 NodeType::Function,
                                 &func,
                                 NodeType::Var,
                                 &var,
                             ));
+                            continue;
+                        }
+
+                        if !import_body.is_empty() && import_body.contains(&var.name) {
+                            models.push(Edge::contains(
+                                NodeType::Function,
+                                &func,
+                                NodeType::Var,
+                                &var,
+                            ));
+                            continue;
+                        }
+
+                        let func_dir = std::path::Path::new(file).parent();
+                        let var_dir = std::path::Path::new(&var.file).parent();
+                        if let (Some(fdir), Some(vdir)) = (func_dir, var_dir) {
+                            if fdir == vdir {
+                                models.push(Edge::contains(
+                                    NodeType::Function,
+                                    &func,
+                                    NodeType::Var,
+                                    &var,
+                                ));
+                            }
                         }
                     }
                 }
