@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../index.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize } from "./utils.js";
+import { getOrCreateStagehand, sanitize, getConsoleLogs } from "./utils.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -57,6 +57,8 @@ export const AgentSchema = z.object({
     .describe("The provider to use for agent functionality."),
 });
 
+export const LogsSchema = z.object({});
+
 // Tools
 export const NavigateTool: Tool = {
   name: "stagehand_navigate",
@@ -99,6 +101,13 @@ export const AgentTool: Tool = {
   inputSchema: parseSchema(AgentSchema),
 };
 
+export const LogsTool: Tool = {
+  name: "stagehand_logs",
+  description:
+    "Read the console logs from the browser and return them. Captures all console.log, console.warn, console.error, and other console messages with timestamps and source locations.",
+  inputSchema: parseSchema(LogsSchema),
+};
+
 export const TOOLS: Tool[] = [
   NavigateTool,
   ActTool,
@@ -106,6 +115,7 @@ export const TOOLS: Tool[] = [
   ObserveTool,
   ScreenshotTool,
   AgentTool,
+  LogsTool,
 ];
 
 type TextResult = {
@@ -204,6 +214,12 @@ export async function call(
           maxSteps: 25,
         });
         return success(`${JSON.stringify(rez)}`);
+      }
+
+      case LogsTool.name: {
+        LogsSchema.parse(args); // Validate even though no args expected
+        const logs = getConsoleLogs();
+        return success(`Console logs (${logs.length} entries):\n${JSON.stringify(logs, null, 2)}`);
       }
 
       default:

@@ -1,6 +1,7 @@
 import express, { Express } from "express";
 import { evaluate } from "./stagehand.js";
 import { promises as dns } from "dns";
+import { getConsoleLogs } from "../tools/stagehand/utils.js";
 
 export async function evalRoutes(app: Express) {
   app.post("/evaluate", async (req: express.Request, res: express.Response) => {
@@ -25,6 +26,36 @@ export async function evalRoutes(app: Express) {
       res.status(500).json({
         error: "Evaluation failed",
         message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Simple HTTP endpoint for console logs (Phase 2A: Dual Access Pattern)
+  // Future Phase 2B: Add GET /console-logs/stream for real-time SSE streaming
+  // - Streams logs immediately as they're captured vs current batch approach
+  // - Client: const stream = new EventSource('/console-logs/stream')
+  // - Perfect for live monitoring during automation runs
+  // - Implementation: Modify addConsoleLog() to broadcast to streaming clients
+  app.get("/console-logs", async (req: express.Request, res: express.Response) => {
+    try {
+      const logs = getConsoleLogs();
+
+      res.json({
+        logs,
+        timestamp: new Date().toISOString(),
+        count: logs.length,
+        metadata: {
+          session_active: true,
+          access_method: "http_rest"
+        }
+      });
+    } catch (error) {
+      console.error("Console logs retrieval failed:", error);
+      res.status(500).json({
+        error: "Console logs retrieval failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+        logs: [],
+        count: 0
       });
     }
   });

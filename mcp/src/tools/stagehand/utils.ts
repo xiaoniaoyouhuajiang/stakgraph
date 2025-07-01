@@ -3,6 +3,20 @@ import { getProvider } from "./providers.js";
 
 let STAGEHAND: Stagehand | null = null;
 
+export interface ConsoleLog {
+  timestamp: string;
+  type: string;
+  text: string;
+  location: {
+    url: string;
+    lineNumber: number;
+    columnNumber: number;
+  };
+}
+
+let CONSOLE_LOGS: ConsoleLog[] = [];
+const MAX_LOGS = parseInt(process.env.STAGEHAND_MAX_CONSOLE_LOGS || "1000");
+
 export async function getOrCreateStagehand() {
   if (STAGEHAND) {
     return STAGEHAND;
@@ -23,6 +37,20 @@ export async function getOrCreateStagehand() {
     },
   });
   await sh.init();
+  
+  // Clear any existing logs when stagehand is recreated (only on new creation)
+  clearConsoleLogs();
+  
+  // Set up console log listener
+  sh.page.on('console', (msg) => {
+    addConsoleLog({
+      timestamp: new Date().toISOString(),
+      type: msg.type(),
+      text: msg.text(),
+      location: msg.location()
+    });
+  });
+  
   STAGEHAND = sh;
   return sh;
 }
@@ -47,4 +75,19 @@ export function sanitize(bodyText: string) {
       )
     );
   return content;
+}
+
+export function addConsoleLog(log: ConsoleLog): void {
+  CONSOLE_LOGS.push(log);
+  if (CONSOLE_LOGS.length > MAX_LOGS) {
+    CONSOLE_LOGS.shift(); // FIFO rotation
+  }
+}
+
+export function getConsoleLogs(): ConsoleLog[] {
+  return [...CONSOLE_LOGS];
+}
+
+export function clearConsoleLogs(): void {
+  CONSOLE_LOGS = [];
 }
