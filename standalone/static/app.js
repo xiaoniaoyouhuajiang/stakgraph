@@ -1,6 +1,6 @@
 import { h, render } from "https://esm.sh/preact";
 import { useState } from "https://esm.sh/preact/hooks";
-import { html, getRepoNameFromUrl, LoadingSvg } from "./utils.js";
+import { html, getRepoNameFromUrl, LoadingSvg, POST } from "./utils.js";
 
 const App = () => {
   const [repoUrl, setRepoUrl] = useState("");
@@ -23,19 +23,13 @@ const App = () => {
   const handleSubmit = async () => {
     setCurrentRepoName(getRepoNameFromUrl(repoUrl));
     setIsLoading(true);
-    await fetch("/ingest", {
-      method: "POST",
-      body: JSON.stringify({ repo_url: repoUrl, username, pat }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    await POST("/ingest", { repo_url: repoUrl, username, pat });
     setIsLoading(false);
   };
   return html`
     <div class="app-container">
       <div class="app-header">
-        <h1>Stakgraph${currentRepoName ? `: ${currentRepoName}` : ""}</h1>
+        <h1>${currentRepoName ? currentRepoName : "Stakgraph"}</h1>
       </div>
       <div class="app-body">
         <input
