@@ -25,6 +25,7 @@ async fn main() -> Result<()> {
         .route("/process", post(handlers::process))
         .route("/clear", post(handlers::clear_graph))
         .route("/ingest", post(handlers::ingest))
+        .route("/fetch-repo", post(handlers::fetch_repo))
         .route_service("/", static_file("index.html"))
         .route_service("/styles.css", static_file("styles.css"))
         .route_service("/app.js", static_file("app.js"))

@@ -1,4 +1,6 @@
-use crate::types::{AppError, ProcessBody, ProcessResponse, Result};
+use crate::types::{
+    AppError, FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result,
+};
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::Repo;
@@ -7,6 +9,7 @@ use lsp::git::get_commit_hash;
 use std::time::Instant;
 use tracing::info;
 #[axum::debug_handler]
+
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let (final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
 
@@ -96,6 +99,16 @@ pub async fn clear_graph() -> Result<Json<ProcessResponse>> {
         message: "Graph cleared".to_string(),
         nodes: nodes as usize,
         edges: edges as usize,
+    }))
+}
+
+pub async fn fetch_repo(body: Json<FetchRepoBody>) -> Result<Json<FetchRepoResponse>> {
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+    let repo_node = graph_ops.fetch_repo(&body.repo_name).await?;
+    Ok(Json(FetchRepoResponse {
+        status: "success".to_string(),
+        repo_name: repo_node.name,
     }))
 }
 
