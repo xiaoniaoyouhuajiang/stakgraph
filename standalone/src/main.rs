@@ -2,6 +2,7 @@
 mod handlers;
 mod types;
 
+use tower_http::services::ServeFile;
 use types::Result;
 
 #[cfg(feature = "neo4j")]
@@ -24,6 +25,10 @@ async fn main() -> Result<()> {
         .route("/process", post(handlers::process))
         .route("/clear", post(handlers::clear_graph))
         .route("/ingest", post(handlers::ingest))
+        .route_service("/", static_file("index.html"))
+        .route_service("/styles.css", static_file("styles.css"))
+        .route_service("/app.js", static_file("app.js"))
+        .route_service("/utils.js", static_file("utils.js"))
         .layer(cors_layer);
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "7777".to_string());
@@ -32,6 +37,10 @@ async fn main() -> Result<()> {
     println!("=> listening on http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
     Ok(())
+}
+
+fn static_file(path: &str) -> ServeFile {
+    ServeFile::new(format!("standalone/static/{}", path))
 }
 
 #[cfg(not(feature = "neo4j"))]

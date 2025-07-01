@@ -81,7 +81,7 @@ jobs:
       - name: Wait for Rust server
         run: |
           echo "Waiting for Rust server to be ready..."
-          timeout 120s bash -c '
+          timeout 600s bash -c '
             until curl -s -X POST http://localhost:7777/clear | grep -q "\"status\":\"success\""; do
               echo "Rust server not ready yet..."
               sleep 10

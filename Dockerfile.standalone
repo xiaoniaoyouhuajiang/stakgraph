@@ -12,6 +12,7 @@ COPY lsp/src lsp/src
 COPY lsp/Cargo.toml lsp/Cargo.toml
 COPY standalone/src standalone/src
 COPY standalone/Cargo.toml standalone/Cargo.toml
+COPY standalone/static standalone/static
 
 # Build the release version of your application
 RUN cargo build --release --manifest-path standalone/Cargo.toml --features neo4j
@@ -20,5 +21,6 @@ RUN cargo build --release --manifest-path standalone/Cargo.toml --features neo4j
 FROM sphinxlightning/stakgraph-lsp:latest
 
 COPY --from=builder /app/standalone/target/release/standalone /root
+COPY --from=builder /app/standalone/static /root/standalone/static
 
 CMD ["/root/standalone"]

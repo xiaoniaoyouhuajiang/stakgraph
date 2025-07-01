@@ -25,6 +25,7 @@ COPY ./src ./src
 RUN mkdir -p ./docs
 COPY ./docs/redoc-static.html ./docs/redoc-static.html
 COPY ./textarea ./textarea
+COPY ./app ./app
 
 # Build the application
 RUN yarn build
