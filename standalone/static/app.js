@@ -10,6 +10,7 @@ const App = () => {
   const [currentRepoName, setCurrentRepoName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [repoExists, setRepoExists] = useState(false);
+  const [progressInfo, setProgressInfo] = useState(null);
 
   useEffect(() => {
     const fetchRepo = async () => {
@@ -30,6 +31,9 @@ const App = () => {
   const { closeConnection } = useSSE("/events", {
     onMessage: (data, event) => {
       console.log("=>", data);
+      if (data && data.step !== undefined) {
+        setProgressInfo(data);
+      }
     },
   });
 
@@ -51,14 +55,45 @@ const App = () => {
 
   const handleSubmit = async () => {
     setIsLoading(true);
+    setProgressInfo(null);
     await POST("/ingest", { repo_url: repoUrl, username, pat });
     setIsLoading(false);
   };
 
   const handleSync = async () => {
     setIsLoading(true);
+    setProgressInfo(null);
     await POST("/process", { repo_url: repoUrl, username, pat });
     setIsLoading(false);
+  };
+
+  const renderProgressBar = () => {
+    if (!progressInfo) return null;
+
+    const percentage = Math.min(
+      100,
+      Math.round((progressInfo.step / progressInfo.total_steps) * 100)
+    );
+    const progressWidth = `${percentage}%`;
+    const progressIndicator = "=".repeat(Math.floor(percentage / 5));
+
+    return html`
+      <div class="progress-container">
+        <div class="progress-info">
+          <div>
+            Step ${progressInfo.step}/${progressInfo.total_steps}:
+            ${progressInfo.message}
+          </div>
+          <div>${percentage}%</div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${progressWidth}"></div>
+        </div>
+        <div class="progress-text">
+          [${progressIndicator}${" ".repeat(20 - Math.floor(percentage / 5))}]
+        </div>
+      </div>
+    `;
   };
 
   return html`
@@ -96,6 +131,7 @@ const App = () => {
             ? html`<div class="loading"><${LoadingSvg} /></div>`
             : "Sync Repo to Latest"}
         </button>`}
+        ${progressInfo && renderProgressBar()}
       </div>
     </div>
   `;
