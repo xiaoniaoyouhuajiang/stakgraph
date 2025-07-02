@@ -1,3 +1,4 @@
+pub use crate::builder::progress::StatusUpdate;
 use crate::lang::graphs::Graph;
 use crate::lang::{linker, ArrayGraph, BTreeMapGraph, Lang};
 use anyhow::{anyhow, Context, Result};
@@ -5,7 +6,6 @@ use git_url_parse::GitUrl;
 use ignore::WalkBuilder;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
 use lsp::{git::git_clone, spawn_analyzer, strip_root, CmdSender};
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::{fs, path::PathBuf};
 use tokio::sync::broadcast::Sender;
@@ -21,7 +21,21 @@ pub async fn clone_repo(
     pat: Option<String>,
     commit: Option<&str>,
 ) -> Result<()> {
-    Ok(git_clone(url, path, username, pat, commit).await?)
+    // check if the path exists
+    if fs::metadata(path).is_ok() {
+        // delete unless SKIP_RECLONE is set
+        let skip_reclone_env = std::env::var("SKIP_RECLONE").unwrap_or_default();
+        let skip_reclone = skip_reclone_env == "true" || skip_reclone_env == "1";
+        if !skip_reclone {
+            fs::remove_dir_all(path).ok();
+            git_clone(url, path, username, pat, commit).await?;
+        } else {
+            info!("=> Skipping reclone for {:?}", path);
+        }
+    } else {
+        git_clone(url, path, username, pat, commit).await?;
+    }
+    Ok(())
 }
 
 pub struct Repo {
@@ -35,27 +49,6 @@ pub struct Repo {
 }
 
 pub struct Repos(pub Vec<Repo>);
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct StatusUpdate {
-    pub status: String,
-    pub message: String,
-    pub step: u32,
-    pub total_steps: u32,
-    pub progress: f32,
-}
-
-impl StatusUpdate {
-    pub fn as_json_str(&self) -> String {
-        match serde_json::to_string(self) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::error!("Error serializing StatusUpdate: {}", e);
-                "{}".to_string()
-            }
-        }
-    }
-}
 
 impl Repos {
     pub async fn set_status_tx(&mut self, status_tx: Sender<StatusUpdate>) {
@@ -78,7 +71,7 @@ impl Repos {
         }
 
         if let Some(first_repo) = &self.0.get(0) {
-            first_repo.send_status_update("linking_graphs", 15, 0.0);
+            first_repo.send_status_update("linking_graphs", 16);
         }
         info!("linking e2e tests");
         linker::link_e2e_tests(&mut graph)?;
@@ -166,8 +159,7 @@ impl Repo {
         for (i, url) in urls.iter().enumerate() {
             let gurl = GitUrl::parse(url)?;
             let root = format!("/tmp/{}", gurl.fullname);
-            println!("Cloning to {:?}...", &root);
-            fs::remove_dir_all(&root).ok();
+            println!("Cloning repo to {:?}...", &root);
             clone_repo(url, &root, username.clone(), pat.clone(), commit).await?;
             // Extract the revs for this specific repository
             let repo_revs = if revs_per_repo > 0 {
@@ -269,7 +261,6 @@ impl Repo {
         let gurl = GitUrl::parse(url)?;
         let root = format!("/tmp/{}", gurl.fullname);
         println!("Cloning to {:?}... lsp: {}", &root, lsp);
-        fs::remove_dir_all(&root).ok();
         clone_repo(url, &root, username, pat, None).await?;
         // if let Some(new_files) = check_revs(&root, revs) {
         //     files_filter = new_files;
