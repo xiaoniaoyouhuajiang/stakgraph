@@ -143,18 +143,6 @@ impl EdgeQueryBuilder {
         );
         (query, params)
     }
-
-    pub fn build_unwind(&self) -> (String, BoltMap) {
-        let mut params = BoltMap::new();
-        let source_key = create_node_key_from_ref(&self.edge.source);
-        let target_key = create_node_key_from_ref(&self.edge.target);
-
-        boltmap_insert_str(&mut params, "source_key", &source_key);
-        boltmap_insert_str(&mut params, "target_key", &target_key);
-        boltmap_insert_str(&mut params, "rel_type", &self.edge.edge.to_string());
-
-        (String::new(), params)
-    }
 }
 
 pub struct TransactionManager<'a> {
@@ -249,13 +237,12 @@ pub async fn execute_node_query(
 pub fn unwind_nodes_query() -> String {
     "
     UNWIND $batch as item
-    WITH item.properties as properties, item.node_type as node_type
-    MERGE (node:Data_Bank {node_key: properties.node_key})
-    ON CREATE SET node += properties
-    ON MATCH SET node += properties
-    WITH node, node_type
+    MERGE (node:Data_Bank {node_key: item.properties.node_key})
+    ON CREATE SET node += item.properties
+    ON MATCH SET node += item.properties
+    WITH node, item.node_type as node_type
     CALL apoc.create.addLabels(node, [node_type]) YIELD node as result
-    RETURN result
+    RETURN count(result) as count
     "
     .to_string()
 }
@@ -266,7 +253,7 @@ pub fn unwind_edges_by_key_query() -> String {
     MATCH (source {node_key: edge.source_key})
     MATCH (target {node_key: edge.target_key})
     CALL apoc.create.relationship(source, edge.rel_type, {}, target) YIELD rel
-    RETURN rel
+    RETURN count(rel) as count
     "
     .to_string()
 }

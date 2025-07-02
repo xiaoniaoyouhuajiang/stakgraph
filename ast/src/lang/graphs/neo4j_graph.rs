@@ -119,14 +119,11 @@ impl Neo4jGraph {
         batch: Vec<BoltMap>,
     ) -> Result<(), anyhow::Error> {
         let connection = self.ensure_connected().await?;
-        let mut txn = connection.start_txn().await?;
+        let total_chunks = (batch.len() as f64 / BATCH_SIZE as f64).ceil() as usize;
 
         for (i, chunk) in batch.chunks(BATCH_SIZE).enumerate() {
-            debug!(
-                "Processing chunk {}/{}",
-                i + 1,
-                (batch.len() / BATCH_SIZE) + 1
-            );
+            debug!("Processing chunk {}/{}", i + 1, total_chunks);
+            let mut txn = connection.start_txn().await?;
             let mut params = BoltMap::new();
             let chunk_vec: Vec<BoltType> = chunk.iter().cloned().map(BoltType::Map).collect();
             params
@@ -135,19 +132,19 @@ impl Neo4jGraph {
 
             let query_obj =
                 query(&query_str).param("batch", params.value.get("batch").unwrap().clone());
+
             if let Err(e) = txn.run(query_obj).await {
-                error!("Error running batch chunk: {:?}", e);
-                txn.rollback().await?;
+                error!("Error running batch chunk {}: {:?}", i + 1, e);
+                txn.rollback().await?; // Attempt to rollback
                 return Err(e.into());
             }
-        }
 
-        debug!("Committing transaction for batch");
-        if let Err(e) = txn.commit().await {
-            error!("Error committing batch transaction: {:?}", e);
-            return Err(e.into());
+            if let Err(e) = txn.commit().await {
+                error!("Error committing batch chunk {}: {:?}", i + 1, e);
+                return Err(e.into());
+            }
+            debug!("Successfully committed chunk {}/{}", i + 1, total_chunks);
         }
-        debug!("Batch commit successful");
         Ok(())
     }
 
