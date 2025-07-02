@@ -138,16 +138,22 @@ impl Neo4jGraph {
 
         Ok(self.get_connection())
     }
-    pub async fn execute_in_batches(
+
+    pub async fn execute_batch(
         &self,
-        queries: Vec<(String, BoltMap)>,
+        query: String,
+        batch: Vec<BoltMap>,
     ) -> Result<(), anyhow::Error> {
         let connection = self.get_connection();
-        for chunk in queries.chunks(BATCH_SIZE) {
+        for chunk in batch.chunks(BATCH_SIZE) {
+            let mut params = BoltMap::new();
+            let chunk_vec: Vec<BoltType> = chunk.iter().map(|c| c.clone().into()).collect();
+            params
+                .value
+                .insert("batch".into(), BoltType::List(chunk_vec.into()));
+
             let mut txn_manager = TransactionManager::new(&connection);
-            for query in chunk {
-                txn_manager.add_query(query.clone());
-            }
+            txn_manager.add_query((query.clone(), params));
             txn_manager.execute().await?;
         }
         Ok(())

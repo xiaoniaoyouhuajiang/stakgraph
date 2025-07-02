@@ -128,25 +128,36 @@ impl GraphOps {
         self.graph.ensure_connected().await?;
 
         debug!("preparing node upload {}", btree_graph.nodes.len());
-        let node_queries: Vec<_> = btree_graph
+        let node_params: Vec<_> = btree_graph
             .nodes
             .values()
-            .map(|node| add_node_query(&node.node_type, &node.node_data))
+            .map(|node| {
+                let mut props = add_node_query(&node.node_type, &node.node_data).1;
+                props.value.insert(
+                    "node_type".into(),
+                    neo4rs::BoltType::String(node.node_type.to_string().into()),
+                );
+                props
+            })
             .collect();
 
         debug!("executing node upload in batches");
-        self.graph.execute_in_batches(node_queries).await?;
+        self.graph
+            .execute_batch(unwind_nodes_query(), node_params)
+            .await?;
         debug!("node upload complete");
 
         debug!("preparing edge upload {}", btree_graph.edges.len());
-        let edge_queries: Vec<_> = btree_graph
+        let edge_params: Vec<_> = btree_graph
             .to_array_graph_edges()
             .iter()
-            .map(|edge| add_edge_query(edge))
+            .map(|edge| add_edge_query(edge).1)
             .collect();
 
         debug!("executing edge upload in batches");
-        self.graph.execute_in_batches(edge_queries).await?;
+        self.graph
+            .execute_batch(unwind_edges_query(), edge_params)
+            .await?;
         debug!("edge upload complete!");
 
         let (nodes, edges) = self.graph.get_graph_size();
