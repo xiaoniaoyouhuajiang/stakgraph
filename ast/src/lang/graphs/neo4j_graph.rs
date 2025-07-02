@@ -7,7 +7,7 @@ use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use super::neo4j_utils::Neo4jConnectionManager;
 
