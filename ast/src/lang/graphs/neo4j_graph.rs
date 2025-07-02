@@ -2,6 +2,7 @@ use super::{neo4j_utils::*, *};
 use crate::utils::sync_fn;
 use crate::{lang::Function, lang::Node, Lang};
 use anyhow::Result;
+use neo4rs::BoltType;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{
@@ -147,7 +148,7 @@ impl Neo4jGraph {
         let connection = self.get_connection();
         for chunk in batch.chunks(BATCH_SIZE) {
             let mut params = BoltMap::new();
-            let chunk_vec: Vec<BoltType> = chunk.iter().map(|c| c.clone().into()).collect();
+            let chunk_vec: Vec<BoltType> = chunk.iter().cloned().map(BoltType::Map).collect();
             params
                 .value
                 .insert("batch".into(), BoltType::List(chunk_vec.into()));

@@ -128,6 +128,8 @@ impl EdgeQueryBuilder {
         boltmap_insert_str(&mut params, "target_name", &self.edge.target.node_data.name);
         boltmap_insert_str(&mut params, "target_file", &self.edge.target.node_data.file);
 
+        boltmap_insert_str(&mut params, "rel_type", &self.edge.edge.to_string());
+
         let rel_type = self.edge.edge.to_string();
         let source_type = self.edge.source.node_type.to_string();
         let target_type = self.edge.target.node_type.to_string();
@@ -231,6 +233,29 @@ pub async fn execute_node_query(
             Vec::new()
         }
     }
+}
+pub fn unwind_nodes_query() -> String {
+    "
+    UNWIND $batch as properties
+    MERGE (node:Data_Bank {node_key: properties.node_key})
+    ON CREATE SET node += properties
+    ON MATCH SET node += properties
+    WITH node, properties
+    CALL apoc.create.addLabels(node, [properties.node_type]) YIELD node as result
+    RETURN result
+    "
+    .to_string()
+}
+
+pub fn unwind_edges_query() -> String {
+    "
+    UNWIND $batch as edge
+    MATCH (source {name: edge.source_name, file: edge.source_file})
+    MATCH (target {name: edge.target_name, file: edge.target_file})
+    CALL apoc.create.relationship(source, edge.rel_type, {}, target) YIELD rel
+    RETURN rel
+    "
+    .to_string()
 }
 
 pub fn count_nodes_edges_query() -> String {

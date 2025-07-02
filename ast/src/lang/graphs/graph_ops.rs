@@ -1,7 +1,9 @@
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
-use crate::lang::neo4j_utils::{add_edge_query, add_node_query};
+use crate::lang::neo4j_utils::{
+    add_edge_query, add_node_query, unwind_edges_query, unwind_nodes_query,
+};
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
