@@ -1,11 +1,11 @@
 use crate::lang::Node;
-use crate::utils::{create_node_key, create_node_key_from_ref};
+use crate::utils::create_node_key;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use std::sync::{Arc, Once};
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use super::*;
 
@@ -17,6 +17,7 @@ lazy_static! {
 }
 
 const DATA_BANK: &str = "Data_Bank";
+const BATCH_SIZE: usize = 500;
 
 pub struct Neo4jConnectionManager;
 
@@ -197,6 +198,51 @@ impl<'a> TransactionManager<'a> {
         txn.commit().await?;
         Ok(())
     }
+}
+
+pub async fn execute_batch(
+    conn: &Neo4jConnection,
+    queries: Vec<(String, BoltMap)>,
+) -> Result<(), anyhow::Error> {
+    let total_chunks = (queries.len() as f64 / BATCH_SIZE as f64).ceil() as usize;
+
+    for (i, chunk) in queries.chunks(BATCH_SIZE).enumerate() {
+        debug!("Processing chunk {}/{}", i + 1, total_chunks);
+        let mut txn = conn.start_txn().await?;
+
+        for (query_str, params) in chunk {
+            let mut query_obj = query(query_str);
+
+            if query_str.contains("$properties") {
+                let properties = boltmap_to_bolttype_map(params);
+                query_obj = query_obj.param("properties", properties);
+
+                if let Some(BoltType::String(node_key)) = params.value.get("node_key") {
+                    query_obj = query_obj.param("node_key", node_key.value.as_str());
+                }
+                if let Some(BoltType::String(ref_id)) = params.value.get("ref_id") {
+                    query_obj = query_obj.param("ref_id", ref_id.value.as_str());
+                }
+            } else {
+                for (key, value) in params.value.iter() {
+                    query_obj = query_obj.param(key.value.as_str(), value.clone());
+                }
+            }
+
+            if let Err(e) = txn.run(query_obj).await {
+                error!("Error running query in batch chunk {}: {:?}", i + 1, e);
+                txn.rollback().await?; // Attempt to rollback
+                return Err(e.into());
+            }
+        }
+
+        if let Err(e) = txn.commit().await {
+            error!("Error committing batch chunk {}: {:?}", i + 1, e);
+            return Err(e.into());
+        }
+        debug!("Successfully committed chunk {}/{}", i + 1, total_chunks);
+    }
+    Ok(())
 }
 
 pub fn add_node_query(node_type: &NodeType, node_data: &NodeData) -> (String, BoltMap) {

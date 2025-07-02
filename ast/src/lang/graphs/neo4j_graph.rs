@@ -2,16 +2,13 @@ use super::{neo4j_utils::*, *};
 use crate::utils::sync_fn;
 use crate::{lang::Function, lang::Node, Lang};
 use anyhow::Result;
-use neo4rs::BoltType;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use super::neo4j_utils::Neo4jConnectionManager;
-
-const BATCH_SIZE: usize = 500;
 
 #[derive(Clone, Debug)]
 pub struct Neo4jConfig {
@@ -113,41 +110,6 @@ impl Neo4jGraph {
             .ok_or_else(|| anyhow::anyhow!("Connection is not established after check"))
     }
 
-    pub async fn execute_batch(
-        &mut self,
-        query_str: String,
-        batch: Vec<BoltMap>,
-    ) -> Result<(), anyhow::Error> {
-        let connection = self.ensure_connected().await?;
-        let total_chunks = (batch.len() as f64 / BATCH_SIZE as f64).ceil() as usize;
-
-        for (i, chunk) in batch.chunks(BATCH_SIZE).enumerate() {
-            debug!("Processing chunk {}/{}", i + 1, total_chunks);
-            let mut txn = connection.start_txn().await?;
-            let mut params = BoltMap::new();
-            let chunk_vec: Vec<BoltType> = chunk.iter().cloned().map(BoltType::Map).collect();
-            params
-                .value
-                .insert("batch".into(), BoltType::List(chunk_vec.into()));
-
-            let query_obj =
-                query(&query_str).param("batch", params.value.get("batch").unwrap().clone());
-
-            if let Err(e) = txn.run(query_obj).await {
-                error!("Error running batch chunk {}: {:?}", i + 1, e);
-                txn.rollback().await?; // Attempt to rollback
-                return Err(e.into());
-            }
-
-            if let Err(e) = txn.commit().await {
-                error!("Error committing batch chunk {}: {:?}", i + 1, e);
-                return Err(e.into());
-            }
-            debug!("Successfully committed chunk {}/{}", i + 1, total_chunks);
-        }
-        Ok(())
-    }
-
     pub fn get_connection(&self) -> Arc<Neo4jConnection> {
         if let Some(conn) = &self.connection {
             return conn.clone();
@@ -194,6 +156,14 @@ impl Neo4jGraph {
 
         txn.commit().await?;
         Ok(())
+    }
+
+    pub async fn execute_batch(
+        &mut self,
+        queries: Vec<(String, BoltMap)>,
+    ) -> Result<(), anyhow::Error> {
+        let connection = self.ensure_connected().await?;
+        execute_batch(&connection, queries).await
     }
 
     pub async fn get_repository_hash(&mut self, repo_url: &str) -> Result<String> {

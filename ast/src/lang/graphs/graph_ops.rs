@@ -1,11 +1,11 @@
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
-use crate::lang::neo4j_utils::{add_node_query, unwind_edges_by_key_query, unwind_nodes_query};
+use crate::lang::neo4j_utils::{add_node_query, boltmap_insert_str};
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
-use neo4rs::{BoltMap, BoltType};
+use neo4rs::BoltMap;
 use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
@@ -130,55 +130,37 @@ impl GraphOps {
         self.graph.ensure_connected().await?;
 
         debug!("preparing node upload {}", btree_graph.nodes.len());
-        let node_params: Vec<BoltMap> = btree_graph
+        let node_queries: Vec<(String, BoltMap)> = btree_graph
             .nodes
             .values()
-            .map(|node| {
-                let params = add_node_query(&node.node_type, &node.node_data).1;
-                let mut batch_item = BoltMap::new();
-                batch_item.value.insert(
-                    "node_type".into(),
-                    BoltType::String(node.node_type.to_string().into()),
-                );
-                batch_item
-                    .value
-                    .insert("properties".into(), BoltType::Map(params));
-                batch_item
-            })
+            .map(|node| add_node_query(&node.node_type, &node.node_data))
             .collect();
 
         debug!("executing node upload in batches");
-        self.graph
-            .execute_batch(unwind_nodes_query(), node_params)
-            .await?;
+        self.graph.execute_batch(node_queries).await?;
         debug!("node upload complete");
 
         debug!("preparing edge upload {}", btree_graph.edges.len());
-        let edge_params: Vec<BoltMap> = btree_graph
+        let edge_queries: Vec<(String, BoltMap)> = btree_graph
             .edges
             .iter()
             .map(|(source_key, target_key, edge_type)| {
                 let mut params = BoltMap::new();
-                params.value.insert(
-                    "source_key".into(),
-                    BoltType::String(source_key.clone().into()),
+                boltmap_insert_str(&mut params, "source_key", source_key);
+                boltmap_insert_str(&mut params, "target_key", target_key);
+
+                let query_str = format!(
+                    "MATCH (source {{node_key: $source_key}}), (target {{node_key: $target_key}})
+                     MERGE (source)-[:{}]->(target)",
+                    edge_type.to_string()
                 );
-                params.value.insert(
-                    "target_key".into(),
-                    BoltType::String(target_key.clone().into()),
-                );
-                params.value.insert(
-                    "rel_type".into(),
-                    BoltType::String(edge_type.to_string().into()),
-                );
-                params
+
+                (query_str, params)
             })
             .collect();
 
         debug!("executing edge upload in batches");
-        self.graph
-            .execute_batch(unwind_edges_by_key_query(), edge_params)
-            .await?;
+        self.graph.execute_batch(edge_queries).await?;
         debug!("edge upload complete!");
 
         let (nodes, edges) = self.graph.get_graph_size_async().await?;
