@@ -36,7 +36,8 @@ impl GraphOps {
     pub async fn fetch_repo(&mut self, repo_name: &str) -> Result<NodeData> {
         let repo = self
             .graph
-            .find_nodes_by_name(NodeType::Repository, repo_name);
+            .find_nodes_by_name_async(NodeType::Repository, repo_name)
+            .await;
         if repo.is_empty() {
             return Err(anyhow::anyhow!("Repo not found"));
         }
@@ -79,7 +80,7 @@ impl GraphOps {
                     self.graph = repo.build_graph_inner::<Neo4jGraph>().await?;
                 }
 
-                let (nodes_after, edges_after) = self.graph.get_graph_size();
+                let (nodes_after, edges_after) = self.graph.get_graph_size_async().await?;
                 info!(
                     "Updated files: total {} nodes and {} edges",
                     nodes_after, edges_after
@@ -89,7 +90,7 @@ impl GraphOps {
         self.graph
             .update_repository_hash(repo_url, current_hash)
             .await?;
-        Ok(self.graph.get_graph_size())
+        self.graph.get_graph_size_async().await
     }
 
     pub async fn update_full(
@@ -121,7 +122,7 @@ impl GraphOps {
         self.graph
             .update_repository_hash(repo_url, current_hash)
             .await?;
-        Ok(self.graph.get_graph_size())
+        Ok(self.graph.get_graph_size_async().await?)
     }
 
     pub async fn upload_btreemap_to_neo4j(
@@ -167,7 +168,7 @@ impl GraphOps {
             .await?;
         debug!("edge upload complete!");
 
-        let (nodes, edges) = self.graph.get_graph_size();
+        let (nodes, edges) = self.graph.get_graph_size_async().await?;
         debug!("upload complete! nodes: {}, edges: {}", nodes, edges);
         Ok((nodes, edges))
     }
