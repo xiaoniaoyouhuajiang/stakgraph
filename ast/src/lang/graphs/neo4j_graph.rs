@@ -121,7 +121,12 @@ impl Neo4jGraph {
         let connection = self.ensure_connected().await?;
         let mut txn = connection.start_txn().await?;
 
-        for chunk in batch.chunks(BATCH_SIZE) {
+        for (i, chunk) in batch.chunks(BATCH_SIZE).enumerate() {
+            debug!(
+                "Processing chunk {}/{}",
+                i + 1,
+                (batch.len() / BATCH_SIZE) + 1
+            );
             let mut params = BoltMap::new();
             let chunk_vec: Vec<BoltType> = chunk.iter().cloned().map(BoltType::Map).collect();
             params
@@ -130,10 +135,19 @@ impl Neo4jGraph {
 
             let query_obj =
                 query(&query_str).param("batch", params.value.get("batch").unwrap().clone());
-            txn.run(query_obj).await?;
+            if let Err(e) = txn.run(query_obj).await {
+                error!("Error running batch chunk: {:?}", e);
+                txn.rollback().await?;
+                return Err(e.into());
+            }
         }
 
-        txn.commit().await?;
+        debug!("Committing transaction for batch");
+        if let Err(e) = txn.commit().await {
+            error!("Error committing batch transaction: {:?}", e);
+            return Err(e.into());
+        }
+        debug!("Batch commit successful");
         Ok(())
     }
 
