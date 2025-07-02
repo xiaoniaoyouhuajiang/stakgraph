@@ -55,9 +55,9 @@ export const POST = async (url, body) =>
     body: JSON.stringify(body),
     headers: fetchHeaders,
   });
-
 export const useSSE = (url, options = {}) => {
   const eventSourceRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
   const {
     onMessage,
@@ -69,54 +69,73 @@ export const useSSE = (url, options = {}) => {
   } = options;
 
   useEffect(() => {
-    // Create EventSource connection
-    eventSourceRef.current = new EventSource(url);
-    const eventSource = eventSourceRef.current;
-
-    // Handle incoming messages
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onMessage?.(data, event);
-      } catch (error) {
-        onMessage?.(event.data, event);
+    const connect = () => {
+      // Clear any existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
       }
-    };
 
-    // Handle connection open
-    eventSource.onopen = (event) => {
-      console.log("SSE Connection opened");
-      onOpen?.(event);
-    };
+      console.log("Connecting to SSE:", url);
+      eventSourceRef.current = new EventSource(url);
+      const eventSource = eventSourceRef.current;
 
-    // Handle errors
-    eventSource.onerror = (error) => {
-      console.error("SSE Error:", error);
-      onError?.(error);
-    };
-
-    // Handle custom event types
-    customEvents.forEach((eventType) => {
-      eventSource.addEventListener(eventType, (event) => {
+      eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log(`SSE Custom Event (${eventType}):`, data);
+          onMessage?.(data, event);
         } catch (error) {
-          console.log(`SSE Custom Event (${eventType}):`, event.data);
+          console.log("SSE data (not JSON):", event.data);
+          onMessage?.(event.data, event);
         }
-      });
-    });
+      };
 
-    // Cleanup function
+      eventSource.onopen = (event) => {
+        console.log("SSE Connection opened", event);
+        onOpen?.(event);
+      };
+
+      eventSource.onerror = (error) => {
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log("SSE connection closed");
+          if (autoReconnect) {
+            console.log("Attempting to reconnect in 3 seconds...");
+            reconnectTimeoutRef.current = setTimeout(connect, 3000);
+          }
+        }
+        onError?.(error);
+      };
+
+      // Handle custom event types
+      customEvents.forEach((eventType) => {
+        eventSource.addEventListener(eventType, (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log(`SSE Custom Event (${eventType}):`, data);
+          } catch (error) {
+            console.log(`SSE Custom Event (${eventType}):`, event.data);
+          }
+        });
+      });
+    };
+
+    connect();
+
     return () => {
-      console.log("Closing SSE connection");
+      console.log("Cleaning up SSE connection");
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
       onClose?.();
-      eventSource.close();
     };
   }, [url]);
 
-  // Method to manually close connection
   const closeConnection = () => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
@@ -124,5 +143,3 @@ export const useSSE = (url, options = {}) => {
 
   return { closeConnection };
 };
-
-export default useSSE;
