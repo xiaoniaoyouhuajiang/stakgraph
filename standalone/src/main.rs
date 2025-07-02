@@ -5,9 +5,13 @@ mod types;
 use ast::repo::StatusUpdate;
 use axum::extract::State;
 use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::IntoResponse;
 use axum::{routing::get, routing::post, Router};
-use futures::{stream, Stream};
+use broadcast::error::RecvError;
+use futures::stream;
 use std::convert::Infallible;
+use std::time::Duration;
+
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -31,7 +35,16 @@ async fn main() -> Result<()> {
         .with_env_filter(filter)
         .init();
 
-    let (tx, _rx) = broadcast::channel(10);
+    let (tx, _rx) = broadcast::channel(10000);
+
+    let mut dummy_rx = tx.subscribe();
+    tokio::spawn(async move {
+        while let Ok(_) = dummy_rx.recv().await {
+            // Just consume messages, don't do anything
+            // this is required to keep the msgs fast. weird.
+        }
+    });
+
     let app_state = Arc::new(AppState { tx: tx });
 
     let cors_layer = CorsLayer::permissive();
@@ -60,28 +73,49 @@ fn static_file(path: &str) -> ServeFile {
     ServeFile::new(format!("standalone/static/{}", path))
 }
 
-async fn sse_handler(
-    State(app_state): State<Arc<AppState>>,
-) -> Sse<impl Stream<Item = std::result::Result<Event, Infallible>>> {
-    // Create a receiver for the broadcast channel
+async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
     let rx = app_state.tx.subscribe();
 
-    // Create a stream that yields events from the channel
     let stream = stream::unfold(rx, move |mut rx| async move {
-        match rx.recv().await {
-            Ok(msg) => {
-                let event = Event::default().data(msg.as_json_str());
-                Some((Ok(event), rx))
-            }
-            Err(e) => {
-                println!("Error receiving from channel: {:?}", e);
-                None // End the stream on error
+        loop {
+            match rx.recv().await {
+                Ok(msg) => {
+                    let data = msg.as_json_str();
+                    let millis = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis();
+                    let event = Event::default().data(data).id(format!("{}", millis));
+                    return Some((Ok::<Event, Infallible>(event), rx));
+                }
+                Err(RecvError::Lagged(skipped)) => {
+                    println!("SSE receiver lagged, skipped {} messages", skipped);
+                    continue;
+                }
+                Err(RecvError::Closed) => {
+                    return None;
+                }
             }
         }
     });
 
-    // Return the Sse response with keep-alive configured
-    Sse::new(stream).keep_alive(KeepAlive::default())
+    let headers = [
+        ("Cache-Control", "no-cache, no-store, must-revalidate"),
+        ("Connection", "keep-alive"),
+        ("Content-Type", "text/event-stream"),
+        ("X-Accel-Buffering", "no"), // nginx
+        ("X-Proxy-Buffering", "no"), // other proxies
+        ("Access-Control-Allow-Origin", "*"),
+        ("Access-Control-Allow-Headers", "Cache-Control"),
+    ];
+    (
+        headers,
+        Sse::new(stream).keep_alive(
+            KeepAlive::new()
+                .interval(Duration::from_millis(500))
+                .text("ping"),
+        ),
+    )
 }
 
 #[cfg(not(feature = "neo4j"))]

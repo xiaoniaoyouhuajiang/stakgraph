@@ -9,8 +9,8 @@ use axum::{extract::State, Json};
 use lsp::git::get_commit_hash;
 use std::{sync::Arc, time::Instant};
 use tracing::info;
-#[axum::debug_handler]
 
+#[axum::debug_handler]
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let (final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
 
