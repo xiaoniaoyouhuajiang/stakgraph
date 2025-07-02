@@ -9,7 +9,8 @@
   --tooltip-header-border: #2a2e39;
   --tooltip-action-bg: #2a2e39;
   --tooltip-action-hover: #3a3f4d;
-  --progress-fill: #4caf50;
+  --progress-fill: #e8e6e3;
+  --progress-fill-small: #b9c0c8;
 }
 
 * {
@@ -102,6 +103,12 @@ button:disabled {
   font-size: 14px;
 }
 
+.sub-progress {
+  margin-top: 15px;
+  font-size: 12px;
+  color: #b9c0c8;
+}
+
 .progress-bar {
   height: 20px;
   background-color: var(--editor-bg);
@@ -110,9 +117,20 @@ button:disabled {
   overflow: hidden;
 }
 
-.progress-fill {
+.steps-fill {
   height: 100%;
   background-color: var(--progress-fill);
+  transition: width 0.3s ease;
+}
+
+.progress-bar-small {
+  height: 12px;
+  margin-top: 4px;
+}
+
+.progress-fill-small {
+  height: 100%;
+  background-color: var(--progress-fill-small);
   transition: width 0.3s ease;
 }
 
@@ -121,4 +139,9 @@ button:disabled {
   margin-top: 5px;
   font-size: 14px;
   text-align: center;
+}
+
+.small-text {
+  font-size: 12px;
+  color: #b9c0c8;
 }
