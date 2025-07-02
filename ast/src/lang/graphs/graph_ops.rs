@@ -2,12 +2,12 @@ use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
 use crate::lang::neo4j_utils::{
-    add_edge_query, add_node_query, unwind_edges_query, unwind_nodes_query,
+    add_node_query, unwind_edges_by_key_query, unwind_nodes_query, EdgeQueryBuilder,
 };
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
-use neo4rs::BoltMap;
+use neo4rs::{BoltMap, BoltType};
 use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
@@ -134,7 +134,18 @@ impl GraphOps {
         let node_params: Vec<BoltMap> = btree_graph
             .nodes
             .values()
-            .map(|node| add_node_query(&node.node_type, &node.node_data).1)
+            .map(|node| {
+                let params = add_node_query(&node.node_type, &node.node_data).1;
+                let mut batch_item = BoltMap::new();
+                batch_item.value.insert(
+                    "node_type".into(),
+                    BoltType::String(node.node_type.to_string().into()),
+                );
+                batch_item
+                    .value
+                    .insert("properties".into(), BoltType::Map(params));
+                batch_item
+            })
             .collect();
 
         debug!("executing node upload in batches");
@@ -147,12 +158,12 @@ impl GraphOps {
         let edge_params: Vec<_> = btree_graph
             .to_array_graph_edges()
             .iter()
-            .map(|edge| add_edge_query(edge).1)
+            .map(|edge| EdgeQueryBuilder::new(edge).build_unwind().1)
             .collect();
 
         debug!("executing edge upload in batches");
         self.graph
-            .execute_batch(unwind_edges_query(), edge_params)
+            .execute_batch(unwind_edges_by_key_query(), edge_params)
             .await?;
         debug!("edge upload complete!");
 

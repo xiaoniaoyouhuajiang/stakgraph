@@ -1,5 +1,5 @@
 use crate::lang::Node;
-use crate::utils::create_node_key;
+use crate::utils::{create_node_key, create_node_key_from_ref};
 use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
@@ -124,19 +124,9 @@ impl EdgeQueryBuilder {
 
         boltmap_insert_str(&mut params, "source_name", &self.edge.source.node_data.name);
         boltmap_insert_str(&mut params, "source_file", &self.edge.source.node_data.file);
-        boltmap_insert_str(
-            &mut params,
-            "source_type",
-            &self.edge.source.node_type.to_string(),
-        );
 
         boltmap_insert_str(&mut params, "target_name", &self.edge.target.node_data.name);
         boltmap_insert_str(&mut params, "target_file", &self.edge.target.node_data.file);
-        boltmap_insert_str(
-            &mut params,
-            "target_type",
-            &self.edge.target.node_type.to_string(),
-        );
 
         boltmap_insert_str(&mut params, "rel_type", &self.edge.edge.to_string());
 
@@ -152,6 +142,18 @@ impl EdgeQueryBuilder {
             source_type, target_type, rel_type
         );
         (query, params)
+    }
+
+    pub fn build_unwind(&self) -> (String, BoltMap) {
+        let mut params = BoltMap::new();
+        let source_key = create_node_key_from_ref(&self.edge.source);
+        let target_key = create_node_key_from_ref(&self.edge.target);
+
+        boltmap_insert_str(&mut params, "source_key", &source_key);
+        boltmap_insert_str(&mut params, "target_key", &target_key);
+        boltmap_insert_str(&mut params, "rel_type", &self.edge.edge.to_string());
+
+        (String::new(), params)
     }
 }
 
@@ -246,24 +248,23 @@ pub async fn execute_node_query(
 }
 pub fn unwind_nodes_query() -> String {
     "
-    UNWIND $batch as properties
+    UNWIND $batch as item
+    WITH item.properties as properties, item.node_type as node_type
     MERGE (node:Data_Bank {node_key: properties.node_key})
     ON CREATE SET node += properties
     ON MATCH SET node += properties
-    WITH node, properties
-    CALL apoc.create.addLabels(node, [properties.node_type]) YIELD node as result
+    WITH node, node_type
+    CALL apoc.create.addLabels(node, [node_type]) YIELD node as result
     RETURN result
     "
     .to_string()
 }
 
-pub fn unwind_edges_query() -> String {
+pub fn unwind_edges_by_key_query() -> String {
     "
     UNWIND $batch as edge
-    MATCH (source {name: edge.source_name, file: edge.source_file})
-    WHERE $source_type IN labels(source)
-    MATCH (target {name: edge.target_name, file: edge.target_file})
-    WHERE $target_type IN labels(target)
+    MATCH (source {node_key: edge.source_key})
+    MATCH (target {node_key: edge.target_key})
     CALL apoc.create.relationship(source, edge.rel_type, {}, target) YIELD rel
     RETURN rel
     "
