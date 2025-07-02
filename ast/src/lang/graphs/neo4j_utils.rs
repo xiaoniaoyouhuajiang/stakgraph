@@ -1,5 +1,5 @@
 use crate::lang::Node;
-use crate::utils::{create_node_key, create_node_key_from_ref};
+use crate::utils::create_node_key;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
@@ -124,9 +124,19 @@ impl EdgeQueryBuilder {
 
         boltmap_insert_str(&mut params, "source_name", &self.edge.source.node_data.name);
         boltmap_insert_str(&mut params, "source_file", &self.edge.source.node_data.file);
+        boltmap_insert_str(
+            &mut params,
+            "source_type",
+            &self.edge.source.node_type.to_string(),
+        );
 
         boltmap_insert_str(&mut params, "target_name", &self.edge.target.node_data.name);
         boltmap_insert_str(&mut params, "target_file", &self.edge.target.node_data.file);
+        boltmap_insert_str(
+            &mut params,
+            "target_type",
+            &self.edge.target.node_type.to_string(),
+        );
 
         boltmap_insert_str(&mut params, "rel_type", &self.edge.edge.to_string());
 
@@ -204,14 +214,7 @@ pub fn add_node_query(node_type: &NodeType, node_data: &NodeData) -> (String, Bo
 }
 
 pub fn add_edge_query(edge: &Edge) -> (String, BoltMap) {
-    let mut params = BoltMap::new();
-    let source_key = create_node_key_from_ref(&edge.source);
-    let target_key = create_node_key_from_ref(&edge.target);
-    boltmap_insert_str(&mut params, "source_key", &source_key);
-    boltmap_insert_str(&mut params, "target_key", &target_key);
-    boltmap_insert_str(&mut params, "rel_type", &edge.edge.to_string());
-    (String::new(), params)
-    // EdgeQueryBuilder::new(edge).build()
+    EdgeQueryBuilder::new(edge).build()
 }
 
 pub async fn execute_node_query(
@@ -257,8 +260,10 @@ pub fn unwind_nodes_query() -> String {
 pub fn unwind_edges_query() -> String {
     "
     UNWIND $batch as edge
-    MATCH (source {node_key: edge.source_key})
-    MATCH (target {node_key: edge.target_key})
+    MATCH (source {name: edge.source_name, file: edge.source_file})
+    WHERE $source_type IN labels(source)
+    MATCH (target {name: edge.target_name, file: edge.target_file})
+    WHERE $target_type IN labels(target)
     CALL apoc.create.relationship(source, edge.rel_type, {}, target) YIELD rel
     RETURN rel
     "

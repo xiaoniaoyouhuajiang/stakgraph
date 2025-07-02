@@ -7,6 +7,7 @@ use crate::lang::neo4j_utils::{
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
+use neo4rs::BoltMap;
 use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
@@ -130,12 +131,10 @@ impl GraphOps {
         self.graph.ensure_connected().await?;
 
         debug!("preparing node upload {}", btree_graph.nodes.len());
-        let node_params: Vec<_> = btree_graph
+        let node_params: Vec<BoltMap> = btree_graph
             .nodes
             .values()
-            .map(|node| {
-                add_node_query(&node.node_type, &node.node_data).1;
-            })
+            .map(|node| add_node_query(&node.node_type, &node.node_data).1)
             .collect();
 
         debug!("executing node upload in batches");
