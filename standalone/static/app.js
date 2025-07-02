@@ -75,30 +75,23 @@ const App = () => {
       Math.round((progressInfo.step / progressInfo.total_steps) * 100)
     );
     const stepWidth = `${stepPercentage}%`;
-    const stepIndicator = "=".repeat(Math.floor(stepPercentage / 5));
 
-    // For the second bar, use the progress property (0-1 value)
     const progressPercentage = Math.min(
       100,
       Math.round(progressInfo.progress * 100)
     );
     const progressWidth = `${progressPercentage}%`;
-    const progressIndicator = "=".repeat(Math.floor(progressPercentage / 5));
 
     return html`
       <div class="progress-container">
         <div class="progress-info">
           <div>
-            Step ${progressInfo.step}/${progressInfo.total_steps}:
-            ${progressInfo.message}
+            Step${progressInfo.step}/${progressInfo.total_steps}:${progressInfo.message}
           </div>
           <div>${stepPercentage}%</div>
         </div>
         <div class="progress-bar steps-bar">
           <div class="steps-fill" style="width: ${stepWidth}"></div>
-        </div>
-        <div class="progress-text">
-          [${stepIndicator}${" ".repeat(20 - Math.floor(stepPercentage / 5))}]
         </div>
 
         <div class="progress-info sub-progress">
@@ -110,11 +103,6 @@ const App = () => {
             class="progress-fill-small"
             style="width: ${progressWidth}"
           ></div>
-        </div>
-        <div class="progress-text small-text">
-          [${progressIndicator}${" ".repeat(
-            20 - Math.floor(progressPercentage / 5)
-          )}]
         </div>
       </div>
     `;
