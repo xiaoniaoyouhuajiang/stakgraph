@@ -134,12 +134,7 @@ impl GraphOps {
             .nodes
             .values()
             .map(|node| {
-                let mut props = add_node_query(&node.node_type, &node.node_data).1;
-                props.value.insert(
-                    "node_type".into(),
-                    neo4rs::BoltType::String(node.node_type.to_string().into()),
-                );
-                props
+                add_node_query(&node.node_type, &node.node_data).1;
             })
             .collect();
 
