@@ -140,8 +140,8 @@ impl EdgeQueryBuilder {
         );
 
         let query = format!(
-            "MATCH (source:_ {{node_key: $source_key}}),
-                 (target:_ {{node_key: $target_key}})
+            "MATCH (source {{node_key: $source_key}}),
+                 (target {{node_key: $target_key}})
             MERGE (source)-[r:{}]->(target)
             RETURN r",
             rel_type
