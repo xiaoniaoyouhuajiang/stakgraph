@@ -249,6 +249,25 @@ pub fn add_node_query(node_type: &NodeType, node_data: &NodeData) -> (String, Bo
     NodeQueryBuilder::new(node_type, node_data).build()
 }
 
+pub fn add_edge_by_key_query(
+    source_key: &str,
+    target_key: &str,
+    edge_type: &EdgeType,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "source_key", source_key);
+    boltmap_insert_str(&mut params, "target_key", target_key);
+
+    let query = format!(
+        "MATCH (source {{node_key: $source_key}})
+         MATCH (target {{node_key: $target_key}})
+         MERGE (source)-[:{}]->(target)",
+        edge_type.to_string()
+    );
+
+    (query, params)
+}
+
 pub fn add_edge_query(edge: &Edge) -> (String, BoltMap) {
     EdgeQueryBuilder::new(edge).build()
 }
@@ -279,29 +298,6 @@ pub async fn execute_node_query(
             Vec::new()
         }
     }
-}
-pub fn unwind_nodes_query() -> String {
-    "
-    UNWIND $batch as item
-    MERGE (node:Data_Bank {node_key: item.properties.node_key})
-    ON CREATE SET node += item.properties
-    ON MATCH SET node += item.properties
-    WITH node, item.node_type as node_type
-    CALL apoc.create.addLabels(node, [node_type]) YIELD node as result
-    RETURN count(result) as count
-    "
-    .to_string()
-}
-
-pub fn unwind_edges_by_key_query() -> String {
-    "
-    UNWIND $batch as edge
-    MATCH (source {node_key: edge.source_key})
-    MATCH (target {node_key: edge.target_key})
-    CALL apoc.create.relationship(source, edge.rel_type, {}, target) YIELD rel
-    RETURN count(rel) as count
-    "
-    .to_string()
 }
 
 pub fn count_nodes_edges_query() -> String {

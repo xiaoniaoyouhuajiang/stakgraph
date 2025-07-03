@@ -1,7 +1,7 @@
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
-use crate::lang::neo4j_utils::{add_node_query, boltmap_insert_str};
+use crate::lang::neo4j_utils::{add_edge_by_key_query, add_node_query};
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
@@ -145,17 +145,7 @@ impl GraphOps {
             .edges
             .iter()
             .map(|(source_key, target_key, edge_type)| {
-                let mut params = BoltMap::new();
-                boltmap_insert_str(&mut params, "source_key", source_key);
-                boltmap_insert_str(&mut params, "target_key", target_key);
-
-                let query_str = format!(
-                    "MATCH (source {{node_key: $source_key}}), (target {{node_key: $target_key}})
-                     MERGE (source)-[:{}]->(target)",
-                    edge_type.to_string()
-                );
-
-                (query_str, params)
+                add_edge_by_key_query(source_key, target_key, edge_type)
             })
             .collect();
 

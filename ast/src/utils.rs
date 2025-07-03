@@ -67,8 +67,6 @@ pub fn create_node_key(node: &Node) -> String {
     let node_data = &node.node_data;
     let name = &node_data.name;
     let file = &node_data.file;
-    let start = node_data.start.to_string();
-    let meta = &node_data.meta;
 
     let mut result = String::new();
 
@@ -77,13 +75,7 @@ pub fn create_node_key(node: &Node) -> String {
     result.push_str(&sanitize_string(name));
     result.push('-');
     result.push_str(&sanitize_string(file));
-    result.push('-');
-    result.push_str(&sanitize_string(&start));
 
-    if let Some(v) = meta.get("verb") {
-        result.push('-');
-        result.push_str(&sanitize_string(v));
-    }
     result
 }
 
@@ -109,7 +101,6 @@ pub fn create_node_key_from_ref(node_ref: &NodeRef) -> String {
     let node_type = node_ref.node_type.to_string().to_lowercase();
     let name = &node_ref.node_data.name;
     let file = &node_ref.node_data.file;
-    let start = &node_ref.node_data.start.to_string();
 
     let mut result = String::new();
 
@@ -118,13 +109,6 @@ pub fn create_node_key_from_ref(node_ref: &NodeRef) -> String {
     result.push_str(&sanitize_string(name));
     result.push('-');
     result.push_str(&sanitize_string(file));
-    result.push('-');
-    result.push_str(&sanitize_string(&start));
-
-    if let Some(v) = &node_ref.node_data.verb {
-        result.push('-');
-        result.push_str(&sanitize_string(v));
-    }
 
     result
 }
