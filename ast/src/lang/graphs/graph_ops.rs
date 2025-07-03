@@ -1,10 +1,11 @@
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
-use crate::lang::neo4j_utils::TransactionManager;
+use crate::lang::neo4j_utils::{add_node_query, EdgeQueryBuilder};
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
+use neo4rs::BoltMap;
 use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
@@ -33,7 +34,8 @@ impl GraphOps {
     pub async fn fetch_repo(&mut self, repo_name: &str) -> Result<NodeData> {
         let repo = self
             .graph
-            .find_nodes_by_name(NodeType::Repository, repo_name);
+            .find_nodes_by_name_async(NodeType::Repository, repo_name)
+            .await;
         if repo.is_empty() {
             return Err(anyhow::anyhow!("Repo not found"));
         }
@@ -76,7 +78,7 @@ impl GraphOps {
                     self.graph = repo.build_graph_inner::<Neo4jGraph>().await?;
                 }
 
-                let (nodes_after, edges_after) = self.graph.get_graph_size();
+                let (nodes_after, edges_after) = self.graph.get_graph_size_async().await?;
                 info!(
                     "Updated files: total {} nodes and {} edges",
                     nodes_after, edges_after
@@ -86,7 +88,7 @@ impl GraphOps {
         self.graph
             .update_repository_hash(repo_url, current_hash)
             .await?;
-        Ok(self.graph.get_graph_size())
+        self.graph.get_graph_size_async().await
     }
 
     pub async fn update_full(
@@ -118,39 +120,40 @@ impl GraphOps {
         self.graph
             .update_repository_hash(repo_url, current_hash)
             .await?;
-        Ok(self.graph.get_graph_size())
+        Ok(self.graph.get_graph_size_async().await?)
     }
 
     pub async fn upload_btreemap_to_neo4j(
         &mut self,
         btree_graph: &BTreeMapGraph,
     ) -> anyhow::Result<(u32, u32)> {
-        let connection = self.graph.ensure_connected().await?;
+        self.graph.ensure_connected().await?;
 
-        debug!("uploading nodes {}", btree_graph.nodes.len());
-        let mut nodes_txn_manager = TransactionManager::new(&connection);
-        for node in btree_graph.nodes.values() {
-            nodes_txn_manager.add_node(&node.node_type, &node.node_data);
-            debug!("added node {}", node.node_data.name);
-        }
-        debug!("executing node upload");
-        nodes_txn_manager.execute().await?;
+        debug!("preparing node upload {}", btree_graph.nodes.len());
+        let node_queries: Vec<(String, BoltMap)> = btree_graph
+            .nodes
+            .values()
+            .map(|node| add_node_query(&node.node_type, &node.node_data))
+            .collect();
 
-        debug!("uploading edges {}", btree_graph.edges.len());
-        let mut edges_txn_manager = TransactionManager::new(&connection);
-        let edges = btree_graph.to_array_graph_edges();
-        for edge in edges {
-            edges_txn_manager.add_edge(&edge);
-            debug!(
-                "added edge {} -> {}",
-                edge.source.node_data.name, edge.target.node_data.name
-            );
-        }
-        debug!("executing edge upload");
-        edges_txn_manager.execute().await?;
+        debug!("executing node upload in batches");
+        self.graph.execute_batch(node_queries).await?;
+        debug!("node upload complete");
+
+        debug!("preparing edge upload {}", btree_graph.edges.len());
+        let edge_queries: Vec<(String, BoltMap)> = btree_graph
+            .edges
+            .iter()
+            .map(|(source_key, target_key, edge_type)| {
+                EdgeQueryBuilder::build_from_keys(source_key, target_key, edge_type)
+            })
+            .collect();
+
+        debug!("executing edge upload in batches");
+        self.graph.execute_batch(edge_queries).await?;
         debug!("edge upload complete!");
 
-        let (nodes, edges) = self.graph.get_graph_size();
+        let (nodes, edges) = self.graph.get_graph_size_async().await?;
         debug!("upload complete! nodes: {}, edges: {}", nodes, edges);
         Ok((nodes, edges))
     }
