@@ -4,11 +4,8 @@ use crate::{lang::Function, lang::Node, Lang};
 use anyhow::Result;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
-use std::{
-    collections::HashSet,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{collections::HashSet, sync::Arc, time::Duration};
+use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 use super::neo4j_utils::Neo4jConnectionManager;
@@ -53,53 +50,32 @@ impl Neo4jGraph {
     }
 
     pub async fn connect(&mut self) -> Result<()> {
-        if let Some(conn) = Neo4jConnectionManager::get_connection().await {
-            self.connection = Some(conn);
-            if let Ok(mut conn_status) = self.connected.lock() {
-                *conn_status = true;
-            };
-            debug!("Using existing connection from connection manager");
+        let mut conn_status = self.connected.lock().await;
+        if *conn_status && self.connection.is_some() {
+            debug!("Already connected to Neo4j database");
             return Ok(());
-        }
-        if let Ok(conn_status) = self.connected.lock() {
-            if *conn_status && self.connection.is_some() {
-                debug!("Already connected to Neo4j database");
-                return Ok(());
-            }
         }
 
         info!("Connecting to Neo4j database at {}", self.config.uri);
 
-        match Neo4jConnectionManager::initialize(
+        //global connection manager
+        Neo4jConnectionManager::initialize(
             &self.config.uri,
             &self.config.username,
             &self.config.password,
             &self.config.database,
         )
-        .await
-        {
-            Ok(_) => {
-                if let Some(conn) = Neo4jConnectionManager::get_connection().await {
-                    self.connection = Some(conn);
+        .await?;
 
-                    if let Ok(mut conn_status) = self.connected.lock() {
-                        *conn_status = true;
-                    };
-
-                    info!("Successfully connected to Neo4j database");
-                    Ok(())
-                } else {
-                    let error_message =
-                        "Failed to get Neo4j connection after initialization".to_string();
-                    debug!("{}", error_message);
-                    Err(anyhow::anyhow!(error_message))
-                }
-            }
-            Err(e) => {
-                let error_message = format!("Failed to connect to Neo4j database: {}", e);
-                debug!("{}", error_message);
-                Err(anyhow::anyhow!(error_message))
-            }
+        if let Some(conn) = Neo4jConnectionManager::get_connection().await {
+            self.connection = Some(conn);
+            *conn_status = true;
+            info!("Successfully connected to Neo4j database");
+            Ok(())
+        } else {
+            let error_message = "Failed to get Neo4j connection after initialization".to_string();
+            debug!("{}", error_message);
+            Err(anyhow::anyhow!(error_message))
         }
     }
 
@@ -111,9 +87,8 @@ impl Neo4jGraph {
 
         self.connection = None;
 
-        if let Ok(mut conn_status) = self.connected.lock() {
-            *conn_status = false;
-        };
+        let mut conn_status = self.connected.lock().await;
+        *conn_status = false;
 
         Neo4jConnectionManager::clear_connection().await;
 
@@ -121,20 +96,18 @@ impl Neo4jGraph {
         Ok(())
     }
 
-    pub fn is_connected(&self) -> bool {
-        if let Ok(conn_status) = self.connected.lock() {
-            *conn_status
-        } else {
-            false
-        }
+    pub async fn is_connected(&self) -> bool {
+        *self.connected.lock().await
     }
 
     pub async fn ensure_connected(&mut self) -> Result<Arc<Neo4jConnection>> {
-        if !self.is_connected() {
+        if !self.is_connected().await {
             self.connect().await?;
         }
 
-        Ok(self.get_connection())
+        self.connection
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Connection is not established after check"))
     }
 
     pub fn get_connection(&self) -> Arc<Neo4jConnection> {
@@ -183,6 +156,14 @@ impl Neo4jGraph {
 
         txn.commit().await?;
         Ok(())
+    }
+
+    pub async fn execute_batch(
+        &mut self,
+        queries: Vec<(String, BoltMap)>,
+    ) -> Result<(), anyhow::Error> {
+        let connection = self.ensure_connected().await?;
+        execute_batch(&connection, queries).await
     }
 
     pub async fn get_repository_hash(&mut self, repo_url: &str) -> Result<String> {
@@ -636,7 +617,9 @@ impl Neo4jGraph {
         let (query_str, params) = prefix_paths_query(root);
         txn_manager.add_query((query_str, params));
 
-        txn_manager.execute().await
+        txn_manager.execute().await?;
+
+        Ok(())
     }
 
     pub async fn add_node_with_parent_async(
