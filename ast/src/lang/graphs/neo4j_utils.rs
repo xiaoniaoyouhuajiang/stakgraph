@@ -100,7 +100,7 @@ impl NodeQueryBuilder {
         let token_count = calculate_token_count(&self.node_data.body).unwrap_or(0);
         boltmap_insert_int(&mut properties, "token_count", token_count);
 
-        println!("[NodeQueryBuilder] node_key: {}", node_key);
+        // println!("[NodeQueryBuilder] node_key: {}", node_key);
 
         let query = format!(
             "MERGE (node:{}:{} {{node_key: $node_key}})
@@ -128,23 +128,25 @@ impl EdgeQueryBuilder {
 
         let rel_type = self.edge.edge.to_string();
 
+        let source_type = self.edge.source.node_type.to_string();
         let source_key = create_node_key_from_ref(&self.edge.source);
         boltmap_insert_str(&mut params, "source_key", &source_key);
 
+        let target_type = self.edge.target.node_type.to_string();
         let target_key = create_node_key_from_ref(&self.edge.target);
         boltmap_insert_str(&mut params, "target_key", &target_key);
 
-        println!(
-            "[EdgeQueryBuilder] source_key: {}, target_key: {}",
-            source_key, target_key
-        );
+        // println!(
+        //     "[EdgeQueryBuilder] source_key: {}, target_key: {}",
+        //     source_key, target_key
+        // );
 
         let query = format!(
-            "MATCH (source {{node_key: $source_key}}),
-                 (target {{node_key: $target_key}})
+            "MATCH (source:{} {{node_key: $source_key}}),
+                 (target:{} {{node_key: $target_key}})
             MERGE (source)-[r:{}]->(target)
             RETURN r",
-            rel_type
+            source_type, target_type, rel_type
         );
         (query, params)
     }
@@ -158,18 +160,8 @@ impl EdgeQueryBuilder {
         boltmap_insert_str(&mut params, "source_key", source_key);
         boltmap_insert_str(&mut params, "target_key", target_key);
 
-        println!("[EdgeQueryBuilder] source_key: {}, target_key: {}, {:?}", source_key, target_key, edge_type);
+        // println!("[EdgeQueryBuilder] source_key: {}, target_key: {}, {:?}", source_key, target_key, edge_type);
 
-        /*
-        MATCH (source:${source.node_type} {name: $source_name, file: $source_file})
-        MATCH (target:${target.node_type} {name: $target_name, file: $target_file})
-        MERGE (source)-[r:${edge.edge_type}]->(target)
-        RETURN r
-
-        function-getpeople-stakworkdemoreporoutesgo-79
-        target_key
-        function-getallpeople-stakworkdemorepodbgo-0
-         */
         let query = format!(
             "MATCH (source {{node_key: $source_key}})
             MATCH (target {{node_key: $target_key}})
