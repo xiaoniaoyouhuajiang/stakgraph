@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
@@ -6,7 +8,7 @@ use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use anyhow::Result;
 use neo4rs::BoltMap;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
 pub struct GraphOps {
@@ -22,6 +24,34 @@ impl GraphOps {
 
     pub async fn connect(&mut self) -> Result<()> {
         self.graph.connect().await
+    }
+
+    pub async fn check_connection(&mut self) -> Result<()> {
+        self.connect().await?;
+        let check_timeout = Duration::from_secs(5);
+        info!(
+            "Verifying database connection with a {} second timeout...",
+            check_timeout.as_secs()
+        );
+
+        match tokio::time::timeout(check_timeout, self.graph.get_graph_size_async()).await {
+            Ok(Ok(_)) => {
+                info!("Database connection verified successfully.");
+                Ok(())
+            }
+            Ok(Err(e)) => {
+                error!("Database query failed during connection check: {}", e);
+                Err(e)
+            }
+            Err(_) => {
+                let err_msg = format!(
+                    "Database connection check timed out after {} seconds.",
+                    check_timeout.as_secs()
+                );
+                error!("{}", err_msg);
+                Err(anyhow::anyhow!(err_msg))
+            }
+        }
     }
 
     pub async fn clear(&mut self) -> Result<(u32, u32)> {

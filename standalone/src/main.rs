@@ -2,6 +2,7 @@
 mod handlers;
 mod types;
 
+use ast::lang::graphs::graph_ops::GraphOps;
 use ast::repo::StatusUpdate;
 use axum::extract::State;
 use axum::http::Request;
@@ -37,8 +38,13 @@ async fn main() -> Result<()> {
         .with_env_filter(filter)
         .init();
 
-    let mut graph_ops = ast::lang::graphs::graph_ops::GraphOps::new();
-    graph_ops.connect().await.unwrap(); // force connect to neo4j
+    let mut graph_ops = GraphOps::new();
+    if let Err(e) = graph_ops.check_connection().await {
+        panic!(
+            "Failed to connect to the database: {:?}. The server will not start.",
+            e
+        );
+    }
 
     let (tx, _rx) = broadcast::channel(10000);
 
