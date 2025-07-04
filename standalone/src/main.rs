@@ -2,7 +2,6 @@
 mod handlers;
 mod types;
 
-use ast::lang::graph_ops::GraphOps;
 use ast::repo::StatusUpdate;
 use axum::extract::State;
 use axum::http::Request;
@@ -38,7 +37,7 @@ async fn main() -> Result<()> {
         .with_env_filter(filter)
         .init();
 
-    let mut graph_ops = GraphOps::new();
+    let mut graph_ops = ast::lang::graphs::graph_ops::GraphOps::new();
     if let Err(e) = graph_ops.check_connection().await {
         panic!(
             "Failed to connect to the database: {:?}. The server will not start.",
