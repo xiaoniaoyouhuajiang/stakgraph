@@ -19,8 +19,7 @@ const App = () => {
 
   useEffect(() => {
     const fetchToken = async () => {
-      const response = await utils.GET("/token");
-      const data = await response.json();
+      const data = await utils.GET("/token");
       console.log("fetchToken", data);
       if (data.token) {
         setToken(data.token);
@@ -30,20 +29,24 @@ const App = () => {
     fetchToken();
   }, []);
 
-  useEffect(() => {
-    const fetchRepo = async () => {
-      try {
-        const response = await utils.POST("/fetch-repo", {
-          repo_name: currentRepoName,
-        });
-        if (response.status === "success") {
-          setRepoExists(true);
-        }
-      } catch (e) {}
-    };
-    if (currentRepoName) {
-      fetchRepo();
+  async function checkRepoExists() {
+    if (!currentRepoName) {
+      return;
     }
+    try {
+      const data = await utils.POST("/fetch-repo", {
+        repo_name: currentRepoName,
+      });
+      if (data.status === "success") {
+        setRepoExists(true);
+      }
+    } catch (e) {
+      setRepoExists(false);
+    }
+  }
+
+  useEffect(() => {
+    checkRepoExists();
   }, [currentRepoName]);
 
   utils.useSSE("/events", {
@@ -74,12 +77,11 @@ const App = () => {
     setPat(event.target.value);
   };
 
-  const submitIsDisabled = !repoUrl || isLoading;
-  const syncIsDisabled = !repoUrl || isLoading;
+  const btnDisabled = !repoUrl || isLoading;
 
   const handleSubmit = async () => {
     console.log("handleSubmit", repoUrl);
-    if (submitIsDisabled) {
+    if (btnDisabled) {
       return;
     }
     setIsLoading(true);
@@ -89,7 +91,7 @@ const App = () => {
   };
 
   const handleSync = async () => {
-    if (syncIsDisabled) {
+    if (btnDisabled) {
       return;
     }
     setIsLoading(true);
@@ -129,10 +131,12 @@ const App = () => {
     `;
   };
 
+  const buttonText = repoExists ? "Sync Repo to Latest" : "Ingest Repo";
+  const handleBtnClick = repoExists ? handleSync : handleSubmit;
   return html`
     <div class="app-container">
       <div class="app-header">
-        <h1>${currentRepoName ? currentRepoName : "Stakgraph"}</h1>
+        <h2>${currentRepoName ? currentRepoName : "Stakgraph"}</h2>
       </div>
       <div class="app-body">
         <input
@@ -155,17 +159,11 @@ const App = () => {
             onInput=${handlePatChange}
           />
         </div>
-        <button onClick=${handleSubmit} disabled=${submitIsDisabled}>
+        <button onClick=${handleBtnClick} disabled=${btnDisabled}>
           ${isLoading
             ? html`<div class="loading"><${LoadingSvg} /></div>`
-            : "Ingest Repo"}
+            : buttonText}
         </button>
-        ${repoExists &&
-        html`<button onClick=${handleSync} disabled=${syncIsDisabled}>
-          ${isLoading
-            ? html`<div class="loading"><${LoadingSvg} /></div>`
-            : "Sync Repo to Latest"}
-        </button>`}
         ${status && renderProgressBar()}
       </div>
     </div>

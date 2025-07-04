@@ -57,18 +57,30 @@ const getFetchHeaders = () => {
   return headers;
 };
 
-export const GET = async (url) =>
-  await fetch(url, {
+export const GET = async (url) => {
+  const r = await fetch(url, {
     method: "GET",
     headers: getFetchHeaders(),
   });
+  if (!r.ok) {
+    throw new Error(`GET ${url} failed: ${r.statusText}`);
+  }
+  const data = await r.json();
+  return data;
+};
 
-export const POST = async (url, body) =>
-  await fetch(url, {
+export const POST = async (url, body) => {
+  const r = await fetch(url, {
     method: "POST",
     body: JSON.stringify(body),
     headers: getFetchHeaders(),
   });
+  if (!r.ok) {
+    throw new Error(`POST ${url} failed: ${r.statusText}`);
+  }
+  const data = await r.json();
+  return data;
+};
 
 export const useSSE = (url, options = {}) => {
   const eventSourceRef = useRef(null);
