@@ -1,18 +1,13 @@
+mod auth;
 #[cfg(feature = "neo4j")]
 mod handlers;
 mod types;
 
 use ast::repo::StatusUpdate;
-use axum::extract::State;
-use axum::http::Request;
-use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::response::IntoResponse;
+use axum::extract::Request;
+use axum::middleware::{self};
 use axum::{routing::get, routing::post, Router};
-use broadcast::error::RecvError;
-use futures::stream;
-use std::convert::Infallible;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeFile;
@@ -24,6 +19,7 @@ use types::Result;
 #[derive(Clone)]
 struct AppState {
     tx: broadcast::Sender<StatusUpdate>,
+    api_token: Option<String>, // Changed to Option<String>
 }
 
 #[cfg(feature = "neo4j")]
@@ -50,20 +46,54 @@ async fn main() -> Result<()> {
         }
     });
 
-    let app_state = Arc::new(AppState { tx: tx });
+    // Get API token from environment variable - now optional
+    let api_token = std::env::var("API_TOKEN").ok();
+
+    if api_token.is_some() {
+        tracing::info!("API_TOKEN provided - authentication enabled");
+    } else {
+        tracing::warn!("API_TOKEN not provided - authentication disabled");
+    }
+
+    let app_state = Arc::new(AppState { tx, api_token });
 
     tracing::debug!("starting server");
     let cors_layer = CorsLayer::permissive();
-    let app = Router::new()
+
+    let mut app = Router::new().route("/events", get(handlers::sse_handler));
+
+    let mut protected_routes = Router::new()
         .route("/process", post(handlers::process))
         .route("/clear", post(handlers::clear_graph))
         .route("/ingest", post(handlers::ingest))
-        .route("/fetch-repo", post(handlers::fetch_repo))
-        .route("/events", get(sse_handler))
+        .route("/fetch-repo", post(handlers::fetch_repo));
+
+    // Add bearer auth middleware only if API token is provided
+    if app_state.api_token.is_some() {
+        protected_routes = protected_routes.route_layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth::bearer_auth,
+        ));
+    }
+    app = app.merge(protected_routes);
+
+    let mut static_router = Router::new()
         .route_service("/", static_file("index.html"))
         .route_service("/styles.css", static_file("styles.css"))
         .route_service("/app.js", static_file("app.js"))
         .route_service("/utils.js", static_file("utils.js"))
+        .route("/token", get(auth::token_exchange));
+
+    // Add basic auth middleware only if API token is provided
+    if app_state.api_token.is_some() {
+        static_router = static_router.route_layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth::basic_auth,
+        ));
+    }
+
+    let app = app
+        .merge(static_router)
         .with_state(app_state)
         .layer(cors_layer)
         .layer(
@@ -110,51 +140,6 @@ async fn main() -> Result<()> {
 
 fn static_file(path: &str) -> ServeFile {
     ServeFile::new(format!("standalone/static/{}", path))
-}
-
-async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
-    let rx = app_state.tx.subscribe();
-
-    let stream = stream::unfold(rx, move |mut rx| async move {
-        loop {
-            match rx.recv().await {
-                Ok(msg) => {
-                    let data = msg.as_json_str();
-                    let millis = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis();
-                    let event = Event::default().data(data).id(format!("{}", millis));
-                    return Some((Ok::<Event, Infallible>(event), rx));
-                }
-                Err(RecvError::Lagged(skipped)) => {
-                    println!("SSE receiver lagged, skipped {} messages", skipped);
-                    continue;
-                }
-                Err(RecvError::Closed) => {
-                    return None;
-                }
-            }
-        }
-    });
-
-    let headers = [
-        ("Cache-Control", "no-cache, no-store, must-revalidate"),
-        ("Connection", "keep-alive"),
-        ("Content-Type", "text/event-stream"),
-        ("X-Accel-Buffering", "no"), // nginx
-        ("X-Proxy-Buffering", "no"), // other proxies
-        ("Access-Control-Allow-Origin", "*"),
-        ("Access-Control-Allow-Headers", "Cache-Control"),
-    ];
-    (
-        headers,
-        Sse::new(stream).keep_alive(
-            KeepAlive::new()
-                .interval(Duration::from_millis(500))
-                .text("ping"),
-        ),
-    )
 }
 
 #[cfg(not(feature = "neo4j"))]

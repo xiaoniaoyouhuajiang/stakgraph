@@ -3277,6 +3277,7 @@ dependencies = [
  "anyhow",
  "ast",
  "axum",
+ "base64 0.21.7",
  "futures",
  "lsp",
  "serde",

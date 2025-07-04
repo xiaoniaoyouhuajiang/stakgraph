@@ -5,10 +5,63 @@ use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::Repo;
+use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::IntoResponse;
 use axum::{extract::State, Json};
+use broadcast::error::RecvError;
+use futures::stream;
 use lsp::git::get_commit_hash;
-use std::{sync::Arc, time::Instant};
+use std::convert::Infallible;
+use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
+use tokio::sync::broadcast;
 use tracing::info;
+
+pub async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
+    let rx = app_state.tx.subscribe();
+
+    let stream = stream::unfold(rx, move |mut rx| async move {
+        loop {
+            match rx.recv().await {
+                Ok(msg) => {
+                    let data = msg.as_json_str();
+                    let millis = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis();
+                    let event = Event::default().data(data).id(format!("{}", millis));
+                    return Some((Ok::<Event, Infallible>(event), rx));
+                }
+                Err(RecvError::Lagged(skipped)) => {
+                    println!("SSE receiver lagged, skipped {} messages", skipped);
+                    continue;
+                }
+                Err(RecvError::Closed) => {
+                    return None;
+                }
+            }
+        }
+    });
+
+    let headers = [
+        ("Cache-Control", "no-cache, no-store, must-revalidate"),
+        ("Connection", "keep-alive"),
+        ("Content-Type", "text/event-stream"),
+        ("X-Accel-Buffering", "no"), // nginx
+        ("X-Proxy-Buffering", "no"), // other proxies
+        ("Access-Control-Allow-Origin", "*"),
+        ("Access-Control-Allow-Headers", "Cache-Control"),
+    ];
+    (
+        headers,
+        Sse::new(stream).keep_alive(
+            KeepAlive::new()
+                .interval(Duration::from_millis(500))
+                .text("ping"),
+        ),
+    )
+}
 
 #[axum::debug_handler]
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
@@ -177,6 +230,7 @@ pub async fn ingest(
 fn env_not_empty(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
 }
+
 fn resolve_repo(body: &ProcessBody) -> Result<(String, String, Option<String>, Option<String>)> {
     let repo_path = body
         .repo_path
