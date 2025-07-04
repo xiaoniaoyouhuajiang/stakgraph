@@ -2,7 +2,7 @@
 mod handlers;
 mod types;
 
-use ast::lang::graphs::graph_ops::GraphOps;
+use ast::lang::graph_ops::GraphOps;
 use ast::repo::StatusUpdate;
 use axum::extract::State;
 use axum::http::Request;
