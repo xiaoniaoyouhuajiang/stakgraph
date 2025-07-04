@@ -82,7 +82,7 @@ jobs:
       - name: Wait for Rust server
         run: |
           tail -n +1 -f standalone.log &
-          npx wait-on http://localhost:7777 -t 600000
+          npx wait-on http://localhost:7799 -t 600000
 
       - name: Prepare Node Server
         working-directory: ./mcp
@@ -104,7 +104,7 @@ jobs:
           curl -X POST \
           -H "Content-Type: application/json" \
           -d '{"repo_url": "https://github.com/stakwork/demo-repo.git"}' \
-          http://localhost:7777/ingest
+          http://localhost:7799/ingest
 
       - name: Test API Response
         working-directory: ./mcp
