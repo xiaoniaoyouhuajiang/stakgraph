@@ -38,7 +38,12 @@ async fn main() -> Result<()> {
         .init();
 
     let mut graph_ops = ast::lang::graphs::graph_ops::GraphOps::new();
-    graph_ops.connect().await.unwrap(); // force connect to neo4j
+    if let Err(e) = graph_ops.check_connection().await {
+        panic!(
+            "Failed to connect to the database: {:?}. The server will not start.",
+            e
+        );
+    }
 
     let (tx, _rx) = broadcast::channel(10000);
 
