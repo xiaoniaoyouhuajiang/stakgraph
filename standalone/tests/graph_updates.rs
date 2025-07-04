@@ -25,13 +25,21 @@ async fn test_graph_update() {
     let repo_path = Repo::get_path_from_url(repo_url).unwrap();
     let before_commit = "3a2bd5cc2e0a38ce80214a32ed06b2fb9430ab73";
     let after_commit = "778b5202fca04a2cd5daed377c0063e9af52b24c";
+    let use_lsp = Some(false);
 
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await.unwrap();
     graph_ops.clear().await.unwrap();
 
     let (nodes_before, edges_before) = graph_ops
-        .update_full(repo_url, None, None, before_commit, Some(before_commit))
+        .update_full(
+            repo_url,
+            None,
+            None,
+            before_commit,
+            Some(before_commit),
+            use_lsp,
+        )
         .await
         .unwrap();
 
@@ -66,6 +74,7 @@ async fn test_graph_update() {
             after_commit,
             before_commit,
             Some(after_commit),
+            use_lsp,
         )
         .await
         .unwrap();
