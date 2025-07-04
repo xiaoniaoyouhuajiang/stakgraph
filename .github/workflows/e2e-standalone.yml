@@ -81,16 +81,10 @@ jobs:
 
       - name: Wait for Rust server
         run: |
-          echo "Waiting for Rust server to be ready..."
-          timeout 600s bash -c '
-            until curl -s -X POST http://localhost:7777/clear | grep -q "\"status\":\"success\""; do
-              echo "Rust server not ready yet..."
-              sleep 10
-            done
-          '
-          echo "Rust server is ready!"
+          tail -n +1 -f standalone.log &
+          npx wait-on http://localhost:7777 -t 600000
 
-      - name: Start Node Server
+      - name: Prepare Node Server
         working-directory: ./mcp
         run: yarn install
 
