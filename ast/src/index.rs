@@ -29,6 +29,7 @@ async fn main() -> Result<()> {
 
     let repo_path = env::var("REPO_PATH").ok();
     let repo_urls = env::var("REPO_URL").ok();
+    let use_lsp = env::var("USE_LSP").ok().map(|v| v == "true");
     if repo_path.is_none() && repo_urls.is_none() {
         return Err(anyhow::anyhow!("no REPO_PATH or REPO_URL"));
     }
@@ -38,7 +39,7 @@ async fn main() -> Result<()> {
         .unwrap_or_default();
 
     let repos = if let Some(repo_path) = &repo_path {
-        Repo::new_multi_detect(repo_path, None, Vec::new(), revs.clone()).await?
+        Repo::new_multi_detect(repo_path, None, Vec::new(), revs.clone(), use_lsp).await?
     } else {
         let username = env_not_empty("USERNAME");
         let pat = env_not_empty("PAT");
@@ -50,6 +51,7 @@ async fn main() -> Result<()> {
             Vec::new(),
             revs.clone(),
             None,
+            use_lsp,
         )
         .await?
     };

@@ -136,6 +136,7 @@ impl Repo {
         files_filter: Vec<String>,
         revs: Vec<String>,
         commit: Option<&str>,
+        use_lsp: Option<bool>,
     ) -> Result<Repos> {
         let urls = urls
             .split(',')
@@ -167,9 +168,14 @@ impl Repo {
             } else {
                 Vec::new()
             };
-            let detected =
-                Self::new_multi_detect(&root, Some(url.clone()), files_filter.clone(), repo_revs)
-                    .await?;
+            let detected = Self::new_multi_detect(
+                &root,
+                Some(url.clone()),
+                files_filter.clone(),
+                repo_revs,
+                use_lsp,
+            )
+            .await?;
             repos.extend(detected.0);
         }
         Ok(Repos(repos))
@@ -179,6 +185,7 @@ impl Repo {
         url: Option<String>,
         files_filter: Vec<String>,
         revs: Vec<String>,
+        use_lsp: Option<bool>,
     ) -> Result<Repos> {
         // First, collect all detected languages
         let mut detected_langs: Vec<Language> = Vec::new();
@@ -232,7 +239,8 @@ impl Repo {
                 Self::run_cmd(&cmd, &root)?;
             }
             // Start LSP server
-            let lsp_tx = Self::start_lsp(&root, &thelang, thelang.kind.default_do_lsp())?;
+            let lsp_enabled = use_lsp.unwrap_or_else(|| thelang.kind.default_do_lsp());
+            let lsp_tx = Self::start_lsp(&root, &thelang, lsp_enabled)?;
             // Add to repositories
             repos.push(Repo {
                 url: url.clone().map(|u| u.into()).unwrap_or_default(),

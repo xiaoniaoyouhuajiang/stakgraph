@@ -12,6 +12,7 @@ pub struct ProcessBody {
     pub repo_path: Option<String>,
     pub username: Option<String>,
     pub pat: Option<String>,
+    pub use_lsp: Option<bool>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct ProcessResponse {

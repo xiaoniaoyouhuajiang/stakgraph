@@ -66,6 +66,7 @@ pub async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoRes
 #[axum::debug_handler]
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let (final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
+    let use_lsp = body.use_lsp;
 
     let total_start = Instant::now();
 
@@ -117,6 +118,7 @@ pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
                 &current_hash,
                 &hash,
                 None,
+                use_lsp,
             )
             .await?
     } else {
@@ -128,6 +130,7 @@ pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
                 pat.clone(),
                 &current_hash,
                 None,
+                use_lsp,
             )
             .await?
     };
@@ -173,6 +176,7 @@ pub async fn ingest(
 ) -> Result<Json<ProcessResponse>> {
     let start_total = Instant::now();
     let (_final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
+    let use_lsp = body.use_lsp;
 
     let repo_url = final_repo_url.clone();
 
@@ -185,6 +189,7 @@ pub async fn ingest(
         Vec::new(),
         Vec::new(),
         None,
+        use_lsp,
     )
     .await
     .map_err(|e| anyhow::anyhow!("Repo detection failed: {}", e))?;
