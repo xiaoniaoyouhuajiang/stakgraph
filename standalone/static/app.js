@@ -10,7 +10,8 @@ const App = () => {
   const [currentRepoName, setCurrentRepoName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [repoExists, setRepoExists] = useState(false);
-  const [progressInfo, setProgressInfo] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const fetchRepo = async () => {
@@ -28,11 +29,14 @@ const App = () => {
     }
   }, [currentRepoName]);
 
-  const { closeConnection } = useSSE("/events", {
+  useSSE("/events", {
     onMessage: (data, event) => {
       console.log("=>", data);
-      if (data && data.step !== undefined) {
-        setProgressInfo(data);
+      if (data && data.message !== "") {
+        setStatus(data);
+      }
+      if (data && data.progress !== undefined) {
+        setProgress(data.progress);
       }
     },
   });
@@ -53,51 +57,51 @@ const App = () => {
     setPat(event.target.value);
   };
 
+  const submitIsDisabled = !repoUrl || isLoading;
+  const syncIsDisabled = !repoUrl || isLoading;
+
   const handleSubmit = async () => {
+    console.log("handleSubmit", repoUrl);
+    if (submitIsDisabled) {
+      return;
+    }
     setIsLoading(true);
-    setProgressInfo(null);
+    setStatus({ message: "Cloning repo to /tmp/..." });
     await POST("/ingest", { repo_url: repoUrl, username, pat });
     setIsLoading(false);
   };
 
   const handleSync = async () => {
+    if (syncIsDisabled) {
+      return;
+    }
     setIsLoading(true);
-    setProgressInfo(null);
+    setStatus(null);
     await POST("/process", { repo_url: repoUrl, username, pat });
     setIsLoading(false);
   };
 
   const renderProgressBar = () => {
-    if (!progressInfo) return null;
-
-    const stepPercentage = Math.min(
-      100,
-      Math.round((progressInfo.step / progressInfo.total_steps) * 100)
-    );
+    if (!status) return null;
+    console.log("status", status);
+    const showText = status.total_steps ? true : false;
+    const stepPercentage = showText
+      ? Math.min(100, Math.round((status.step / status.total_steps) * 100))
+      : 0;
     const stepWidth = `${stepPercentage}%`;
-
-    const progressPercentage = Math.min(
-      100,
-      Math.round(progressInfo.progress * 100)
-    );
-    const progressWidth = `${progressPercentage}%`;
+    const progressWidth = `${progress}%`;
 
     return html`
       <div class="progress-container">
         <div class="progress-info">
-          <div>
-            Step${progressInfo.step}/${progressInfo.total_steps}:${progressInfo.message}
-          </div>
-          <div>${stepPercentage}%</div>
+          ${showText &&
+          html`<div>Step ${status.step}/${status.total_steps}:</div>`}
+          <div class="progress-message">${status.message}</div>
         </div>
         <div class="progress-bar steps-bar">
           <div class="steps-fill" style="width: ${stepWidth}"></div>
         </div>
 
-        <div class="progress-info sub-progress">
-          <div>Progress within step:</div>
-          <div>${progressPercentage}%</div>
-        </div>
         <div class="progress-bar progress-bar-small">
           <div
             class="progress-fill-small"
@@ -120,30 +124,32 @@ const App = () => {
           value=${repoUrl}
           onInput=${handleRepoUrlChange}
         />
-        <input
-          type="text"
-          placeholder="Username (optional)"
-          value=${username}
-          onInput=${handleUsernameChange}
-        />
-        <input
-          type="text"
-          placeholder="PAT (optional)"
-          value=${pat}
-          onInput=${handlePatChange}
-        />
-        <button onClick=${handleSubmit} disabled=${!repoUrl || isLoading}>
+        <div class="input-horizontal-container">
+          <input
+            type="text"
+            placeholder="Username (optional)"
+            value=${username}
+            onInput=${handleUsernameChange}
+          />
+          <input
+            type="text"
+            placeholder="PAT (optional)"
+            value=${pat}
+            onInput=${handlePatChange}
+          />
+        </div>
+        <button onClick=${handleSubmit} disabled=${submitIsDisabled}>
           ${isLoading
             ? html`<div class="loading"><${LoadingSvg} /></div>`
             : "Ingest Repo"}
         </button>
         ${repoExists &&
-        html`<button onClick=${handleSync} disabled=${isLoading}>
+        html`<button onClick=${handleSync} disabled=${syncIsDisabled}>
           ${isLoading
             ? html`<div class="loading"><${LoadingSvg} /></div>`
             : "Sync Repo to Latest"}
         </button>`}
-        ${progressInfo && renderProgressBar()}
+        ${status && renderProgressBar()}
       </div>
     </div>
   `;

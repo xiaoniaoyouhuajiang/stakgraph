@@ -215,8 +215,12 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
     }
     // Shutdown.
     sleep(1_000).await;
-    conn.stop().await.unwrap();
-    mainloop_task.await.unwrap();
+    if let Err(e) = conn.stop().await {
+        error!("error stopping LSP: {:?}", e);
+    }
+    if let Err(e) = mainloop_task.await {
+        error!("error in lsp mainloop: {:?}", e);
+    }
     Ok(())
 }
 

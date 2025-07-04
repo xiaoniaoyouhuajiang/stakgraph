@@ -12,7 +12,7 @@ ast = { path = "../ast" , features = []}
 lsp = { path = "../lsp" }
 tracing = { version = "0.1.37" }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-tower-http = { version = "0.5", features = ["fs", "cors"] }
+tower-http = { version = "0.5", features = ["fs", "cors", "timeout", "trace"] }
 axum = { version = "0.7", features = ["ws", "multipart", "macros"] }
 futures = "0.3.31"
 test-log = "0.*"
