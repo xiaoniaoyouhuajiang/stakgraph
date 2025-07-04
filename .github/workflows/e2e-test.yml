@@ -78,7 +78,7 @@ jobs:
           done'
           echo "Neo4j is healthy!"
 
-      - name: Start Node Server
+      - name: Prepare Node Server
         working-directory: ./mcp
         run: yarn install
 

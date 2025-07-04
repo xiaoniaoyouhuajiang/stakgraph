@@ -81,11 +81,10 @@ jobs:
 
       - name: Wait for Rust server
         run: |
-          echo "Waiting for Rust server to be ready..."
           tail -n +1 -f standalone.log &
-          npx wait-on http://localhost:7777/clear -t 600000 --method POST
+          npx wait-on http://localhost:7777 -t 600000
 
-      - name: Start Node Server
+      - name: Prepare Node Server
         working-directory: ./mcp
         run: yarn install
 
