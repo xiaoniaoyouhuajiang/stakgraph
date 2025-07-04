@@ -65,7 +65,22 @@ async fn main() -> Result<()> {
     let bind = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(bind).await.unwrap();
     println!("=> listening on http://{}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+
+    // Set up graceful shutdown
+    let shutdown_signal = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+        println!("\nReceived Ctrl+C, shutting down gracefully...");
+    };
+
+    // Run the server with graceful shutdown
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
+        .await
+        .unwrap();
+
+    println!("Server shutdown complete.");
     Ok(())
 }
 
