@@ -39,22 +39,37 @@ export const LoadingSvg = () => html`
   </svg>
 `;
 
-const fetchHeaders = {
-  "Content-Type": "application/json",
+let apiToken = null;
+
+// Function to set the token (called from your main app)
+export const setApiToken = (token) => {
+  apiToken = token;
+};
+
+// Function to get current headers with token if available
+const getFetchHeaders = () => {
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  if (apiToken) {
+    headers["Authorization"] = `Bearer ${apiToken}`;
+  }
+  return headers;
 };
 
 export const GET = async (url) =>
   await fetch(url, {
     method: "GET",
-    headers: fetchHeaders,
+    headers: getFetchHeaders(),
   });
 
 export const POST = async (url, body) =>
   await fetch(url, {
     method: "POST",
     body: JSON.stringify(body),
-    headers: fetchHeaders,
+    headers: getFetchHeaders(),
   });
+
 export const useSSE = (url, options = {}) => {
   const eventSourceRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
