@@ -1,16 +1,14 @@
 :root {
-  --text-color: #e8e6e3;
+  --text-color: #c7c6c3;
   --bg-color: #181a1b;
   --border-color: #736b5e;
-  --editor-bg: #181a1b;
-  --results-bg: #232627;
-  --tooltip-header-bg: #15171a;
-  --tooltip-header-text: #b9c0c8;
-  --tooltip-header-border: #2a2e39;
-  --tooltip-action-bg: #2a2e39;
-  --tooltip-action-hover: #3a3f4d;
-  --progress-fill: #e8e6e3;
-  --progress-fill-small: #b9c0c8;
+  --border-color-light: #8b969c;
+  --border-color-grey: #4b505f;
+  --bg-dark: #181a1b;
+  --bg-med: #232627;
+  --bg-light: #333846;
+  --progress-fill: #585f75;
+  --progress-fill-small: #3c4150;
 }
 
 * {
@@ -29,10 +27,18 @@ body {
   color: var(--text-color);
 }
 
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  max-width: 420px;
+  width: 100%;
 }
 
 .app-header {
@@ -47,40 +53,54 @@ body {
   height: 100%;
 }
 
+.input-horizontal-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.input-horizontal-container input {
+  width: 48.5%;
+}
+
 input {
-  background-color: var(--editor-bg);
+  background-color: var(--bg-dark);
   color: var(--text-color);
   border: 1px solid var(--border-color);
-  padding: 10px;
-  height: 40px;
-  width: 90%;
+  padding-top: 1px;
+  padding-left: 15px;
+  height: 35px;
   border-radius: 20px;
   margin-bottom: 1rem;
 }
 
+input:focus {
+  outline: none;
+  border: 1px solid var(--border-color-light);
+}
+
 button {
-  background-color: var(--editor-bg);
+  background-color: var(--bg-med);
   color: var(--text-color);
-  border: 1px solid var(--tooltip-header-text);
+  border: 1px solid var(--border-color);
   padding: 10px;
-  height: 40px;
-  width: 90%;
+  height: 35px;
   border-radius: 20px;
   margin-bottom: 1rem;
   cursor: pointer;
 }
 
 button:hover {
-  background-color: var(--results-bg);
+  background-color: var(--bg-light);
   color: var(--text-color);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-color-light);
 }
 
 button:disabled {
   cursor: not-allowed;
   color: grey;
-  background-color: var(--editor-bg);
-  border: 1px solid var(--tooltip-header-text);
+  background-color: var(--bg-dark);
+  border: 1px solid var(--border-color-grey);
 }
 
 .loading {
@@ -92,15 +112,18 @@ button:disabled {
 }
 
 .progress-container {
-  margin-top: 20px;
-  width: 90%;
+  margin-top: 15px;
+  display: flex;
+  padding: 0 10px;
+  flex-direction: column;
+  align-items: center;
 }
 
 .progress-info {
   display: flex;
-  justify-content: space-between;
   margin-bottom: 5px;
   font-size: 14px;
+  width: 100%;
 }
 
 .sub-progress {
@@ -110,11 +133,15 @@ button:disabled {
 }
 
 .progress-bar {
-  height: 20px;
-  background-color: var(--editor-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  height: 12px;
+  background-color: var(--bg-dark);
+  border: 1px solid var(--progress-fill);
   overflow: hidden;
+  width: 100%;
+}
+
+.progress-message {
+  margin-left: 5px;
 }
 
 .steps-fill {
@@ -124,8 +151,9 @@ button:disabled {
 }
 
 .progress-bar-small {
-  height: 12px;
-  margin-top: 4px;
+  height: 6px;
+  margin-top: 3px;
+  border: 1px solid var(--progress-fill-small);
 }
 
 .progress-fill-small {

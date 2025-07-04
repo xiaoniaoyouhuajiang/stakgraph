@@ -20,7 +20,10 @@ RUN cargo build --release --manifest-path standalone/Cargo.toml --features neo4j
 # lsp final image
 FROM sphinxlightning/stakgraph-lsp:latest
 
-COPY --from=builder /app/standalone/target/release/standalone /root
-COPY --from=builder /app/standalone/static /root/static
+# Set working directory
+WORKDIR /app
 
-CMD ["/root/standalone"]
+COPY --from=builder /app/standalone/target/release/standalone /app/stakgraph
+COPY --from=builder /app/standalone/static /app/standalone/static
+
+CMD ["./stakgraph"]

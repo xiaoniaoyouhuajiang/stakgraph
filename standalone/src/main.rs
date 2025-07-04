@@ -4,18 +4,20 @@ mod types;
 
 use ast::repo::StatusUpdate;
 use axum::extract::State;
+use axum::http::Request;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::{routing::get, routing::post, Router};
 use broadcast::error::RecvError;
 use futures::stream;
 use std::convert::Infallible;
-use std::time::Duration;
-
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeFile;
+use tower_http::trace::TraceLayer;
+use tracing::{debug_span, Span};
 use tracing_subscriber::{filter::LevelFilter, EnvFilter};
 use types::Result;
 
@@ -35,6 +37,9 @@ async fn main() -> Result<()> {
         .with_env_filter(filter)
         .init();
 
+    let mut graph_ops = ast::lang::graphs::graph_ops::GraphOps::new();
+    graph_ops.connect().await.unwrap(); // force connect to neo4j
+
     let (tx, _rx) = broadcast::channel(10000);
 
     let mut dummy_rx = tx.subscribe();
@@ -47,6 +52,7 @@ async fn main() -> Result<()> {
 
     let app_state = Arc::new(AppState { tx: tx });
 
+    tracing::debug!("starting server");
     let cors_layer = CorsLayer::permissive();
     let app = Router::new()
         .route("/process", post(handlers::process))
@@ -59,13 +65,46 @@ async fn main() -> Result<()> {
         .route_service("/app.js", static_file("app.js"))
         .route_service("/utils.js", static_file("utils.js"))
         .with_state(app_state)
-        .layer(cors_layer);
+        .layer(cors_layer)
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    debug_span!(
+                        "http_request",
+                        method = ?request.method(),
+                        uri = ?request.uri(),
+                        version = ?request.version(),
+                    )
+                })
+                .on_request(|_request: &Request<_>, _span: &Span| {
+                    tracing::debug!("started processing request")
+                })
+                .on_response(
+                    |_response: &axum::response::Response,
+                     latency: std::time::Duration,
+                     _span: &Span| {
+                        tracing::debug!("finished processing request in {:?}", latency)
+                    },
+                ),
+        );
 
-    let port = std::env::var("PORT").unwrap_or_else(|_| "7777".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "7799".to_string());
     let bind = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(bind).await.unwrap();
+
+    tokio::spawn(async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+        // for docker container
+        println!("\nReceived Ctrl+C, exiting immediately...");
+        std::process::exit(0);
+    });
+
     println!("=> listening on http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
+
+    println!("Server shutdown complete.");
     Ok(())
 }
 

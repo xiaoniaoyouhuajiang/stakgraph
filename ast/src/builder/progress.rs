@@ -1,6 +1,6 @@
 use crate::repo::Repo;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct StatusUpdate {
@@ -71,7 +71,7 @@ impl Repo {
                 progress: current_progress,
                 ..Default::default()
             };
-            info!("progress: {:?}", su);
+            debug!("progress: {:?}", su);
             if let Some(status_tx) = &self.status_tx {
                 if let Err(e) = status_tx.send(su) {
                     tracing::error!("Error sending progress update: {}", e);
