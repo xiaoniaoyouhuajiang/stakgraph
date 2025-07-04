@@ -18,13 +18,15 @@ async fn test_graph_consistency() {
     use tracing::info;
 
     let repo_url = "https://github.com/stakwork/demo-repo.git";
+    let use_lsp = std::env::var("USE_LSP").ok().map(|v| v == "true");
 
     clear_neo4j().await;
 
     info!("Building BTreeMapGraph...");
-    let repos = Repo::new_clone_multi_detect(repo_url, None, None, Vec::new(), Vec::new(), None)
-        .await
-        .unwrap();
+    let repos =
+        Repo::new_clone_multi_detect(repo_url, None, None, Vec::new(), Vec::new(), None, use_lsp)
+            .await
+            .unwrap();
 
     let btree_graph = repos.build_graphs_inner::<BTreeMapGraph>().await.unwrap();
 

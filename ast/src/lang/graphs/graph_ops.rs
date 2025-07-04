@@ -80,6 +80,7 @@ impl GraphOps {
         current_hash: &str,
         stored_hash: &str,
         commit: Option<&str>,
+        use_lsp: Option<bool>,
     ) -> Result<(u32, u32)> {
         let revs = vec![stored_hash.to_string(), current_hash.to_string()];
         let repo_path = Repo::get_path_from_url(repo_url)?;
@@ -101,6 +102,7 @@ impl GraphOps {
                     modified_files.clone(),
                     Vec::new(),
                     commit,
+                    use_lsp,
                 )
                 .await?;
 
@@ -128,6 +130,7 @@ impl GraphOps {
         pat: Option<String>,
         current_hash: &str,
         commit: Option<&str>,
+        use_lsp: Option<bool>,
     ) -> Result<(u32, u32)> {
         let repos = Repo::new_clone_multi_detect(
             repo_url,
@@ -136,6 +139,7 @@ impl GraphOps {
             Vec::new(),
             Vec::new(),
             commit,
+            use_lsp,
         )
         .await?;
 

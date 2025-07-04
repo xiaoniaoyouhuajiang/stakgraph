@@ -10,12 +10,14 @@ REV=a858f95a6e89b0ff8e7f1797685b73e126e4c5ae URL=https://github.com/stakwork/sph
 async fn main() -> Result<()> {
     logger();
     let url = std::env::var("URL").expect("URL is not set");
+    let use_lsp = std::env::var("USE_LSP").ok().map(|v| v == "true");
     let rev = env_not_empty("REV");
     let revs = rev
         .map(|r| r.split(',').map(|s| s.to_string()).collect())
         .unwrap_or_default();
 
-    let repos = Repo::new_clone_multi_detect(&url, None, None, Vec::new(), revs, None).await?;
+    let repos =
+        Repo::new_clone_multi_detect(&url, None, None, Vec::new(), revs, None, use_lsp).await?;
     let graph = repos.build_graphs().await?;
     println!(
         "Final Graph => {} nodes and {} edges",
