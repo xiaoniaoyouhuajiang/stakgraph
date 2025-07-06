@@ -192,7 +192,7 @@ async fn test_java() {
     #[cfg(feature = "neo4j")]
     {
         use crate::lang::graphs::Neo4jGraph;
-        let mut graph = Neo4jGraph::default();
+        let graph = Neo4jGraph::default();
         graph.clear().await.unwrap();
         test_java_generic::<Neo4jGraph>().await.unwrap();
     }
