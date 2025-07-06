@@ -20,8 +20,8 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     graph.analysis();
 
-    assert_eq!(num_nodes, 167, "Expected 167 nodes");
-    assert_eq!(num_edges, 196, "Expected 196 edges");
+    assert_eq!(num_nodes, 172, "Expected 172 nodes");
+    assert_eq!(num_edges, 201, "Expected 201 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -35,7 +35,7 @@ pub async fn test_kotlin_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
     assert_eq!(
         normalize_path(&language_nodes[0].file),
-        "src/testing/kotlin/",
+        "src/testing/kotlin",
         "Language node file path is incorrect"
     );
 

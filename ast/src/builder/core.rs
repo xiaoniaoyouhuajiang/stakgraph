@@ -78,28 +78,10 @@ impl Repo {
         files.sort();
         info!("Collected {} files using collect_all_files", files.len());
 
-        let mut dirs_not_empty = Vec::new();
-        for d in &dirs {
-            let child = files.iter().find(|f| match f.parent() {
-                None => false,
-                Some(p) => {
-                    if &strip_root(p, &self.root) == &strip_root(d, &self.root) {
-                        true
-                    } else {
-                        false
-                    }
-                }
-            });
-            if child.is_some() {
-                dirs_not_empty.push(d.clone());
-                continue;
-            }
-        }
-
-        info!("adding {} dirs...", dirs_not_empty.len());
+        info!("adding {} dirs...", dirs.len());
 
         // let mut i = 0;
-        for dir in &dirs_not_empty {
+        for dir in &dirs {
             // self.send_status_progress(i, dirs_not_empty.len());
             // i += 1;
 

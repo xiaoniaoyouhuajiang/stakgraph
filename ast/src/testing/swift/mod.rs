@@ -29,7 +29,7 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Language node name should be 'swift'"
     );
     assert_eq!(
-        language_nodes[0].file, "src/testing/swift/",
+        language_nodes[0].file, "src/testing/swift",
         "Language node file path is incorrect"
     );
 
