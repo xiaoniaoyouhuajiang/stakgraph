@@ -4,15 +4,13 @@ use crate::utils::create_node_key_from_ref;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
-use std::sync::{Arc, Once};
+use std::sync::Once;
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tracing::{debug, error, info};
 
 use super::*;
 
 lazy_static! {
-    static ref CONNECTION: tokio::sync::Mutex<Option<Arc<Neo4jConnection>>> =
-        tokio::sync::Mutex::new(None);
     static ref INIT: Once = Once::new();
     static ref TOKENIZER: CoreBPE = get_bpe_from_model("gpt-4").unwrap();
 }
@@ -28,12 +26,7 @@ impl Neo4jConnectionManager {
         username: &str,
         password: &str,
         database: &str,
-    ) -> Result<()> {
-        let mut conn_guard = CONNECTION.lock().await;
-        if conn_guard.is_some() {
-            return Ok(());
-        }
-
+    ) -> Result<Neo4jConnection> {
         info!("Connecting to Neo4j at {}", uri);
         let config = ConfigBuilder::new()
             .uri(uri)
@@ -45,22 +38,14 @@ impl Neo4jConnectionManager {
         match Neo4jConnection::connect(config).await {
             Ok(connection) => {
                 info!("Successfully connected to Neo4j");
-                *conn_guard = Some(Arc::new(connection));
-                Ok(())
+                // *conn_guard = Some(Arc::new(connection));
+                Ok(connection)
             }
             Err(e) => Err(anyhow::anyhow!("Failed to connect to Neo4j: {}", e)),
         }
     }
 
-    pub async fn get_connection() -> Option<Arc<Neo4jConnection>> {
-        CONNECTION.lock().await.clone()
-    }
-
-    pub async fn clear_connection() {
-        let mut conn = CONNECTION.lock().await;
-        *conn = None;
-    }
-    pub async fn initialize_from_env() -> Result<()> {
+    pub async fn initialize_from_env() -> Result<Neo4jConnection> {
         let uri =
             std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
         let username = std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
