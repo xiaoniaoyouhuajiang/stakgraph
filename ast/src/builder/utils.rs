@@ -4,7 +4,7 @@ use crate::lang::{asg::NodeData, graphs::NodeType};
 use crate::repo::{check_revs_files, Repo};
 use crate::utils::create_node_key;
 use anyhow::Result;
-use lsp::strip_root;
+use lsp::{strip_root, strip_tmp};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::debug;
@@ -22,10 +22,10 @@ pub fn filter_by_revs<G: Graph>(root: &str, revs: Vec<String>, graph: G) -> G {
 }
 
 // (file, code)
-pub fn fileys(files: &Vec<PathBuf>, root: &PathBuf) -> Result<Vec<(String, String)>> {
+pub fn fileys(files: &Vec<PathBuf>) -> Result<Vec<(String, String)>> {
     let mut ret = Vec::new();
     for f in files {
-        let filename = strip_root(&f, root).display().to_string();
+        let filename = strip_tmp(&f).display().to_string();
         match std::fs::read_to_string(&f) {
             Ok(code) => {
                 ret.push((filename, code));
@@ -128,9 +128,12 @@ impl Repo {
         file_data.hash = Some(sha256::digest(&file_data.body));
         file_data
     }
-    pub fn get_parent_info(&self, path: &str) -> (NodeType, String) {
-        if path.contains('/') {
-            let mut paths: Vec<&str> = path.split('/').collect();
+    pub fn get_parent_info(&self, path: &PathBuf) -> (NodeType, String) {
+        let stripped_path = strip_root(&path, &self.root).display().to_string();
+
+        let filepath = path.display().to_string();
+        if stripped_path.contains('/') {
+            let mut paths: Vec<&str> = filepath.split('/').collect();
             paths.pop();
             (NodeType::Directory, paths.join("/"))
         } else {

@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use git_url_parse::GitUrl;
 use ignore::WalkBuilder;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
-use lsp::{git::git_clone, spawn_analyzer, strip_root, CmdSender};
+use lsp::{git::git_clone, spawn_analyzer, strip_tmp, CmdSender};
 use std::str::FromStr;
 use std::{fs, path::PathBuf};
 use tokio::sync::broadcast::Sender;
@@ -348,12 +348,10 @@ impl Repo {
         let source_files = walk_files(&self.root, &conf)?;
         Ok(source_files)
     }
-    pub fn collect_dirs(&self) -> Result<Vec<PathBuf>> {
+    pub fn collect_dirs_with_tmp(&self) -> Result<Vec<PathBuf>> {
         let conf = self.merge_config_with_lang();
-        let dirs = walk_dirs(&self.root, &conf)?
-            .iter()
-            .map(|d| strip_root(d, &self.root))
-            .collect();
+        println!("==>>ROOT: {:?}", self.root);
+        let dirs = walk_dirs(&self.root, &conf)?;
         Ok(dirs)
     }
     fn read_config_file(&self) -> Option<AstConfig> {
@@ -418,7 +416,7 @@ impl Repo {
                 Ok(entry) => {
                     let path = entry.path();
                     if path.is_file() {
-                        let relative_path = strip_root(path, &self.root).display().to_string();
+                        let relative_path = strip_tmp(path).display().to_string();
 
                         if self.should_not_include(path, &relative_path) {
                             continue;

@@ -3,7 +3,7 @@ pub mod git;
 pub mod language;
 mod utils;
 
-pub use client::strip_root;
+pub use client::{strip_root, strip_tmp};
 pub use language::Language;
 pub use utils::*;
 
@@ -65,20 +65,20 @@ impl Position {
             col,
         })
     }
-    fn from_range(path: &str, range: lsp_types::Range, root: &PathBuf) -> Self {
+    fn from_range(path: &str, range: lsp_types::Range) -> Self {
         let fpath = PathBuf::from(path);
-        let file = strip_root(&fpath, root);
+        let file = strip_tmp(&fpath);
         Self {
             file: file.into(),
             line: range.start.line,
             col: range.start.character,
         }
     }
-    fn from_def(r: GotoDefinitionResponse, root: &PathBuf) -> Option<Self> {
+    fn from_def(r: GotoDefinitionResponse) -> Option<Self> {
         //
         match r {
             GotoDefinitionResponse::Scalar(loc) => {
-                Some(Self::from_range(&loc.uri.path(), loc.range, root))
+                Some(Self::from_range(&loc.uri.path(), loc.range))
             }
             GotoDefinitionResponse::Array(locs) => {
                 if locs.is_empty() {
@@ -92,7 +92,7 @@ impl Position {
                 } else {
                     locs.first().unwrap()
                 };
-                Some(Self::from_range(&theloc.uri.path(), theloc.range, root))
+                Some(Self::from_range(&theloc.uri.path(), theloc.range))
             }
             GotoDefinitionResponse::Link(links) => {
                 if links.is_empty() {
@@ -102,7 +102,6 @@ impl Position {
                 Some(Self::from_range(
                     link.target_uri.path(),
                     link.target_selection_range,
-                    root,
                 ))
             }
         }

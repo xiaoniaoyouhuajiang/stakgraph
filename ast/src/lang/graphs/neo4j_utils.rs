@@ -865,8 +865,8 @@ pub fn get_repository_hash_query(repo_url: &str) -> (String, BoltMap) {
 
 pub fn remove_nodes_by_file_query(file_path: &str) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-    let file_name = file_path.split('/').last().unwrap_or(file_path);
-    boltmap_insert_str(&mut params, "file_name", file_name);
+    // let file_name = file_path.split('/').last().unwrap_or(file_path);
+    boltmap_insert_str(&mut params, "file_name", file_path);
 
     let query = "
         MATCH (n)

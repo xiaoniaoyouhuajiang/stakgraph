@@ -8,7 +8,7 @@ use crate::lang::{ArrayGraph, BTreeMapGraph};
 use crate::repo::Repo;
 use anyhow::Result;
 use git_url_parse::GitUrl;
-use lsp::{git::get_commit_hash, strip_root, Cmd as LspCmd, DidOpen};
+use lsp::{git::get_commit_hash, strip_root, strip_tmp, Cmd as LspCmd, DidOpen};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tokio::fs;
@@ -35,7 +35,7 @@ impl Repo {
         let files = self.collect_and_add_directories(&mut graph)?;
         self.process_and_add_files(&mut graph, &files).await?;
 
-        let filez = fileys(&files, &self.root)?;
+        let filez = fileys(&files)?;
         self.setup_lsp(&filez)?;
 
         self.process_libraries(&mut graph, &filez)?;
@@ -49,9 +49,9 @@ impl Repo {
         self.process_endpoints(&mut graph, &filez)?;
         self.finalize_graph(&mut graph, &filez).await?;
 
-        let mut graph = filter_by_revs(&self.root.to_str().unwrap(), self.revs.clone(), graph);
+        let graph = filter_by_revs(&self.root.to_str().unwrap(), self.revs.clone(), graph);
 
-        graph.prefix_paths(&self.root_less_tmp());
+        // graph.prefix_paths(&self.root_less_tmp());
 
         println!("done!");
         let (num_of_nodes, num_of_edges) = graph.get_graph_size();
@@ -67,8 +67,8 @@ impl Repo {
     fn collect_and_add_directories<G: Graph>(&self, graph: &mut G) -> Result<Vec<PathBuf>> {
         self.send_status_update("collect_and_add_directories", 2);
         debug!("collecting dirs...");
-        let dirs = self.collect_dirs()?;
-        let all_files = self.collect_all_files()?;
+        let dirs = self.collect_dirs_with_tmp()?; // /tmp/stakwork/stakgraph/my_directory
+        let all_files = self.collect_all_files()?; // /tmp/stakwork/stakgraph/my_directory/my_file.go
         let mut files: Vec<PathBuf> = all_files
             .into_iter()
             .collect::<HashSet<_>>()
@@ -83,7 +83,7 @@ impl Repo {
             let child = files.iter().find(|f| match f.parent() {
                 None => false,
                 Some(p) => {
-                    if &strip_root(p, &self.root) == d {
+                    if &strip_root(p, &self.root) == &strip_root(d, &self.root) {
                         true
                     } else {
                         false
@@ -97,44 +97,35 @@ impl Repo {
         }
 
         info!("adding {} dirs...", dirs_not_empty.len());
-        let mut processed_dirs = HashSet::new();
 
         // let mut i = 0;
         for dir in &dirs_not_empty {
             // self.send_status_progress(i, dirs_not_empty.len());
             // i += 1;
-            let dir_path = dir.display().to_string();
-            let segments: Vec<&str> = dir_path.split('/').collect();
 
-            let mut current_path = String::new();
-            for (idx, segment) in segments.iter().enumerate() {
-                if idx > 0 {
-                    current_path.push('/');
-                }
-                current_path.push_str(segment);
+            let dir_no_tmp = strip_tmp(dir);
+            let mut dir_no_root = strip_root(&dir_no_tmp, &self.root).display().to_string();
 
-                if processed_dirs.contains(&current_path) {
-                    continue;
-                }
+            // remove leading /
+            dir_no_root = dir_no_root.trim_start_matches('/').to_string();
 
-                let mut dir_data = NodeData::in_file(&current_path);
-                dir_data.name = segment.to_string();
+            let (parent_type, parent_file) = if dir_no_root.contains("/") {
+                // remove LAST slash and any characters after it:
+                let parent = dir_no_root
+                    .rsplit('/')
+                    .skip(1)
+                    .collect::<Vec<_>>()
+                    .join("/");
+                (NodeType::Directory, parent)
+            } else {
+                (NodeType::Repository, "main".to_string())
+            };
 
-                let (parent_type, parent_file) = if idx == 0 {
-                    (NodeType::Repository, "main".to_string())
-                } else {
-                    let parent = segments[..idx].join("/");
-                    (NodeType::Directory, parent)
-                };
+            let dir_name = dir_no_root.rsplit('/').next().unwrap().to_string();
+            let mut dir_data = NodeData::in_file(&dir_no_tmp.display().to_string());
+            dir_data.name = dir_name;
 
-                graph.add_node_with_parent(
-                    NodeType::Directory,
-                    dir_data,
-                    parent_type,
-                    &parent_file,
-                );
-                processed_dirs.insert(current_path.clone());
-            }
+            graph.add_node_with_parent(NodeType::Directory, dir_data, parent_type, &parent_file);
         }
         self.send_status_progress(100, 100);
         Ok(files)
@@ -150,7 +141,7 @@ impl Repo {
         for filepath in files {
             // self.send_status_progress(i, files.len());
             // i += 1;
-            let filename = strip_root(filepath, &self.root);
+            let filename = strip_tmp(filepath);
             let meta = fs::metadata(&filepath).await?;
             let code = if meta.len() > MAX_FILE_SIZE {
                 debug!("Skipping large file: {:?}", filename);
@@ -182,7 +173,7 @@ impl Repo {
                     .insert("pkg_file".to_string(), "true".to_string());
             }
 
-            let (parent_type, parent_file) = self.get_parent_info(&path);
+            let (parent_type, parent_file) = self.get_parent_info(&filepath);
 
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
         }
@@ -220,7 +211,7 @@ impl Repo {
             let mut file_data = self.prepare_file_data(&pkg_file, code);
             file_data.meta.insert("lib".to_string(), "true".to_string());
 
-            let (parent_type, parent_file) = self.get_parent_info(&pkg_file);
+            let (parent_type, parent_file) = self.get_parent_info(&pkg_file.into());
 
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
 
@@ -309,7 +300,7 @@ impl Repo {
         debug!("add language...");
         let lang_data = NodeData {
             name: self.lang.kind.to_string(),
-            file: "".to_string(),
+            file: self.root.display().to_string(),
             ..Default::default()
         };
         graph.add_node_with_parent(NodeType::Language, lang_data, NodeType::Repository, "main");

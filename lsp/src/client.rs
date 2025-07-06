@@ -46,8 +46,12 @@ impl LspClient {
         Self { root, server }
     }
     fn file_path(&self, f: &PathBuf) -> Result<Url> {
-        let root_dir = Path::new(&self.root).canonicalize()?;
-        let file = root_dir.join(&f);
+        let file = if self.root.starts_with("/tmp/") {
+            let tmp_dir = Path::new("/tmp").canonicalize()?;
+            tmp_dir.join(&f)
+        } else {
+            f.clone()
+        };
         let file = Url::from_file_path(file).map_err(|_| anyhow!("bad file"))?;
         Ok(file)
     }
@@ -62,7 +66,7 @@ impl LspClient {
             Cmd::GotoDefinition(pos) => {
                 let fp = self.file_path(&pos.file)?;
                 Res::GotoDefinition(match self.definition(&fp, pos.line, pos.col).await? {
-                    Some(def) => Position::from_def(def, &self.root),
+                    Some(def) => Position::from_def(def),
                     None => None,
                 })
             }
@@ -70,7 +74,7 @@ impl LspClient {
                 let fp = self.file_path(&pos.file)?;
                 Res::GotoImplementations(
                     match self.implementation(&fp, pos.line, pos.col).await? {
-                        Some(def) => Position::from_def(def, &self.root),
+                        Some(def) => Position::from_def(def),
                         None => None,
                     },
                 )
@@ -173,7 +177,16 @@ impl LspClient {
     }
 }
 
-pub fn strip_root(f: &Path, root: &PathBuf) -> PathBuf {
+pub fn strip_tmp(f: &Path) -> PathBuf {
+    if f.starts_with("/tmp/") {
+        let endpart = f.strip_prefix("/tmp/").unwrap();
+        endpart.into()
+    } else {
+        f.into()
+    }
+}
+
+pub fn strip_root(f: &Path, root: &Path) -> PathBuf {
     if f.starts_with(root) {
         let endpart = f.strip_prefix(root).unwrap();
         endpart.into()
