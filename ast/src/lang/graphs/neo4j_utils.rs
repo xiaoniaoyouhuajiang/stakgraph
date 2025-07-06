@@ -4,14 +4,12 @@ use crate::utils::create_node_key_from_ref;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
-use std::sync::Once;
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tracing::{debug, error, info};
 
 use super::*;
 
 lazy_static! {
-    static ref INIT: Once = Once::new();
     static ref TOKENIZER: CoreBPE = get_bpe_from_model("gpt-4").unwrap();
 }
 

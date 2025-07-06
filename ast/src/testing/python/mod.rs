@@ -160,7 +160,7 @@ async fn test_python() {
     #[cfg(feature = "neo4j")]
     {
         use crate::lang::graphs::Neo4jGraph;
-        let mut graph = Neo4jGraph::default();
+        let graph = Neo4jGraph::default();
         graph.clear().await.unwrap();
         test_python_generic::<Neo4jGraph>().await.unwrap();
     }
