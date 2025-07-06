@@ -17,7 +17,7 @@ async fn assert_edge_exists(graph: &mut GraphOps, src: &str, tgt: &str) -> bool 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_update() {
     use ast::lang::Graph;
-    use ast::repo::Repo;
+    use ast::repo::{clone_repo, Repo};
     use lsp::git::get_changed_files_between;
     use tracing::info;
 
@@ -64,7 +64,11 @@ async fn test_graph_update() {
     let changed_files = get_changed_files_between(&repo_path, before_commit, after_commit)
         .await
         .unwrap();
-    info!("==>>Changed files: {:?}", changed_files);
+    println!("==>>Changed files: {:?}", changed_files);
+
+    clone_repo(&repo_url, &repo_path, None, None, Some(after_commit))
+        .await
+        .unwrap();
 
     let (nodes_after, edges_after) = graph_ops
         .update_incremental(
