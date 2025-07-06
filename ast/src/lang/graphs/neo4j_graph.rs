@@ -5,7 +5,6 @@ use anyhow::Result;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
-use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 use super::neo4j_utils::Neo4jConnectionManager;
@@ -37,7 +36,6 @@ impl Default for Neo4jConfig {
 pub struct Neo4jGraph {
     connection: Option<Arc<Neo4jConnection>>,
     config: Neo4jConfig,
-    connected: Arc<Mutex<bool>>,
 }
 
 impl Neo4jGraph {
@@ -45,13 +43,11 @@ impl Neo4jGraph {
         Neo4jGraph {
             connection: None,
             config,
-            connected: Arc::new(Mutex::new(false)),
         }
     }
 
     pub async fn connect(&mut self) -> Result<()> {
-        let mut conn_status = self.connected.lock().await;
-        if *conn_status && self.connection.is_some() {
+        if self.connection.is_some() {
             debug!("Already connected to Neo4j database");
             return Ok(());
         }
@@ -59,7 +55,7 @@ impl Neo4jGraph {
         info!("Connecting to Neo4j database at {}", self.config.uri);
 
         //global connection manager
-        Neo4jConnectionManager::initialize(
+        let conn = Neo4jConnectionManager::initialize(
             &self.config.uri,
             &self.config.username,
             &self.config.password,
@@ -67,16 +63,9 @@ impl Neo4jGraph {
         )
         .await?;
 
-        if let Some(conn) = Neo4jConnectionManager::get_connection().await {
-            self.connection = Some(conn);
-            *conn_status = true;
-            info!("Successfully connected to Neo4j database");
-            Ok(())
-        } else {
-            let error_message = "Failed to get Neo4j connection after initialization".to_string();
-            debug!("{}", error_message);
-            Err(anyhow::anyhow!(error_message))
-        }
+        self.connection = Some(Arc::new(conn));
+        info!("Successfully connected to Neo4j database");
+        Ok(())
     }
 
     pub async fn disconnect(&mut self) -> Result<()> {
@@ -87,38 +76,25 @@ impl Neo4jGraph {
 
         self.connection = None;
 
-        let mut conn_status = self.connected.lock().await;
-        *conn_status = false;
-
-        Neo4jConnectionManager::clear_connection().await;
-
         info!("Disconnected from Neo4j database");
         Ok(())
     }
 
-    pub async fn is_connected(&self) -> bool {
-        *self.connected.lock().await
+    pub fn is_connected(&self) -> bool {
+        self.connection.is_some()
     }
 
     pub async fn ensure_connected(&mut self) -> Result<Arc<Neo4jConnection>> {
-        if !self.is_connected().await {
+        if !self.is_connected() {
             self.connect().await?;
         }
-
         self.connection
             .clone()
             .ok_or_else(|| anyhow::anyhow!("Connection is not established after check"))
     }
 
-    pub fn get_connection(&self) -> Arc<Neo4jConnection> {
-        if let Some(conn) = &self.connection {
-            return conn.clone();
-        }
-
-        let conn = sync_fn(|| async { Neo4jConnectionManager::get_connection().await })
-            .expect("Failed to get Neo4j connection from manager");
-
-        return conn;
+    pub async fn get_connection(&self) -> Arc<Neo4jConnection> {
+        self.connection.as_ref().unwrap().clone()
     }
 
     pub async fn create_indexes(&mut self) -> anyhow::Result<()> {
@@ -256,7 +232,6 @@ impl Default for Neo4jGraph {
         Neo4jGraph {
             connection: None,
             config: Neo4jConfig::default(),
-            connected: Arc::new(Mutex::new(false)),
         }
     }
 }
@@ -265,7 +240,7 @@ impl std::fmt::Debug for Neo4jGraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Neo4jGraph")
             .field("config", &self.config)
-            .field("connected", &self.connected)
+            .field("connected", &self.is_connected())
             .field("connection", &"<Neo4jConnection>")
             .finish()
     }
@@ -291,7 +266,7 @@ impl Neo4jGraph {
     }
 
     pub async fn find_nodes_by_name_async(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
 
         let (query_str, params_map) = find_nodes_by_name_query(&node_type, name);
         execute_node_query(&connection, query_str, params_map).await
@@ -303,7 +278,7 @@ impl Neo4jGraph {
         name: &str,
         file: &str,
     ) -> Option<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
 
         let (query, params) = find_node_by_name_file_query(&node_type, name, file);
 
@@ -314,7 +289,7 @@ impl Neo4jGraph {
     }
 
     pub async fn get_graph_size_async(&self) -> Result<(u32, u32)> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let query_str = count_nodes_edges_query();
         let mut result = connection.execute(query(&query_str)).await?;
         if let Some(row) = result.next().await? {
@@ -326,7 +301,7 @@ impl Neo4jGraph {
         }
     }
     pub async fn analysis_async(&self) -> Result<()> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (nodes, edges) = self.get_graph_size();
         println!("Graph contains {} nodes and {} edges", nodes, edges);
 
@@ -396,7 +371,7 @@ impl Neo4jGraph {
         Ok(())
     }
     pub async fn count_edges_of_type_async(&self, edge_type: EdgeType) -> usize {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
 
         let (query_str, params) = count_edges_by_type_query(&edge_type);
         let mut query_obj = query(&query_str);
@@ -419,7 +394,7 @@ impl Neo4jGraph {
     }
 
     pub async fn find_nodes_by_type_async(&self, node_type: NodeType) -> Vec<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_nodes_by_type_query(&node_type);
         execute_node_query(&connection, query, params).await
     }
@@ -429,7 +404,7 @@ impl Neo4jGraph {
         node_type: NodeType,
         name_part: &str,
     ) -> Vec<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_nodes_by_name_contains_query(&node_type, name_part);
         execute_node_query(&connection, query, params).await
     }
@@ -439,7 +414,7 @@ impl Neo4jGraph {
         node_type: NodeType,
         file: &str,
     ) -> Vec<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_nodes_by_file_pattern_query(&node_type, file);
         execute_node_query(&connection, query, params).await
     }
@@ -450,7 +425,7 @@ impl Neo4jGraph {
         target_type: NodeType,
         edge_type: EdgeType,
     ) -> Vec<(NodeData, NodeData)> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query_str, params) =
             find_nodes_with_edge_type_query(&source_type, &target_type, &edge_type);
 
@@ -496,7 +471,7 @@ impl Neo4jGraph {
         file: &str,
         verb: &str,
     ) -> Option<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_endpoint_query(name, file, verb);
 
         let nodes = execute_node_query(&connection, query, params).await;
@@ -508,13 +483,13 @@ impl Neo4jGraph {
         verb: &str,
         path: &str,
     ) -> Vec<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_resource_nodes_query(&node_type, verb, path);
 
         execute_node_query(&connection, query, params).await
     }
     pub async fn find_handlers_for_endpoint_async(&self, endpoint: &NodeData) -> Vec<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_handlers_for_endpoint_query(endpoint);
 
         execute_node_query(&connection, query, params).await
@@ -525,7 +500,7 @@ impl Neo4jGraph {
         function_name: &str,
         data_model: &str,
     ) -> bool {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query_str, params) = check_direct_data_model_usage_query(function_name, data_model);
 
         let mut query_obj = query(&query_str);
@@ -541,7 +516,7 @@ impl Neo4jGraph {
         false
     }
     pub async fn find_functions_called_by_async(&self, function: &NodeData) -> Vec<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_functions_called_by_query(function);
 
         execute_node_query(&connection, query, params).await
@@ -552,7 +527,7 @@ impl Neo4jGraph {
         target_name: &str,
         target_file: &str,
     ) -> Option<NodeKeys> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query_str, params) =
             find_source_edge_by_name_and_file_query(&edge_type, target_name, target_file);
 
@@ -584,7 +559,7 @@ impl Neo4jGraph {
         row: u32,
         file: &str,
     ) -> Option<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_nodes_in_range_query(&node_type, file, row);
 
         let nodes = execute_node_query(&connection, query, params).await;
@@ -596,7 +571,7 @@ impl Neo4jGraph {
         file: &str,
         line: u32,
     ) -> Option<NodeData> {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let (query, params) = find_node_at_query(&node_type, file, line);
         let nodes = execute_node_query(&connection, query, params).await;
         nodes.into_iter().next()
@@ -837,7 +812,7 @@ impl Neo4jGraph {
     }
 
     pub async fn get_graph_keys_async(&self) -> (HashSet<String>, HashSet<String>) {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
         let mut node_keys = HashSet::new();
         let mut edge_keys = HashSet::new();
 
@@ -949,7 +924,7 @@ impl Neo4jGraph {
     }
 
     pub async fn has_edge_async(&self, source: &Node, target: &Node, edge_type: EdgeType) -> bool {
-        let connection = self.get_connection();
+        let connection = self.get_connection().await;
 
         let (query_str, params) = has_edge_query(source, target, &edge_type);
 
