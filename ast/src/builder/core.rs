@@ -103,26 +103,28 @@ impl Repo {
             // self.send_status_progress(i, dirs_not_empty.len());
             // i += 1;
 
-            let dir_no_tmp = strip_tmp(dir);
-            let mut dir_no_root = strip_root(&dir_no_tmp, &self.root).display().to_string();
+            let dir_no_tmp_buf = strip_tmp(dir);
+            let mut dir_no_root = strip_root(&dir_no_tmp_buf, &self.root)
+                .display()
+                .to_string();
+            let dir_no_tmp = dir_no_tmp_buf.display().to_string();
 
             // remove leading /
             dir_no_root = dir_no_root.trim_start_matches('/').to_string();
 
             let (parent_type, parent_file) = if dir_no_root.contains("/") {
                 // remove LAST slash and any characters after it:
-                let parent = dir_no_root
-                    .rsplit('/')
-                    .skip(1)
-                    .collect::<Vec<_>>()
-                    .join("/");
+                // let parent = dir_no_tmp.rsplit('/').skip(1).collect::<Vec<_>>().join("/");
+                let mut parts: Vec<_> = dir_no_tmp.rsplit('/').skip(1).collect();
+                parts.reverse();
+                let parent = parts.join("/");
                 (NodeType::Directory, parent)
             } else {
                 (NodeType::Repository, "main".to_string())
             };
 
             let dir_name = dir_no_root.rsplit('/').next().unwrap().to_string();
-            let mut dir_data = NodeData::in_file(&dir_no_tmp.display().to_string());
+            let mut dir_data = NodeData::in_file(&dir_no_tmp);
             dir_data.name = dir_name;
 
             graph.add_node_with_parent(NodeType::Directory, dir_data, parent_type, &parent_file);
