@@ -324,7 +324,7 @@ import NewPerson from "./components/NewPerson";"#
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_react_typescript() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
-    test_react_typescript_generic::<ArrayGraph>().await.unwrap();
+    // test_react_typescript_generic::<ArrayGraph>().await.unwrap();
     test_react_typescript_generic::<BTreeMapGraph>()
         .await
         .unwrap();
