@@ -29,7 +29,8 @@ impl Repo {
         self.build_graph_inner().await
     }
     pub async fn build_graph_inner<G: Graph>(&self) -> Result<G> {
-        let mut graph = G::new();
+        let graph_root = strip_tmp(&self.root).display().to_string();
+        let mut graph = G::new(graph_root, self.lang.kind.clone());
 
         self.add_repository_and_language_nodes(&mut graph).await?;
         let files = self.collect_and_add_directories(&mut graph)?;
@@ -49,7 +50,12 @@ impl Repo {
         self.process_endpoints(&mut graph, &filez)?;
         self.finalize_graph(&mut graph, &filez).await?;
 
-        let graph = filter_by_revs(&self.root.to_str().unwrap(), self.revs.clone(), graph);
+        let graph = filter_by_revs(
+            &self.root.to_str().unwrap(),
+            self.revs.clone(),
+            graph,
+            self.lang.kind.clone(),
+        );
 
         // graph.prefix_paths(&self.root_less_tmp());
 

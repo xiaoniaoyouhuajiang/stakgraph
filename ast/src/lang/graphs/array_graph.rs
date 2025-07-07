@@ -3,6 +3,7 @@ use crate::lang::linker::normalize_backend_path;
 use crate::lang::{Function, FunctionCall, Lang};
 use crate::utils::{create_node_key, create_node_key_from_ref, sanitize_string};
 use anyhow::Result;
+use lsp::Language;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use tracing::debug;
@@ -20,7 +21,7 @@ pub struct ArrayGraph {
 }
 
 impl Graph for ArrayGraph {
-    fn new() -> Self {
+    fn new(_root: String, _lang_kind: Language) -> Self {
         ArrayGraph {
             nodes: Vec::new(),
             edges: Vec::new(),
@@ -29,7 +30,7 @@ impl Graph for ArrayGraph {
             edge_keys: HashSet::new(),
         }
     }
-    fn with_capacity(_nodes: usize, _edges: usize) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, _root: String, _lang_kind: Language) -> Self
     where
         Self: Sized,
     {
@@ -54,8 +55,8 @@ impl Graph for ArrayGraph {
             );
         }
     }
-    fn create_filtered_graph(self, final_filter: &[String]) -> Self {
-        let mut new_graph = Self::new();
+    fn create_filtered_graph(self, final_filter: &[String], lang_kind: Language) -> Self {
+        let mut new_graph = Self::new(String::new(), lang_kind);
 
         for node in &self.nodes {
             if node.node_type == NodeType::Repository {

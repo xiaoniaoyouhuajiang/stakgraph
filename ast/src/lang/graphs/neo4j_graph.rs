@@ -2,6 +2,7 @@ use super::{neo4j_utils::*, *};
 use crate::utils::sync_fn;
 use crate::{lang::Function, lang::Node, Lang};
 use anyhow::{Context, Result};
+use lsp::Language;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
@@ -37,13 +38,17 @@ impl Default for Neo4jConfig {
 pub struct Neo4jGraph {
     connection: Arc<Mutex<Option<Neo4jConnection>>>,
     config: Neo4jConfig,
+    root: String,
+    lang_kind: Language,
 }
 
 impl Neo4jGraph {
-    pub fn with_config(config: Neo4jConfig) -> Self {
+    pub fn with_config(config: Neo4jConfig, root: String, lang_kind: Language) -> Self {
         Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config,
+            root,
+            lang_kind,
         }
     }
 
@@ -228,6 +233,8 @@ impl Default for Neo4jGraph {
         Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config: Neo4jConfig::default(),
+            root: String::new(),
+            lang_kind: Language::Typescript,
         }
     }
 }
@@ -266,8 +273,16 @@ impl Neo4jGraph {
             return vec![];
         };
 
-        let (query_str, params_map) = find_nodes_by_name_query(&node_type, name);
-        execute_node_query(&connection, query_str, params_map).await
+        let (query_str, params_map) = find_nodes_by_name_query(&node_type, name, &self.root);
+
+        let nodes = execute_node_query(&connection, query_str, params_map).await;
+
+        let lang_nodes: Vec<NodeData> = nodes
+            .into_iter()
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
+
+        lang_nodes
     }
 
     pub async fn find_node_by_name_in_file_async(
@@ -283,10 +298,15 @@ impl Neo4jGraph {
 
         let (query, params) = find_node_by_name_file_query(&node_type, name, file);
 
-        execute_node_query(&connection, query, params)
+        let nodes = execute_node_query(&connection, query, params)
             .await
-            .into_iter()
-            .next()
+            .into_iter();
+
+        let lang_nodes: Vec<NodeData> = nodes
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
+
+        lang_nodes.into_iter().next()
     }
 
     pub async fn get_graph_size_async(&self) -> Result<(u32, u32)> {
@@ -416,7 +436,14 @@ impl Neo4jGraph {
             return vec![];
         };
         let (query, params) = find_nodes_by_name_contains_query(&node_type, name_part);
-        execute_node_query(&connection, query, params).await
+        let nodes = execute_node_query(&connection, query, params).await;
+
+        let lang_nodes: Vec<NodeData> = nodes
+            .into_iter()
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
+
+        lang_nodes
     }
 
     pub async fn find_nodes_by_file_ends_with_async(
@@ -429,7 +456,13 @@ impl Neo4jGraph {
             return vec![];
         };
         let (query, params) = find_nodes_by_file_pattern_query(&node_type, file);
-        execute_node_query(&connection, query, params).await
+        let nodes = execute_node_query(&connection, query, params).await;
+        let lang_nodes: Vec<NodeData> = nodes
+            .into_iter()
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
+
+        lang_nodes
     }
 
     pub async fn find_nodes_with_edge_type_async(
@@ -989,22 +1022,32 @@ impl Neo4jGraph {
 }
 
 impl Graph for Neo4jGraph {
-    fn new() -> Self
+    fn new(root: String, lang_kind: Language) -> Self
     where
         Self: Sized,
     {
-        Self::default()
+        Neo4jGraph {
+            connection: Arc::new(Mutex::new(None)),
+            config: Neo4jConfig::default(),
+            root,
+            lang_kind,
+        }
     }
-    fn with_capacity(_nodes: usize, _edges: usize) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, root: String, lang_kind: Language) -> Self
     where
         Self: Sized,
     {
-        Self::default()
+        Neo4jGraph {
+            connection: Arc::new(Mutex::new(None)),
+            config: Neo4jConfig::default(),
+            root,
+            lang_kind,
+        }
     }
     fn analysis(&self) {
         let _ = sync_fn(|| async { self.analysis_async().await });
     }
-    fn create_filtered_graph(self, _final_filter: &[String]) -> Self
+    fn create_filtered_graph(self, _final_filter: &[String], _lang_kind: Language) -> Self
     where
         Self: Sized,
     {

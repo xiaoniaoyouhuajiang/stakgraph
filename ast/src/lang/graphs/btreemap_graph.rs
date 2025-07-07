@@ -2,9 +2,9 @@ use super::{graph::Graph, *};
 use crate::lang::{Function, FunctionCall, Lang};
 use crate::utils::{create_node_key, create_node_key_from_ref, sanitize_string};
 use anyhow::Result;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-
+use lsp::Language;
 use serde::Serialize;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct BTreeMapGraph {
@@ -15,7 +15,7 @@ pub struct BTreeMapGraph {
 }
 
 impl Graph for BTreeMapGraph {
-    fn new() -> Self {
+    fn new(_root: String, _lang_kind: Language) -> Self {
         BTreeMapGraph {
             nodes: BTreeMap::new(),
             edges: BTreeSet::new(),
@@ -23,7 +23,7 @@ impl Graph for BTreeMapGraph {
         }
     }
 
-    fn with_capacity(_nodes: usize, _edges: usize) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, _root: String, _lang_kind: Language) -> Self
     where
         Self: Sized,
     {
@@ -124,8 +124,8 @@ impl Graph for BTreeMapGraph {
         }
     }
 
-    fn create_filtered_graph(self, final_filter: &[String]) -> Self {
-        let mut filtered = Self::new();
+    fn create_filtered_graph(self, final_filter: &[String], lang_kind: Language) -> Self {
+        let mut filtered = Self::new(String::new(), lang_kind);
 
         for (key, node) in &self.nodes {
             if node.node_type == NodeType::Repository || final_filter.contains(&node.node_data.file)

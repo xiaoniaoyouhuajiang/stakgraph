@@ -356,15 +356,19 @@ pub fn find_nodes_by_type_query(node_type: &NodeType) -> (String, BoltMap) {
 
     (query, params)
 }
-pub fn find_nodes_by_name_query(node_type: &NodeType, name: &str) -> (String, BoltMap) {
+pub fn find_nodes_by_name_query(node_type: &NodeType, name: &str, root: &str) -> (String, BoltMap) {
     let mut param = BoltMap::new();
     param
         .value
         .insert("name".into(), BoltType::String(name.into()));
+    param
+        .value
+        .insert("root".into(), BoltType::String(root.into()));
 
     let query = format!(
         "MATCH (n:{}) 
-                       WHERE n.name = $name 
+                       WHERE n.name = $name
+                       AND n.file STARTS WITH $root
                        RETURN n",
         node_type.to_string()
     );

@@ -1,26 +1,33 @@
 use crate::lang::{Edge, Lang, Node, NodeType};
 use crate::lang::{Function, FunctionCall};
 use anyhow::Result;
+use lsp::Language;
 use std::collections::HashSet;
 use std::fmt::Debug;
 
 use super::{EdgeType, NodeData, NodeKeys};
 
 pub trait Graph: Default + Debug {
-    fn new() -> Self
+    fn new(_root: String, _lang_kind: Language) -> Self
     where
         Self: Sized,
     {
         Self::default()
     }
-    fn with_capacity(_nodes: usize, _edges: usize) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, _root: String, _lang_kind: Language) -> Self
     where
         Self: Sized,
     {
         Self::default()
     }
     fn analysis(&self);
-    fn create_filtered_graph(self, final_filter: &[String]) -> Self
+    fn is_frontend(&self, file: &str) -> bool {
+        file.ends_with(".tsx")
+            || file.ends_with(".ts")
+            || file.ends_with(".jsx")
+            || file.ends_with(".js")
+    }
+    fn create_filtered_graph(self, final_filter: &[String], lang_kind: Language) -> Self
     where
         Self: Sized;
 
