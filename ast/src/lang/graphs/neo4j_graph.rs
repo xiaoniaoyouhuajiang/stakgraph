@@ -2,6 +2,7 @@ use super::{neo4j_utils::*, *};
 use crate::utils::sync_fn;
 use crate::{lang::Function, lang::Node, Lang};
 use anyhow::{Context, Result};
+use lsp::Language;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
@@ -38,14 +39,16 @@ pub struct Neo4jGraph {
     connection: Arc<Mutex<Option<Neo4jConnection>>>,
     config: Neo4jConfig,
     root: String,
+    lang_kind: Language,
 }
 
 impl Neo4jGraph {
-    pub fn with_config(config: Neo4jConfig, root: String) -> Self {
+    pub fn with_config(config: Neo4jConfig, root: String, lang_kind: Language) -> Self {
         Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config,
             root,
+            lang_kind,
         }
     }
 
@@ -231,6 +234,7 @@ impl Default for Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config: Neo4jConfig::default(),
             root: String::new(),
+            lang_kind: Language::Typescript,
         }
     }
 }
@@ -992,7 +996,7 @@ impl Neo4jGraph {
 }
 
 impl Graph for Neo4jGraph {
-    fn new(root: String) -> Self
+    fn new(root: String, lang_kind: Language) -> Self
     where
         Self: Sized,
     {
@@ -1000,9 +1004,10 @@ impl Graph for Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config: Neo4jConfig::default(),
             root,
+            lang_kind,
         }
     }
-    fn with_capacity(_nodes: usize, _edges: usize, root: String) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, root: String, lang_kind: Language) -> Self
     where
         Self: Sized,
     {
@@ -1010,12 +1015,13 @@ impl Graph for Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config: Neo4jConfig::default(),
             root,
+            lang_kind,
         }
     }
     fn analysis(&self) {
         let _ = sync_fn(|| async { self.analysis_async().await });
     }
-    fn create_filtered_graph(self, _final_filter: &[String]) -> Self
+    fn create_filtered_graph(self, _final_filter: &[String], _lang_kind: Language) -> Self
     where
         Self: Sized,
     {

@@ -193,7 +193,6 @@ impl Lang {
                 .filter(|n| graph.is_frontend(&n.file))
                 .collect::<Vec<_>>();
             if let Some(node) = frontend_nodes.first() {
-                println!("<<<< node {:?}", node.name);
                 page_renders.push(Edge::renders(&pag, &node));
             }
         }
@@ -498,6 +497,9 @@ impl Lang {
                             .cloned()
                         {
                             Some(dmr) => {
+                                println!("<<<< found data model {:?}", dmr.name);
+                                println!("<<<< file {:?}", file);
+                                println!("<<<< func {:?} {}", func.name, func.start);
                                 models.push(Edge::contains(
                                     NodeType::Function,
                                     &func,
