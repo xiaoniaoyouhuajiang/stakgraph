@@ -281,8 +281,15 @@ impl Language {
             .any(|pkg_file| file_name.ends_with(pkg_file))
     }
     pub fn is_from_language(&self, file: &str) -> bool {
-        let ext = file.split('.').last().unwrap_or("");
-        self.exts().contains(&ext) || self.is_package_file(file)
+        if let Some(ext) = file.split('.').last() {
+            if self.exts().contains(&ext) || self.is_package_file(file) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return true; //dirs, lang, repo
+        }
     }
 }
 
