@@ -277,9 +277,12 @@ impl Neo4jGraph {
 
         let nodes = execute_node_query(&connection, query_str, params_map).await;
 
-        // TODO:filter out nodes that are not of the same language
+        let lang_nodes: Vec<NodeData> = nodes
+            .into_iter()
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
 
-        nodes
+        lang_nodes
     }
 
     pub async fn find_node_by_name_in_file_async(
@@ -295,10 +298,15 @@ impl Neo4jGraph {
 
         let (query, params) = find_node_by_name_file_query(&node_type, name, file);
 
-        execute_node_query(&connection, query, params)
+        let nodes = execute_node_query(&connection, query, params)
             .await
-            .into_iter()
-            .next()
+            .into_iter();
+
+        let lang_nodes: Vec<NodeData> = nodes
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
+
+        lang_nodes.into_iter().next()
     }
 
     pub async fn get_graph_size_async(&self) -> Result<(u32, u32)> {
@@ -428,7 +436,14 @@ impl Neo4jGraph {
             return vec![];
         };
         let (query, params) = find_nodes_by_name_contains_query(&node_type, name_part);
-        execute_node_query(&connection, query, params).await
+        let nodes = execute_node_query(&connection, query, params).await;
+
+        let lang_nodes: Vec<NodeData> = nodes
+            .into_iter()
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
+
+        lang_nodes
     }
 
     pub async fn find_nodes_by_file_ends_with_async(
@@ -441,7 +456,13 @@ impl Neo4jGraph {
             return vec![];
         };
         let (query, params) = find_nodes_by_file_pattern_query(&node_type, file);
-        execute_node_query(&connection, query, params).await
+        let nodes = execute_node_query(&connection, query, params).await;
+        let lang_nodes: Vec<NodeData> = nodes
+            .into_iter()
+            .filter(|n| self.lang_kind.is_from_language(&n.file))
+            .collect();
+
+        lang_nodes
     }
 
     pub async fn find_nodes_with_edge_type_async(
