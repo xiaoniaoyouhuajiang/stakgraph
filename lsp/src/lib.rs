@@ -165,7 +165,7 @@ pub fn spawn_analyzer(
 ) -> Result<()> {
     let lang = lang.clone();
     let root_dir_absolute = Path::new(root_dir).canonicalize()?;
-    let root_dir_relative = root_dir.clone();
+    let root_dir_relative = strip_tmp(root_dir);
     println!("spawning analyzer for {:?} at {:?}", lang, root_dir);
 
     let _task = tokio::spawn(async move {
