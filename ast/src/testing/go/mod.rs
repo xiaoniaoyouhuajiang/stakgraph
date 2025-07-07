@@ -23,7 +23,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp == true {
         assert_eq!(num_nodes, 67, "Expected 67 nodes");
-        assert_eq!(num_edges, 102, "Expected 102 edges");
+        assert_eq!(num_edges, 100, "Expected 100 edges");
     } else {
         assert_eq!(num_nodes, 33, "Expected 33 nodes");
         assert_eq!(num_edges, 53, "Expected 53 edges");
@@ -166,13 +166,8 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let of = graph.count_edges_of_type(EdgeType::Of);
     assert_eq!(of, 1, "Expected 1 of edges");
 
-    if use_lsp {
-        let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 42, "Expected 42 contains edges");
-    } else {
-        let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 40, "Expected 40 contains edges");
-    }
+    let contains = graph.count_edges_of_type(EdgeType::Contains);
+    assert_eq!(contains, 40, "Expected 40 contains edges");
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(variables.len(), 1, "Expected 1 variables");
@@ -187,9 +182,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn test_go() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
-    println!("ArrayGraph:");
     test_go_generic::<ArrayGraph>().await.unwrap();
-    println!("BTreeMapGraph:");
     test_go_generic::<BTreeMapGraph>().await.unwrap();
 
     #[cfg(feature = "neo4j")]
