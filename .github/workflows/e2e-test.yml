@@ -115,6 +115,8 @@ jobs:
           SORTED_ACTUAL_MAP_FILE="/tmp/sorted_actual.html"
           SORTED_EXPECTED_MAP_FILE="/tmp/sorted_expected.html"
 
+          echo "$(cat $ACTUAL_MAP_FILE)"
+
           sed '1d;$d' "$ACTUAL_MAP_FILE" | sed 's/^[[:space:]]*[├└│┬─][├└│┬─[:space:]]*//' | sort > "$SORTED_ACTUAL_MAP_FILE"
           sed '1d;$d' "$EXPECTED_MAP_FILE" | sed 's/^[[:space:]]*[├└│┬─][├└│┬─[:space:]]*//' | sort > "$SORTED_EXPECTED_MAP_FILE"
 

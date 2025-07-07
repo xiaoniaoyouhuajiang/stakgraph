@@ -56,11 +56,14 @@ impl Repos {
             repo.status_tx = Some(status_tx.clone());
         }
     }
-    pub async fn build_graphs(&self) -> Result<ArrayGraph> {
+    pub async fn build_graphs(&self) -> Result<BTreeMapGraph> {
+        self.build_graphs_inner().await
+    }
+    pub async fn build_graphs_array(&self) -> Result<ArrayGraph> {
         self.build_graphs_inner().await
     }
     pub async fn build_graphs_btree(&self) -> Result<BTreeMapGraph> {
-        self.build_graphs_inner::<BTreeMapGraph>().await
+        self.build_graphs_inner().await
     }
     pub async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
         let mut graph = G::new();

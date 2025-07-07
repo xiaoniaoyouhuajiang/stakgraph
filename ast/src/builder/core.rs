@@ -15,19 +15,19 @@ use tokio::fs;
 use tracing::{debug, info, trace};
 
 impl Repo {
-    pub async fn build_graph(&self) -> Result<ArrayGraph> {
+    pub async fn build_graph(&self) -> Result<BTreeMapGraph> {
         self.build_graph_inner().await
     }
-
+    pub async fn build_graph_array(&self) -> Result<ArrayGraph> {
+        self.build_graph_inner().await
+    }
     pub async fn build_graph_btree(&self) -> Result<BTreeMapGraph> {
         self.build_graph_inner().await
     }
-
     #[cfg(feature = "neo4j")]
     pub async fn build_graph_neo4j(&self) -> Result<Neo4jGraph> {
         self.build_graph_inner().await
     }
-
     pub async fn build_graph_inner<G: Graph>(&self) -> Result<G> {
         let mut graph = G::new();
 
