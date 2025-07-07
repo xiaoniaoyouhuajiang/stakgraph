@@ -417,7 +417,8 @@ impl Lang {
         let mut models: Vec<Edge> = Vec::new();
         let mut trait_operand = None;
         let mut name_pos = None;
-        let mut return_types = Vec::new();
+        let mut return_type_data_models = Vec::new();
+
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == PARENT_TYPE {
                 parent_type = Some(body);
@@ -577,12 +578,7 @@ impl Lang {
                                             "*******RETURN_TYPE found target for {:?} {} {}!!!",
                                             name, &t.file, &t.name
                                         ));
-                                        return_types.push(Edge::contains(
-                                            NodeType::Function,
-                                            &func,
-                                            NodeType::DataModel,
-                                            &t,
-                                        ));
+                                        return_type_data_models.push(t);
                                     }
                                 }
                             }
@@ -596,6 +592,17 @@ impl Lang {
             log_cmd(format!("found function but empty body {:?}", func.name));
             return Ok(None);
         }
+
+        let mut return_types = Vec::new();
+        for t in return_type_data_models {
+            return_types.push(Edge::contains(
+                NodeType::Function,
+                &func,
+                NodeType::DataModel,
+                &t,
+            ));
+        }
+
         if let Some(pos) = name_pos {
             trait_operand = self.lang.find_trait_operand(
                 pos,
