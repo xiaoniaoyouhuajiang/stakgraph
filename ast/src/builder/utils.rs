@@ -56,7 +56,7 @@ pub fn get_page_name(path: &str) -> Option<String> {
     Some(parts.last().unwrap().to_string())
 }
 
-pub fn combine_imports(nodes: Vec<NodeData>) -> Vec<NodeData> {
+pub fn combine_import_sections(nodes: Vec<NodeData>) -> Vec<NodeData> {
     if nodes.is_empty() {
         return Vec::new();
     }

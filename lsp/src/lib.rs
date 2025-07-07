@@ -65,21 +65,35 @@ impl Position {
             col,
         })
     }
-    fn from_range(path: &str, range: lsp_types::Range) -> Self {
+    fn from_range(
+        path: &str,
+        range: lsp_types::Range,
+        root: &PathBuf,
+        relative_root: &PathBuf,
+    ) -> Self {
         let fpath = PathBuf::from(path);
-        let file = strip_tmp(&fpath);
+        let mut file = strip_root(&fpath, root);
+        // add relative root
+        file = relative_root.join(file);
         Self {
             file: file.into(),
             line: range.start.line,
             col: range.start.character,
         }
     }
-    fn from_def(r: GotoDefinitionResponse) -> Option<Self> {
+    fn from_def(
+        r: GotoDefinitionResponse,
+        root: &PathBuf,
+        relative_root: &PathBuf,
+    ) -> Option<Self> {
         //
         match r {
-            GotoDefinitionResponse::Scalar(loc) => {
-                Some(Self::from_range(&loc.uri.path(), loc.range))
-            }
+            GotoDefinitionResponse::Scalar(loc) => Some(Self::from_range(
+                &loc.uri.path(),
+                loc.range,
+                root,
+                relative_root,
+            )),
             GotoDefinitionResponse::Array(locs) => {
                 if locs.is_empty() {
                     return None;
@@ -92,7 +106,12 @@ impl Position {
                 } else {
                     locs.first().unwrap()
                 };
-                Some(Self::from_range(&theloc.uri.path(), theloc.range))
+                Some(Self::from_range(
+                    &theloc.uri.path(),
+                    theloc.range,
+                    root,
+                    relative_root,
+                ))
             }
             GotoDefinitionResponse::Link(links) => {
                 if links.is_empty() {
@@ -102,6 +121,8 @@ impl Position {
                 Some(Self::from_range(
                     link.target_uri.path(),
                     link.target_selection_range,
+                    root,
+                    relative_root,
                 ))
             }
         }
@@ -143,12 +164,13 @@ pub fn spawn_analyzer(
     cmd_rx: mpsc::Receiver<CmdAndRes>,
 ) -> Result<()> {
     let lang = lang.clone();
-    let root_dir = Path::new(root_dir).canonicalize()?;
+    let root_dir_absolute = Path::new(root_dir).canonicalize()?;
+    let root_dir_relative = root_dir.clone();
     println!("spawning analyzer for {:?} at {:?}", lang, root_dir);
 
     let _task = tokio::spawn(async move {
-        if let Err(e) = spawn_inner(&lang, &root_dir, cmd_rx).await {
-            error!("spawn LSP error: {:?}, {:?}", e, root_dir);
+        if let Err(e) = spawn_inner(&lang, &root_dir_absolute, &root_dir_relative, cmd_rx).await {
+            error!("spawn LSP error: {:?}, {:?}", e, &root_dir_relative);
         }
     });
 
@@ -157,12 +179,17 @@ pub fn spawn_analyzer(
     Ok(())
 }
 
-async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -> Result<()> {
+async fn spawn_inner(
+    lang: &Language,
+    root_dir_abs: &PathBuf,
+    root_dir_rel: &PathBuf,
+    cmd_rx: CmdReceiver,
+) -> Result<()> {
     let executable = lang.lsp_exec();
     info!("child process starting: {}", executable);
     let mut child_config = async_process::Command::new(executable);
     child_config
-        .current_dir(&root_dir)
+        .current_dir(&root_dir_abs)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -178,7 +205,8 @@ async fn spawn_inner(lang: &Language, root_dir: &PathBuf, cmd_rx: CmdReceiver) -
     let stdin = child.stdin.context("no stdin")?;
 
     info!("start {:?} LSP client", lang);
-    let (mut conn, mainloop, indexed_rx) = client::LspClient::new(&root_dir, &lang);
+    let (mut conn, mainloop, indexed_rx) =
+        client::LspClient::new(&root_dir_abs, &root_dir_rel, &lang);
 
     let mainloop_task = tokio::spawn(async move {
         mainloop.run_buffered(stdout, stdin).await.unwrap();

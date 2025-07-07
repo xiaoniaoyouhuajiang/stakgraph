@@ -23,6 +23,7 @@ use tracing::{debug, info, trace};
 
 pub struct LspClient {
     root: PathBuf,
+    relative_root: PathBuf,
     server: ServerSocket,
 }
 
@@ -36,22 +37,29 @@ pub struct ClientState {
 pub type ClientLoop = MainLoop<Tracing<CatchUnwind<Concurrency<Router<ClientState>>>>>;
 
 impl LspClient {
-    pub fn new(root_dir: &PathBuf, lang: &Language) -> (Self, ClientLoop, oneshot::Receiver<()>) {
-        debug!("new: {:?}", lang);
+    pub fn new(
+        root_dir_abs: &PathBuf,
+        root_dir_rel: &PathBuf,
+        lang: &Language,
+    ) -> (Self, ClientLoop, oneshot::Receiver<()>) {
+        info!("new LspClient: {:?} in {:?}", lang, root_dir_abs);
         let (tx, rx) = oneshot::channel();
-        let (client, mainloop) = start(tx, root_dir, lang);
+        let (client, mainloop) = start(tx, root_dir_abs, root_dir_rel, lang);
         (client, mainloop, rx)
     }
-    pub fn new_from(root: PathBuf, server: ServerSocket) -> Self {
-        Self { root, server }
+    pub fn new_from(root: PathBuf, relative_root: PathBuf, server: ServerSocket) -> Self {
+        Self {
+            root,
+            relative_root,
+            server,
+        }
     }
-    fn file_path(&self, f: &PathBuf) -> Result<Url> {
-        let file = if self.root.starts_with("/tmp/") {
-            let tmp_dir = Path::new("/tmp").canonicalize()?;
-            tmp_dir.join(&f)
-        } else {
-            f.clone()
-        };
+    fn file_path(&self, mut f: &Path) -> Result<Url> {
+        let root_dir = Path::new(&self.root).canonicalize()?;
+        if f.starts_with(&self.relative_root) {
+            f = f.strip_prefix(&self.relative_root).unwrap();
+        }
+        let file = root_dir.join(&f);
         let file = Url::from_file_path(file).map_err(|_| anyhow!("bad file"))?;
         Ok(file)
     }
@@ -66,7 +74,7 @@ impl LspClient {
             Cmd::GotoDefinition(pos) => {
                 let fp = self.file_path(&pos.file)?;
                 Res::GotoDefinition(match self.definition(&fp, pos.line, pos.col).await? {
-                    Some(def) => Position::from_def(def),
+                    Some(def) => Position::from_def(def, &self.root, &self.relative_root),
                     None => None,
                 })
             }
@@ -74,7 +82,7 @@ impl LspClient {
                 let fp = self.file_path(&pos.file)?;
                 Res::GotoImplementations(
                     match self.implementation(&fp, pos.line, pos.col).await? {
-                        Some(def) => Position::from_def(def),
+                        Some(def) => Position::from_def(def, &self.root, &self.relative_root),
                         None => None,
                     },
                 )
@@ -197,7 +205,8 @@ pub fn strip_root(f: &Path, root: &Path) -> PathBuf {
 
 fn start(
     indexed_tx: oneshot::Sender<()>,
-    root_dir: &PathBuf,
+    root_dir_abs: &PathBuf,
+    root_dir_rel: &PathBuf,
     lang: &Language,
 ) -> (LspClient, ClientLoop) {
     info!("starting LSP client for {:?}", lang);
@@ -270,6 +279,6 @@ fn start(
             .service(router)
     });
 
-    let lsp_client = LspClient::new_from(root_dir.into(), server);
+    let lsp_client = LspClient::new_from(root_dir_abs.clone(), root_dir_rel.clone(), server);
     (lsp_client, mainloop)
 }

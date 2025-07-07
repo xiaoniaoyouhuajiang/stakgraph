@@ -39,7 +39,7 @@ impl Repo {
         self.setup_lsp(&filez)?;
 
         self.process_libraries(&mut graph, &filez)?;
-        self.process_imports(&mut graph, &filez)?;
+        self.process_import_sections(&mut graph, &filez)?;
         self.process_variables(&mut graph, &filez)?;
         self.process_classes(&mut graph, &filez)?;
         self.process_instances_and_traits(&mut graph, &filez)?;
@@ -210,7 +210,11 @@ impl Repo {
         info!("=> got {} libs", i);
         Ok(())
     }
-    fn process_imports<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
+    fn process_import_sections<G: Graph>(
+        &self,
+        graph: &mut G,
+        filez: &[(String, String)],
+    ) -> Result<()> {
         self.send_status_update("process_imports", 6);
         let mut i = 0;
         let mut cnt = 0;
@@ -220,7 +224,7 @@ impl Repo {
             cnt += 1;
             let imports = self.lang.get_imports::<G>(&code, &filename)?;
 
-            let import_section = combine_imports(imports);
+            let import_section = combine_import_sections(imports);
             if !import_section.is_empty() {
                 i += 1;
             }

@@ -681,7 +681,10 @@ impl Lang {
                             if let Some(one_func) =
                                 func_target_file_finder(&called, &None, graph, file)
                             {
-                                log_cmd(format!("==> ? ONE target for {:?} {}", called, &one_func.0));
+                                log_cmd(format!(
+                                    "==> ? ONE target for {:?} {}",
+                                    called, &one_func.0
+                                ));
                                 fc.target = NodeKeys::new(&called, &one_func.0, one_func.1);
                             } else {
                                 log_cmd(format!(
