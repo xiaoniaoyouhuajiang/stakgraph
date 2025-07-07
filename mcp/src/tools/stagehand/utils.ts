@@ -131,10 +131,6 @@ export function getActionLogs(actionId: string): ConsoleLog[] {
   return logs ? [...logs] : [];
 }
 
-export function getCurrentActionId(): string | null {
-  return currentActionId;
-}
-
 function cleanupOldActions(): void {
   const now = Date.now();
   const toDelete: string[] = [];
