@@ -188,7 +188,12 @@ impl Lang {
             // fallback
             let nodes = graph.find_nodes_by_name(NodeType::Function, &comp_name);
             // only take the first? FIXME
-            if let Some(node) = nodes.first() {
+            let frontend_nodes = nodes
+                .iter()
+                .filter(|n| graph.is_frontend(&n.file))
+                .collect::<Vec<_>>();
+            if let Some(node) = frontend_nodes.first() {
+                println!("<<<< node {:?}", node.name);
                 page_renders.push(Edge::renders(&pag, &node));
             }
         }

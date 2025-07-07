@@ -20,6 +20,12 @@ pub trait Graph: Default + Debug {
         Self::default()
     }
     fn analysis(&self);
+    fn is_frontend(&self, file: &str) -> bool {
+        file.ends_with(".tsx")
+            || file.ends_with(".ts")
+            || file.ends_with(".jsx")
+            || file.ends_with(".js")
+    }
     fn create_filtered_graph(self, final_filter: &[String]) -> Self
     where
         Self: Sized;
