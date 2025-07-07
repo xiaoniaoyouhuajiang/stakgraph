@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn test_link_api_nodes() -> Result<()> {
         use crate::lang::graphs::ArrayGraph;
-        let mut graph = ArrayGraph::new(PathBuf::new());
+        let mut graph = ArrayGraph::new(String::new());
 
         // Valid matching pair
         let mut req1 = NodeData::name_file("api/user/${id}", "src/components/User.tsx");

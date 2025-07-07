@@ -3,7 +3,6 @@ use crate::utils::sync_fn;
 use crate::{lang::Function, lang::Node, Lang};
 use anyhow::{Context, Result};
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
@@ -38,11 +37,11 @@ impl Default for Neo4jConfig {
 pub struct Neo4jGraph {
     connection: Arc<Mutex<Option<Neo4jConnection>>>,
     config: Neo4jConfig,
-    root: PathBuf,
+    root: String,
 }
 
 impl Neo4jGraph {
-    pub fn with_config(config: Neo4jConfig, root: PathBuf) -> Self {
+    pub fn with_config(config: Neo4jConfig, root: String) -> Self {
         Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config,
@@ -231,7 +230,7 @@ impl Default for Neo4jGraph {
         Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config: Neo4jConfig::default(),
-            root: PathBuf::new(),
+            root: String::new(),
         }
     }
 }
@@ -270,7 +269,7 @@ impl Neo4jGraph {
             return vec![];
         };
 
-        let (query_str, params_map) = find_nodes_by_name_query(&node_type, name);
+        let (query_str, params_map) = find_nodes_by_name_query(&node_type, name, &self.root);
         execute_node_query(&connection, query_str, params_map).await
     }
 
@@ -993,7 +992,7 @@ impl Neo4jGraph {
 }
 
 impl Graph for Neo4jGraph {
-    fn new(root: PathBuf) -> Self
+    fn new(root: String) -> Self
     where
         Self: Sized,
     {
@@ -1003,7 +1002,7 @@ impl Graph for Neo4jGraph {
             root,
         }
     }
-    fn with_capacity(_nodes: usize, _edges: usize, root: PathBuf) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, root: String) -> Self
     where
         Self: Sized,
     {

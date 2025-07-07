@@ -2,7 +2,6 @@ use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::{Graph, Node};
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
-use std::path::PathBuf;
 use std::str::FromStr;
 
 pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
@@ -182,7 +181,7 @@ async fn test_typescript() {
     #[cfg(feature = "neo4j")]
     {
         use crate::lang::graphs::Neo4jGraph;
-        let graph = Neo4jGraph::new(PathBuf::from("src/testing/typescript"));
+        let graph = Neo4jGraph::new(String::from("src/testing/typescript"));
         graph.clear().await.unwrap();
         test_typescript_generic::<Neo4jGraph>().await.unwrap();
     }

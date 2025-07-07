@@ -3,7 +3,6 @@ use crate::lang::{Function, FunctionCall, Lang};
 use crate::utils::{create_node_key, create_node_key_from_ref, sanitize_string};
 use anyhow::Result;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::path::PathBuf;
 
 use serde::Serialize;
 
@@ -16,7 +15,7 @@ pub struct BTreeMapGraph {
 }
 
 impl Graph for BTreeMapGraph {
-    fn new(_root: PathBuf) -> Self {
+    fn new(_root: String) -> Self {
         BTreeMapGraph {
             nodes: BTreeMap::new(),
             edges: BTreeSet::new(),
@@ -24,7 +23,7 @@ impl Graph for BTreeMapGraph {
         }
     }
 
-    fn with_capacity(_nodes: usize, _edges: usize, _root: PathBuf) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, _root: String) -> Self
     where
         Self: Sized,
     {
@@ -126,7 +125,7 @@ impl Graph for BTreeMapGraph {
     }
 
     fn create_filtered_graph(self, final_filter: &[String]) -> Self {
-        let mut filtered = Self::new(PathBuf::new());
+        let mut filtered = Self::new(String::new());
 
         for (key, node) in &self.nodes {
             if node.node_type == NodeType::Repository || final_filter.contains(&node.node_data.file)

@@ -3,18 +3,17 @@ use crate::lang::{Function, FunctionCall};
 use anyhow::Result;
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::path::PathBuf;
 
 use super::{EdgeType, NodeData, NodeKeys};
 
 pub trait Graph: Default + Debug {
-    fn new(_root: PathBuf) -> Self
+    fn new(_root: String) -> Self
     where
         Self: Sized,
     {
         Self::default()
     }
-    fn with_capacity(_nodes: usize, _edges: usize, _root: PathBuf) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, _root: String) -> Self
     where
         Self: Sized,
     {
