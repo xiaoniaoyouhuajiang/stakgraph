@@ -26,7 +26,7 @@ class Db {
   private driver: Driver;
 
   constructor() {
-    const uri = `neo4j://${process.env.NEO4J_HOST || "localhost"}:7687`;
+    const uri = `neo4j://${process.env.NEO4J_HOST || "localhost:7687"}`;
     const user = process.env.NEO4J_USER || "neo4j";
     const pswd = process.env.NEO4J_PASSWORD || "testtest";
     console.log("===> connecting to", uri, user, pswd);
