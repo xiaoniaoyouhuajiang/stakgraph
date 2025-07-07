@@ -103,6 +103,10 @@ fn delete_react_testing_node_modules() -> std::io::Result<()> {
     if path.exists() {
         std::fs::remove_dir_all(path)?;
     }
+    let path = std::path::Path::new("src/testing/typescript/node_modules");
+    if path.exists() {
+        std::fs::remove_dir_all(path)?;
+    }
     Ok(())
 }
 
