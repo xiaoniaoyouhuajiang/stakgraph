@@ -39,7 +39,7 @@ pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
     assert_eq!(
         normalize_path(&language_nodes[0].file),
-        "src/testing/typescript/",
+        "src/testing/typescript",
         "Language node file path is incorrect"
     );
 

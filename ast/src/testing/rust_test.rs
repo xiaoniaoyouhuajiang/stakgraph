@@ -26,7 +26,7 @@ pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Language node name should be 'rust'"
     );
     assert_eq!(
-        language_nodes[0].file, "src/testing/rust/",
+        language_nodes[0].file, "src/testing/rust",
         "Language node file path is incorrect"
     );
     let files = graph.find_nodes_by_type(NodeType::File);

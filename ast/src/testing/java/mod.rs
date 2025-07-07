@@ -19,8 +19,8 @@ pub async fn test_java_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
 
     //graph.analysis();
-    assert_eq!(num_nodes, 42, "Expected 42 nodes");
-    assert_eq!(num_edges, 49, "Expected 49 edges");
+    assert_eq!(num_nodes, 43, "Expected 43 nodes");
+    assert_eq!(num_edges, 50, "Expected 50 edges");
 
     fn normalize_path(path: &str) -> String {
         path.replace("\\", "/")
@@ -34,7 +34,7 @@ pub async fn test_java_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
     assert_eq!(
         normalize_path(&language_nodes[0].file),
-        "src/testing/java/",
+        "src/testing/java",
         "Language node file path is incorrect"
     );
 

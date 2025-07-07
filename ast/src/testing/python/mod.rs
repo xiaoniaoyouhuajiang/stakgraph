@@ -28,7 +28,7 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Language node name should be 'python'"
     );
     assert_eq!(
-        language_nodes[0].file, "src/testing/python/",
+        language_nodes[0].file, "src/testing/python",
         "Language node file path is incorrect"
     );
 

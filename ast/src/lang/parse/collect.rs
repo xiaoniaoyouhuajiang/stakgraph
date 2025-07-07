@@ -367,6 +367,7 @@ impl Lang {
                     if processed.contains(&key) {
                         continue;
                     }
+
                     let found = graph.find_node_by_name_and_file_end_with(
                         nt.clone(),
                         &target_name,

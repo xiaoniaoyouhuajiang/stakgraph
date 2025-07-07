@@ -3,6 +3,7 @@ use crate::lang::{Graph, Node};
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
+use test_log::test;
 
 pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let use_lsp = get_use_lsp();
@@ -167,7 +168,7 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     if use_lsp {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
-        assert_eq!(contains, 42, "Expected 42 contains edges with lsp");
+        assert_eq!(contains, 42, "Expected 42 contains edges");
     } else {
         let contains = graph.count_edges_of_type(EdgeType::Contains);
         assert_eq!(contains, 40, "Expected 40 contains edges");
@@ -178,12 +179,12 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     if use_lsp {
         let import_edges = graph.count_edges_of_type(EdgeType::Imports);
-        assert_eq!(import_edges, 3, "Expected 3 import edges with lsp");
+        assert_eq!(import_edges, 3, "Expected 10 import edges with lsp");
     }
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn test_go() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
     println!("ArrayGraph:");

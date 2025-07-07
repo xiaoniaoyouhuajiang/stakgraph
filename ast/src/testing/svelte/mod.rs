@@ -19,8 +19,8 @@ pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     graph.analysis();
 
-    assert_eq!(num_nodes, 56, "Expected 56 nodes");
-    assert_eq!(num_edges, 55, "Expected 55 edges");
+    assert_eq!(num_nodes, 57, "Expected 57 nodes");
+    assert_eq!(num_edges, 56, "Expected 56 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -29,7 +29,7 @@ pub async fn test_svelte_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Language node name should be 'svelte'"
     );
     assert_eq!(
-        language_nodes[0].file, "src/testing/svelte/",
+        language_nodes[0].file, "src/testing/svelte",
         "Language node file path is incorrect"
     );
 

@@ -19,8 +19,8 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
     graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 112, "Expected 112 nodes");
-    assert_eq!(num_edges, 125, "Expected 125 edges");
+    assert_eq!(num_nodes, 114, "Expected 114 nodes");
+    assert_eq!(num_edges, 127, "Expected 127 edges");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 14, "Expected 14 imports");

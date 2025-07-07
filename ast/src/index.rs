@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use ast::lang::Graph;
 use ast::repo::Repo;
 use ast::utils::{logger, print_json};
 use std::env;
@@ -79,6 +80,8 @@ async fn main() -> Result<()> {
     }
 
     print_json(&graph, &name)?;
+
+    graph.analysis();
 
     Ok(())
 }

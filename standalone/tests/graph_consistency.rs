@@ -1,5 +1,6 @@
 #[cfg(feature = "neo4j")]
 use ast::lang::graphs::graph_ops::GraphOps;
+#[cfg(feature = "neo4j")]
 use test_log::test;
 
 #[cfg(feature = "neo4j")]
