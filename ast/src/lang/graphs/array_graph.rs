@@ -5,6 +5,7 @@ use crate::utils::{create_node_key, create_node_key_from_ref, sanitize_string};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
+use std::path::PathBuf;
 use tracing::debug;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,7 +21,7 @@ pub struct ArrayGraph {
 }
 
 impl Graph for ArrayGraph {
-    fn new() -> Self {
+    fn new(_root: PathBuf) -> Self {
         ArrayGraph {
             nodes: Vec::new(),
             edges: Vec::new(),
@@ -29,7 +30,7 @@ impl Graph for ArrayGraph {
             edge_keys: HashSet::new(),
         }
     }
-    fn with_capacity(_nodes: usize, _edges: usize) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, _root: PathBuf) -> Self
     where
         Self: Sized,
     {
@@ -55,7 +56,7 @@ impl Graph for ArrayGraph {
         }
     }
     fn create_filtered_graph(self, final_filter: &[String]) -> Self {
-        let mut new_graph = Self::new();
+        let mut new_graph = Self::new(PathBuf::new());
 
         for node in &self.nodes {
             if node.node_type == NodeType::Repository {

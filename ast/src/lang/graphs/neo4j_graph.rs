@@ -3,6 +3,7 @@ use crate::utils::sync_fn;
 use crate::{lang::Function, lang::Node, Lang};
 use anyhow::{Context, Result};
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
@@ -37,13 +38,15 @@ impl Default for Neo4jConfig {
 pub struct Neo4jGraph {
     connection: Arc<Mutex<Option<Neo4jConnection>>>,
     config: Neo4jConfig,
+    root: PathBuf,
 }
 
 impl Neo4jGraph {
-    pub fn with_config(config: Neo4jConfig) -> Self {
+    pub fn with_config(config: Neo4jConfig, root: PathBuf) -> Self {
         Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config,
+            root,
         }
     }
 
@@ -228,6 +231,7 @@ impl Default for Neo4jGraph {
         Neo4jGraph {
             connection: Arc::new(Mutex::new(None)),
             config: Neo4jConfig::default(),
+            root: PathBuf::new(),
         }
     }
 }
@@ -989,17 +993,25 @@ impl Neo4jGraph {
 }
 
 impl Graph for Neo4jGraph {
-    fn new() -> Self
+    fn new(root: PathBuf) -> Self
     where
         Self: Sized,
     {
-        Self::default()
+        Neo4jGraph {
+            connection: Arc::new(Mutex::new(None)),
+            config: Neo4jConfig::default(),
+            root,
+        }
     }
-    fn with_capacity(_nodes: usize, _edges: usize) -> Self
+    fn with_capacity(_nodes: usize, _edges: usize, root: PathBuf) -> Self
     where
         Self: Sized,
     {
-        Self::default()
+        Neo4jGraph {
+            connection: Arc::new(Mutex::new(None)),
+            config: Neo4jConfig::default(),
+            root,
+        }
     }
     fn analysis(&self) {
         let _ = sync_fn(|| async { self.analysis_async().await });

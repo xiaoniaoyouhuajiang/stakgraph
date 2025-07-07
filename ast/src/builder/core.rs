@@ -29,7 +29,7 @@ impl Repo {
         self.build_graph_inner().await
     }
     pub async fn build_graph_inner<G: Graph>(&self) -> Result<G> {
-        let mut graph = G::new();
+        let mut graph = G::new(self.root.clone());
 
         self.add_repository_and_language_nodes(&mut graph).await?;
         let files = self.collect_and_add_directories(&mut graph)?;

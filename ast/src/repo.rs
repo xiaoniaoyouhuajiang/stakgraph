@@ -66,7 +66,7 @@ impl Repos {
         self.build_graphs_inner().await
     }
     pub async fn build_graphs_inner<G: Graph>(&self) -> Result<G> {
-        let mut graph = G::new();
+        let mut graph = G::new(PathBuf::new());
         for repo in &self.0 {
             info!("building graph for {:?}", repo);
             let subgraph = repo.build_graph_inner().await?;
