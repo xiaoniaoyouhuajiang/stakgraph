@@ -497,9 +497,6 @@ impl Lang {
                             .cloned()
                         {
                             Some(dmr) => {
-                                println!("<<<< found data model {:?}", dmr.name);
-                                println!("<<<< file {:?}", file);
-                                println!("<<<< func {:?} {}", func.name, func.start);
                                 models.push(Edge::contains(
                                     NodeType::Function,
                                     &func,
