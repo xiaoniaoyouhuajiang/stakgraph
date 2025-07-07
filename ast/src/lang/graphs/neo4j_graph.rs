@@ -274,7 +274,12 @@ impl Neo4jGraph {
         };
 
         let (query_str, params_map) = find_nodes_by_name_query(&node_type, name, &self.root);
-        execute_node_query(&connection, query_str, params_map).await
+
+        let nodes = execute_node_query(&connection, query_str, params_map).await;
+
+        // TODO:filter out nodes that are not of the same language
+
+        nodes
     }
 
     pub async fn find_node_by_name_in_file_async(
