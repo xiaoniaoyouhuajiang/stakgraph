@@ -294,6 +294,20 @@ impl Language {
             return true; //dirs, lang, repo
         }
     }
+    pub fn is_source_file(&self, file_name: &str) -> bool {
+        if self.is_package_file(file_name) {
+            return true;
+        }
+
+        if let Some(ext) = file_name.split('.').last() {
+            if self.exts().contains(&ext) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        false
+    }
 }
 
 impl FromStr for Language {

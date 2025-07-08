@@ -178,6 +178,9 @@ impl Repo {
             for (filename, code) in filez {
                 self.send_status_progress(i, filez.len());
                 i += 1;
+                if !self.lang.kind.is_source_file(&filename) {
+                    continue;
+                }
                 let didopen = DidOpen {
                     file: filename.into(),
                     text: code.to_string(),
@@ -309,6 +312,9 @@ impl Repo {
         for (filename, code) in filez {
             self.send_status_progress(cnt, filez.len());
             cnt += 1;
+            if !self.lang.kind.is_source_file(&filename) {
+                continue;
+            }
             let qo = self
                 .lang
                 .q(&self.lang.lang().class_definition_query(), &NodeType::Class);
@@ -344,6 +350,9 @@ impl Repo {
         for (filename, code) in filez {
             self.send_status_progress(cnt, filez.len());
             cnt += 1;
+            if !self.lang.kind.is_source_file(&filename) {
+                continue;
+            }
             let q = self.lang.lang().instance_definition_query();
             let instances =
                 self.lang
@@ -354,6 +363,9 @@ impl Repo {
         let mut i = 0;
         info!("=> get_traits...");
         for (filename, code) in filez {
+            if !self.lang.kind.is_source_file(&filename) {
+                continue;
+            }
             let traits = self.lang.get_traits::<G>(&code, &filename)?;
             i += traits.len();
 
@@ -376,6 +388,9 @@ impl Repo {
         for (filename, code) in filez {
             self.send_status_progress(cnt, filez.len());
             cnt += 1;
+            if !self.lang.kind.is_source_file(&filename) {
+                continue;
+            }
             if let Some(dmf) = self.lang.lang().data_model_path_filter() {
                 if !filename.contains(&dmf) {
                     continue;
@@ -417,6 +432,9 @@ impl Repo {
         for (filename, code) in filez {
             self.send_status_progress(cnt, filez.len());
             cnt += 1;
+            if !self.lang.kind.is_source_file(&filename) {
+                continue;
+            }
             let (funcs, tests) =
                 self.lang
                     .get_functions_and_tests(&code, &filename, graph, &self.lsp_tx)?;
@@ -448,6 +466,9 @@ impl Repo {
         for (filename, code) in filez {
             self.send_status_progress(cnt, filez.len());
             cnt += 1;
+            if !self.lang.kind.is_source_file(&filename) {
+                continue;
+            }
             if self.lang.lang().is_router_file(&filename, &code) {
                 let pages = self.lang.get_pages(&code, &filename, &self.lsp_tx, graph)?;
                 i += pages.len();
@@ -547,6 +568,9 @@ impl Repo {
         for (filename, code) in filez {
             self.send_status_progress(cnt, filez.len());
             cnt += 1;
+            if !self.lang.kind.is_source_file(&filename) {
+                continue;
+            }
             if let Some(epf) = self.lang.lang().endpoint_path_filter() {
                 if !filename.contains(&epf) {
                     continue;
