@@ -115,6 +115,14 @@ impl NodeData {
             ..Default::default()
         }
     }
+    pub fn name_file_start(name: &str, file: &str, start: usize) -> Self {
+        Self {
+            name: name.to_string(),
+            file: file.to_string(),
+            start,
+            ..Default::default()
+        }
+    }
     pub fn in_file(file: &str) -> Self {
         Self {
             file: file.to_string(),
@@ -156,6 +164,22 @@ impl NodeData {
     pub fn add_includes(&mut self, modules: &str) {
         self.meta
             .insert("includes".to_string(), modules.to_string());
+    }
+}
+
+impl From<NodeKeys> for NodeData {
+    fn from(keys: NodeKeys) -> Self {
+        let mut meta = BTreeMap::new();
+        if let Some(verb) = keys.verb {
+            meta.insert("verb".to_string(), verb);
+        }
+        NodeData {
+            name: keys.name,
+            file: keys.file,
+            start: keys.start,
+            meta,
+            ..Default::default()
+        }
     }
 }
 

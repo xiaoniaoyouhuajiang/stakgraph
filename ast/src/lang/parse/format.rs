@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::lang::call_finder::func_target_file_finder;
+use crate::lang::call_finder::{func_target_file_finder, node_keys_finder};
 use crate::lang::{graphs::Graph, *};
 use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
@@ -368,13 +368,15 @@ impl Lang {
                     } else {
                         // FALLBACK to find?
                         return Ok(self.lang().handler_finder(
-                            endp,
-                            &|handler, suffix| {
-                                graph.find_node_by_name_and_file_end_with(
-                                    NodeType::Function,
-                                    handler,
-                                    suffix,
-                                )
+                            endp.clone(),
+                            &|handler_name, _suffix| match node_keys_finder(
+                                handler_name,
+                                graph,
+                                file,
+                                endp.clone().start,
+                            ) {
+                                Some(node_key) => Some(node_key.into()),
+                                None => None,
                             },
                             &|file| graph.find_nodes_by_file_ends_with(NodeType::Function, file),
                             params,
@@ -659,102 +661,11 @@ impl Lang {
         let mut fc = Calls::default();
         let mut external_func = None;
         let mut class_call = None;
+        let mut call_name_and_point = None;
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == FUNCTION_NAME {
-                let called = body;
-                trace!("format_function_call {} {}", caller_name, called);
-                if let Some(lsp) = lsp_tx {
-                    let p = node.start_position();
-                    log_cmd(format!("=> {} looking for {:?}", caller_name, called));
-                    let pos = Position::new(file, p.row as u32, p.column as u32)?;
-                    let res = LspCmd::GotoDefinition(pos.clone()).send(&lsp)?;
-                    if let LspRes::GotoDefinition(None) = res {
-                        log_cmd(format!("==> _ no definition found for {:?}", called));
-                    }
-                    if let LspRes::GotoDefinition(Some(gt)) = res {
-                        let target_file = gt.file.display().to_string();
-                        if let Some(t) = graph.find_node_by_name_in_file(
-                            NodeType::Function,
-                            &called,
-                            &target_file,
-                        ) {
-                            log_cmd(format!(
-                                "==> ! found target for {:?} {}!!!",
-                                called, &t.file
-                            ));
-                            fc.target = NodeKeys::new(&called, &t.file, t.start);
-                            // set extenal func so this is marked as USES edge rather than CALLS
-                            if t.body.is_empty() && t.docs.is_some() {
-                                log_cmd(format!("==> ! found target is external {:?}!!!", called));
-                                external_func = Some(t);
-                            }
-                        } else {
-                            if let Some(one_func) =
-                                func_target_file_finder(&called, &None, graph, file)
-                            {
-                                log_cmd(format!(
-                                    "==> ? ONE target for {:?} {}",
-                                    called, &one_func.0
-                                ));
-                                fc.target = NodeKeys::new(&called, &one_func.0, one_func.1);
-                            } else {
-                                log_cmd(format!(
-                                    "==> ? definition, not in graph: {:?} in {}",
-                                    called, &target_file
-                                ));
-                                if self.lang.is_lib_file(&target_file) {
-                                    if !self.lang.is_component(&called) {
-                                        let mut lib_func =
-                                            NodeData::name_file(&called, &target_file);
-                                        lib_func.start = gt.line as usize;
-                                        lib_func.end = gt.line as usize;
-                                        let pos2 =
-                                            Position::new(&file, p.row as u32, p.column as u32)?;
-                                        let hover_res = LspCmd::Hover(pos2).send(&lsp)?;
-                                        if let LspRes::Hover(Some(hr)) = hover_res {
-                                            lib_func.docs = Some(hr);
-                                        }
-                                        external_func = Some(lib_func);
-                                        fc.target =
-                                            NodeKeys::new(&called, &target_file, gt.line as usize);
-                                    }
-                                } else {
-                                    // handle trait match, jump to implemenetations
-                                    let res = LspCmd::GotoImplementations(pos).send(&lsp)?;
-                                    if let LspRes::GotoImplementations(Some(gt2)) = res {
-                                        log_cmd(format!("==> ? impls {} {:?}", called, gt2));
-                                        let target_file = gt2.file.display().to_string();
-                                        if let Some(t_file) = graph.find_node_by_name_in_file(
-                                            NodeType::Function,
-                                            &called,
-                                            &target_file,
-                                        ) {
-                                            log_cmd(format!(
-                                                "==> ! found target for impl {:?} {:?}!!!",
-                                                called, &t_file
-                                            ));
-                                            fc.target =
-                                                NodeKeys::new(&called, &t_file.file, t_file.start);
-                                        }
-                                    }
-                                }
-                                // NOTE: commented out. only add the func if its either a lib component, or in the graph already
-                                // fc.target = NodeKeys::new(&called, &target_file);
-                            }
-                        }
-                    }
-                // } else if let Some(tf) = func_target_file_finder(&body, &fc.operand, graph) {
-                // fc.target = NodeKeys::new(&body, &tf);
-                } else {
-                    // FALLBACK to find?
-                    if let Some(tf) = func_target_file_finder(&called, &None, graph, file) {
-                        log_cmd(format!(
-                            "==> ? (no lsp) ONE target for {:?} {}",
-                            called, &tf.0
-                        ));
-                        fc.target = NodeKeys::new(&called, &tf.0, tf.1);
-                    }
-                }
+                trace!("format_function_call {} {}", caller_name, body);
+                call_name_and_point = Some((body, node.start_position()));
             } else if o == FUNCTION_CALL {
                 fc.source = NodeKeys::new(&caller_name, file, caller_start);
             } else if o == OPERAND {
@@ -768,6 +679,100 @@ impl Lang {
             }
             Ok(())
         })?;
+
+        if let None = call_name_and_point {
+            return Ok(None);
+        }
+        let (called, call_point) = call_name_and_point.unwrap();
+
+        if let Some(lsp) = lsp_tx {
+            log_cmd(format!("=> {} looking for {:?}", caller_name, called));
+            let pos = Position::new(file, call_point.row as u32, call_point.column as u32)?;
+            let res = LspCmd::GotoDefinition(pos.clone()).send(&lsp)?;
+            if let LspRes::GotoDefinition(None) = res {
+                log_cmd(format!("==> _ no definition found for {:?}", called));
+            }
+            if let LspRes::GotoDefinition(Some(gt)) = res {
+                let target_file = gt.file.display().to_string();
+                if let Some(t) =
+                    graph.find_node_by_name_in_file(NodeType::Function, &called, &target_file)
+                {
+                    log_cmd(format!(
+                        "==> ! found target for {:?} {}!!!",
+                        called, &t.file
+                    ));
+                    fc.target = NodeKeys::new(&called, &t.file, t.start);
+                    // set extenal func so this is marked as USES edge rather than CALLS
+                    if t.body.is_empty() && t.docs.is_some() {
+                        log_cmd(format!("==> ! found target is external {:?}!!!", called));
+                        external_func = Some(t);
+                    }
+                } else {
+                    if let Some(one_func) =
+                        func_target_file_finder(&called, &None, graph, file, fc.source.start)
+                    {
+                        log_cmd(format!("==> ? ONE target for {:?} {}", called, &one_func.0));
+                        fc.target = NodeKeys::new(&called, &one_func.0, one_func.1);
+                    } else {
+                        log_cmd(format!(
+                            "==> ? definition, not in graph: {:?} in {}",
+                            called, &target_file
+                        ));
+                        if self.lang.is_lib_file(&target_file) {
+                            if !self.lang.is_component(&called) {
+                                let mut lib_func = NodeData::name_file(&called, &target_file);
+                                lib_func.start = gt.line as usize;
+                                lib_func.end = gt.line as usize;
+                                let pos2 = Position::new(
+                                    &file,
+                                    call_point.row as u32,
+                                    call_point.column as u32,
+                                )?;
+                                let hover_res = LspCmd::Hover(pos2).send(&lsp)?;
+                                if let LspRes::Hover(Some(hr)) = hover_res {
+                                    lib_func.docs = Some(hr);
+                                }
+                                external_func = Some(lib_func);
+                                fc.target = NodeKeys::new(&called, &target_file, gt.line as usize);
+                            }
+                        } else {
+                            // handle trait match, jump to implemenetations
+                            let res = LspCmd::GotoImplementations(pos).send(&lsp)?;
+                            if let LspRes::GotoImplementations(Some(gt2)) = res {
+                                log_cmd(format!("==> ? impls {} {:?}", called, gt2));
+                                let target_file = gt2.file.display().to_string();
+                                if let Some(t_file) = graph.find_node_by_name_in_file(
+                                    NodeType::Function,
+                                    &called,
+                                    &target_file,
+                                ) {
+                                    log_cmd(format!(
+                                        "==> ! found target for impl {:?} {:?}!!!",
+                                        called, &t_file
+                                    ));
+                                    fc.target = NodeKeys::new(&called, &t_file.file, t_file.start);
+                                }
+                            }
+                        }
+                        // NOTE: commented out. only add the func if its either a lib component, or in the graph already
+                        // fc.target = NodeKeys::new(&called, &target_file);
+                    }
+                }
+            }
+        // } else if let Some(tf) = func_target_file_finder(&body, &fc.operand, graph) {
+        // fc.target = NodeKeys::new(&body, &tf);
+        } else {
+            // FALLBACK to find?
+            if let Some(tf) = func_target_file_finder(&called, &None, graph, file, fc.source.start)
+            {
+                log_cmd(format!(
+                    "==> ? (no lsp) ONE target for {:?} {}",
+                    called, &tf.0
+                ));
+                fc.target = NodeKeys::new(&called, &tf.0, tf.1);
+            }
+        }
+
         // target must be found OR class call
         if fc.target.is_empty() && class_call.is_none() {
             // NOTE should we only do the class call if there is no direct function target?
