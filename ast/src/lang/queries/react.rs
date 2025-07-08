@@ -351,10 +351,11 @@ impl Stack for ReactTs {
                     arguments: (arguments [ (string) (template_string) ] @{ENDPOINT})
                 ) @{ROUTE}
 
-                ;; Matches: axios.get('/api/...'), ky.post('/api/...') etc.
+                ;; Matches: axios.get('/api/...'), ky.post('/api/...'), api.get('/api/...') etc.
+                ;; to make it more specific: (#match? @lib "^(axios|ky|superagent|api)$")
                 (call_expression
                     function: (member_expression
-                        object: (identifier) @lib (#match? @lib "^(axios|ky|superagent)$")
+                        object: (identifier) @lib
                         property: (property_identifier) @{REQUEST_CALL} (#match? @{REQUEST_CALL} "^(get|post|put|delete|patch)$")
                     )
                     arguments: (arguments [ (string) (template_string) ] @{ENDPOINT})
