@@ -69,7 +69,7 @@ fn find_only_one_function_file<G: Graph>(
     if target_files_starts.len() == 1 {
         return Some(target_files_starts[0].clone());
     }
-    // TODO: disclue "mock"
+    // TODO: disclude "mock"
     log_cmd(format!("::: found more than one {:?}", func_name));
     target_files_starts.retain(|x| !x.0.contains("mock"));
     if target_files_starts.len() == 1 {
@@ -135,7 +135,7 @@ fn find_function_in_same_directory<G: Graph>(
     func_name: &str,
     current_file: &str,
     graph: &G,
-    _source_start: usize,
+    source_start: usize,
 ) -> Option<(String, usize)> {
     let current_dir = std::path::Path::new(current_file)
         .parent()
@@ -151,7 +151,7 @@ fn find_function_in_same_directory<G: Graph>(
         current_file,
         current_dir
     ));
-    for node in nodes {
+    for node in &nodes {
         // dont return like Label->label
         if node.name != func_name && node.name.to_lowercase() == func_name.to_lowercase() {
             return None;
@@ -162,11 +162,14 @@ fn find_function_in_same_directory<G: Graph>(
                 .and_then(|p| p.to_str())
             {
                 if node_dir == current_dir && !node.file.contains("mock") {
-                    log_cmd(format!(
-                        "::: found function in same directory! file: {:?}",
-                        current_file
-                    ));
-                    same_dir_files.push((node.file.clone(), node.start));
+                    let is_same = node.start == source_start && node.file == current_file;
+                    if !is_same {
+                        log_cmd(format!(
+                            "::: found function in same directory! file: {:?}",
+                            current_file
+                        ));
+                        same_dir_files.push((node.file.clone(), node.start));
+                    }
                 }
             }
         }
