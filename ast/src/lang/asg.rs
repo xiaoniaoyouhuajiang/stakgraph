@@ -167,6 +167,22 @@ impl NodeData {
     }
 }
 
+impl From<NodeKeys> for NodeData {
+    fn from(keys: NodeKeys) -> Self {
+        let mut meta = BTreeMap::new();
+        if let Some(verb) = keys.verb {
+            meta.insert("verb".to_string(), verb);
+        }
+        NodeData {
+            name: keys.name,
+            file: keys.file,
+            start: keys.start,
+            meta,
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Operand {
     pub source: NodeKeys,

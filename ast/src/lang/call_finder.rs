@@ -4,8 +4,9 @@ pub fn node_keys_finder<G: Graph>(
     func_name: &str,
     graph: &G,
     current_file: &str,
+    source_start: usize,
 ) -> Option<NodeKeys> {
-    match func_target_file_finder(func_name, &None, graph, current_file) {
+    match func_target_file_finder(func_name, &None, graph, current_file, source_start) {
         Some((file, start)) => Some(NodeKeys::new(func_name, &file, start)),
         None => None,
     }
@@ -16,6 +17,7 @@ pub fn func_target_file_finder<G: Graph>(
     _operand: &Option<String>,
     graph: &G,
     current_file: &str, // Add current file parameter
+    source_start: usize,
 ) -> Option<(String, usize)> {
     log_cmd(format!(
         "func_target_file_finder {:?} from file {:?}",
@@ -23,7 +25,7 @@ pub fn func_target_file_finder<G: Graph>(
     ));
 
     // First try: find only one function file
-    if let Some(tf) = find_only_one_function_file(func_name, graph) {
+    if let Some(tf) = find_only_one_function_file(func_name, graph, source_start, current_file) {
         return Some(tf);
     }
 
@@ -35,24 +37,32 @@ pub fn func_target_file_finder<G: Graph>(
     // }
 
     // Third try: find in the same file
-    if let Some(tf) = find_function_in_same_file(func_name, current_file, graph) {
+    if let Some(tf) = find_function_in_same_file(func_name, current_file, graph, source_start) {
         return Some(tf);
     }
 
     // Fourth try: find in the same directory
-    if let Some(tf) = find_function_in_same_directory(func_name, current_file, graph) {
+    if let Some(tf) = find_function_in_same_directory(func_name, current_file, graph, source_start)
+    {
         return Some(tf);
     }
 
     None
 }
 
-fn find_only_one_function_file<G: Graph>(func_name: &str, graph: &G) -> Option<(String, usize)> {
+fn find_only_one_function_file<G: Graph>(
+    func_name: &str,
+    graph: &G,
+    source_start: usize,
+    current_file: &str,
+) -> Option<(String, usize)> {
     let mut target_files_starts = Vec::new();
     let nodes = graph.find_nodes_by_name(NodeType::Function, func_name);
     for node in nodes {
         // NOT empty functions (interfaces)
-        if !node.body.is_empty() {
+        if !node.body.is_empty() && current_file != node.file {
+            target_files_starts.push((node.file.clone(), node.start));
+        } else if current_file == node.file && node.start != source_start {
             target_files_starts.push((node.file.clone(), node.start));
         }
     }
@@ -100,16 +110,16 @@ fn find_function_in_same_file<G: Graph>(
     func_name: &str,
     current_file: &str,
     graph: &G,
+    source_start: usize,
 ) -> Option<(String, usize)> {
     let node =
         graph.find_node_by_name_and_file_end_with(NodeType::Function, func_name, current_file);
-
     if let Some(node) = node {
         // dont return like Label->label
         if node.name != func_name && node.name.to_lowercase() == func_name.to_lowercase() {
             return None;
         }
-        if !node.body.is_empty() && node.file == current_file {
+        if !node.body.is_empty() && node.file == current_file && node.start != source_start {
             log_cmd(format!(
                 "::: found function in same file: {:?}",
                 current_file
@@ -125,6 +135,7 @@ fn find_function_in_same_directory<G: Graph>(
     func_name: &str,
     current_file: &str,
     graph: &G,
+    _source_start: usize,
 ) -> Option<(String, usize)> {
     let current_dir = std::path::Path::new(current_file)
         .parent()
@@ -183,10 +194,12 @@ fn _func_target_files_finder<G: Graph>(
     func_name: &str,
     operand: &Option<String>,
     graph: &G,
+    source_start: usize,
+    current_file: &str,
 ) -> Option<(String, usize)> {
     log_cmd(format!("func_target_file_finder {:?}", func_name));
     let mut tf = None;
-    if let Some(tf_) = find_only_one_function_file(func_name, graph) {
+    if let Some(tf_) = find_only_one_function_file(func_name, graph, source_start, current_file) {
         tf = Some(tf_);
     } else if let Some(_op) = operand {
         // if let Some(tf_) = find_function_with_operand(&op, func_name, graph) {

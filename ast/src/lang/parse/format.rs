@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::lang::call_finder::func_target_file_finder;
+use crate::lang::call_finder::{func_target_file_finder, node_keys_finder};
 use crate::lang::{graphs::Graph, *};
 use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
@@ -368,18 +368,14 @@ impl Lang {
                     } else {
                         // FALLBACK to find?
                         return Ok(self.lang().handler_finder(
-                            endp,
-                            &|handler_name, _suffix| match func_target_file_finder(
+                            endp.clone(),
+                            &|handler_name, _suffix| match node_keys_finder(
                                 handler_name,
-                                &None,
                                 graph,
                                 file,
+                                endp.clone().start,
                             ) {
-                                Some((file, start)) => {
-                                    let target =
-                                        NodeData::name_file_start(&handler_name, &file, start);
-                                    Some(target)
-                                }
+                                Some(node_key) => Some(node_key.into()),
                                 None => None,
                             },
                             &|file| graph.find_nodes_by_file_ends_with(NodeType::Function, file),
@@ -712,7 +708,9 @@ impl Lang {
                         external_func = Some(t);
                     }
                 } else {
-                    if let Some(one_func) = func_target_file_finder(&called, &None, graph, file) {
+                    if let Some(one_func) =
+                        func_target_file_finder(&called, &None, graph, file, fc.source.start)
+                    {
                         log_cmd(format!("==> ? ONE target for {:?} {}", called, &one_func.0));
                         fc.target = NodeKeys::new(&called, &one_func.0, one_func.1);
                     } else {
@@ -765,7 +763,8 @@ impl Lang {
         // fc.target = NodeKeys::new(&body, &tf);
         } else {
             // FALLBACK to find?
-            if let Some(tf) = func_target_file_finder(&called, &None, graph, file) {
+            if let Some(tf) = func_target_file_finder(&called, &None, graph, file, fc.source.start)
+            {
                 log_cmd(format!(
                     "==> ? (no lsp) ONE target for {:?} {}",
                     called, &tf.0
