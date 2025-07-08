@@ -1,5 +1,16 @@
 use super::{graphs::Graph, *};
 
+pub fn node_keys_finder<G: Graph>(
+    func_name: &str,
+    graph: &G,
+    current_file: &str,
+) -> Option<NodeKeys> {
+    match func_target_file_finder(func_name, &None, graph, current_file) {
+        Some((file, start)) => Some(NodeKeys::new(func_name, &file, start)),
+        None => None,
+    }
+}
+
 pub fn func_target_file_finder<G: Graph>(
     func_name: &str,
     _operand: &Option<String>,
@@ -172,7 +183,7 @@ fn _func_target_files_finder<G: Graph>(
     func_name: &str,
     operand: &Option<String>,
     graph: &G,
-) -> Option<(String,usize)> {
+) -> Option<(String, usize)> {
     log_cmd(format!("func_target_file_finder {:?}", func_name));
     let mut tf = None;
     if let Some(tf_) = find_only_one_function_file(func_name, graph) {
