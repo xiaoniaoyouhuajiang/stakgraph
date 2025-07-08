@@ -369,12 +369,18 @@ impl Lang {
                         // FALLBACK to find?
                         return Ok(self.lang().handler_finder(
                             endp,
-                            &|handler, suffix| {
-                                graph.find_node_by_name_and_file_end_with(
-                                    NodeType::Function,
-                                    handler,
-                                    suffix,
-                                )
+                            &|handler_name, _suffix| match func_target_file_finder(
+                                handler_name,
+                                &None,
+                                graph,
+                                file,
+                            ) {
+                                Some((file, start)) => {
+                                    let target =
+                                        NodeData::name_file_start(&handler_name, &file, start);
+                                    Some(target)
+                                }
+                                None => None,
                             },
                             &|file| graph.find_nodes_by_file_ends_with(NodeType::Function, file),
                             params,

@@ -115,6 +115,14 @@ impl NodeData {
             ..Default::default()
         }
     }
+    pub fn name_file_start(name: &str, file: &str, start: usize) -> Self {
+        Self {
+            name: name.to_string(),
+            file: file.to_string(),
+            start,
+            ..Default::default()
+        }
+    }
     pub fn in_file(file: &str) -> Self {
         Self {
             file: file.to_string(),
