@@ -62,7 +62,7 @@ fn find_only_one_function_file<G: Graph>(
         // NOT empty functions (interfaces)
         if !node.body.is_empty() && current_file != node.file {
             target_files_starts.push((node.file.clone(), node.start));
-        } else if current_file == node.file && node.start != source_start {
+        } else if current_file == node.file && node.start != source_start && !node.body.is_empty() {
             target_files_starts.push((node.file.clone(), node.start));
         }
     }
