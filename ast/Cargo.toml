@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 default = []
 neo4j = ["dep:neo4rs"]
+fulltest = []
 
 
 [dependencies]
