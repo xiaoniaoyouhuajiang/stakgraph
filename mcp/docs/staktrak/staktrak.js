@@ -7,7 +7,6 @@ var userBehaviour = (function () {
     mouseScroll: true,
     timeCount: true,
     clearAfterProcess: true,
-    processTime: 15,
     windowResize: true,
     visibilitychange: true,
     keyboardActivity: true,
@@ -262,13 +261,6 @@ var userBehaviour = (function () {
         // Add other media events as needed
       });
     }
-
-    //PROCESS INTERVAL
-    if (user_config.processTime !== false) {
-      mem.processInterval = setInterval(() => {
-        processResults();
-      }, user_config.processTime * 1000);
-    }
   }
 
   function processResults() {
@@ -279,9 +271,6 @@ var userBehaviour = (function () {
   }
 
   function stop() {
-    if (user_config.processTime !== false) {
-      clearInterval(mem.processInterval);
-    }
     clearInterval(mem.mouseInterval);
     window.removeEventListener("scroll", mem.eventsFunctions.scroll);
     window.removeEventListener("click", mem.eventsFunctions.click);
@@ -332,3 +321,7 @@ var userBehaviour = (function () {
 })();
 
 userBehaviour.start();
+
+setInterval(() => {
+  userBehaviour.stop();
+}, 5000);
