@@ -7,13 +7,20 @@ use anyhow::Result;
 use test_log::test;
 
 async fn test_demorepo_generic<G: Graph>(repos: &Repos) -> Result<()> {
+    let use_lsp = get_use_lsp();
     let graph = repos.build_graphs_inner::<BTreeMapGraph>().await.unwrap();
 
     graph.analysis();
 
     let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 145, "Expected 145 nodes in the graph");
-    assert_eq!(num_edges, 204, "Expected 204 edges in the graph");
+
+    if use_lsp {
+        assert_eq!(num_nodes, 145, "Expected 145 nodes in the graph");
+        assert_eq!(num_edges, 204, "Expected 204 edges in the graph");
+    } else {
+        assert_eq!(num_nodes, 102, "Expected 102 nodes in the graph");
+        assert_eq!(num_edges, 132, "Expected 132 edges in the graph");
+    }
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 2, "Expected 2 language nodes");
@@ -33,7 +40,11 @@ async fn test_demorepo_generic<G: Graph>(repos: &Repos) -> Result<()> {
         "Expected at least one endpoint containing 'person'"
     );
     let functions = graph.find_nodes_by_type(NodeType::Function);
-    assert_eq!(functions.len(), 69, "Expected 69 function nodes");
+    if use_lsp {
+        assert_eq!(functions.len(), 69, "Expected 69 function nodes");
+    } else {
+        assert_eq!(functions.len(), 26, "Expected 26 function nodes");
+    }
     assert!(
         functions
             .iter()
