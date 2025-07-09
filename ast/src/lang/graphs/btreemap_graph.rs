@@ -626,37 +626,6 @@ impl Graph for BTreeMapGraph {
         }
     }
 
-    // NOTE: is this very inefficient?
-    fn prefix_paths(&mut self, root: &str) {
-        // self
-        //     .nodes
-        //     .iter_mut()
-        //     .for_each(|(_k, node)| {
-        //         node.add_root(root);
-        //     });
-        let new_nodes: BTreeMap<String, Node> = self
-            .nodes
-            .iter()
-            .map(|(key, node)| {
-                let new_key = add_root_to_node_key(root, key);
-                let mut new_node = node.clone();
-                new_node.add_root(root);
-                (new_key, new_node)
-            })
-            .collect();
-        self.nodes = new_nodes;
-        let new_edges: BTreeSet<(String, String, EdgeType)> = self
-            .edges
-            .iter()
-            .map(|(src, dst, edge_type)| {
-                let new_src = add_root_to_node_key(root, src);
-                let new_dst = add_root_to_node_key(root, dst);
-                (new_src, new_dst, edge_type.clone())
-            })
-            .collect();
-        self.edges = new_edges;
-    }
-
     fn find_nodes_by_name_contains(&self, node_type: NodeType, name: &str) -> Vec<NodeData> {
         let prefix = format!("{:?}-", node_type).to_lowercase();
         self.nodes
