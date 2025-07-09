@@ -69,6 +69,7 @@ async fn main() -> Result<()> {
 
     let mut protected_routes = Router::new()
         .route("/process", post(handlers::process))
+        .route("/sync", post(handlers::process))
         .route("/clear", post(handlers::clear_graph))
         .route("/ingest", post(handlers::ingest))
         .route("/fetch-repo", post(handlers::fetch_repo));
