@@ -762,9 +762,11 @@ impl Graph for BTreeMapGraph {
     fn has_edge(&self, source: &Node, target: &Node, edge_type: EdgeType) -> bool {
         let source_key = create_node_key(source);
         let target_key = create_node_key(target);
-        let edge = self.find_edges_by_keys(&source_key, &target_key, &edge_type);
-
-        !edge.is_empty()
+        if let Some(_edge) = self.find_edge_by_keys(&source_key, &target_key, &edge_type) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }
 
@@ -773,78 +775,42 @@ impl BTreeMapGraph {
         let mut formatted_edges = Vec::with_capacity(self.edges.len());
 
         for (src_key, dst_key, edge_type) in &self.edges {
-            let edges = self.find_edges_by_keys(src_key, dst_key, edge_type);
-            formatted_edges.extend(edges);
+            if let Some(edge) = self.find_edge_by_keys(src_key, dst_key, edge_type) {
+                formatted_edges.push(edge);
+            } else {
+                tracing::warn!(
+                    "Edge not found for keys: src_key: {}, dst_key: {}, edge_type: {:?}",
+                    src_key,
+                    dst_key,
+                    edge_type
+                );
+            }
         }
 
         formatted_edges
     }
-    pub fn find_nodes_by_key_fuzzy(&self, key: &str) -> Vec<&Node> {
-        if let Some(node) = self.nodes.get(key) {
-            return vec![node];
-        }
 
-        let base_key = Self::base_key(key);
-        let base_matches: Vec<&Node> = self
-            .nodes
-            .iter()
-            .filter(|(node_key, _)| Self::base_key(node_key) == base_key)
-            .map(|(_, node)| node)
-            .collect();
-
-        if !base_matches.is_empty() {
-            return base_matches;
-        }
-
-        //extremely week but last line if first 2 fail
-        let (search_type, search_name, _) = Self::extract_key_components(key);
-        self.nodes
-            .iter()
-            .filter(|(node_key, _)| {
-                let (node_type, node_name, _) = Self::extract_key_components(node_key);
-                node_type == search_type && node_name == search_name
-            })
-            .map(|(_, node)| node)
-            .collect()
-    }
-
-    pub fn find_edges_by_keys(
+    pub fn find_edge_by_keys(
         &self,
         src_key: &str,
         dst_key: &str,
         edge_type: &EdgeType,
-    ) -> Vec<Edge> {
-        let src_nodes = self.find_nodes_by_key_fuzzy(src_key);
-        let dst_nodes = self.find_nodes_by_key_fuzzy(dst_key);
-
-        let mut edges = Vec::new();
-        for src_node in &src_nodes {
-            for dst_node in &dst_nodes {
-                edges.push(Edge::new(
-                    edge_type.clone(),
-                    NodeRef::from((&src_node.node_data).into(), src_node.node_type.clone()),
-                    NodeRef::from((&dst_node.node_data).into(), dst_node.node_type.clone()),
-                ));
-            }
-        }
-        edges
-    }
-
-    fn base_key(key: &str) -> &str {
-        match key.rfind('-') {
-            Some(idx) if key[idx + 1..].chars().all(char::is_numeric) => &key[..idx],
-            _ => key,
-        }
-    }
-    fn extract_key_components(key: &str) -> (String, String, String) {
-        let parts: Vec<&str> = key.split('-').collect();
-        if parts.len() >= 3 {
-            let node_type = parts[0].to_string();
-            let name = parts[1].to_string();
-            let rest = parts[2..].join("-");
-            (node_type, name, rest)
+    ) -> Option<Edge> {
+        if let (Some(src_node), Some(dst_node)) = (self.nodes.get(src_key), self.nodes.get(dst_key))
+        {
+            Some(Edge::new(
+                edge_type.clone(),
+                NodeRef::from(
+                    src_node.node_data.clone().into(),
+                    src_node.node_type.clone(),
+                ),
+                NodeRef::from(
+                    dst_node.node_data.clone().into(),
+                    dst_node.node_type.clone(),
+                ),
+            ))
         } else {
-            (key.to_string(), "".to_string(), "".to_string())
+            None
         }
     }
 }
@@ -870,48 +836,4 @@ impl Ord for BTreeMapGraph {
             other_ordering => other_ordering,
         }
     }
-}
-
-pub fn add_root_to_file(root: &str, file_path: &str) -> String {
-    if file_path.starts_with("/") {
-        return file_path.to_string();
-    }
-    format!("{}/{}", root, file_path)
-}
-
-pub fn add_root_to_node_key(root: &str, edge_key: &str) -> String {
-    // Split the edge key into parts
-    let parts: Vec<&str> = edge_key.split('-').collect();
-
-    // We need at least 4 parts: node_type, name, file, start
-    if parts.len() < 4 {
-        return edge_key.to_string(); // Invalid format, return original
-    }
-
-    // Extract the parts
-    let node_type = parts[0];
-    let name = parts[1];
-    let file = parts[2];
-    let start = parts[3];
-
-    // Add root to the file part
-    let updated_file = add_root_to_file(root, file);
-
-    // Reconstruct the edge key
-    let mut result = String::new();
-    result.push_str(node_type);
-    result.push('-');
-    result.push_str(name);
-    result.push('-');
-    result.push_str(&sanitize_string(&updated_file));
-    result.push('-');
-    result.push_str(start);
-
-    // If there's a verb part (5th element), add it back
-    if parts.len() > 4 {
-        result.push('-');
-        result.push_str(parts[4]);
-    }
-
-    result
 }
