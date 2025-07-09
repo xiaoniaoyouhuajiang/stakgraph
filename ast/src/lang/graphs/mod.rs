@@ -198,10 +198,6 @@ impl Edge {
             NodeRef::from(target.into(), target_type),
         )
     }
-    pub fn add_root(&mut self, root: &str) {
-        self.source.node_data.file = format!("{}/{}", root, self.source.node_data.file);
-        self.target.node_data.file = format!("{}/{}", root, self.target.node_data.file);
-    }
 }
 
 impl From<Operand> for Edge {
@@ -236,10 +232,6 @@ impl Node {
     }
     pub fn to_node_type(&self) -> NodeType {
         self.node_type.clone()
-    }
-
-    pub fn add_root(&mut self, root: &str) {
-        form(root, &mut self.node_data)
     }
 }
 
