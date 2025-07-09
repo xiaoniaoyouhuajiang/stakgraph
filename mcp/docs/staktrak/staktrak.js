@@ -320,8 +320,29 @@ var userBehaviour = (function () {
   };
 })();
 
-userBehaviour.start();
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    window.parent.postMessage({ type: "staktrak-setup", status: "ready" }, "*");
+  }, 500);
+});
 
-setInterval(() => {
-  userBehaviour.stop();
-}, 5000);
+window.addEventListener("message", (event) => {
+  if (event.data && event.data.type) {
+    switch (event.data.type) {
+      case "staktrak-start":
+        userBehaviour.start();
+        break;
+      case "staktrak-stop":
+        const results = userBehaviour.showResult();
+        window.parent.postMessage(
+          {
+            type: "staktrak-results",
+            data: results,
+          },
+          "*"
+        );
+        userBehaviour.stop();
+        break;
+    }
+  }
+});
