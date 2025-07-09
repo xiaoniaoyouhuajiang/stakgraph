@@ -22,9 +22,9 @@ pub struct UniqueKey {
 pub struct NodeKeys {
     pub name: String,
     pub file: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub verb: Option<String>,
     pub start: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verb: Option<String>, // multiple endpoints can be defined on the same line, like ruby
 }
 
 impl NodeKeys {
@@ -32,8 +32,8 @@ impl NodeKeys {
         Self {
             name: name.to_string(),
             file: file.to_string(),
-            verb: None,
             start: start,
+            verb: None,
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -45,8 +45,18 @@ impl From<&NodeData> for NodeKeys {
         NodeKeys {
             name: d.name.clone(),
             file: d.file.clone(),
-            verb: d.meta.get("verb").map(|s| s.to_string()),
             start: d.start,
+            verb: d.meta.get("verb").map(|s| s.to_string()),
+        }
+    }
+}
+impl From<NodeData> for NodeKeys {
+    fn from(d: NodeData) -> Self {
+        NodeKeys {
+            name: d.name,
+            file: d.file,
+            start: d.start,
+            verb: d.meta.get("verb").map(|s| s.to_string()),
         }
     }
 }
@@ -164,22 +174,6 @@ impl NodeData {
     pub fn add_includes(&mut self, modules: &str) {
         self.meta
             .insert("includes".to_string(), modules.to_string());
-    }
-}
-
-impl From<NodeKeys> for NodeData {
-    fn from(keys: NodeKeys) -> Self {
-        let mut meta = BTreeMap::new();
-        if let Some(verb) = keys.verb {
-            meta.insert("verb".to_string(), verb);
-        }
-        NodeData {
-            name: keys.name,
-            file: keys.file,
-            start: keys.start,
-            meta,
-            ..Default::default()
-        }
     }
 }
 

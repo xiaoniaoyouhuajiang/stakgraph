@@ -217,8 +217,13 @@ pub async fn ingest(
 
     graph_ops.graph.clear().await?;
 
+    info!("Uploading to Neo4j...");
     let (nodes, edges) = graph_ops.upload_btreemap_to_neo4j(&btree_graph).await?;
     graph_ops.graph.create_indexes().await?;
+
+    if std::env::var("PRINT_ROOT").is_ok() {
+        ast::utils::print_json(&btree_graph, "standalone")?;
+    }
 
     info!(
         "\n\n ==>> Uploading to Neo4j took {:.2?} \n\n",
