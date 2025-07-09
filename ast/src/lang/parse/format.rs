@@ -374,6 +374,7 @@ impl Lang {
                                 graph,
                                 file,
                                 endp.clone().start,
+                                NodeType::Endpoint,
                             ) {
                                 Some(node_key) => Some(node_key.into()),
                                 None => None,
@@ -708,9 +709,14 @@ impl Lang {
                         external_func = Some(t);
                     }
                 } else {
-                    if let Some(one_func) =
-                        func_target_file_finder(&called, &None, graph, file, fc.source.start)
-                    {
+                    if let Some(one_func) = func_target_file_finder(
+                        &called,
+                        &None,
+                        graph,
+                        file,
+                        fc.source.start,
+                        NodeType::Function,
+                    ) {
                         log_cmd(format!("==> ? ONE target for {:?} {}", called, &one_func.0));
                         fc.target = NodeKeys::new(&called, &one_func.0, one_func.1);
                     } else {
@@ -763,8 +769,14 @@ impl Lang {
         // fc.target = NodeKeys::new(&body, &tf);
         } else {
             // FALLBACK to find?
-            if let Some(tf) = func_target_file_finder(&called, &None, graph, file, fc.source.start)
-            {
+            if let Some(tf) = func_target_file_finder(
+                &called,
+                &None,
+                graph,
+                file,
+                fc.source.start,
+                NodeType::Function,
+            ) {
                 log_cmd(format!(
                     "==> ? (no lsp) ONE target for {:?} {}",
                     called, &tf.0
