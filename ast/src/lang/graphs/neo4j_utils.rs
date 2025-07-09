@@ -259,25 +259,6 @@ pub fn add_node_query(node_type: &NodeType, node_data: &NodeData) -> (String, Bo
     NodeQueryBuilder::new(node_type, node_data).build()
 }
 
-pub fn add_edge_by_key_query(
-    source_key: &str,
-    target_key: &str,
-    edge_type: &EdgeType,
-) -> (String, BoltMap) {
-    let mut params = BoltMap::new();
-    boltmap_insert_str(&mut params, "source_key", source_key);
-    boltmap_insert_str(&mut params, "target_key", target_key);
-
-    let query = format!(
-        "MATCH (source {{node_key: $source_key}})
-         MATCH (target {{node_key: $target_key}})
-         MERGE (source)-[:{}]->(target)",
-        edge_type.to_string()
-    );
-
-    (query, params)
-}
-
 pub fn add_edge_query(edge: &Edge) -> (String, BoltMap) {
     EdgeQueryBuilder::new(edge).build()
 }
