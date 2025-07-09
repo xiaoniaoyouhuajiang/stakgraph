@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::lang::call_finder::{func_target_file_finder, node_keys_finder};
+use crate::lang::call_finder::node_data_finder;
 use crate::lang::{graphs::Graph, *};
 use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
@@ -369,7 +369,7 @@ impl Lang {
                         // FALLBACK to find?
                         return Ok(self.lang().handler_finder(
                             endp.clone(),
-                            &|handler_name, _suffix| match node_keys_finder(
+                            &|handler_name, _suffix| match node_data_finder(
                                 handler_name,
                                 graph,
                                 file,
@@ -709,16 +709,14 @@ impl Lang {
                         external_func = Some(t);
                     }
                 } else {
-                    if let Some(one_func) = func_target_file_finder(
-                        &called,
-                        &None,
-                        graph,
-                        file,
-                        fc.source.start,
-                        NodeType::Function,
-                    ) {
-                        log_cmd(format!("==> ? ONE target for {:?} {}", called, &one_func.0));
-                        fc.target = NodeKeys::new(&called, &one_func.0, one_func.1);
+                    if let Some(one_func) =
+                        node_data_finder(&called, graph, file, fc.source.start, NodeType::Function)
+                    {
+                        log_cmd(format!(
+                            "==> ? ONE target for {:?} {}",
+                            called, &one_func.file
+                        ));
+                        fc.target = one_func.into();
                     } else {
                         log_cmd(format!(
                             "==> ? definition, not in graph: {:?} in {}",
@@ -769,19 +767,14 @@ impl Lang {
         // fc.target = NodeKeys::new(&body, &tf);
         } else {
             // FALLBACK to find?
-            if let Some(tf) = func_target_file_finder(
-                &called,
-                &None,
-                graph,
-                file,
-                fc.source.start,
-                NodeType::Function,
-            ) {
+            if let Some(tf) =
+                node_data_finder(&called, graph, file, fc.source.start, NodeType::Function)
+            {
                 log_cmd(format!(
                     "==> ? (no lsp) ONE target for {:?} {}",
-                    called, &tf.0
+                    called, &tf.file
                 ));
-                fc.target = NodeKeys::new(&called, &tf.0, tf.1);
+                fc.target = tf.into();
             }
         }
 
