@@ -51,12 +51,22 @@ var userBehaviour = (function () {
             i !== e.composedPath().length - 2
           ) {
             node = el.localName;
-            el.className !== ""
-              ? el.classList.forEach((clE) => {
+
+            // Use data-testid if available, otherwise fall back to class/id
+            if (el.dataset && el.dataset.testid) {
+              node += `[data-testid="${el.dataset.testid}"]`;
+            } else {
+              // Only add classes and IDs if no data-testid
+              if (el.className !== "") {
+                el.classList.forEach((clE) => {
                   node += "." + clE;
-                })
-              : 0;
-            el.id !== "" ? (node += "#" + el.id) : 0;
+                });
+              }
+              if (el.id !== "") {
+                node += "#" + el.id;
+              }
+            }
+
             path.push(node);
           }
         });

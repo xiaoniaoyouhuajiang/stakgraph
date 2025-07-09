@@ -174,12 +174,11 @@ impl Lang {
                 let res = LspCmd::GotoDefinition(pos.clone()).send(&lsp)?;
                 if let LspRes::GotoDefinition(Some(gt)) = res {
                     let target_file = gt.file.display().to_string();
-                    if let Some(_) = graph.find_node_by_name_in_file(
+                    if let Some(target) = graph.find_node_by_name_in_file(
                         NodeType::Function,
                         &comp_name,
                         &target_file,
                     ) {
-                        let target = NodeData::name_file(&comp_name, &target_file);
                         page_renders.push(Edge::renders(&pag, &target));
                         continue;
                     }
