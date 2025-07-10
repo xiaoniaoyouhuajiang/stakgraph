@@ -14,7 +14,7 @@ lazy_static! {
 }
 
 const DATA_BANK: &str = "Data_Bank";
-const BATCH_SIZE: usize = 500;
+const BATCH_SIZE: usize = 256;
 
 pub struct Neo4jConnectionManager;
 
@@ -156,6 +156,42 @@ impl EdgeQueryBuilder {
     }
 }
 
+pub fn build_batch_edge_queries<I>(edges: I, batch_size: usize) -> Vec<(String, BoltMap)>
+where
+    I: Iterator<Item = (String, String, EdgeType)>,
+{
+    use itertools::Itertools;
+
+    edges
+        .chunks(batch_size)
+        .into_iter()
+        .map(|chunk| {
+            let edges_data: Vec<BoltMap> = chunk
+                .map(|(source, target, edge_type)| {
+                    let mut edge_map = BoltMap::new();
+                    boltmap_insert_str(&mut edge_map, "source_key", &source);
+                    boltmap_insert_str(&mut edge_map, "target_key", &target);
+                    boltmap_insert_str(&mut edge_map, "edge_type", &edge_type.to_string());
+                    edge_map
+                })
+                .collect();
+
+            let mut params = BoltMap::new();
+            boltmap_insert_list_of_maps(&mut params, "edges", edges_data);
+
+            let query = "
+                UNWIND $edges AS edge
+                MATCH (source {node_key: edge.source_key})
+                MATCH (target {node_key: edge.target_key})
+                CALL apoc.merge.relationship(source, edge.edge_type, {}, {}, target) YIELD rel
+                RETURN count(rel)
+            ";
+
+            (query.to_string(), params)
+        })
+        .collect()
+}
+
 pub struct TransactionManager<'a> {
     conn: &'a Neo4jConnection,
     queries: Vec<(String, BoltMap)>,
@@ -189,15 +225,11 @@ impl<'a> TransactionManager<'a> {
         for (query_str, bolt_map) in self.queries {
             let mut query_obj = query(&query_str);
             if query_str.contains("$properties") {
-                let properties = boltmap_to_bolttype_map(&bolt_map);
-                query_obj = query_obj.param("properties", properties);
-
                 if let Some(BoltType::String(node_key)) = bolt_map.value.get("node_key") {
                     query_obj = query_obj.param("node_key", node_key.value.as_str());
                 }
-                if let Some(BoltType::String(ref_id)) = bolt_map.value.get("ref_id") {
-                    query_obj = query_obj.param("ref_id", ref_id.value.as_str());
-                }
+                let properties = boltmap_to_bolttype_map(bolt_map);
+                query_obj = query_obj.param("properties", properties);
             } else {
                 for (key, value) in bolt_map.value.iter() {
                     query_obj = query_obj.param(key.value.as_str(), value.clone());
@@ -214,25 +246,30 @@ pub async fn execute_batch(
     conn: &Neo4jConnection,
     queries: Vec<(String, BoltMap)>,
 ) -> Result<(), anyhow::Error> {
+    use itertools::Itertools;
+
     let total_chunks = (queries.len() as f64 / BATCH_SIZE as f64).ceil() as usize;
 
-    for (i, chunk) in queries.chunks(BATCH_SIZE).enumerate() {
-        debug!("Processing chunk {}/{}", i + 1, total_chunks);
+    let chunked_queries: Vec<Vec<_>> = queries
+        .into_iter()
+        .chunks(BATCH_SIZE)
+        .into_iter()
+        .map(|chunk| chunk.collect())
+        .collect();
+
+    for (i, chunk) in chunked_queries.into_iter().enumerate() {
+        info!("Processing chunk {}/{}", i + 1, total_chunks);
         let mut txn = conn.start_txn().await?;
 
         for (query_str, params) in chunk {
-            let mut query_obj = query(query_str);
+            let mut query_obj = query(&query_str);
 
             if query_str.contains("$properties") {
-                let properties = boltmap_to_bolttype_map(params);
-                query_obj = query_obj.param("properties", properties);
-
                 if let Some(BoltType::String(node_key)) = params.value.get("node_key") {
                     query_obj = query_obj.param("node_key", node_key.value.as_str());
                 }
-                if let Some(BoltType::String(ref_id)) = params.value.get("ref_id") {
-                    query_obj = query_obj.param("ref_id", ref_id.value.as_str());
-                }
+                let properties = boltmap_to_bolttype_map(params);
+                query_obj = query_obj.param("properties", properties);
             } else {
                 for (key, value) in params.value.iter() {
                     query_obj = query_obj.param(key.value.as_str(), value.clone());
@@ -251,6 +288,31 @@ pub async fn execute_batch(
             return Err(e.into());
         }
         debug!("Successfully committed chunk {}/{}", i + 1, total_chunks);
+    }
+    Ok(())
+}
+
+pub async fn execute_queries_simple(
+    conn: &Neo4jConnection,
+    queries: Vec<(String, BoltMap)>,
+) -> Result<(), anyhow::Error> {
+    let total_queries = queries.len();
+    for (i, (query_str, params)) in queries.into_iter().enumerate() {
+        info!("Processing query {}/{}", i + 1, total_queries);
+
+        let mut query_obj = query(&query_str);
+
+        // Add parameters
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
+        }
+
+        // Execute in a transaction
+        let mut txn = conn.start_txn().await?;
+        txn.run(query_obj).await?;
+        txn.commit().await?;
+
+        debug!("Successfully executed query {}/{}", i + 1, total_queries);
     }
     Ok(())
 }
@@ -867,16 +929,21 @@ pub fn update_repository_hash_query(repo_name: &str, new_hash: &str) -> (String,
 pub fn boltmap_insert_str(map: &mut BoltMap, key: &str, value: &str) {
     map.value.insert(key.into(), BoltType::String(value.into()));
 }
+pub fn boltmap_insert_map(map: &mut BoltMap, key: &str, value: BoltMap) {
+    map.value.insert(key.into(), BoltType::Map(value));
+}
+pub fn boltmap_insert_list_of_maps(map: &mut BoltMap, key: &str, value: Vec<BoltMap>) {
+    let list = neo4rs::BoltList {
+        value: value.into_iter().map(|m| BoltType::Map(m)).collect(),
+    };
+    map.value.insert(key.into(), BoltType::List(list));
+}
 pub fn boltmap_insert_int(map: &mut BoltMap, key: &str, value: i64) {
     map.value
         .insert(key.into(), BoltType::Integer(value.into()));
 }
-fn boltmap_to_bolttype_map(bolt_map: &BoltMap) -> BoltType {
-    let mut map = std::collections::HashMap::new();
-    for (k, v) in &bolt_map.value {
-        map.insert(k.clone(), v.clone());
-    }
-    BoltType::Map(BoltMap { value: map })
+fn boltmap_to_bolttype_map(bolt_map: BoltMap) -> BoltType {
+    BoltType::Map(bolt_map)
 }
 pub fn calculate_token_count(body: &str) -> Result<i64> {
     let bpe = &TOKENIZER;
