@@ -11,6 +11,8 @@ test("User interaction replay with input typing", async ({ page }) => {
   await button1.waitFor({ state: "visible" });
   await button1.click();
 
+  await expect(button1).toHaveText("data-testid");
+
   await page.waitForTimeout(500);
 
   const inputField = page.locator('[data-testid="staktrak-input"]');
@@ -19,13 +21,18 @@ test("User interaction replay with input typing", async ({ page }) => {
 
   await inputField.fill("Hello, this is a test input");
 
+  await expect(inputField).toHaveValue("Hello, this is a test input");
+
   await page.waitForTimeout(1000);
+
+  const content = page.locator(".content-section");
+  await expect(content).toBeVisible();
+
+  await expect(content).toContainText("You can select any text");
 
   const button3 = page.locator("#staktrak-div");
   await button3.waitFor({ state: "visible" });
   await button3.click();
-
-  await expect(inputField).toHaveValue("Hello, this is a test input");
 
   await page.waitForTimeout(2500);
 });

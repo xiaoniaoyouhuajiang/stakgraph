@@ -39,6 +39,9 @@
       button.save {
         background-color: #9c27b0;
       }
+      button.assert {
+        background-color: #ff9800;
+      }
       button:disabled {
         background-color: #cccccc;
         cursor: not-allowed;
@@ -93,18 +96,158 @@
         background-color: #f44336;
         display: block;
       }
+      .assertion-panel {
+        margin-top: 20px;
+        background-color: #333;
+        padding: 15px;
+        border-radius: 5px;
+        display: none;
+      }
+      .assertion-panel.active {
+        display: block;
+      }
+      .assertion-panel select,
+      .assertion-panel input {
+        padding: 8px;
+        margin: 5px 0;
+        background-color: #444;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 4px;
+        width: 30%;
+      }
+      .assertion-panel button {
+        margin-top: 10px;
+      }
+      .assertion-type-group {
+        margin-top: 10px;
+      }
+      .assertion-type-group label {
+        display: block;
+        margin-bottom: 5px;
+      }
+      .assertions-list {
+        margin-top: 20px;
+        background-color: #2a2a2a;
+        padding: 15px;
+        border-radius: 5px;
+        max-height: 200px;
+        overflow: auto;
+        display: none;
+      }
+      .assertions-list.active {
+        display: block;
+      }
+      .assertion-item {
+        padding: 8px;
+        margin-bottom: 5px;
+        background-color: #444;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .remove-assertion {
+        background-color: #f44336;
+        border: none;
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .popup {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 1000;
+        transform: translateY(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .popup.show {
+        transform: translateY(0);
+      }
+
+      .popup-success {
+        background-color: #4caf50;
+        border: 2px solid #6abf6e;
+        color: #ffffff;
+      }
+
+      .popup-error {
+        background-color: #f44336;
+        border: 2px solid #f66e66;
+        color: #ffffff;
+      }
+
+      .popup-info {
+        background-color: #2196f3;
+        border: 2px solid #66a6ff;
+        color: #ffffff;
+      }
+
+      .popup-warning {
+        background-color: #ff9800;
+        border: 2px solid #ffb84d;
+        color: #ffffff;
+      }
     </style>
   </head>
   <body>
+    <div id="popupContainer"></div>
     <h1>Tracking Script Demo</h1>
     <iframe src="preact/frame.html" id="trackingFrame"></iframe>
 
     <div class="controls" id="trackingControls">
       <button id="recordBtn" class="record">Start Recording</button>
       <button id="stopBtn" class="stop" disabled>Stop Recording</button>
+      <button id="assertBtn" class="assert" disabled>Add Assertion</button>
       <button id="generateBtn" class="generate" disabled>
         Generate Playwright Test
       </button>
+    </div>
+
+    <div id="assertionPanel" class="assertion-panel">
+      <h3>Add Assertion</h3>
+      <div class="assertion-type-group">
+        <label for="assertionType">Assertion Type:</label>
+        <select id="assertionType">
+          <option value="hasText">Has Text</option>
+          <option value="containsText">Contains Text</option>
+          <option value="isVisible">Is Visible</option>
+          <option value="hasValue">Has Value</option>
+        </select>
+      </div>
+      <div class="assertion-type-group">
+        <label for="assertionSelector">Element Selector:</label>
+        <input
+          type="text"
+          id="assertionSelector"
+          placeholder="Enter selector or use selection"
+        />
+      </div>
+      <div class="assertion-type-group">
+        <label for="assertionValue">Expected Value:</label>
+        <input type="text" id="assertionValue" placeholder="Value to assert" />
+      </div>
+      <div id="assertionStatus" class="status"></div>
+      <button id="addAssertionBtn">Add to Test</button>
+      <button id="cancelAssertionBtn">Cancel</button>
+    </div>
+
+    <div id="assertionsList" class="assertions-list">
+      <h3>Added Assertions:</h3>
+      <div id="assertionsContainer"></div>
     </div>
 
     <!-- <div id="results"></div> -->
@@ -116,13 +259,28 @@
       const trackingControls = document.getElementById("trackingControls");
       const recordBtn = document.getElementById("recordBtn");
       const stopBtn = document.getElementById("stopBtn");
+      const assertBtn = document.getElementById("assertBtn");
       const generateBtn = document.getElementById("generateBtn");
+      const assertionPanel = document.getElementById("assertionPanel");
+      const addAssertionBtn = document.getElementById("addAssertionBtn");
+      const cancelAssertionBtn = document.getElementById("cancelAssertionBtn");
+      const assertionType = document.getElementById("assertionType");
+      const assertionSelector = document.getElementById("assertionSelector");
+      const assertionValue = document.getElementById("assertionValue");
+      const assertionStatus = document.getElementById("assertionStatus");
+      const assertionsList = document.getElementById("assertionsList");
+      const assertionsContainer = document.getElementById(
+        "assertionsContainer"
+      );
       // const resultsDiv = document.getElementById("results");
       const playwrightTestDiv = document.getElementById("playwrightTest");
 
       let isRecording = false;
       let currentTrackingData = null;
       let currentTestCode = null;
+      let assertions = [];
+      let selectedText = "";
+      let lastSelectedElement = null;
 
       window.addEventListener("message", (event) => {
         if (event.data && event.data.type) {
@@ -135,9 +293,55 @@
               currentTrackingData = event.data.data;
               generateBtn.disabled = false;
               break;
+            case "staktrak-selection":
+              selectedText = event.data.text || "";
+              lastSelectedElement = event.data.selector || "";
+              if (selectedText) {
+                assertionValue.value = selectedText;
+              }
+              if (lastSelectedElement) {
+                assertionSelector.value = lastSelectedElement;
+              }
+              break;
           }
         }
       });
+
+      function updateAssertionsList() {
+        assertionsContainer.innerHTML = "";
+
+        if (assertions.length === 0) {
+          assertionsList.classList.remove("active");
+          return;
+        }
+
+        assertionsList.classList.add("active");
+
+        assertions.forEach((assertion, index) => {
+          const item = document.createElement("div");
+          item.className = "assertion-item";
+
+          let assertionText = `${assertion.selector} ${assertion.type}`;
+          if (assertion.value) {
+            assertionText += `: "${assertion.value}"`;
+          }
+
+          item.innerHTML = `
+            <span>${assertionText}</span>
+            <button class="remove-assertion" data-index="${index}">✕</button>
+          `;
+
+          assertionsContainer.appendChild(item);
+        });
+
+        document.querySelectorAll(".remove-assertion").forEach((button) => {
+          button.addEventListener("click", function () {
+            const index = parseInt(this.getAttribute("data-index"));
+            assertions.splice(index, 1);
+            updateAssertionsList();
+          });
+        });
+      }
 
       recordBtn.addEventListener("click", () => {
         trackingFrame.contentWindow.postMessage(
@@ -146,27 +350,114 @@
         );
         recordBtn.disabled = true;
         stopBtn.disabled = false;
+        assertBtn.disabled = false;
         generateBtn.disabled = true;
         isRecording = true;
+        assertions = [];
+        updateAssertionsList();
         // resultsDiv.innerHTML = "";
         playwrightTestDiv.innerHTML = "";
+
+        showPopup("Recording started", "info");
       });
 
       stopBtn.addEventListener("click", () => {
         trackingFrame.contentWindow.postMessage({ type: "staktrak-stop" }, "*");
         recordBtn.disabled = false;
         stopBtn.disabled = true;
+        assertBtn.disabled = true;
         isRecording = false;
+
+        showPopup("Recording stopped", "warning");
+      });
+
+      assertBtn.addEventListener("click", () => {
+        assertionPanel.classList.add("active");
+
+        trackingFrame.contentWindow.postMessage(
+          { type: "staktrak-enable-selection" },
+          "*"
+        );
+      });
+
+      function showAssertionStatus(message, type) {
+        showPopup(message, type);
+      }
+
+      function isValidAssertion(type, selector, value) {
+        if (!selector || selector.trim() === "") {
+          showAssertionStatus("Please provide a valid selector", "error");
+          return false;
+        }
+
+        if (
+          (type === "hasText" ||
+            type === "containsText" ||
+            type === "hasValue") &&
+          (!value || value.trim() === "")
+        ) {
+          showAssertionStatus("Please provide an expected value", "error");
+          return false;
+        }
+
+        const isDuplicate = assertions.some(
+          (a) => a.type === type && a.selector === selector && a.value === value
+        );
+
+        if (isDuplicate) {
+          showAssertionStatus("This assertion already exists", "error");
+          return false;
+        }
+
+        return true;
+      }
+
+      addAssertionBtn.addEventListener("click", () => {
+        const type = assertionType.value;
+        const selector = assertionSelector.value;
+        const value = assertionValue.value;
+
+        if (!isValidAssertion(type, selector, value)) {
+          return;
+        }
+
+        assertions.push({
+          type,
+          selector,
+          value,
+          timestamp: Date.now(),
+        });
+
+        updateAssertionsList();
+
+        showPopup(`Assertion added: ${type} "${value || ""}"`, "success");
+
+        assertionValue.value = "";
+      });
+
+      cancelAssertionBtn.addEventListener("click", () => {
+        assertionPanel.classList.remove("active");
+        assertionValue.value = "";
+        assertionSelector.value = "";
+
+        showPopup("Assertion cancelled", "warning");
       });
 
       generateBtn.addEventListener("click", () => {
         if (currentTrackingData) {
+          if (!currentTrackingData.assertions) {
+            currentTrackingData.assertions = [];
+          }
+          currentTrackingData.assertions = assertions;
+
           const testCode = window.PlaywrightGenerator.generatePlaywrightTest(
             "http://localhost:3000/preact/frame.html",
             currentTrackingData
           );
           currentTestCode = testCode;
           displayPlaywrightTest(testCode);
+
+          showPopup("Playwright test generated successfully", "success");
         }
       });
 
@@ -193,7 +484,7 @@
       function copyTestToClipboard() {
         const testCode = playwrightTestDiv.querySelector("pre").textContent;
         navigator.clipboard.writeText(testCode).then(() => {
-          showStatus("Test code copied to clipboard!", "success");
+          showPopup("Test code copied to clipboard!", "success");
         });
       }
 
@@ -202,6 +493,11 @@
 
         const filenameInput = document.getElementById("filenameInput");
         const filename = filenameInput.value.trim();
+
+        if (!filename) {
+          showPopup("Please enter a filename", "error");
+          return;
+        }
 
         try {
           const response = await fetch("/api/save-test", {
@@ -218,23 +514,53 @@
           const result = await response.json();
 
           if (result.success) {
-            showStatus(`Test saved as ${result.filename}`, "success");
+            showPopup(`Test saved as ${result.filename}`, "success");
             filenameInput.value = "";
           } else {
-            showStatus(result.error || "Failed to save test", "error");
+            showPopup(result.error || "Failed to save test", "error");
           }
         } catch (error) {
-          showStatus("Error saving test: " + error.message, "error");
+          showPopup("Error saving test: " + error.message, "error");
         }
       }
 
       function showStatus(message, type) {
+        showPopup(message, type);
+
         const statusDiv = document.getElementById("saveStatus");
-        statusDiv.textContent = message;
-        statusDiv.className = `status ${type}`;
+        if (statusDiv) {
+          statusDiv.textContent = message;
+          statusDiv.className = `status ${type}`;
+
+          setTimeout(() => {
+            statusDiv.style.display = "none";
+          }, 3000);
+        }
+      }
+
+      function showPopup(message, type = "info") {
+        const existingPopup = document.querySelector(".popup");
+        if (existingPopup) {
+          existingPopup.remove();
+        }
+
+        const popup = document.createElement("div");
+        popup.className = `popup popup-${type}`;
+        popup.textContent = message;
+
+        document.getElementById("popupContainer").appendChild(popup);
 
         setTimeout(() => {
-          statusDiv.style.display = "none";
+          popup.classList.add("show");
+        }, 10);
+
+        setTimeout(() => {
+          popup.classList.remove("show");
+          setTimeout(() => {
+            if (popup.parentNode) {
+              popup.parentNode.removeChild(popup);
+            }
+          }, 300);
         }, 3000);
       }
     </script>

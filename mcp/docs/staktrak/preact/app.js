@@ -1,7 +1,7 @@
 // frame.js
 import htm from "https://esm.sh/htm";
 import { h, render } from "https://esm.sh/preact";
-import { useState } from "https://esm.sh/preact/hooks";
+import { useState, useEffect } from "https://esm.sh/preact/hooks";
 
 export const html = htm.bind(h);
 
@@ -9,6 +9,7 @@ const Frame = () => {
   const [popups, setPopups] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [showInput, setShowInput] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // Function to create and show popup
   const showPopup = (message, popupClass) => {
@@ -70,8 +71,88 @@ const Frame = () => {
     setShowInput(!showInput);
   };
 
+  const getElementSelector = (element) => {
+    if (element.dataset && element.dataset.testid) {
+      return `[data-testid="${element.dataset.testid}"]`;
+    }
+
+    if (element.id) {
+      return `#${element.id}`;
+    }
+
+    let selector = element.tagName.toLowerCase();
+    if (element.className) {
+      const classes = Array.from(element.classList).join(".");
+      if (classes) {
+        selector += `.${classes}`;
+      }
+    }
+
+    return selector;
+  };
+
+  const handleMouseUp = (event) => {
+    if (!selectionMode) return;
+
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim() !== "") {
+      const selectedText = selection.toString().trim();
+      let selectedElement = null;
+
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        selectedElement = range.commonAncestorContainer;
+
+        if (selectedElement.nodeType === 3) {
+          selectedElement = selectedElement.parentElement;
+        }
+      }
+
+      const selector = selectedElement
+        ? getElementSelector(selectedElement)
+        : "";
+
+      window.parent.postMessage(
+        {
+          type: "staktrak-selection",
+          text: selectedText,
+          selector: selector,
+        },
+        "*"
+      );
+
+      showPopup(`Selected: "${selectedText}"`, "popup-selection");
+    }
+  };
+
+  useEffect(() => {
+    const messageHandler = (event) => {
+      if (event.data && event.data.type === "staktrak-enable-selection") {
+        setSelectionMode(true);
+
+        document.body.classList.add("selection-active");
+
+        showPopup(
+          "Selection mode enabled. Click and drag to select text.",
+          "popup-selection"
+        );
+
+        setTimeout(() => {
+          setSelectionMode(false);
+          document.body.classList.remove("selection-active");
+        }, 30000);
+      }
+    };
+
+    window.addEventListener("message", messageHandler);
+
+    return () => {
+      window.removeEventListener("message", messageHandler);
+    };
+  }, []);
+
   return html`
-    <div>
+    <div onMouseUp=${handleMouseUp}>
       <h2>Preact Iframe Content</h2>
       <p>This is running inside the iframe.</p>
 
