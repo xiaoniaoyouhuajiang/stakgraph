@@ -120,18 +120,16 @@ impl Neo4jGraph {
         let connection = self.ensure_connected().await?;
         let mut txn = connection.start_txn().await?;
 
-        let clear_rels = query("MATCH ()-[r]-() DELETE r");
-        if let Err(e) = txn.run(clear_rels).await {
-            debug!("Error clearing relationships: {:?}", e);
-            txn.rollback().await?;
-            return Err(anyhow::anyhow!("Neo4j relationship deletion error: {}", e));
-        }
+        let clear_query = clear_graph_query();
+        let query_obj = query(&clear_query);
 
-        let clear_nodes = query("MATCH (n) DELETE n");
-        if let Err(e) = txn.run(clear_nodes).await {
-            debug!("Error clearing nodes: {:?}", e);
+        if let Err(e) = txn.run(query_obj).await {
+            debug!("Error clearing stakgraph nodes: {:?}", e);
             txn.rollback().await?;
-            return Err(anyhow::anyhow!("Neo4j node deletion error: {}", e));
+            return Err(anyhow::anyhow!(
+                "Neo4j stakgraph node deletion error: {}",
+                e
+            ));
         }
 
         txn.commit().await?;
