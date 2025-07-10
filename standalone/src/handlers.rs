@@ -65,7 +65,7 @@ pub async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoRes
 
 #[axum::debug_handler]
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
-    let (final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
+    let (final_repo_path, final_repo_url, username, pat, _) = resolve_repo(&body)?;
     let use_lsp = body.use_lsp;
 
     let total_start = Instant::now();
@@ -197,7 +197,7 @@ pub async fn ingest(
     body: Json<ProcessBody>,
 ) -> Result<Json<ProcessResponse>> {
     let start_total = Instant::now();
-    let (_final_repo_path, final_repo_url, username, pat) = resolve_repo(&body)?;
+    let (_final_repo_path, final_repo_url, username, pat, commit) = resolve_repo(&body)?;
     let use_lsp = body.use_lsp;
 
     let repo_url = final_repo_url.clone();
@@ -210,7 +210,7 @@ pub async fn ingest(
         pat.clone(),
         Vec::new(),
         Vec::new(),
-        None,
+        commit.as_deref(),
         use_lsp,
     )
     .await
@@ -263,7 +263,15 @@ fn env_not_empty(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
 }
 
-fn resolve_repo(body: &ProcessBody) -> Result<(String, String, Option<String>, Option<String>)> {
+fn resolve_repo(
+    body: &ProcessBody,
+) -> Result<(
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+)> {
     let repo_path = body
         .repo_path
         .clone()
@@ -271,6 +279,7 @@ fn resolve_repo(body: &ProcessBody) -> Result<(String, String, Option<String>, O
     let repo_url = body.repo_url.clone().or_else(|| env_not_empty("REPO_URL"));
     let username = body.username.clone().or_else(|| env_not_empty("USERNAME"));
     let pat = body.pat.clone().or_else(|| env_not_empty("PAT"));
+    let commit = body.commit.clone();
 
     if repo_path.is_none() && repo_url.is_none() {
         return Err(AppError::Anyhow(anyhow::anyhow!(
@@ -279,10 +288,10 @@ fn resolve_repo(body: &ProcessBody) -> Result<(String, String, Option<String>, O
     }
 
     if let Some(path) = repo_path {
-        Ok((path, repo_url.unwrap_or_default(), username, pat))
+        Ok((path, repo_url.unwrap_or_default(), username, pat, commit))
     } else {
         let url = repo_url.unwrap();
         let tmp_path = Repo::get_path_from_url(&url)?;
-        Ok((tmp_path, url, username, pat))
+        Ok((tmp_path, url, username, pat, commit))
     }
 }
