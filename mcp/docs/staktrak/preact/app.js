@@ -9,7 +9,6 @@ const Frame = () => {
   const [popups, setPopups] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [showInput, setShowInput] = useState(false);
-  const [selectionMode, setSelectionMode] = useState(false);
 
   // Function to create and show popup
   const showPopup = (message, popupClass) => {
@@ -71,113 +70,22 @@ const Frame = () => {
     setShowInput(!showInput);
   };
 
-  const getElementSelector = (element) => {
-    if (element.dataset && element.dataset.testid) {
-      return `[data-testid="${element.dataset.testid}"]`;
-    }
-
-    if (element.id) {
-      return `#${element.id}`;
-    }
-
-    if (
-      element.tagName.match(
-        /^(P|H1|H2|H3|H4|H5|H6|SPAN|DIV|LI|TD|TH|BUTTON|LABEL)$/i
-      )
-    ) {
-      return element.tagName.toLowerCase();
-    }
-
-    let selector = element.tagName.toLowerCase();
-    if (element.className) {
-      const classes = Array.from(element.classList).join(".");
-      if (classes) {
-        selector += `.${classes}`;
-      }
-    }
-
-    return selector;
-  };
-
-  const handleMouseUp = (event) => {
-    if (!selectionMode) return;
-
-    const selection = window.getSelection();
-    if (selection && selection.toString().trim() !== "") {
-      const selectedText = selection.toString().trim();
-      let selectedElement = null;
-
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        selectedElement = range.commonAncestorContainer;
-
-        if (selectedElement.nodeType === 3) {
-          selectedElement = selectedElement.parentElement;
-        }
-      }
-
-      const selector = selectedElement
-        ? getElementSelector(selectedElement)
-        : "";
-
-      window.parent.postMessage(
-        {
-          type: "staktrak-selection",
-          text: selectedText,
-          selector: selector,
-        },
-        "*"
-      );
-
-      showPopup(`Selected: "${selectedText}"`, "popup-selection");
-
-      setTimeout(() => {
-        if (window.getSelection) {
-          if (window.getSelection().empty) {
-            window.getSelection().empty();
-          } else if (window.getSelection().removeAllRanges) {
-            window.getSelection().removeAllRanges();
-          }
-        }
-      }, 500);
-    }
-  };
-
-  const handleKeyDown = (event) => {
-    if (selectionMode && event.key === "Escape") {
-      setSelectionMode(false);
-      document.body.classList.remove("selection-active");
-      window.parent.postMessage({ type: "staktrak-selection-mode-ended" }, "*");
-    }
-  };
-
   useEffect(() => {
     const messageHandler = (event) => {
-      if (event.data && event.data.type) {
-        switch (event.data.type) {
-          case "staktrak-enable-selection":
-            setSelectionMode(true);
-            document.body.classList.add("selection-active");
-            break;
-          case "staktrak-disable-selection":
-            setSelectionMode(false);
-            document.body.classList.remove("selection-active");
-            break;
-        }
+      if (event.data && event.data.type === "staktrak-show-popup") {
+        showPopup(`Selected: "${event.data.text}"`, "popup-selection");
       }
     };
 
     window.addEventListener("message", messageHandler);
-    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("message", messageHandler);
-      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectionMode]);
+  }, []);
 
   return html`
-    <div onMouseUp=${handleMouseUp}>
+    <div>
       <h2>Preact Iframe Content</h2>
       <p>This is running inside the iframe.</p>
 

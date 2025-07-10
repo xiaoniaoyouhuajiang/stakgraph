@@ -198,6 +198,16 @@
                 }
               }
               break;
+            case "staktrak-show-popup":
+              trackingFrame.contentWindow.postMessage(
+                {
+                  type: "staktrak-show-popup",
+                  text: event.data.text,
+                  selector: event.data.selector,
+                },
+                "*"
+              );
+              break;
             case "staktrak-selection-mode-ended":
               break;
           }
