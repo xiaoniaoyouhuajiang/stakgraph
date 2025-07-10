@@ -72,6 +72,12 @@ impl GraphOps {
         Ok(repo[0].clone())
     }
 
+    pub async fn fetch_repos(&mut self) -> Vec<NodeData> {
+        self.graph
+            .find_nodes_by_type_async(NodeType::Repository)
+            .await
+    }
+
     pub async fn update_incremental(
         &mut self,
         repo_url: &str,

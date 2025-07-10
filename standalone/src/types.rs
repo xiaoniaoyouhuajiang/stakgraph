@@ -29,6 +29,7 @@ pub struct FetchRepoBody {
 pub struct FetchRepoResponse {
     pub status: String,
     pub repo_name: String,
+    pub hash: String,
 }
 
 #[derive(Debug)]
