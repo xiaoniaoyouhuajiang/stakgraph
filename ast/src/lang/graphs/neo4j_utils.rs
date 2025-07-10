@@ -1003,3 +1003,15 @@ pub fn has_edge_query(source: &Node, target: &Node, edge_type: &EdgeType) -> (St
 
     (query, params)
 }
+
+pub fn clear_graph_query() -> String {
+    "MATCH (n)
+     WHERE any(label IN labels(n) WHERE label IN [
+       'Function', 'Test', 'Datamodel', 'File', 'Endpoint',
+       'Var', 'Request', 'Library', 'Directory', 'Page',
+       'Class', 'Trait', 'Repository', 'Import', 'Instance',
+       'E2etest', 'Language', 'Feature'
+     ])
+     DETACH DELETE n"
+        .to_string()
+}
