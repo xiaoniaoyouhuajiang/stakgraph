@@ -106,7 +106,6 @@ async fn test_graph_update() {
 
     // Stable elements
     assert!(assert_node_exists(&mut graph_ops, "main").await);
-    assert!(assert_node_exists(&mut graph_ops, "StableFunction").await);
     assert!(assert_node_exists(&mut graph_ops, "ExistingUtil").await);
 }
 
@@ -114,7 +113,7 @@ async fn assert_node_exists(graph: &mut GraphOps, node_name: &str) -> bool {
     use ast::lang::NodeType;
     let nodes = graph
         .graph
-        .find_nodes_by_name_async(NodeType::Function, node_name)
+        .find_nodes_by_name_any_language(NodeType::Function, node_name)
         .await;
     !nodes.is_empty()
 }

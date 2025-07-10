@@ -284,6 +284,22 @@ impl Neo4jGraph {
 
         lang_nodes
     }
+    pub async fn find_nodes_by_name_any_language(
+        &self,
+        node_type: NodeType,
+        name: &str,
+    ) -> Vec<NodeData> {
+        let Ok(connection) = self.ensure_connected().await else {
+            warn!("Failed to connect to Neo4j in find_nodes_by_name_async");
+            return vec![];
+        };
+
+        let (query_str, params_map) = find_nodes_by_name_query(&node_type, name, &self.root);
+
+        let nodes = execute_node_query(&connection, query_str, params_map).await;
+
+        nodes
+    }
 
     pub async fn find_node_by_name_in_file_async(
         &self,
