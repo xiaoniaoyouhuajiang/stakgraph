@@ -4,10 +4,20 @@
  * @returns {string} - Generated Playwright test code
  */
 export function generatePlaywrightTest(url, trackingData) {
-  const { clicks, userInfo, time } = trackingData;
+  const {
+    clicks,
+    keyboardActivities,
+    inputChanges,
+    focusChanges,
+    userInfo,
+    time,
+  } = trackingData;
 
-  if (!clicks || !clicks.clickDetails || clicks.clickDetails.length === 0) {
-    return generateEmptyTest();
+  if (
+    (!clicks || !clicks.clickDetails || clicks.clickDetails.length === 0) &&
+    (!inputChanges || inputChanges.length === 0)
+  ) {
+    return generateEmptyTest(url);
   }
 
   const testCode = `import { test, expect } from '@playwright/test';
@@ -25,7 +35,7 @@ export function generatePlaywrightTest(url, trackingData) {
       height: ${userInfo.windowSize[1]} 
     });
   
-  ${generateClickActions(clicks.clickDetails)}
+  ${generateUserInteractions(clicks, inputChanges, focusChanges)}
 
     await page.waitForTimeout(2500);
   });`;
@@ -34,20 +44,55 @@ export function generatePlaywrightTest(url, trackingData) {
 }
 
 /**
- * Generates click actions from click details
- * @param {Array} clickDetails - Array of click detail arrays
- * @returns {string} - Generated click actions code
+ * Generates code for all user interactions in chronological order
+ * @param {Object} clicks - Click data
+ * @param {Array} inputChanges - Input change data
+ * @param {Array} focusChanges - Focus change data
+ * @returns {string} - Generated interactions code
  */
-function generateClickActions(clickDetails) {
+function generateUserInteractions(clicks, inputChanges, focusChanges) {
+  const allEvents = [];
+
+  if (clicks && clicks.clickDetails && clicks.clickDetails.length > 0) {
+    clicks.clickDetails.forEach((clickDetail) => {
+      const [x, y, selector, timestamp] = clickDetail;
+      allEvents.push({
+        type: "click",
+        x,
+        y,
+        selector,
+        timestamp,
+      });
+    });
+  }
+
+  const inputEvents = [];
+  if (inputChanges && inputChanges.length > 0) {
+    const completedInputs = inputChanges.filter(
+      (change) => change.action === "complete" || !change.action
+    );
+
+    completedInputs.forEach((change) => {
+      inputEvents.push({
+        type: "input",
+        selector: change.elementSelector,
+        value: change.value,
+        timestamp: change.timestamp,
+      });
+    });
+
+    allEvents.push(...inputEvents);
+  }
+
+  allEvents.sort((a, b) => a.timestamp - b.timestamp);
+
   let actionsCode = "";
   let previousTimestamp = null;
+  let generatedSelectors = new Set();
 
-  clickDetails.forEach((clickDetail, index) => {
-    const [x, y, selector, timestamp] = clickDetail;
-
-    // Calculate delay between clicks
+  allEvents.forEach((event, index) => {
     if (previousTimestamp !== null) {
-      const delay = timestamp - previousTimestamp;
+      const delay = event.timestamp - previousTimestamp;
       if (delay > 100) {
         // Only add delay if it's significant
         actionsCode += `  
@@ -57,18 +102,37 @@ function generateClickActions(clickDetails) {
       }
     }
 
-    // Generate the click action
-    const playwrightSelector = convertToPlaywrightSelector(selector);
-    const comment = `Click ${index + 1}: ${playwrightSelector}`;
+    // Generate code based on event type
+    if (event.type === "click") {
+      const playwrightSelector = convertToPlaywrightSelector(event.selector);
+      const comment = `Click ${index + 1}: ${playwrightSelector}`;
 
-    actionsCode += `  
+      actionsCode += `  
     // ${comment}
     const element${index + 1} = page.locator('${playwrightSelector}');
     await element${index + 1}.waitFor({ state: 'visible' });
     await element${index + 1}.click();
   `;
+    } else if (event.type === "input") {
+      const playwrightSelector = convertToPlaywrightSelector(event.selector);
+      if (!generatedSelectors.has(playwrightSelector)) {
+        const comment = `Input ${index + 1}: Type "${
+          event.value
+        }" into ${playwrightSelector}`;
 
-    previousTimestamp = timestamp;
+        actionsCode += `  
+    // ${comment}
+    await page.locator('${playwrightSelector}').fill('${event.value.replace(
+          /'/g,
+          "\\'"
+        )}');
+  `;
+
+        generatedSelectors.add(playwrightSelector);
+      }
+    }
+
+    previousTimestamp = event.timestamp;
   });
 
   return actionsCode;
@@ -107,40 +171,19 @@ export function convertToPlaywrightSelector(cssSelector) {
  * Generates an empty test template
  * @returns {string} - Empty test template
  */
-function generateEmptyTest() {
+function generateEmptyTest(url) {
   return `import { test, expect } from '@playwright/test';
   
   test('User interaction replay', async ({ page }) => {
     // Navigate to the page
-    await page.goto('http://localhost:3000/frame.html');
+    await page.goto('${url || "http://localhost:3000/frame.html"}');
     
     // Wait for page to load
     await page.waitForLoadState('networkidle');
     
-    // No clicks were recorded
+    // No interactions were recorded
     console.log('No user interactions to replay');
   });`;
-}
-
-/**
- * Generates coordinate-based click actions (fallback method)
- * @param {Array} clickDetails - Array of click detail arrays
- * @returns {string} - Generated coordinate-based click actions
- */
-function generateCoordinateClickActions(clickDetails) {
-  let actionsCode = "";
-
-  clickDetails.forEach((clickDetail, index) => {
-    const [x, y, selector, timestamp] = clickDetail;
-
-    actionsCode += `
-    // Click ${index + 1}: Click at coordinates (${x}, ${y})
-    await page.mouse.click(${x}, ${y});
-    await page.waitForTimeout(300); // Brief pause between clicks
-  `;
-  });
-
-  return actionsCode;
 }
 
 // Browser compatibility (for non-module environments)

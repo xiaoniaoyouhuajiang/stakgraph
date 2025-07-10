@@ -28,6 +28,22 @@
         background-color: #5a5a5a;
       }
 
+      input {
+        background-color: #333;
+        color: #fff;
+        border: 2px solid #666;
+        padding: 10px;
+        margin: 10px;
+        width: 300px;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+
+      input:focus {
+        border-color: #888;
+        outline: none;
+      }
+
       /* Popup styles */
       .popup {
         position: fixed;
@@ -65,6 +81,12 @@
         border: 2px solid #6666ff;
         color: #ffffff;
       }
+
+      .popup-input {
+        background-color: #ff9944;
+        border: 2px solid #ffaa66;
+        color: #ffffff;
+      }
     </style>
   </head>
   <body>
@@ -73,6 +95,16 @@
     <button data-testid="staktrak-div">data-testid</button>
     <button class="staktrak-div">class</button>
     <button id="staktrak-div">id</button>
+
+    <div>
+      <label for="test-input">Test Input:</label>
+      <input
+        type="text"
+        id="test-input"
+        data-testid="staktrak-input"
+        placeholder="Type here to record keystrokes"
+      />
+    </div>
 
     <script>
       // Function to create and show popup
@@ -125,6 +157,13 @@
       );
       addClickEffect(".staktrak-div", "Button 2 clicked", "popup-class");
       addClickEffect("#staktrak-div", "Button 3 clicked", "popup-id");
+
+      const input = document.querySelector('[data-testid="staktrak-input"]');
+      if (input) {
+        input.addEventListener("input", function () {
+          showPopup(`Input: ${this.value}`, "popup-input");
+        });
+      }
     </script>
 
     <script src="staktrak.js"></script>

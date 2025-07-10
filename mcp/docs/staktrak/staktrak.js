@@ -15,6 +15,7 @@ var userBehaviour = (function () {
     touchEvents: true,
     audioVideoInteraction: true,
     customEventRegistration: true,
+    inputDebounceDelay: 2000,
     processData: function (results) {
       console.log(results);
     },
@@ -24,6 +25,7 @@ var userBehaviour = (function () {
     processInterval: null,
     mouseInterval: null,
     mousePosition: [], //x,y,timestamp
+    inputDebounceTimers: {},
     eventListeners: {
       scroll: null,
       click: null,
@@ -31,6 +33,8 @@ var userBehaviour = (function () {
       windowResize: null,
       visibilitychange: null,
       keyboardActivity: null,
+      inputChange: null,
+      focusChange: null,
       touchStart: null,
     },
     eventsFunctions: {
@@ -96,7 +100,62 @@ var userBehaviour = (function () {
         processResults();
       },
       keyboardActivity: (e) => {
-        results.keyboardActivities.push([e.key, getTimeStamp()]);
+        if (!isInputOrTextarea(e.target)) {
+          results.keyboardActivities.push([e.key, getTimeStamp()]);
+        }
+      },
+      inputChange: (e) => {
+        const target = e.target;
+        const selector = getElementSelector(target);
+        const elementId = target.id || selector;
+
+        if (mem.inputDebounceTimers[elementId]) {
+          clearTimeout(mem.inputDebounceTimers[elementId]);
+        }
+
+        mem.inputDebounceTimers[elementId] = setTimeout(() => {
+          results.inputChanges.push({
+            elementSelector: selector,
+            value: target.value,
+            timestamp: getTimeStamp(),
+            action: "complete",
+          });
+
+          delete mem.inputDebounceTimers[elementId];
+        }, user_config.inputDebounceDelay);
+
+        results.inputChanges.push({
+          elementSelector: selector,
+          value: target.value,
+          timestamp: getTimeStamp(),
+          action: "intermediate",
+        });
+      },
+      focusChange: (e) => {
+        const target = e.target;
+        if (isInputOrTextarea(target)) {
+          const selector = getElementSelector(target);
+          results.focusChanges.push({
+            elementSelector: selector,
+            type: e.type,
+            timestamp: getTimeStamp(),
+          });
+
+          if (e.type === "blur") {
+            const elementId = target.id || selector;
+            if (mem.inputDebounceTimers[elementId]) {
+              clearTimeout(mem.inputDebounceTimers[elementId]);
+              delete mem.inputDebounceTimers[elementId];
+            }
+
+            results.inputChanges.push({
+              elementSelector: selector,
+              value: target.value,
+              timestamp: getTimeStamp(),
+              action: "complete",
+            });
+          }
+        }
       },
       pageNavigation: () => {
         results.navigationHistory.push([location.href, getTimeStamp()]);
@@ -125,6 +184,63 @@ var userBehaviour = (function () {
   };
   var results = {};
 
+  function isInputOrTextarea(element) {
+    return (
+      element &&
+      (element.tagName === "INPUT" ||
+        element.tagName === "TEXTAREA" ||
+        element.tagName.toLowerCase() === "input" ||
+        element.tagName.toLowerCase() === "textarea")
+    );
+  }
+
+  function getElementSelector(element) {
+    if (element.dataset && element.dataset.testid) {
+      return `[data-testid="${element.dataset.testid}"]`;
+    }
+
+    if (element.id) {
+      return `#${element.id}`;
+    }
+
+    if (element.className) {
+      let classSelector = "";
+      element.classList.forEach((cls) => {
+        classSelector += `.${cls}`;
+      });
+      if (classSelector) {
+        return classSelector;
+      }
+    }
+
+    let path = "";
+    let currentElement = element;
+    const maxDepth = 3;
+    let depth = 0;
+
+    while (
+      currentElement &&
+      currentElement !== document.body &&
+      depth < maxDepth
+    ) {
+      let selector = currentElement.tagName.toLowerCase();
+
+      if (currentElement.parentElement) {
+        const siblings = Array.from(currentElement.parentElement.children);
+        if (siblings.length > 1) {
+          const index = siblings.indexOf(currentElement) + 1;
+          selector += `:nth-child(${index})`;
+        }
+      }
+
+      path = path ? `${selector} > ${path}` : selector;
+      currentElement = currentElement.parentElement;
+      depth++;
+    }
+
+    return path;
+  }
+
   function resetResults() {
     results = {
       userInfo: {
@@ -147,6 +263,8 @@ var userBehaviour = (function () {
       mouseMovements: [],
       mouseScroll: [],
       keyboardActivities: [],
+      inputChanges: [],
+      focusChanges: [],
       navigationHistory: [],
       formInteractions: [],
       touchEvents: [],
@@ -231,6 +349,12 @@ var userBehaviour = (function () {
         "keydown",
         mem.eventsFunctions.keyboardActivity
       );
+
+      document.querySelectorAll("input, textarea").forEach((input) => {
+        input.addEventListener("focus", mem.eventsFunctions.focusChange);
+        input.addEventListener("blur", mem.eventsFunctions.focusChange);
+        input.addEventListener("input", mem.eventsFunctions.inputChange);
+      });
     }
     //Page Navigation
     if (user_config.pageNavigation) {
@@ -274,6 +398,11 @@ var userBehaviour = (function () {
   }
 
   function processResults() {
+    for (const elementId in mem.inputDebounceTimers) {
+      clearTimeout(mem.inputDebounceTimers[elementId]);
+      delete mem.inputDebounceTimers[elementId];
+    }
+
     user_config.processData(result());
     if (user_config.clearAfterProcess) {
       resetResults();
@@ -291,6 +420,13 @@ var userBehaviour = (function () {
       mem.eventsFunctions.visibilitychange
     );
     window.removeEventListener("keydown", mem.eventsFunctions.keyboardActivity);
+
+    document.querySelectorAll("input, textarea").forEach((input) => {
+      input.removeEventListener("input", mem.eventsFunctions.inputChange);
+      input.removeEventListener("focus", mem.eventsFunctions.focusChange);
+      input.removeEventListener("blur", mem.eventsFunctions.focusChange);
+    });
+
     window.removeEventListener("touchstart", mem.eventsFunctions.touchStart);
     results.time.stopTime = getTimeStamp();
     processResults();
