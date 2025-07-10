@@ -21,10 +21,10 @@ async fn test_graph_update() {
     use lsp::git::get_changed_files_between;
     use tracing::info;
 
-    let repo_url = "https://github.com/fayekelmith/demorepo.git";
+    let repo_url = "https://github.com/fayekelmith/demo-repo";
     let repo_path = Repo::get_path_from_url(repo_url).unwrap();
-    let before_commit = "3a2bd5cc2e0a38ce80214a32ed06b2fb9430ab73";
-    let after_commit = "778b5202fca04a2cd5daed377c0063e9af52b24c";
+    let before_commit = "ebb64dd615de5c6c83f4fceb170773f28c06cbea";
+    let after_commit = "311dfd5e10d5003737dba60a70370515350e8a18";
     let use_lsp = Some(false);
 
     let mut graph_ops = GraphOps::new();
@@ -45,26 +45,21 @@ async fn test_graph_update() {
 
     info!("Before: {} nodes and {} edges", nodes_before, edges_before);
 
-    let _ = graph_ops.graph.analysis();
+    graph_ops.graph.analysis();
 
     // --- Assert initial state ---
-    assert!(
-        assert_edge_exists(&mut graph_ops, "Alpha", "Beta").await,
-        "Before: Alpha should call Beta"
-    );
-    assert!(
-        assert_edge_exists(&mut graph_ops, "Alpha", "Gamma").await,
-        "Before: Alpha should call Gamma"
-    );
-    assert!(
-        assert_edge_exists(&mut graph_ops, "Beta", "Alpha").await,
-        "Before: Beta should call Alpha"
-    );
+    assert!(assert_edge_exists(&mut graph_ops, "Alpha", "Beta").await);
+    assert!(assert_edge_exists(&mut graph_ops, "Alpha", "Gamma").await);
+    assert!(assert_edge_exists(&mut graph_ops, "Beta", "Alpha").await);
+    assert!(assert_edge_exists(&mut graph_ops, "GammaExtra", "Gamma").await);
+    assert!(assert_node_exists(&mut graph_ops, "AlphaHelper").await);
+    assert!(assert_node_exists(&mut graph_ops, "Gamma").await);
+    assert!(!assert_node_exists(&mut graph_ops, "Delta").await);
 
     let changed_files = get_changed_files_between(&repo_path, before_commit, after_commit)
         .await
         .unwrap();
-    println!("==>>Changed files: {:?}", changed_files);
+    info!("==>>Changed files: {:?}", changed_files);
 
     clone_repo(&repo_url, &repo_path, None, None, Some(after_commit))
         .await
@@ -85,27 +80,41 @@ async fn test_graph_update() {
 
     info!("==>>After: {} nodes and {} edges", nodes_after, edges_after);
 
-    let _ = graph_ops.graph.analysis();
-    // --- Assert updated state ---
-    // Alpha should now call Delta, not Beta or Gamma
-    assert!(
-        assert_edge_exists(&mut graph_ops, "Alpha", "Delta").await,
-        "After: Alpha should call Delta"
-    );
-    assert!(
-        assert_edge_exists(&mut graph_ops, "Delta", "Alpha").await,
-        "After: Delta should call Alpha"
-    );
-    assert!(
-        !assert_edge_exists(&mut graph_ops, "Alpha", "Beta").await,
-        "After: Alpha should NOT call Beta"
-    );
-    assert!(
-        !assert_edge_exists(&mut graph_ops, "Alpha", "Gamma").await,
-        "After: Alpha should NOT call Gamma"
-    );
-    assert!(
-        !assert_edge_exists(&mut graph_ops, "Beta", "Alpha").await,
-        "After: Beta should NOT call Alpha"
-    );
+    graph_ops.graph.analysis();
+
+    // New relationships
+    assert!(assert_edge_exists(&mut graph_ops, "Alpha", "Delta").await);
+    assert!(assert_edge_exists(&mut graph_ops, "Alpha", "NewHelper").await);
+    assert!(assert_edge_exists(&mut graph_ops, "Delta", "Alpha").await);
+
+    // Removed relationships
+    assert!(!assert_edge_exists(&mut graph_ops, "Alpha", "Beta").await);
+    assert!(!assert_edge_exists(&mut graph_ops, "Alpha", "Gamma").await);
+    assert!(!assert_edge_exists(&mut graph_ops, "Beta", "Alpha").await);
+
+    // Deleted nodes (from deleted file and functions)
+    assert!(!assert_node_exists(&mut graph_ops, "Gamma").await);
+    assert!(!assert_node_exists(&mut graph_ops, "GammaExtra").await);
+    assert!(!assert_node_exists(&mut graph_ops, "AlphaHelper").await);
+
+    // New nodes
+    assert!(assert_node_exists(&mut graph_ops, "Delta").await);
+    assert!(assert_node_exists(&mut graph_ops, "DeltaHelper").await);
+    assert!(assert_node_exists(&mut graph_ops, "NewHelper").await);
+    assert!(assert_node_exists(&mut graph_ops, "NewBetaFunction").await);
+    assert!(assert_node_exists(&mut graph_ops, "CrossFileFunc").await);
+
+    // Stable elements
+    assert!(assert_node_exists(&mut graph_ops, "main").await);
+    assert!(assert_node_exists(&mut graph_ops, "ExistingUtil").await);
+}
+
+#[cfg(feature = "neo4j")]
+async fn assert_node_exists(graph: &mut GraphOps, node_name: &str) -> bool {
+    use ast::lang::NodeType;
+    let nodes = graph
+        .graph
+        .find_nodes_by_name_any_language(NodeType::Function, node_name)
+        .await;
+    !nodes.is_empty()
 }
