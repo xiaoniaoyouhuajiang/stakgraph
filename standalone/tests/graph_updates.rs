@@ -16,7 +16,7 @@ async fn assert_edge_exists(graph: &mut GraphOps, src: &str, tgt: &str) -> bool 
 #[cfg(feature = "neo4j")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_update() {
-    use ast::lang::graphs::Graph;
+    use ast::lang::Graph;
     use ast::repo::{clone_repo, Repo};
     use lsp::git::get_changed_files_between;
     use tracing::info;
@@ -109,6 +109,7 @@ async fn test_graph_update() {
     assert!(assert_node_exists(&mut graph_ops, "ExistingUtil").await);
 }
 
+#[cfg(feature = "neo4j")]
 async fn assert_node_exists(graph: &mut GraphOps, node_name: &str) -> bool {
     use ast::lang::NodeType;
     let nodes = graph
