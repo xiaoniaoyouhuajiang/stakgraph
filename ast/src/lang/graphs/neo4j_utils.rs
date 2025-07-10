@@ -42,16 +42,6 @@ impl Neo4jConnectionManager {
             Err(e) => Err(anyhow::anyhow!("Failed to connect to Neo4j: {}", e)),
         }
     }
-
-    pub async fn initialize_from_env() -> Result<Neo4jConnection> {
-        let uri =
-            std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
-        let username = std::env::var("NEO4J_USERNAME").unwrap_or_else(|_| "neo4j".to_string());
-        let password = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "testtest".to_string());
-        let database = std::env::var("NEO4J_DATABASE").unwrap_or_else(|_| "neo4j".to_string());
-
-        Self::initialize(&uri, &username, &password, &database).await
-    }
 }
 
 pub struct NodeQueryBuilder {
