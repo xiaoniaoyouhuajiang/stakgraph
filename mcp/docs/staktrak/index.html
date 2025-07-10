@@ -162,7 +162,7 @@
       generateBtn.addEventListener("click", () => {
         if (currentTrackingData) {
           const testCode = window.PlaywrightGenerator.generatePlaywrightTest(
-            "http://localhost:3000/frame.html",
+            "http://localhost:3000/preact/frame.html",
             currentTrackingData
           );
           currentTestCode = testCode;

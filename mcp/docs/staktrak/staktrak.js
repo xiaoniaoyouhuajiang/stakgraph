@@ -36,7 +36,11 @@ var userBehaviour = (function () {
       inputChange: null,
       focusChange: null,
       touchStart: null,
+      documentFocus: null,
+      documentBlur: null,
+      documentInput: null,
     },
+    mutationObserver: null,
     eventsFunctions: {
       scroll: () => {
         results.mouseScroll.push([
@@ -155,6 +159,21 @@ var userBehaviour = (function () {
               action: "complete",
             });
           }
+        }
+      },
+      documentFocus: (e) => {
+        if (isInputOrTextarea(e.target)) {
+          mem.eventsFunctions.focusChange(e);
+        }
+      },
+      documentBlur: (e) => {
+        if (isInputOrTextarea(e.target)) {
+          mem.eventsFunctions.focusChange(e);
+        }
+      },
+      documentInput: (e) => {
+        if (isInputOrTextarea(e.target)) {
+          mem.eventsFunctions.inputChange(e);
         }
       },
       pageNavigation: () => {
@@ -286,6 +305,55 @@ var userBehaviour = (function () {
     });
   }
 
+  function setupMutationObserver() {
+    const observerCallback = (mutationsList) => {
+      for (const mutation of mutationsList) {
+        if (mutation.type === "childList") {
+          mutation.addedNodes.forEach((node) => {
+            if (user_config.formInteractions) {
+              if (node.nodeName === "FORM") {
+                node.addEventListener(
+                  "submit",
+                  mem.eventsFunctions.formInteraction
+                );
+              } else if (node.querySelectorAll) {
+                const forms = node.querySelectorAll("form");
+                forms.forEach((form) => {
+                  form.addEventListener(
+                    "submit",
+                    mem.eventsFunctions.formInteraction
+                  );
+                });
+              }
+            }
+
+            if (user_config.audioVideoInteraction) {
+              if (node.nodeName === "VIDEO" || node.nodeName === "AUDIO") {
+                node.addEventListener(
+                  "play",
+                  mem.eventsFunctions.mediaInteraction
+                );
+              } else if (node.querySelectorAll) {
+                const media = node.querySelectorAll("video, audio");
+                media.forEach((mediaElement) => {
+                  mediaElement.addEventListener(
+                    "play",
+                    mem.eventsFunctions.mediaInteraction
+                  );
+                });
+              }
+            }
+          });
+        }
+      }
+    };
+
+    const observer = new MutationObserver(observerCallback);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return observer;
+  }
+
   function start() {
     if (Object.keys(user_config).length !== Object.keys(defaults).length) {
       console.log("no config provided. using default..");
@@ -350,11 +418,21 @@ var userBehaviour = (function () {
         mem.eventsFunctions.keyboardActivity
       );
 
-      document.querySelectorAll("input, textarea").forEach((input) => {
-        input.addEventListener("focus", mem.eventsFunctions.focusChange);
-        input.addEventListener("blur", mem.eventsFunctions.focusChange);
-        input.addEventListener("input", mem.eventsFunctions.inputChange);
-      });
+      document.addEventListener(
+        "focus",
+        mem.eventsFunctions.documentFocus,
+        true
+      );
+      document.addEventListener("blur", mem.eventsFunctions.documentBlur, true);
+      document.addEventListener(
+        "input",
+        mem.eventsFunctions.documentInput,
+        true
+      );
+
+      mem.eventListeners.documentFocus = true;
+      mem.eventListeners.documentBlur = true;
+      mem.eventListeners.documentInput = true;
     }
     //Page Navigation
     if (user_config.pageNavigation) {
@@ -395,6 +473,8 @@ var userBehaviour = (function () {
         // Add other media events as needed
       });
     }
+
+    mem.mutationObserver = setupMutationObserver();
   }
 
   function processResults() {
@@ -421,13 +501,29 @@ var userBehaviour = (function () {
     );
     window.removeEventListener("keydown", mem.eventsFunctions.keyboardActivity);
 
-    document.querySelectorAll("input, textarea").forEach((input) => {
-      input.removeEventListener("input", mem.eventsFunctions.inputChange);
-      input.removeEventListener("focus", mem.eventsFunctions.focusChange);
-      input.removeEventListener("blur", mem.eventsFunctions.focusChange);
-    });
+    document.removeEventListener(
+      "focus",
+      mem.eventsFunctions.documentFocus,
+      true
+    );
+    document.removeEventListener(
+      "blur",
+      mem.eventsFunctions.documentBlur,
+      true
+    );
+    document.removeEventListener(
+      "input",
+      mem.eventsFunctions.documentInput,
+      true
+    );
 
     window.removeEventListener("touchstart", mem.eventsFunctions.touchStart);
+
+    if (mem.mutationObserver) {
+      mem.mutationObserver.disconnect();
+      mem.mutationObserver = null;
+    }
+
     results.time.stopTime = getTimeStamp();
     processResults();
   }
