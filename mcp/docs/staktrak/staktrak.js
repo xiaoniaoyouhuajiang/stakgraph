@@ -15,7 +15,7 @@ var userBehaviour = (function () {
     touchEvents: true,
     audioVideoInteraction: true,
     customEventRegistration: true,
-    inputDebounceDelay: 800,
+    inputDebounceDelay: 2000,
     processData: function (results) {
       console.log(results);
     },
