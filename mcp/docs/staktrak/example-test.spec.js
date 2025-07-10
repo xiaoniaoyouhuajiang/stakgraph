@@ -17,8 +17,6 @@ test("User interaction replay with input typing", async ({ page }) => {
   await inputField.waitFor({ state: "visible" });
   await inputField.click();
 
-  await page.waitForTimeout(300);
-
   await inputField.fill("Hello, this is a test input");
 
   await page.waitForTimeout(1000);
@@ -26,6 +24,8 @@ test("User interaction replay with input typing", async ({ page }) => {
   const button3 = page.locator("#staktrak-div");
   await button3.waitFor({ state: "visible" });
   await button3.click();
+
+  await expect(inputField).toHaveValue("Hello, this is a test input");
 
   await page.waitForTimeout(2500);
 });

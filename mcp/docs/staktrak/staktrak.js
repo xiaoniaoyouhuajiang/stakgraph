@@ -15,6 +15,7 @@ var userBehaviour = (function () {
     touchEvents: true,
     audioVideoInteraction: true,
     customEventRegistration: true,
+    inputDebounceDelay: 800,
     processData: function (results) {
       console.log(results);
     },
@@ -24,6 +25,7 @@ var userBehaviour = (function () {
     processInterval: null,
     mouseInterval: null,
     mousePosition: [], //x,y,timestamp
+    inputDebounceTimers: {},
     eventListeners: {
       scroll: null,
       click: null,
@@ -32,6 +34,7 @@ var userBehaviour = (function () {
       visibilitychange: null,
       keyboardActivity: null,
       inputChange: null,
+      focusChange: null,
       touchStart: null,
     },
     eventsFunctions: {
@@ -97,35 +100,62 @@ var userBehaviour = (function () {
         processResults();
       },
       keyboardActivity: (e) => {
-        const target = e.target;
-
-        if (
-          target.tagName.toLowerCase() === "input" ||
-          target.tagName.toLowerCase() === "textarea"
-        ) {
-          const selector = getElementSelector(target);
-
-          results.keyboardActivities.push({
-            key: e.key,
-            code: e.code,
-            elementType: target.tagName.toLowerCase(),
-            elementSelector: selector,
-            value: target.value,
-            timestamp: getTimeStamp(),
-          });
-        } else {
+        if (!isInputOrTextarea(e.target)) {
           results.keyboardActivities.push([e.key, getTimeStamp()]);
         }
       },
       inputChange: (e) => {
         const target = e.target;
         const selector = getElementSelector(target);
+        const elementId = target.id || selector;
+
+        if (mem.inputDebounceTimers[elementId]) {
+          clearTimeout(mem.inputDebounceTimers[elementId]);
+        }
+
+        mem.inputDebounceTimers[elementId] = setTimeout(() => {
+          results.inputChanges.push({
+            elementSelector: selector,
+            value: target.value,
+            timestamp: getTimeStamp(),
+            action: "complete",
+          });
+
+          delete mem.inputDebounceTimers[elementId];
+        }, user_config.inputDebounceDelay);
 
         results.inputChanges.push({
           elementSelector: selector,
           value: target.value,
           timestamp: getTimeStamp(),
+          action: "intermediate",
         });
+      },
+      focusChange: (e) => {
+        const target = e.target;
+        if (isInputOrTextarea(target)) {
+          const selector = getElementSelector(target);
+          results.focusChanges.push({
+            elementSelector: selector,
+            type: e.type,
+            timestamp: getTimeStamp(),
+          });
+
+          if (e.type === "blur") {
+            const elementId = target.id || selector;
+            if (mem.inputDebounceTimers[elementId]) {
+              clearTimeout(mem.inputDebounceTimers[elementId]);
+              delete mem.inputDebounceTimers[elementId];
+            }
+
+            results.inputChanges.push({
+              elementSelector: selector,
+              value: target.value,
+              timestamp: getTimeStamp(),
+              action: "complete",
+            });
+          }
+        }
       },
       pageNavigation: () => {
         results.navigationHistory.push([location.href, getTimeStamp()]);
@@ -153,6 +183,16 @@ var userBehaviour = (function () {
     },
   };
   var results = {};
+
+  function isInputOrTextarea(element) {
+    return (
+      element &&
+      (element.tagName === "INPUT" ||
+        element.tagName === "TEXTAREA" ||
+        element.tagName.toLowerCase() === "input" ||
+        element.tagName.toLowerCase() === "textarea")
+    );
+  }
 
   function getElementSelector(element) {
     if (element.dataset && element.dataset.testid) {
@@ -224,6 +264,7 @@ var userBehaviour = (function () {
       mouseScroll: [],
       keyboardActivities: [],
       inputChanges: [],
+      focusChanges: [],
       navigationHistory: [],
       formInteractions: [],
       touchEvents: [],
@@ -310,6 +351,8 @@ var userBehaviour = (function () {
       );
 
       document.querySelectorAll("input, textarea").forEach((input) => {
+        input.addEventListener("focus", mem.eventsFunctions.focusChange);
+        input.addEventListener("blur", mem.eventsFunctions.focusChange);
         input.addEventListener("input", mem.eventsFunctions.inputChange);
       });
     }
@@ -355,6 +398,11 @@ var userBehaviour = (function () {
   }
 
   function processResults() {
+    for (const elementId in mem.inputDebounceTimers) {
+      clearTimeout(mem.inputDebounceTimers[elementId]);
+      delete mem.inputDebounceTimers[elementId];
+    }
+
     user_config.processData(result());
     if (user_config.clearAfterProcess) {
       resetResults();
@@ -375,6 +423,8 @@ var userBehaviour = (function () {
 
     document.querySelectorAll("input, textarea").forEach((input) => {
       input.removeEventListener("input", mem.eventsFunctions.inputChange);
+      input.removeEventListener("focus", mem.eventsFunctions.focusChange);
+      input.removeEventListener("blur", mem.eventsFunctions.focusChange);
     });
 
     window.removeEventListener("touchstart", mem.eventsFunctions.touchStart);

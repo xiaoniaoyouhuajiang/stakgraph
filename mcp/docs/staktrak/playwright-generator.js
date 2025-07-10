@@ -4,12 +4,17 @@
  * @returns {string} - Generated Playwright test code
  */
 export function generatePlaywrightTest(url, trackingData) {
-  const { clicks, keyboardActivities, inputChanges, userInfo, time } =
-    trackingData;
+  const {
+    clicks,
+    keyboardActivities,
+    inputChanges,
+    focusChanges,
+    userInfo,
+    time,
+  } = trackingData;
 
   if (
     (!clicks || !clicks.clickDetails || clicks.clickDetails.length === 0) &&
-    (!keyboardActivities || keyboardActivities.length === 0) &&
     (!inputChanges || inputChanges.length === 0)
   ) {
     return generateEmptyTest(url);
@@ -30,7 +35,7 @@ export function generatePlaywrightTest(url, trackingData) {
       height: ${userInfo.windowSize[1]} 
     });
   
-  ${generateUserInteractions(clicks, keyboardActivities, inputChanges)}
+  ${generateUserInteractions(clicks, inputChanges, focusChanges)}
 
     await page.waitForTimeout(2500);
   });`;
@@ -41,11 +46,11 @@ export function generatePlaywrightTest(url, trackingData) {
 /**
  * Generates code for all user interactions in chronological order
  * @param {Object} clicks - Click data
- * @param {Array} keyboardActivities - Keyboard activity data
  * @param {Array} inputChanges - Input change data
+ * @param {Array} focusChanges - Focus change data
  * @returns {string} - Generated interactions code
  */
-function generateUserInteractions(clicks, keyboardActivities, inputChanges) {
+function generateUserInteractions(clicks, inputChanges, focusChanges) {
   const allEvents = [];
 
   if (clicks && clicks.clickDetails && clicks.clickDetails.length > 0) {
@@ -61,38 +66,29 @@ function generateUserInteractions(clicks, keyboardActivities, inputChanges) {
     });
   }
 
-  if (keyboardActivities && keyboardActivities.length > 0) {
-    keyboardActivities.forEach((activity) => {
-      if (typeof activity === "object" && activity.elementSelector) {
-        allEvents.push({
-          type: "key",
-          key: activity.key,
-          code: activity.code,
-          selector: activity.elementSelector,
-          value: activity.value,
-          timestamp: activity.timestamp,
-        });
-      }
-    });
-  }
-
+  const inputEvents = [];
   if (inputChanges && inputChanges.length > 0) {
-    inputChanges.forEach((change) => {
-      allEvents.push({
+    const completedInputs = inputChanges.filter(
+      (change) => change.action === "complete" || !change.action
+    );
+
+    completedInputs.forEach((change) => {
+      inputEvents.push({
         type: "input",
         selector: change.elementSelector,
         value: change.value,
         timestamp: change.timestamp,
       });
     });
+
+    allEvents.push(...inputEvents);
   }
 
   allEvents.sort((a, b) => a.timestamp - b.timestamp);
 
   let actionsCode = "";
   let previousTimestamp = null;
-  let lastInputSelector = null;
-  let lastInputValue = null;
+  let generatedSelectors = new Set();
 
   allEvents.forEach((event, index) => {
     if (previousTimestamp !== null) {
@@ -118,13 +114,11 @@ function generateUserInteractions(clicks, keyboardActivities, inputChanges) {
     await element${index + 1}.click();
   `;
     } else if (event.type === "input") {
-      if (event.selector === lastInputSelector) {
-        lastInputValue = event.value;
-      } else {
-        const playwrightSelector = convertToPlaywrightSelector(event.selector);
-        const comment = `Input ${index + 1}: Fill "${
+      const playwrightSelector = convertToPlaywrightSelector(event.selector);
+      if (!generatedSelectors.has(playwrightSelector)) {
+        const comment = `Input ${index + 1}: Type "${
           event.value
-        }" in ${playwrightSelector}`;
+        }" into ${playwrightSelector}`;
 
         actionsCode += `  
     // ${comment}
@@ -134,32 +128,12 @@ function generateUserInteractions(clicks, keyboardActivities, inputChanges) {
         )}');
   `;
 
-        lastInputSelector = event.selector;
-        lastInputValue = event.value;
+        generatedSelectors.add(playwrightSelector);
       }
     }
 
     previousTimestamp = event.timestamp;
   });
-
-  if (lastInputSelector && lastInputValue) {
-    if (
-      !actionsCode.includes(
-        `await page.locator('${convertToPlaywrightSelector(
-          lastInputSelector
-        )}').fill('${lastInputValue.replace(/'/g, "\\'")}')`
-      )
-    ) {
-      const playwrightSelector = convertToPlaywrightSelector(lastInputSelector);
-      actionsCode += `  
-    // Final input value for ${playwrightSelector}
-    await page.locator('${playwrightSelector}').fill('${lastInputValue.replace(
-        /'/g,
-        "\\'"
-      )}');
-  `;
-    }
-  }
 
   return actionsCode;
 }
@@ -210,27 +184,6 @@ function generateEmptyTest(url) {
     // No interactions were recorded
     console.log('No user interactions to replay');
   });`;
-}
-
-/**
- * Generates coordinate-based click actions (fallback method)
- * @param {Array} clickDetails - Array of click detail arrays
- * @returns {string} - Generated coordinate-based click actions
- */
-function generateCoordinateClickActions(clickDetails) {
-  let actionsCode = "";
-
-  clickDetails.forEach((clickDetail, index) => {
-    const [x, y, selector, timestamp] = clickDetail;
-
-    actionsCode += `
-    // Click ${index + 1}: Click at coordinates (${x}, ${y})
-    await page.mouse.click(${x}, ${y});
-    await page.waitForTimeout(300); // Brief pause between clicks
-  `;
-  });
-
-  return actionsCode;
 }
 
 // Browser compatibility (for non-module environments)
