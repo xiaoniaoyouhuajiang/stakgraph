@@ -27,9 +27,6 @@ pub trait Graph: Default + Debug {
             || file.ends_with(".jsx")
             || file.ends_with(".js")
     }
-    fn create_filtered_graph(self, final_filter: &[String], lang_kind: Language) -> Self
-    where
-        Self: Sized;
 
     fn extend_graph(&mut self, other: Self)
     where

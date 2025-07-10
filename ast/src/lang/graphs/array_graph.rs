@@ -55,35 +55,6 @@ impl Graph for ArrayGraph {
             );
         }
     }
-    fn create_filtered_graph(self, final_filter: &[String], lang_kind: Language) -> Self {
-        let mut new_graph = Self::new(String::new(), lang_kind);
-
-        for node in &self.nodes {
-            if node.node_type == NodeType::Repository {
-                let key = create_node_key(node);
-                new_graph.node_keys.insert(key);
-                new_graph.nodes.push(node.clone());
-                continue;
-            }
-            if final_filter.contains(&node.node_data.file) {
-                let key = create_node_key(node);
-                new_graph.node_keys.insert(key);
-                new_graph.nodes.push(node.clone());
-            }
-        }
-
-        for edge in &self.edges {
-            if final_filter.contains(&edge.source.node_data.file)
-                || final_filter.contains(&edge.target.node_data.file)
-            {
-                let key = self.create_edge_key(edge);
-                new_graph.edge_keys.insert(key);
-                new_graph.edges.push(edge.clone());
-            }
-        }
-
-        new_graph
-    }
 
     fn extend_graph(&mut self, other: Self) {
         for node in &other.nodes {

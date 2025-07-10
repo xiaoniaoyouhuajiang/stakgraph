@@ -1035,12 +1035,6 @@ impl Graph for Neo4jGraph {
     fn analysis(&self) {
         let _ = sync_fn(|| async { self.analysis_async().await });
     }
-    fn create_filtered_graph(self, _final_filter: &[String], _lang_kind: Language) -> Self
-    where
-        Self: Sized,
-    {
-        self
-    }
 
     fn extend_graph(&mut self, _other: Self)
     where

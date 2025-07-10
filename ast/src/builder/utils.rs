@@ -1,26 +1,14 @@
-use crate::lang::graphs::Graph;
 use crate::lang::Node;
 use crate::lang::{asg::NodeData, graphs::NodeType};
-use crate::repo::{check_revs_files, Repo};
+use crate::repo::Repo;
 use crate::utils::create_node_key;
 use anyhow::Result;
-use lsp::Language;
 use lsp::{strip_root, strip_tmp};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::debug;
 
 pub const MAX_FILE_SIZE: u64 = 100_000;
-
-pub fn filter_by_revs<G: Graph>(root: &str, revs: Vec<String>, graph: G, lang_kind: Language) -> G {
-    if revs.is_empty() {
-        return graph;
-    }
-    match check_revs_files(root, revs) {
-        Some(final_filter) => graph.create_filtered_graph(&final_filter, lang_kind),
-        None => graph,
-    }
-}
 
 // (file, code)
 pub fn fileys(files: &Vec<PathBuf>) -> Result<Vec<(String, String)>> {
