@@ -104,11 +104,11 @@ impl Neo4jGraph {
     pub async fn create_indexes(&self) -> anyhow::Result<()> {
         let connection = self.ensure_connected().await?;
         let queries = vec![
-            "CREATE INDEX node_key_index IF NOT EXISTS FOR (n:Data_Bank) ON (n.node_key)",
-            "CREATE FULLTEXT INDEX body_fulltext_index IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.body]",
-            "CREATE FULLTEXT INDEX name_fulltext_index IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.name]",
-            "CREATE FULLTEXT INDEX composite_fulltext_index IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.name, n.body, n.file]",
-            "CREATE VECTOR INDEX vector_index IF NOT EXISTS FOR (n:Data_Bank) ON (n.embeddings) OPTIONS {indexConfig: {`vector.dimensions`: 384, `vector.similarity_function`: 'cosine'}}"
+            "CREATE INDEX data_bank_node_key_index IF NOT EXISTS FOR (n:Data_Bank) ON (n.node_key)",
+            "CREATE FULLTEXT INDEX bodyIndex IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.body]",
+            "CREATE FULLTEXT INDEX nameIndex IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.name]",
+            "CREATE FULLTEXT INDEX nameBodyFileIndex IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.name, n.body, n.file]",
+            "CREATE VECTOR INDEX vectorIndex IF NOT EXISTS FOR (n:Data_Bank) ON (n.embeddings) OPTIONS {indexConfig: {`vector.dimensions`: 384, `vector.similarity_function`: 'cosine'}}"
         ];
 
         for q in queries {
