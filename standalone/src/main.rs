@@ -40,6 +40,7 @@ async fn main() -> Result<()> {
             e
         );
     }
+    graph_ops.graph.create_indexes().await?;
 
     let (tx, _rx) = broadcast::channel(10000);
 

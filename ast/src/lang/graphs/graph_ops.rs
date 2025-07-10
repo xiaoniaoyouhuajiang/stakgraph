@@ -177,6 +177,8 @@ impl GraphOps {
     ) -> anyhow::Result<(u32, u32)> {
         self.graph.ensure_connected().await?;
 
+        self.graph.create_indexes().await?;
+
         info!("preparing node upload {}", btree_graph.nodes.len());
         let node_queries: Vec<(String, BoltMap)> = btree_graph
             .nodes

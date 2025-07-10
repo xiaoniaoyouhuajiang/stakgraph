@@ -133,27 +133,6 @@ impl EdgeQueryBuilder {
         );
         (query, params)
     }
-
-    pub fn build_from_keys(
-        source_key: &str,
-        target_key: &str,
-        edge_type: &EdgeType,
-    ) -> (String, BoltMap) {
-        let mut params = BoltMap::new();
-        boltmap_insert_str(&mut params, "source_key", source_key);
-        boltmap_insert_str(&mut params, "target_key", target_key);
-
-        // println!("[EdgeQueryBuilder] source_key: {}, target_key: {}, {:?}", source_key, target_key, edge_type);
-
-        let query = format!(
-            "MATCH (source {{node_key: $source_key}})
-            MATCH (target {{node_key: $target_key}})
-            MERGE (source)-[r:{}]->(target)
-            RETURN r",
-            edge_type.to_string()
-        );
-        (query, params)
-    }
 }
 
 pub fn build_batch_edge_queries<I>(edges: I, batch_size: usize) -> Vec<(String, BoltMap)>
@@ -179,6 +158,23 @@ where
             let mut params = BoltMap::new();
             boltmap_insert_list_of_maps(&mut params, "edges", edges_data);
 
+            /*
+            let query = "
+                UNWIND $edges AS edge
+                MATCH (source {node_key: edge.source_key})
+                MATCH (target {node_key: edge.target_key})
+                CALL {
+                    WITH source, target, edge
+                    WITH source, target, edge.edge_type AS rel_type
+                    CALL apoc.cypher.doIt(
+                        'MERGE (s)-[r:' + rel_type + ']->(t) RETURN r',
+                        {s: source, t: target}
+                    ) YIELD value
+                    RETURN value.r as rel
+                }
+                RETURN count(rel)
+            ";
+            */
             let query = "
                 UNWIND $edges AS edge
                 MATCH (source {node_key: edge.source_key})
