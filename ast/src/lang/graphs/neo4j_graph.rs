@@ -104,14 +104,17 @@ impl Neo4jGraph {
     pub async fn create_indexes(&self) -> anyhow::Result<()> {
         let connection = self.ensure_connected().await?;
         let queries = vec![
-            "CREATE INDEX node_key_index IF NOT EXISTS FOR (n) ON (n.node_key)",
-            "CREATE FULLTEXT INDEX body_fulltext_index IF NOT EXISTS FOR (n) ON EACH [n.body]",
-            "CREATE FULLTEXT INDEX name_fulltext_index IF NOT EXISTS FOR (n) ON EACH [n.name]", 
-            "CREATE FULLTEXT INDEX composite_fulltext_index IF NOT EXISTS FOR (n) ON EACH [n.name, n.body, n.file]",
-            "CREATE VECTOR INDEX vector_index IF NOT EXISTS FOR (n) ON (n.embeddings) OPTIONS {indexConfig: {`vector.dimensions`: 384, `vector.similarity_function`: 'cosine'}}"
+            "CREATE INDEX node_key_index IF NOT EXISTS FOR (n:Data_Bank) ON (n.node_key)",
+            "CREATE FULLTEXT INDEX body_fulltext_index IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.body]",
+            "CREATE FULLTEXT INDEX name_fulltext_index IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.name]",
+            "CREATE FULLTEXT INDEX composite_fulltext_index IF NOT EXISTS FOR (n:Data_Bank) ON EACH [n.name, n.body, n.file]",
+            "CREATE VECTOR INDEX vector_index IF NOT EXISTS FOR (n:Data_Bank) ON (n.embeddings) OPTIONS {indexConfig: {`vector.dimensions`: 384, `vector.similarity_function`: 'cosine'}}"
         ];
+
         for q in queries {
-            let _ = connection.run(neo4rs::query(q)).await;
+            if let Err(e) = connection.run(neo4rs::query(q)).await {
+                tracing::warn!("Error creating index: {:?}", e);
+            }
         }
         Ok(())
     }
