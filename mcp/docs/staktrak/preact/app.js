@@ -80,6 +80,14 @@ const Frame = () => {
       return `#${element.id}`;
     }
 
+    if (
+      element.tagName.match(
+        /^(P|H1|H2|H3|H4|H5|H6|SPAN|DIV|LI|TD|TH|BUTTON|LABEL)$/i
+      )
+    ) {
+      return element.tagName.toLowerCase();
+    }
+
     let selector = element.tagName.toLowerCase();
     if (element.className) {
       const classes = Array.from(element.classList).join(".");
@@ -122,34 +130,51 @@ const Frame = () => {
       );
 
       showPopup(`Selected: "${selectedText}"`, "popup-selection");
+
+      setTimeout(() => {
+        if (window.getSelection) {
+          if (window.getSelection().empty) {
+            window.getSelection().empty();
+          } else if (window.getSelection().removeAllRanges) {
+            window.getSelection().removeAllRanges();
+          }
+        }
+      }, 500);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (selectionMode && event.key === "Escape") {
+      setSelectionMode(false);
+      document.body.classList.remove("selection-active");
+      window.parent.postMessage({ type: "staktrak-selection-mode-ended" }, "*");
     }
   };
 
   useEffect(() => {
     const messageHandler = (event) => {
-      if (event.data && event.data.type === "staktrak-enable-selection") {
-        setSelectionMode(true);
-
-        document.body.classList.add("selection-active");
-
-        showPopup(
-          "Selection mode enabled. Click and drag to select text.",
-          "popup-selection"
-        );
-
-        setTimeout(() => {
-          setSelectionMode(false);
-          document.body.classList.remove("selection-active");
-        }, 30000);
+      if (event.data && event.data.type) {
+        switch (event.data.type) {
+          case "staktrak-enable-selection":
+            setSelectionMode(true);
+            document.body.classList.add("selection-active");
+            break;
+          case "staktrak-disable-selection":
+            setSelectionMode(false);
+            document.body.classList.remove("selection-active");
+            break;
+        }
       }
     };
 
     window.addEventListener("message", messageHandler);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("message", messageHandler);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [selectionMode]);
 
   return html`
     <div onMouseUp=${handleMouseUp}>

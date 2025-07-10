@@ -77,7 +77,7 @@ function generateUserInteractions(
   const inputEvents = [];
   if (inputChanges && inputChanges.length > 0) {
     const completedInputs = inputChanges.filter(
-      (change) => change.action === "complete" || !change.action // For backward compatibility
+      (change) => change.action === "complete" || !change.action
     );
 
     completedInputs.forEach((change) => {

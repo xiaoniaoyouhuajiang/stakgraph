@@ -96,70 +96,6 @@
         background-color: #f44336;
         display: block;
       }
-      .assertion-panel {
-        margin-top: 20px;
-        background-color: #333;
-        padding: 15px;
-        border-radius: 5px;
-        display: none;
-      }
-      .assertion-panel.active {
-        display: block;
-      }
-      .assertion-panel select,
-      .assertion-panel input {
-        padding: 8px;
-        margin: 5px 0;
-        background-color: #444;
-        color: white;
-        border: 1px solid #555;
-        border-radius: 4px;
-        width: 30%;
-      }
-      .assertion-panel button {
-        margin-top: 10px;
-      }
-      .assertion-type-group {
-        margin-top: 10px;
-      }
-      .assertion-type-group label {
-        display: block;
-        margin-bottom: 5px;
-      }
-      .assertions-list {
-        margin-top: 20px;
-        background-color: #2a2a2a;
-        padding: 15px;
-        border-radius: 5px;
-        max-height: 200px;
-        overflow: auto;
-        display: none;
-      }
-      .assertions-list.active {
-        display: block;
-      }
-      .assertion-item {
-        padding: 8px;
-        margin-bottom: 5px;
-        background-color: #444;
-        border-radius: 4px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .remove-assertion {
-        background-color: #f44336;
-        border: none;
-        color: white;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        line-height: 24px;
-        text-align: center;
-        padding: 0;
-        cursor: pointer;
-      }
-
       .popup {
         position: fixed;
         top: 20px;
@@ -216,41 +152,8 @@
         Generate Playwright Test
       </button>
     </div>
-
-    <div id="assertionPanel" class="assertion-panel">
-      <h3>Add Assertion</h3>
-      <div class="assertion-type-group">
-        <label for="assertionType">Assertion Type:</label>
-        <select id="assertionType">
-          <option value="hasText">Has Text</option>
-          <option value="containsText">Contains Text</option>
-          <option value="isVisible">Is Visible</option>
-          <option value="hasValue">Has Value</option>
-        </select>
-      </div>
-      <div class="assertion-type-group">
-        <label for="assertionSelector">Element Selector:</label>
-        <input
-          type="text"
-          id="assertionSelector"
-          placeholder="Enter selector or use selection"
-        />
-      </div>
-      <div class="assertion-type-group">
-        <label for="assertionValue">Expected Value:</label>
-        <input type="text" id="assertionValue" placeholder="Value to assert" />
-      </div>
-      <div id="assertionStatus" class="status"></div>
-      <button id="addAssertionBtn">Add to Test</button>
-      <button id="cancelAssertionBtn">Cancel</button>
-    </div>
-
-    <div id="assertionsList" class="assertions-list">
-      <h3>Added Assertions:</h3>
-      <div id="assertionsContainer"></div>
-    </div>
-
     <!-- <div id="results"></div> -->
+
     <div id="playwrightTest"></div>
 
     <script type="module" src="playwright-generator.js"></script>
@@ -261,17 +164,6 @@
       const stopBtn = document.getElementById("stopBtn");
       const assertBtn = document.getElementById("assertBtn");
       const generateBtn = document.getElementById("generateBtn");
-      const assertionPanel = document.getElementById("assertionPanel");
-      const addAssertionBtn = document.getElementById("addAssertionBtn");
-      const cancelAssertionBtn = document.getElementById("cancelAssertionBtn");
-      const assertionType = document.getElementById("assertionType");
-      const assertionSelector = document.getElementById("assertionSelector");
-      const assertionValue = document.getElementById("assertionValue");
-      const assertionStatus = document.getElementById("assertionStatus");
-      const assertionsList = document.getElementById("assertionsList");
-      const assertionsContainer = document.getElementById(
-        "assertionsContainer"
-      );
       // const resultsDiv = document.getElementById("results");
       const playwrightTestDiv = document.getElementById("playwrightTest");
 
@@ -280,7 +172,9 @@
       let currentTestCode = null;
       let assertions = [];
       let selectedText = "";
-      let lastSelectedElement = null;
+      let selectedSelector = "";
+      let isWaitingForSelection = false;
+      let assertionCount = 0;
 
       window.addEventListener("message", (event) => {
         if (event.data && event.data.type) {
@@ -294,54 +188,21 @@
               generateBtn.disabled = false;
               break;
             case "staktrak-selection":
-              selectedText = event.data.text || "";
-              lastSelectedElement = event.data.selector || "";
-              if (selectedText) {
-                assertionValue.value = selectedText;
+              if (isWaitingForSelection) {
+                selectedText = event.data.text || "";
+                selectedSelector = event.data.selector || "";
+
+                if (selectedText && selectedSelector) {
+                  addAssertion();
+                  assertionCount++;
+                }
               }
-              if (lastSelectedElement) {
-                assertionSelector.value = lastSelectedElement;
-              }
+              break;
+            case "staktrak-selection-mode-ended":
               break;
           }
         }
       });
-
-      function updateAssertionsList() {
-        assertionsContainer.innerHTML = "";
-
-        if (assertions.length === 0) {
-          assertionsList.classList.remove("active");
-          return;
-        }
-
-        assertionsList.classList.add("active");
-
-        assertions.forEach((assertion, index) => {
-          const item = document.createElement("div");
-          item.className = "assertion-item";
-
-          let assertionText = `${assertion.selector} ${assertion.type}`;
-          if (assertion.value) {
-            assertionText += `: "${assertion.value}"`;
-          }
-
-          item.innerHTML = `
-            <span>${assertionText}</span>
-            <button class="remove-assertion" data-index="${index}">✕</button>
-          `;
-
-          assertionsContainer.appendChild(item);
-        });
-
-        document.querySelectorAll(".remove-assertion").forEach((button) => {
-          button.addEventListener("click", function () {
-            const index = parseInt(this.getAttribute("data-index"));
-            assertions.splice(index, 1);
-            updateAssertionsList();
-          });
-        });
-      }
 
       recordBtn.addEventListener("click", () => {
         trackingFrame.contentWindow.postMessage(
@@ -354,7 +215,7 @@
         generateBtn.disabled = true;
         isRecording = true;
         assertions = [];
-        updateAssertionsList();
+        assertionCount = 0;
         // resultsDiv.innerHTML = "";
         playwrightTestDiv.innerHTML = "";
 
@@ -368,11 +229,20 @@
         assertBtn.disabled = true;
         isRecording = false;
 
+        if (isWaitingForSelection) {
+          isWaitingForSelection = false;
+          trackingFrame.contentWindow.postMessage(
+            { type: "staktrak-disable-selection" },
+            "*"
+          );
+        }
+
         showPopup("Recording stopped", "warning");
       });
 
       assertBtn.addEventListener("click", () => {
-        assertionPanel.classList.add("active");
+        isWaitingForSelection = true;
+        showPopup("Select text in the iframe to add assertions", "info");
 
         trackingFrame.contentWindow.postMessage(
           { type: "staktrak-enable-selection" },
@@ -380,74 +250,59 @@
         );
       });
 
-      function showAssertionStatus(message, type) {
-        showPopup(message, type);
-      }
-
-      function isValidAssertion(type, selector, value) {
-        if (!selector || selector.trim() === "") {
-          showAssertionStatus("Please provide a valid selector", "error");
-          return false;
-        }
-
-        if (
-          (type === "hasText" ||
-            type === "containsText" ||
-            type === "hasValue") &&
-          (!value || value.trim() === "")
-        ) {
-          showAssertionStatus("Please provide an expected value", "error");
-          return false;
-        }
-
-        const isDuplicate = assertions.some(
-          (a) => a.type === type && a.selector === selector && a.value === value
-        );
-
-        if (isDuplicate) {
-          showAssertionStatus("This assertion already exists", "error");
-          return false;
-        }
-
-        return true;
-      }
-
-      addAssertionBtn.addEventListener("click", () => {
-        const type = assertionType.value;
-        const selector = assertionSelector.value;
-        const value = assertionValue.value;
-
-        if (!isValidAssertion(type, selector, value)) {
+      function addAssertion() {
+        if (!selectedSelector) {
+          showPopup("No element selected", "error");
           return;
+        }
+
+        let type = "isVisible";
+        let value = "";
+
+        if (selectedText && selectedText.trim() !== "") {
+          type = "hasText";
+          value = selectedText;
         }
 
         assertions.push({
           type,
-          selector,
+          selector: selectedSelector,
           value,
           timestamp: Date.now(),
         });
 
-        updateAssertionsList();
-
         showPopup(`Assertion added: ${type} "${value || ""}"`, "success");
 
-        assertionValue.value = "";
-      });
-
-      cancelAssertionBtn.addEventListener("click", () => {
-        assertionPanel.classList.remove("active");
-        assertionValue.value = "";
-        assertionSelector.value = "";
-
-        showPopup("Assertion cancelled", "warning");
-      });
+        selectedText = "";
+        selectedSelector = "";
+      }
 
       generateBtn.addEventListener("click", () => {
         if (currentTrackingData) {
-          if (!currentTrackingData.assertions) {
-            currentTrackingData.assertions = [];
+          if (isWaitingForSelection) {
+            isWaitingForSelection = false;
+            trackingFrame.contentWindow.postMessage(
+              { type: "staktrak-disable-selection" },
+              "*"
+            );
           }
+
+          if (
+            currentTrackingData.clicks &&
+            currentTrackingData.clicks.clickDetails
+          ) {
+            const filteredClicks =
+              currentTrackingData.clicks.clickDetails.filter((clickDetail) => {
+                return !assertions.some((assertion) => {
+                  const assertionTime = assertion.timestamp;
+                  const clickTime = clickDetail[3];
+                  return Math.abs(clickTime - assertionTime) < 500;
+                });
+              });
+
+            currentTrackingData.clicks.clickDetails = filteredClicks;
+          }
+
           currentTrackingData.assertions = assertions;
 
           const testCode = window.PlaywrightGenerator.generatePlaywrightTest(
@@ -521,20 +376,6 @@
           }
         } catch (error) {
           showPopup("Error saving test: " + error.message, "error");
-        }
-      }
-
-      function showStatus(message, type) {
-        showPopup(message, type);
-
-        const statusDiv = document.getElementById("saveStatus");
-        if (statusDiv) {
-          statusDiv.textContent = message;
-          statusDiv.className = `status ${type}`;
-
-          setTimeout(() => {
-            statusDiv.style.display = "none";
-          }, 3000);
         }
       }
 
