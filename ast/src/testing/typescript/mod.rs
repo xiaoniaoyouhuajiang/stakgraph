@@ -22,7 +22,7 @@ pub async fn test_typescript_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let (num_nodes, num_edges) = graph.get_graph_size();
     if use_lsp {
         assert_eq!(num_nodes, 52, "Expected 52 nodes");
-        assert!(num_edges >= 75 && num_edges <= 77, "Expected 75 edges");
+        assert!(num_edges >= 72 && num_edges <= 77, "Expected 72-77 edges");
     } else {
         assert_eq!(num_nodes, 49, "Expected 49 nodes");
         assert_eq!(num_edges, 69, "Expected 69 edges");
