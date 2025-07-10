@@ -144,6 +144,14 @@ impl Neo4jGraph {
         execute_batch(&connection, queries).await
     }
 
+    pub async fn execute_simple(
+        &self,
+        queries: Vec<(String, BoltMap)>,
+    ) -> Result<(), anyhow::Error> {
+        let connection = self.ensure_connected().await?;
+        execute_queries_simple(&connection, queries).await
+    }
+
     pub async fn get_repository_hash(&self, repo_url: &str) -> Result<String> {
         let connection = self.ensure_connected().await?;
         let (query_str, params) = get_repository_hash_query(repo_url);
