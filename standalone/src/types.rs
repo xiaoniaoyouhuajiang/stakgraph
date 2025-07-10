@@ -40,7 +40,10 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         match self {
-            AppError::Anyhow(err) => (StatusCode::BAD_REQUEST, err.to_string()).into_response(),
+            AppError::Anyhow(err) => {
+                tracing::error!("Handler error: {:?}", err);
+                (StatusCode::BAD_REQUEST, err.to_string()).into_response()
+            }
         }
     }
 }
