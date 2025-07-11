@@ -1,5 +1,5 @@
 use crate::lang::graphs::{EdgeType, NodeType};
-use crate::lang::Graph;
+use crate::lang::{Graph, Node};
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 use test_log::test;
@@ -480,6 +480,28 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
         profile_page.body.contains("@person.name"),
         "Profile page should display person name"
     );
+
+    let directories = graph.find_nodes_by_type(NodeType::Directory);
+    assert_eq!(directories.len(), 10, "Expected 10 directories");
+
+    let app_directory = directories
+        .iter()
+        .find(|d| d.name == "app" && d.file.ends_with("src/testing/ruby/app"))
+        .expect("App directory not found");
+    let app = Node::new(NodeType::Directory, app_directory.clone());
+
+    let controllers_directory = directories
+        .iter()
+        .find(|d| d.name == "controllers" && d.file.ends_with("src/testing/ruby/app/controllers"))
+        .expect("Controllers directory not found");
+    let controllers = Node::new(NodeType::Directory, controllers_directory.clone());
+
+    let dir_relationship = graph.has_edge(&app, &controllers, EdgeType::Contains);
+    assert!(
+        dir_relationship,
+        "Expected Contains edge between app and controllers directories"
+    );
+
     Ok(())
 }
 
