@@ -175,10 +175,11 @@ where
                     let mut params = BoltMap::new();
                     boltmap_insert_list_of_maps(&mut params, "edges", edges_data);
 
+                    // could use MERGE instead of CREATE here...
                     let query = format!(
                         "UNWIND $edges AS edge
-                         MATCH (source {{node_key: edge.source}}), (target {{node_key: edge.target}})
-                         MERGE (source)-[r:{}]->(target)
+                         MATCH (source:Data_Bank {{node_key: edge.source}}), (target:Data_Bank {{node_key: edge.target}})
+                         CREATE (source)-[r:{}]->(target)
                          RETURN count(r)",
                         edge_type.to_string()
                     );
