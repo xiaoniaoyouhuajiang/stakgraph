@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::debug;
 
-pub const MAX_FILE_SIZE: u64 = 100_000;
+pub const MAX_FILE_SIZE: u64 = 500_000;
 
 pub fn filter_by_revs<G: Graph>(root: &str, revs: Vec<String>, graph: G, lang_kind: Language) -> G {
     if revs.is_empty() {
