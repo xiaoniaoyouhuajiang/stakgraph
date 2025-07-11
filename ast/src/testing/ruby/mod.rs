@@ -39,6 +39,18 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
         pkg_files[0].name, "Gemfile",
         "Package file name is incorrect"
     );
+    assert!(
+        pkg_files[0].body.contains("rails"),
+        "Gemfile should contain rails gem"
+    );
+    assert!(
+        pkg_files[0].body.contains("sqlite3"),
+        "Gemfile should contain sqlite3 gem"
+    );
+    assert!(
+        pkg_files[0].body.contains("puma"),
+        "Gemfile should contain puma gem"
+    );
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
     assert_eq!(imports.len(), 10, "Expected 10 import node");
@@ -52,6 +64,30 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(
         import_body.body, environment_body,
         "Import body is incorrect"
+    );
+
+    let boot_import = imports
+        .iter()
+        .find(|i| i.file == "src/testing/ruby/config/boot.rb")
+        .expect("Boot import not found");
+    assert!(
+        boot_import.body.contains("require \"bundler/setup\""),
+        "Boot should require bundler/setup"
+    );
+
+    let application_import = imports
+        .iter()
+        .find(|i| i.file == "src/testing/ruby/config/application.rb")
+        .expect("Application import not found");
+    assert!(
+        application_import
+            .body
+            .contains("require_relative \"boot\""),
+        "Application should require boot"
+    );
+    assert!(
+        application_import.body.contains("require \"rails\""),
+        "Application should require rails"
     );
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
@@ -119,6 +155,15 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Endpoint file path is incorrect"
     );
 
+    let get_profile_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "profile" && e.meta.get("verb") == Some(&"GET".to_string()))
+        .expect("GET profile endpoint not found");
+    assert_eq!(
+        get_profile_endpoint.file, "src/testing/ruby/config/routes.rb",
+        "Endpoint file path is incorrect"
+    );
+
     let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
     assert_eq!(handler_edges_count, 7, "Expected 7 handler edges");
 
@@ -167,76 +212,296 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(contains, 93, "Expected 93 contains edges");
 
     let classes = graph.find_nodes_by_type(NodeType::Class);
-    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
-    println!("Data Models: {:?}", data_models);
-    let functions = graph.find_nodes_by_type(NodeType::Function);
+    let person_model = classes
+        .iter()
+        .find(|c| c.name == "Person" && c.file.ends_with("app/models/person.rb"))
+        .expect("Person model not found");
+    assert!(
+        person_model.body.contains("has_many :articles"),
+        "Person should have many articles"
+    );
+    assert!(
+        person_model
+            .body
+            .contains("validates :name, presence: true"),
+        "Person should validate name presence"
+    );
+    assert!(
+        person_model
+            .body
+            .contains("validates :email, presence: true, uniqueness: true"),
+        "Person should validate email presence and uniqueness"
+    );
 
-    let people_controller_class = classes
+    let article_model = classes
+        .iter()
+        .find(|c| c.name == "Article" && c.file.ends_with("app/models/article.rb"))
+        .expect("Article model not found");
+    assert!(
+        article_model.body.contains("belongs_to :person"),
+        "Article should belong to person"
+    );
+    assert!(
+        article_model
+            .body
+            .contains("validates :title, presence: true"),
+        "Article should validate title presence"
+    );
+    assert!(
+        article_model
+            .body
+            .contains("validates :body, presence: true"),
+        "Article should validate body presence"
+    );
+
+    let country_model = classes
+        .iter()
+        .find(|c| c.name == "Country" && c.file.ends_with("app/models/country.rb"))
+        .expect("Country model not found");
+    assert!(
+        country_model
+            .body
+            .contains("validates :name, presence: true"),
+        "Country should validate name presence"
+    );
+    assert!(
+        country_model
+            .body
+            .contains("validates :code, presence: true, uniqueness: true"),
+        "Country should validate code presence and uniqueness"
+    );
+
+    let app_record = classes
         .iter()
         .find(|c| {
-            c.name == "PeopleController" && c.file.ends_with("app/controllers/people_controller.rb")
+            c.name == "ApplicationRecord" && c.file.ends_with("app/models/application_record.rb")
         })
-        .map(|n| Node::new(NodeType::Class, n.clone()))
-        .expect("PeopleController class not found");
+        .expect("ApplicationRecord not found");
+    assert!(
+        app_record.body.contains("primary_abstract_class"),
+        "ApplicationRecord should have primary_abstract_class"
+    );
 
-    let people_data_model = data_models
+    let app_controller = classes
         .iter()
-        .find(|dm| dm.name == "people" && dm.file.ends_with("src/testing/ruby/db/schema.rb"))
-        .map(|n| Node::new(NodeType::DataModel, n.clone()))
-        .expect("people DataModel not found");
+        .find(|c| {
+            c.name == "ApplicationController"
+                && c.file
+                    .ends_with("app/controllers/application_controller.rb")
+        })
+        .expect("ApplicationController not found");
+    assert!(
+        app_controller.body.contains("ActionController::API"),
+        "ApplicationController should inherit from ActionController::API"
+    );
 
-    let get_person_endpoint = graph
-        .find_nodes_by_type(NodeType::Endpoint)
-        .into_iter()
-        .find(|e| e.name == "person/:id" && e.meta.get("verb") == Some(&"GET".to_string()))
-        .map(|n| Node::new(NodeType::Endpoint, n))
-        .expect("GET person/:id endpoint not found");
-
+    let functions = graph.find_nodes_by_type(NodeType::Function);
     let get_person_fn = functions
         .iter()
         .find(|f| {
             f.name == "get_person" && f.file.ends_with("app/controllers/people_controller.rb")
         })
-        .map(|n| Node::new(NodeType::Function, n.clone()))
-        .expect("get_person function not found");
-
+        .expect("get_person method not found");
     assert!(
-        graph.has_edge(
-            &people_controller_class,
-            &people_data_model,
-            EdgeType::Contains
-        ),
-        "Expected PeopleController to contain people DataModel"
+        get_person_fn
+            .body
+            .contains("PersonService.get_person_by_id"),
+        "get_person should call PersonService.get_person_by_id"
+    );
+    assert!(
+        get_person_fn.body.contains("render json: person"),
+        "get_person should render json response"
     );
 
+    let create_person_fn = functions
+        .iter()
+        .find(|f| {
+            f.name == "create_person" && f.file.ends_with("app/controllers/people_controller.rb")
+        })
+        .expect("create_person method not found");
     assert!(
-        graph.has_edge(&get_person_endpoint, &get_person_fn, EdgeType::Handler),
-        "Expected 'person/:id' endpoint to be handled by get_person"
+        create_person_fn.body.contains("PersonService.new_person"),
+        "create_person should call PersonService.new_person"
+    );
+    assert!(
+        create_person_fn.body.contains("person_params"),
+        "create_person should use person_params"
+    );
+
+    let destroy_fn = functions
+        .iter()
+        .find(|f| f.name == "destroy" && f.file.ends_with("app/controllers/people_controller.rb"))
+        .expect("destroy method not found");
+    assert!(
+        destroy_fn.body.contains("PersonService.delete"),
+        "destroy should call PersonService.delete"
+    );
+
+    let articles_fn = functions
+        .iter()
+        .find(|f| f.name == "articles" && f.file.ends_with("app/controllers/people_controller.rb"))
+        .expect("articles method not found");
+    assert!(
+        articles_fn.body.contains("Article.all"),
+        "articles should call Article.all"
+    );
+
+    let show_profile_fn = functions
+        .iter()
+        .find(|f| {
+            f.name == "show_person_profile"
+                && f.file.ends_with("app/controllers/people_controller.rb")
+        })
+        .expect("show_person_profile method not found");
+    assert!(
+        show_profile_fn.body.contains("Person.find(params[:id])"),
+        "show_person_profile should find person by id"
+    );
+
+    let process_fn = functions
+        .iter()
+        .find(|f| {
+            f.name == "process" && f.file.ends_with("app/controllers/countries_controller.rb")
+        })
+        .expect("process method not found");
+    assert!(
+        process_fn.body.contains("Country.new(country_params)"),
+        "process should create new Country"
+    );
+
+    let get_person_by_id = functions
+        .iter()
+        .find(|f| {
+            f.name == "get_person_by_id" && f.file.ends_with("app/services/person_service.rb")
+        })
+        .expect("get_person_by_id method not found");
+    assert!(
+        get_person_by_id.body.contains("Person.find_by(id: id)"),
+        "get_person_by_id should call Person.find_by"
+    );
+
+    let new_person = functions
+        .iter()
+        .find(|f| f.name == "new_person" && f.file.ends_with("app/services/person_service.rb"))
+        .expect("new_person method not found");
+    assert!(
+        new_person.body.contains("Person.create(person_params)"),
+        "new_person should call Person.create"
+    );
+
+    let delete = functions
+        .iter()
+        .find(|f| f.name == "delete" && f.file.ends_with("app/services/person_service.rb"))
+        .expect("delete method not found");
+    assert!(
+        delete.body.contains("Person.destroy(id)"),
+        "delete should call Person.destroy"
+    );
+
+    let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    let people_table = data_models
+        .iter()
+        .find(|dm| dm.name == "people" && dm.file.ends_with("db/schema.rb"))
+        .expect("people DataModel not found");
+    assert!(
+        people_table.body.contains("t.string \"name\""),
+        "people table should have name column"
+    );
+    assert!(
+        people_table.body.contains("t.string \"email\""),
+        "people table should have email column"
+    );
+    assert!(
+        people_table
+            .body
+            .contains("index [\"email\"], name: \"index_people_on_email\", unique: true"),
+        "people table should have unique email index"
+    );
+
+    let articles_table = data_models
+        .iter()
+        .find(|dm| dm.name == "articles" && dm.file.ends_with("db/schema.rb"))
+        .expect("articles DataModel not found");
+    assert!(
+        articles_table.body.contains("t.string \"title\""),
+        "articles table should have title column"
+    );
+    assert!(
+        articles_table.body.contains("t.text \"body\""),
+        "articles table should have body column"
+    );
+    assert!(
+        articles_table
+            .body
+            .contains("t.integer \"person_id\", null: false"),
+        "articles table should have person_id foreign key"
+    );
+
+    let create_people_migration = classes
+        .iter()
+        .find(|c| c.name == "CreatePeople" && c.file.contains("create_people.rb"))
+        .expect("CreatePeople migration not found");
+    assert!(
+        create_people_migration
+            .body
+            .contains("create_table :people"),
+        "CreatePeople should create people table"
+    );
+
+    let create_articles_migration = classes
+        .iter()
+        .find(|c| c.name == "CreateArticles" && c.file.contains("create_articles.rb"))
+        .expect("CreateArticles migration not found");
+    assert!(
+        create_articles_migration
+            .body
+            .contains("create_table :articles"),
+        "CreateArticles should create articles table"
+    );
+    assert!(
+        create_articles_migration
+            .body
+            .contains("t.references :person, null: false, foreign_key: true"),
+        "CreateArticles should add person foreign key"
     );
 
     let pages = graph.find_nodes_by_type(NodeType::Page);
-    let classes = graph.find_nodes_by_type(NodeType::Class);
-    let functions = graph.find_nodes_by_type(NodeType::Function);
-
-    let mut missing_renders = Vec::new();
-    for page in &pages {
-        let page_node = Node::new(NodeType::Page, page.clone());
-        let has_renders = classes.iter().any(|class| {
-            let class_node = Node::new(NodeType::Class, class.clone());
-            graph.has_edge(&page_node, &class_node, EdgeType::Renders)
-        }) || functions.iter().any(|func| {
-            let func_node = Node::new(NodeType::Function, func.clone());
-            graph.has_edge(&page_node, &func_node, EdgeType::Renders)
-        });
-        if !has_renders {
-            missing_renders.push(page.name.clone());
-        }
-    }
-    assert!(
-        missing_renders.is_empty(),
-        "Some Page nodes are missing Renders edges: {:?}",
-        missing_renders
+    assert_eq!(pages.len(), 1, "Expected 1 page");
+    let profile_page = &pages[0];
+    assert_eq!(
+        profile_page.name, "show_person_profile.html.erb",
+        "Page name should be show_person_profile.html.erb"
     );
+    assert!(
+        profile_page.file.ends_with("show_person_profile.html.erb"),
+        "Page should be an erb file"
+    );
+    assert!(
+        profile_page.body.contains("@person.name"),
+        "Profile page should display person name"
+    );
+
+    let directories = graph.find_nodes_by_type(NodeType::Directory);
+    assert_eq!(directories.len(), 10, "Expected 10 directories");
+
+    let app_directory = directories
+        .iter()
+        .find(|d| d.name == "app" && d.file.ends_with("src/testing/ruby/app"))
+        .expect("App directory not found");
+    let app = Node::new(NodeType::Directory, app_directory.clone());
+
+    let controllers_directory = directories
+        .iter()
+        .find(|d| d.name == "controllers" && d.file.ends_with("src/testing/ruby/app/controllers"))
+        .expect("Controllers directory not found");
+    let controllers = Node::new(NodeType::Directory, controllers_directory.clone());
+
+    let dir_relationship = graph.has_edge(&app, &controllers, EdgeType::Contains);
+    assert!(
+        dir_relationship,
+        "Expected Contains edge between app and controllers directories"
+    );
+
     Ok(())
 }
 

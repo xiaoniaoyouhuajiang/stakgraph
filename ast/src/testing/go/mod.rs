@@ -84,22 +84,43 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let class_function_edges =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
-        assert_eq!(class_function_edges.len(), 5, "Expected 5 methods");
+    assert_eq!(class_function_edges.len(), 5, "Expected 5 methods");
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     assert_eq!(data_models.len(), 5, "Expected 5 data models");
+    let person = data_models
+        .iter()
+        .find(|dm| dm.name == "Person" && dm.file == "src/testing/go/db.go")
+        .expect("Person data model not found");
     assert!(
-        data_models
-            .iter()
-            .any(|dm| dm.name == "Person" && dm.file == "src/testing/go/db.go"),
-        "Expected Person data model not found"
+        person.body.contains("ID    int"),
+        "Person should have ID field"
+    );
+    assert!(
+        person.body.contains("Name  string"),
+        "Person should have Name field"
+    );
+    assert!(
+        person.body.contains("Email string"),
+        "Person should have Email field"
+    );
+    let leaderboard = data_models
+        .iter()
+        .find(|dm| dm.name == "LeaderboardEntry")
+        .expect("LeaderboardEntry data model not found");
+    assert!(
+        leaderboard.body.contains("Name  string"),
+        "LeaderboardEntry should have Name field"
+    );
+    assert!(
+        leaderboard.body.contains("Score int"),
+        "LeaderboardEntry should have Score field"
     );
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
-    if use_lsp{
+    if use_lsp {
         assert_eq!(endpoints.len(), 4, "Expected 4 endpoints");
-    }else{
-
+    } else {
         assert_eq!(endpoints.len(), 3, "Expected 3 endpoints");
     }
 
@@ -115,6 +136,22 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
         .map(|e| Node::new(NodeType::Endpoint, e.clone()))
         .expect("POST endpoint not found");
     assert_eq!(post_endpoint.node_data.file, "src/testing/go/routes.go");
+
+    let leaderboard_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/leaderboard" && e.meta.get("verb") == Some(&"GET".to_string()))
+        .expect("GET /leaderboard endpoint not found");
+    assert_eq!(leaderboard_endpoint.file, "src/testing/go/routes.go");
+
+    if use_lsp {
+        let bounties_endpoint = endpoints
+            .iter()
+            .find(|e| {
+                e.name == "/bounties/leaderboard" && e.meta.get("verb") == Some(&"GET".to_string())
+            })
+            .expect("GET /bounties/leaderboard endpoint not found");
+        assert_eq!(bounties_endpoint.file, "src/testing/go/routes.go");
+    }
 
     let create_person_fn = graph
         .find_nodes_by_name(NodeType::Function, "CreatePerson")
@@ -158,12 +195,44 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
         graph.has_edge(&main_fn, &new_router_fn, EdgeType::Calls),
         "Expected 'main' to call 'NewRouter'"
     );
+    let new_router = functions
+        .iter()
+        .find(|f| f.name == "NewRouter" && f.file == "src/testing/go/routes.go")
+        .expect("NewRouter function not found");
+    assert!(
+        new_router.body.contains("initChi()"),
+        "NewRouter should call initChi()"
+    );
+    let init_chi = functions
+        .iter()
+        .find(|f| f.name == "initChi" && f.file == "src/testing/go/routes.go")
+        .expect("initChi function not found");
+    assert!(
+        init_chi.body.contains("chi.NewRouter()"),
+        "initChi should create chi router"
+    );
+
+    assert!(
+        new_router
+            .body
+            .contains("r.Get(\"/person/{id}\", GetPerson)"),
+        "NewRouter should define GET /person/{{id}} route"
+    );
+    assert!(
+        new_router
+            .body
+            .contains("r.Post(\"/person\", CreatePerson)"),
+        "NewRouter should define POST /person route"
+    );
 
     let handler_edges_count = graph.count_edges_of_type(EdgeType::Handler);
     if use_lsp {
         assert_eq!(handler_edges_count, 4, "Expected 4 handler edges with lsp");
     } else {
-        assert_eq!(handler_edges_count, 3, "Expected 3 handler edges without lsp");
+        assert_eq!(
+            handler_edges_count, 3,
+            "Expected 3 handler edges without lsp"
+        );
     }
 
     let function_calls = graph.count_edges_of_type(EdgeType::Calls);
@@ -181,8 +250,8 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let variables = graph.find_nodes_by_type(NodeType::Var);
     assert_eq!(variables.len(), 1, "Expected 1 variables");
 
+    let import_edges = graph.count_edges_of_type(EdgeType::Imports);
     if use_lsp {
-        let import_edges = graph.count_edges_of_type(EdgeType::Imports);
         assert_eq!(import_edges, 4, "Expected 4 import edges with lsp");
     }
 
@@ -207,6 +276,20 @@ pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert!(
         graph.has_edge(&handler_fn, &db_fn, EdgeType::Calls),
         "Expected handler to call DB method"
+    );
+
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    assert_eq!(variables.len(), 1, "Expected 1 variables");
+
+    let db_var = &variables[0];
+    assert_eq!(db_var.name, "DB", "Variable name should be 'DB'");
+    assert_eq!(
+        db_var.file, "src/testing/go/db.go",
+        "Variable file should be db.go"
+    );
+    assert!(
+        db_var.body.contains("var DB database"),
+        "DB variable should have correct declaration"
     );
     Ok(())
 }
