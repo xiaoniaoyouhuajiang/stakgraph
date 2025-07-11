@@ -2,7 +2,12 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../index.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize, getConsoleLogs } from "./utils.js";
+import {
+  getOrCreateStagehand,
+  sanitize,
+  getConsoleLogs,
+  getCurrentPlaywrightSessionId,
+} from "./utils.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -235,7 +240,8 @@ export async function call(
 
       case LogsTool.name: {
         LogsSchema.parse(args); // Validate even though no args expected
-        const logs = getConsoleLogs();
+        const playwrightSessionId = getCurrentPlaywrightSessionId();
+        const logs = getConsoleLogs(playwrightSessionId);
         return success(JSON.stringify(logs, null, 2));
       }
 

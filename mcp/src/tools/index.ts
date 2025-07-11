@@ -13,20 +13,23 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { Request, Response, NextFunction, Express } from "express";
 import * as stagehand from "./stagehand/tools.js";
+import { MCPServer } from "./server.js";
 
 const USE_STAGEHAND: boolean =
   process.env.USE_STAGEHAND === "true" || process.env.USE_STAGEHAND === "1";
 
-const server = new Server(
-  {
-    name: "Stakgraph",
-    version: "0.1.0",
-  },
-  {
-    capabilities: {
-      tools: {},
+const server = new MCPServer(
+  new Server(
+    {
+      name: "Stakgraph",
+      version: "0.1.0",
     },
-  }
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  )
 );
 
 export type Json = Record<string, unknown> | undefined;
@@ -53,58 +56,62 @@ function getMcpTools(): Tool[] {
   return coreTools;
 }
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+server.get_server().setRequestHandler(ListToolsRequestSchema, async () => {
   return { tools: getMcpTools() };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  switch (name) {
-    case search.SearchTool.name: {
-      const fa = search.SearchSchema.parse(args);
-      return await search.search(fa);
-    }
-    case get_nodes.GetNodesTool.name: {
-      const fa = get_nodes.GetNodesSchema.parse(args);
-      return await get_nodes.getNodes(fa);
-    }
-    case get_map.GetMapTool.name: {
-      const fa = get_map.GetMapSchema.parse(args);
-      return await get_map.getMap(fa);
-    }
-    case get_code.GetCodeTool.name: {
-      const fa = get_code.GetCodeSchema.parse(args);
-      return await get_code.getCode(fa);
-    }
-    case shortest_path.ShortestPathTool.name: {
-      const fa = shortest_path.ShortestPathSchema.parse(args);
-      return await shortest_path.shortestPath(fa);
-    }
-    case repo_map.RepoMapTool.name: {
-      const fa = repo_map.RepoMapSchema.parse(args);
-      return await repo_map.repoMap(fa);
-    }
-    case get_rules_files.GetRulesFilesTool.name: {
-      return await get_rules_files.getRulesFiles();
-    }
-    default:
-      if (USE_STAGEHAND && name.startsWith("stagehand_")) {
-        return await stagehand.call(name, args || {});
+server
+  .get_server()
+  .setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    const { name, arguments: args } = request.params;
+    switch (name) {
+      case search.SearchTool.name: {
+        const fa = search.SearchSchema.parse(args);
+        return await search.search(fa);
       }
-      throw new Error(`Unknown tool: ${name}`);
-  }
-});
+      case get_nodes.GetNodesTool.name: {
+        const fa = get_nodes.GetNodesSchema.parse(args);
+        return await get_nodes.getNodes(fa);
+      }
+      case get_map.GetMapTool.name: {
+        const fa = get_map.GetMapSchema.parse(args);
+        return await get_map.getMap(fa);
+      }
+      case get_code.GetCodeTool.name: {
+        const fa = get_code.GetCodeSchema.parse(args);
+        return await get_code.getCode(fa);
+      }
+      case shortest_path.ShortestPathTool.name: {
+        const fa = shortest_path.ShortestPathSchema.parse(args);
+        return await shortest_path.shortestPath(fa);
+      }
+      case repo_map.RepoMapTool.name: {
+        const fa = repo_map.RepoMapSchema.parse(args);
+        return await repo_map.repoMap(fa);
+      }
+      case get_rules_files.GetRulesFilesTool.name: {
+        return await get_rules_files.getRulesFiles();
+      }
+      default:
+        if (USE_STAGEHAND && name.startsWith("stagehand_")) {
+          return await stagehand.call(name, args || {});
+        }
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  });
 
 // Handle server lifecycle
-server.onerror = (error) => console.error("[MCP Error]", error);
-server.onclose = () => console.log("[MCP] Server connection closed");
+server.get_server().onerror = (error) => console.error("[MCP Error]", error);
+server.get_server().onclose = () =>
+  console.log("[MCP] Server connection closed");
 
 export function bearerToken(req: Request, res: Response, next: NextFunction) {
   const apiToken = process.env.API_TOKEN;
   if (!apiToken) {
     return next();
   }
-  const requestToken = req.header("Authorization");
+  const requestToken =
+    req.header("Authorization") || req.header("authorization");
   if (!requestToken || requestToken !== `Bearer ${apiToken}`) {
     res.status(401).json({ error: "Unauthorized: Invalid API token" });
     return;
@@ -113,12 +120,22 @@ export function bearerToken(req: Request, res: Response, next: NextFunction) {
 }
 
 export function mcp_routes(app: Express) {
+  app.get("/mcp", bearerToken, async (req, res) => {
+    await server.handleGetRequest(req, res);
+  });
+
+  app.post("/mcp", bearerToken, async (req, res) => {
+    await server.handlePostRequest(req, res);
+  });
+}
+
+export function sse_routes(app: Express) {
   let currentTransport: SSEServerTransport | null = null;
 
   app.get("/sse", bearerToken, async (_, res) => {
     try {
       currentTransport = new SSEServerTransport("/messages", res);
-      await server.connect(currentTransport);
+      await server.get_server().connect(currentTransport);
       res.on("close", () => {
         currentTransport = null;
       });
