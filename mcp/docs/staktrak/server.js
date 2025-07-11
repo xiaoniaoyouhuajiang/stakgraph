@@ -18,7 +18,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.get("/frame.html", (req, res) => {
+app.get("/preact/frame.html", (req, res) => {
   console.log("=> frame.html");
   res.sendFile(path.join(__dirname, "frame.html"));
 });

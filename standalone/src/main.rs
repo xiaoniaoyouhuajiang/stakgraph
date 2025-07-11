@@ -35,10 +35,7 @@ async fn main() -> Result<()> {
 
     let mut graph_ops = ast::lang::graphs::graph_ops::GraphOps::new();
     if let Err(e) = graph_ops.check_connection().await {
-        panic!(
-            "Failed to connect to the database: {:?}. The server will not start.",
-            e
-        );
+        panic!("Failed to connect to graph db: {:?}", e);
     }
     graph_ops.graph.create_indexes().await?;
 
