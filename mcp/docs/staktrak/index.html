@@ -334,8 +334,8 @@
             currentTrackingData.clicks &&
             currentTrackingData.clicks.clickDetails
           ) {
-            const filteredClicks =
-              currentTrackingData.clicks.clickDetails.filter((clickDetail) => {
+            let filteredClicks = currentTrackingData.clicks.clickDetails.filter(
+              (clickDetail) => {
                 const clickSelector = clickDetail[2];
                 const clickTime = clickDetail[3];
 
@@ -356,9 +356,51 @@
 
                   return isCloseInTime && isSameElement;
                 });
+              }
+            );
+
+            const MAX_MULTICLICK_INTERVAL = 300;
+
+            const clicksBySelector = {};
+            filteredClicks.forEach((clickDetail) => {
+              const selector = clickDetail[2];
+              const timestamp = clickDetail[3];
+
+              if (!clicksBySelector[selector]) {
+                clicksBySelector[selector] = [];
+              }
+              clicksBySelector[selector].push({
+                detail: clickDetail,
+                timestamp,
+              });
+            });
+
+            const finalFilteredClicks = [];
+            Object.values(clicksBySelector).forEach((clicks) => {
+              clicks.sort((a, b) => a.timestamp - b.timestamp);
+
+              const resultClicks = [];
+              let lastClick = null;
+
+              clicks.forEach((click) => {
+                if (
+                  !lastClick ||
+                  click.timestamp - lastClick.timestamp >
+                    MAX_MULTICLICK_INTERVAL
+                ) {
+                  resultClicks.push(click);
+                }
+                lastClick = click;
               });
 
-            currentTrackingData.clicks.clickDetails = filteredClicks;
+              resultClicks.forEach((click) =>
+                finalFilteredClicks.push(click.detail)
+              );
+            });
+
+            finalFilteredClicks.sort((a, b) => a[3] - b[3]);
+
+            currentTrackingData.clicks.clickDetails = finalFilteredClicks;
           }
 
           currentTrackingData.assertions = assertions;

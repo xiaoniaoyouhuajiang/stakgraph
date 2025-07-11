@@ -71,7 +71,9 @@ var userBehaviour = (function () {
               // Only add classes and IDs if no data-testid
               if (el.className !== "") {
                 el.classList.forEach((clE) => {
-                  node += "." + clE;
+                  if (clE !== "staktrak-selection-active") {
+                    node += "." + clE;
+                  }
                 });
               }
               if (el.id !== "") {
@@ -230,30 +232,39 @@ var userBehaviour = (function () {
 
           mem.assertionDebounceTimer = setTimeout(() => {
             results.assertions = results.assertions || [];
-            results.assertions.push({
-              type: "hasText",
-              selector: selector,
-              value: selectedText,
-              timestamp: getTimeStamp(),
-            });
 
-            window.parent.postMessage(
-              {
-                type: "staktrak-selection",
-                text: selectedText,
-                selector: selector,
-              },
-              "*"
+            const hasSimilarAssertion = results.assertions.some(
+              (assertion) =>
+                assertion.selector === selector &&
+                Math.abs(assertion.timestamp - getTimeStamp()) < 1000
             );
 
-            window.parent.postMessage(
-              {
-                type: "staktrak-show-popup",
-                text: selectedText,
+            if (!hasSimilarAssertion) {
+              results.assertions.push({
+                type: "hasText",
                 selector: selector,
-              },
-              "*"
-            );
+                value: selectedText,
+                timestamp: getTimeStamp(),
+              });
+
+              window.parent.postMessage(
+                {
+                  type: "staktrak-selection",
+                  text: selectedText,
+                  selector: selector,
+                },
+                "*"
+              );
+
+              window.parent.postMessage(
+                {
+                  type: "staktrak-show-popup",
+                  text: selectedText,
+                  selector: selector,
+                },
+                "*"
+              );
+            }
 
             setTimeout(() => {
               if (window.getSelection) {
@@ -314,23 +325,6 @@ var userBehaviour = (function () {
       return `#${element.id}`;
     }
 
-    if (
-      element.tagName.match(
-        /^(P|H1|H2|H3|H4|H5|H6|SPAN|DIV|LI|TD|TH|BUTTON|LABEL)$/i
-      )
-    ) {
-      if (element.textContent && element.textContent.trim()) {
-        return element.tagName.toLowerCase();
-      }
-
-      const sameTagElements = document.querySelectorAll(
-        element.tagName.toLowerCase()
-      );
-      if (sameTagElements.length === 1) {
-        return element.tagName.toLowerCase();
-      }
-    }
-
     let selector = element.tagName.toLowerCase();
 
     if (element.className) {
@@ -342,10 +336,7 @@ var userBehaviour = (function () {
       }
     }
 
-    if (
-      selector !== element.tagName.toLowerCase() &&
-      document.querySelectorAll(selector).length === 1
-    ) {
+    if (selector !== element.tagName.toLowerCase()) {
       return selector;
     }
 
@@ -363,6 +354,13 @@ var userBehaviour = (function () {
 
       if (currentElement.id) {
         elementSelector = `#${currentElement.id}`;
+      } else if (currentElement.className) {
+        const classes = Array.from(currentElement.classList)
+          .filter((cls) => cls !== "staktrak-selection-active")
+          .join(".");
+        if (classes) {
+          elementSelector += `.${classes}`;
+        }
       } else if (currentElement.parentElement) {
         const siblings = Array.from(
           currentElement.parentElement.children
