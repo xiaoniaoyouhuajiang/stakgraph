@@ -14,7 +14,7 @@ lazy_static! {
 }
 
 const DATA_BANK: &str = "Data_Bank";
-const BATCH_SIZE: usize = 256;
+const BATCH_SIZE: usize = 4096;
 
 pub struct Neo4jConnectionManager;
 
@@ -140,50 +140,52 @@ where
     I: Iterator<Item = (String, String, EdgeType)>,
 {
     use itertools::Itertools;
+    use std::collections::HashMap;
 
-    edges
-        .chunks(batch_size)
+    // Group edges by type
+    let edges_by_type: HashMap<EdgeType, Vec<(String, String)>> = edges
+        .map(|(source, target, edge_type)| (edge_type, (source, target)))
+        .into_group_map();
+
+    // Create batched queries for each edge type
+    edges_by_type
         .into_iter()
-        .map(|chunk| {
-            let edges_data: Vec<BoltMap> = chunk
-                .map(|(source, target, edge_type)| {
-                    let mut edge_map = BoltMap::new();
-                    boltmap_insert_str(&mut edge_map, "source_key", &source);
-                    boltmap_insert_str(&mut edge_map, "target_key", &target);
-                    boltmap_insert_str(&mut edge_map, "edge_type", &edge_type.to_string());
-                    edge_map
-                })
+        .flat_map(|(edge_type, type_edges)| {
+            // Batch the edges for this type
+            let chunks: Vec<Vec<(String, String)>> = type_edges
+                .into_iter()
+                .chunks(batch_size)
+                .into_iter()
+                .map(|chunk| chunk.collect())
                 .collect();
 
-            let mut params = BoltMap::new();
-            boltmap_insert_list_of_maps(&mut params, "edges", edges_data);
+            chunks
+                .into_iter()
+                .map(|chunk| {
+                    let edges_data: Vec<BoltMap> = chunk
+                        .into_iter()
+                        .map(|(source, target)| {
+                            let mut edge_map = BoltMap::new();
+                            boltmap_insert_str(&mut edge_map, "source", &source);
+                            boltmap_insert_str(&mut edge_map, "target", &target);
+                            edge_map
+                        })
+                        .collect();
 
-            /*
-            let query = "
-                UNWIND $edges AS edge
-                MATCH (source {node_key: edge.source_key})
-                MATCH (target {node_key: edge.target_key})
-                CALL {
-                    WITH source, target, edge
-                    WITH source, target, edge.edge_type AS rel_type
-                    CALL apoc.cypher.doIt(
-                        'MERGE (s)-[r:' + rel_type + ']->(t) RETURN r',
-                        {s: source, t: target}
-                    ) YIELD value
-                    RETURN value.r as rel
-                }
-                RETURN count(rel)
-            ";
-            */
-            let query = "
-                UNWIND $edges AS edge
-                MATCH (source {node_key: edge.source_key})
-                MATCH (target {node_key: edge.target_key})
-                CALL apoc.merge.relationship(source, edge.edge_type, {}, {}, target) YIELD rel
-                RETURN count(rel)
-            ";
+                    let mut params = BoltMap::new();
+                    boltmap_insert_list_of_maps(&mut params, "edges", edges_data);
 
-            (query.to_string(), params)
+                    let query = format!(
+                        "UNWIND $edges AS edge
+                         MATCH (source {{node_key: edge.source}}), (target {{node_key: edge.target}})
+                         MERGE (source)-[r:{}]->(target)
+                         RETURN count(r)",
+                        edge_type.to_string()
+                    );
+
+                    (query, params)
+                })
+                .collect::<Vec<_>>()
         })
         .collect()
 }
