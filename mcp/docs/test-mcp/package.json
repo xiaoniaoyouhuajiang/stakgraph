@@ -1,0 +1,19 @@
+{
+  "name": "test-mcp-sse",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sse": "ts-node sse.ts",
+    "agent": "ts-node agent.ts",
+    "http": "ts-node http.ts"
+  },
+  "dependencies": {
+    "ai": "^4.3.16",
+    "aieo": "^0.1.12"
+  }
+}
