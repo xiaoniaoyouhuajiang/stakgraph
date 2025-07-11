@@ -11,7 +11,8 @@ import { setCurrentPlaywrightSessionId } from "./stagehand/utils.js";
 export class MCPServer {
   server: Server;
 
-  // to support multiple simultaneous connections
+  // Store MCP transport instances by session ID to enable concurrent client connections
+  // Each transport manages its own MCP protocol session independent of browser sessions
   transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
   constructor(server: Server) {
@@ -23,9 +24,11 @@ export class MCPServer {
   }
 
   async handleGetRequest(req: Request, res: Response) {
-    // if server does not offer an SSE stream at this endpoint.
-    // res.status(405).set('Allow', 'POST').send('Method Not Allowed')
+    // Handle StreamableHTTP GET requests for existing MCP sessions
 
+    // Extract both session types:
+    // - mcp-session-id: MCP transport session (managed by StreamableHTTPServerTransport)
+    // - x-session-id: Browser session (user-controlled for Stagehand persistence)
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     const playwrightSessionId = req.headers["x-session-id"] as
       | string
@@ -41,7 +44,7 @@ export class MCPServer {
       return;
     }
 
-    console.log(`Establishing SSE stream for session ${sessionId}`);
+    console.log(`Handling StreamableHTTP request for session ${sessionId}`);
     const transport = this.transports[sessionId];
     await transport.handleRequest(req, res);
 
@@ -49,6 +52,9 @@ export class MCPServer {
   }
 
   async handlePostRequest(req: Request, res: Response) {
+    // Extract dual session architecture:
+    // - mcp-session-id: Identifies MCP protocol connection
+    // - x-session-id: Identifies browser session for continuity across MCP connections
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     const playwrightSessionId = req.headers["x-session-id"] as
       | string
@@ -58,14 +64,14 @@ export class MCPServer {
     setCurrentPlaywrightSessionId(playwrightSessionId);
 
     try {
-      // reuse existing transport
+      // Resume existing MCP transport session
       if (sessionId && this.transports[sessionId]) {
         transport = this.transports[sessionId];
         await transport.handleRequest(req, res, req.body);
         return;
       }
 
-      // create new transport
+      // Create new MCP transport for initialization requests
       if (!sessionId && this.isInitializeRequest(req.body)) {
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
@@ -74,8 +80,8 @@ export class MCPServer {
         await this.server.connect(transport);
         await transport.handleRequest(req, res, req.body);
 
-        // session ID will only be available (if in not Stateless-Mode)
-        // after handling the first request
+        // Store transport by its generated session ID for future requests
+        // SessionId becomes available after StreamableHTTPServerTransport processes initialize
         const sessionId = transport.sessionId;
         if (sessionId) {
           this.transports[sessionId] = transport;
