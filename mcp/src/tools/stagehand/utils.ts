@@ -40,13 +40,15 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
   const sessionId = sessionIdMaybe || getCurrentPlaywrightSessionId();
 
   if (STATE[sessionId]) {
+    console.log("sessionId exists:", sessionId);
     return STATE[sessionId].stagehand;
   }
+
   let provider = getProvider();
   console.log("initializing stagehand!", provider.model);
   const sh = new Stagehand({
     env: "LOCAL",
-    domSettleTimeoutMs: 30000,
+    domSettleTimeoutMs: 60000,
     localBrowserLaunchOptions: {
       headless: true,
       viewport: { width: 1024, height: 768 },
@@ -59,9 +61,7 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
   });
   await sh.init();
 
-  // Clear any existing logs when stagehand is recreated (only on new creation)
-  clearConsoleLogs(sessionId);
-
+  // empty
   STATE[sessionId] = {
     stagehand: sh,
     last_used: new Date(),
