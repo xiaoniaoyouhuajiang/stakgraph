@@ -27,6 +27,7 @@ var userBehaviour = (function () {
     mousePosition: [], //x,y,timestamp
     inputDebounceTimers: {},
     selectionMode: false,
+    assertionDebounceTimer: null,
     eventListeners: {
       scroll: null,
       click: null,
@@ -223,40 +224,48 @@ var userBehaviour = (function () {
             ? getElementSelector(selectedElement)
             : "";
 
-          results.assertions = results.assertions || [];
-          results.assertions.push({
-            type: "hasText",
-            selector: selector,
-            value: selectedText,
-            timestamp: getTimeStamp(),
-          });
+          if (mem.assertionDebounceTimer) {
+            clearTimeout(mem.assertionDebounceTimer);
+          }
 
-          window.parent.postMessage(
-            {
-              type: "staktrak-selection",
-              text: selectedText,
+          mem.assertionDebounceTimer = setTimeout(() => {
+            results.assertions = results.assertions || [];
+            results.assertions.push({
+              type: "hasText",
               selector: selector,
-            },
-            "*"
-          );
+              value: selectedText,
+              timestamp: getTimeStamp(),
+            });
 
-          window.parent.postMessage(
-            {
-              type: "staktrak-show-popup",
-              text: selectedText,
-              selector: selector,
-            },
-            "*"
-          );
+            window.parent.postMessage(
+              {
+                type: "staktrak-selection",
+                text: selectedText,
+                selector: selector,
+              },
+              "*"
+            );
 
-          setTimeout(() => {
-            if (window.getSelection) {
-              if (window.getSelection().empty) {
-                window.getSelection().empty();
-              } else if (window.getSelection().removeAllRanges) {
-                window.getSelection().removeAllRanges();
+            window.parent.postMessage(
+              {
+                type: "staktrak-show-popup",
+                text: selectedText,
+                selector: selector,
+              },
+              "*"
+            );
+
+            setTimeout(() => {
+              if (window.getSelection) {
+                if (window.getSelection().empty) {
+                  window.getSelection().empty();
+                } else if (window.getSelection().removeAllRanges) {
+                  window.getSelection().removeAllRanges();
+                }
               }
-            }
+            }, 500);
+
+            mem.assertionDebounceTimer = null;
           }, 500);
         }
       },
@@ -279,6 +288,10 @@ var userBehaviour = (function () {
       document.body.classList.add("staktrak-selection-active");
     } else {
       document.body.classList.remove("staktrak-selection-active");
+      if (mem.assertionDebounceTimer) {
+        clearTimeout(mem.assertionDebounceTimer);
+        mem.assertionDebounceTimer = null;
+      }
     }
   }
 
@@ -306,23 +319,34 @@ var userBehaviour = (function () {
         /^(P|H1|H2|H3|H4|H5|H6|SPAN|DIV|LI|TD|TH|BUTTON|LABEL)$/i
       )
     ) {
-      return element.tagName.toLowerCase();
+      if (element.textContent && element.textContent.trim()) {
+        return element.tagName.toLowerCase();
+      }
+
+      const sameTagElements = document.querySelectorAll(
+        element.tagName.toLowerCase()
+      );
+      if (sameTagElements.length === 1) {
+        return element.tagName.toLowerCase();
+      }
     }
 
     let selector = element.tagName.toLowerCase();
+
     if (element.className) {
-      const classes = Array.from(element.classList).join(".");
+      const classes = Array.from(element.classList)
+        .filter((cls) => cls !== "staktrak-selection-active")
+        .join(".");
       if (classes) {
         selector += `.${classes}`;
       }
     }
 
-    let classSelector = "";
-    element.classList.forEach((cls) => {
-      classSelector += `.${cls}`;
-    });
-    if (classSelector) {
-      return classSelector;
+    if (
+      selector !== element.tagName.toLowerCase() &&
+      document.querySelectorAll(selector).length === 1
+    ) {
+      return selector;
     }
 
     let path = "";
@@ -335,17 +359,22 @@ var userBehaviour = (function () {
       currentElement !== document.body &&
       depth < maxDepth
     ) {
-      let selector = currentElement.tagName.toLowerCase();
+      let elementSelector = currentElement.tagName.toLowerCase();
 
-      if (currentElement.parentElement) {
-        const siblings = Array.from(currentElement.parentElement.children);
+      if (currentElement.id) {
+        elementSelector = `#${currentElement.id}`;
+      } else if (currentElement.parentElement) {
+        const siblings = Array.from(
+          currentElement.parentElement.children
+        ).filter((el) => el.tagName === currentElement.tagName);
+
         if (siblings.length > 1) {
           const index = siblings.indexOf(currentElement) + 1;
-          selector += `:nth-child(${index})`;
+          elementSelector += `:nth-child(${index})`;
         }
       }
 
-      path = path ? `${selector} > ${path}` : selector;
+      path = path ? `${elementSelector} > ${path}` : elementSelector;
       currentElement = currentElement.parentElement;
       depth++;
     }
@@ -624,6 +653,16 @@ var userBehaviour = (function () {
     if (mem.mutationObserver) {
       mem.mutationObserver.disconnect();
       mem.mutationObserver = null;
+    }
+
+    if (mem.assertionDebounceTimer) {
+      clearTimeout(mem.assertionDebounceTimer);
+      mem.assertionDebounceTimer = null;
+    }
+
+    for (const elementId in mem.inputDebounceTimers) {
+      clearTimeout(mem.inputDebounceTimers[elementId]);
+      delete mem.inputDebounceTimers[elementId];
     }
 
     setSelectionMode(false);

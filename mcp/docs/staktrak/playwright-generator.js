@@ -113,8 +113,7 @@ function generateUserInteractions(
   allEvents.forEach((event, index) => {
     if (previousTimestamp !== null) {
       const delay = event.timestamp - previousTimestamp;
-      if (delay > 100) {
-        // Only add delay if it's significant
+      if (delay > 100 && event.type !== "assertion") {
         actionsCode += `  
     // Wait ${delay}ms (matching user timing)
     await page.waitForTimeout(${delay});
@@ -214,11 +213,35 @@ export function convertToPlaywrightSelector(cssSelector) {
   // Remove html>body> prefix as it's usually not needed
   selector = selector.replace(/^html>body>/, "");
 
+  selector = selector.replace(/body\.staktrak-selection-active/, "body");
+  selector = selector.replace(/\.staktrak-selection-active/, "");
+
+  if (
+    /^(p|h[1-6]|div|span|button|a|li|ul|ol|table|tr|td|th|input|textarea|select|form|label)$/i.test(
+      selector
+    )
+  ) {
+    return selector;
+  }
+
+  if (
+    selector.startsWith("#") &&
+    !selector.includes(" ") &&
+    !selector.includes(">")
+  ) {
+    return selector;
+  }
+
   // Handle class combinations properly
   selector = selector.replace(/\.([^.#\[]+)/g, ".$1");
 
   // Handle ID selectors
   selector = selector.replace(/#([^.#\[]+)/g, "#$1");
+
+  const idMatch = selector.match(/#[^.#\[\s>]+/);
+  if (idMatch) {
+    return idMatch[0];
+  }
 
   return selector;
 }

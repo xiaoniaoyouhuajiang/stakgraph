@@ -42,6 +42,12 @@
       button.assert {
         background-color: #ff9800;
       }
+      button.mode {
+        background-color: #ff9800;
+      }
+      button.interact {
+        background-color: #9c27b0;
+      }
       button:disabled {
         background-color: #cccccc;
         cursor: not-allowed;
@@ -146,8 +152,7 @@
 
     <div class="controls" id="trackingControls">
       <button id="recordBtn" class="record">Start Recording</button>
-      <button id="stopBtn" class="stop" disabled>Stop Recording</button>
-      <button id="assertBtn" class="assert" disabled>Add Assertion</button>
+      <button id="modeBtn" class="mode">Assertion Mode</button>
       <button id="generateBtn" class="generate" disabled>
         Generate Playwright Test
       </button>
@@ -161,13 +166,13 @@
       const trackingFrame = document.getElementById("trackingFrame");
       const trackingControls = document.getElementById("trackingControls");
       const recordBtn = document.getElementById("recordBtn");
-      const stopBtn = document.getElementById("stopBtn");
-      const assertBtn = document.getElementById("assertBtn");
+      const modeBtn = document.getElementById("modeBtn");
       const generateBtn = document.getElementById("generateBtn");
       // const resultsDiv = document.getElementById("results");
       const playwrightTestDiv = document.getElementById("playwrightTest");
 
       let isRecording = false;
+      let isAssertionMode = false;
       let currentTrackingData = null;
       let currentTestCode = null;
       let assertions = [];
@@ -215,50 +220,78 @@
       });
 
       recordBtn.addEventListener("click", () => {
-        trackingFrame.contentWindow.postMessage(
-          { type: "staktrak-start" },
-          "*"
-        );
-        recordBtn.disabled = true;
-        stopBtn.disabled = false;
-        assertBtn.disabled = false;
-        generateBtn.disabled = true;
-        isRecording = true;
-        assertions = [];
-        assertionCount = 0;
-        // resultsDiv.innerHTML = "";
-        playwrightTestDiv.innerHTML = "";
+        if (!isRecording) {
+          trackingFrame.contentWindow.postMessage(
+            { type: "staktrak-start" },
+            "*"
+          );
+          recordBtn.textContent = "Stop Recording";
+          recordBtn.classList.remove("record");
+          recordBtn.classList.add("stop");
+          modeBtn.disabled = false;
+          generateBtn.disabled = true;
+          isRecording = true;
+          assertions = [];
+          assertionCount = 0;
+          playwrightTestDiv.innerHTML = "";
 
-        showPopup("Recording started", "info");
+          showPopup("Recording started", "info");
+        } else {
+          trackingFrame.contentWindow.postMessage(
+            { type: "staktrak-stop" },
+            "*"
+          );
+          recordBtn.textContent = "Start Recording";
+          recordBtn.classList.remove("stop");
+          recordBtn.classList.add("record");
+          modeBtn.disabled = true;
+          isRecording = false;
+
+          if (isWaitingForSelection) {
+            isWaitingForSelection = false;
+            trackingFrame.contentWindow.postMessage(
+              { type: "staktrak-disable-selection" },
+              "*"
+            );
+          }
+          modeBtn.textContent = "Assertion Mode";
+          modeBtn.classList.remove("interact");
+          modeBtn.classList.add("assert");
+          isAssertionMode = false;
+
+          showPopup("Recording stopped", "warning");
+        }
       });
 
-      stopBtn.addEventListener("click", () => {
-        trackingFrame.contentWindow.postMessage({ type: "staktrak-stop" }, "*");
-        recordBtn.disabled = false;
-        stopBtn.disabled = true;
-        assertBtn.disabled = true;
-        isRecording = false;
+      modeBtn.addEventListener("click", () => {
+        if (!isAssertionMode) {
+          isWaitingForSelection = true;
+          isAssertionMode = true;
+          modeBtn.textContent = "Interaction Mode";
+          modeBtn.classList.remove("assert");
+          modeBtn.classList.add("interact");
+          showPopup("Select text in the iframe to add assertions", "info");
 
-        if (isWaitingForSelection) {
+          trackingFrame.contentWindow.postMessage(
+            { type: "staktrak-enable-selection" },
+            "*"
+          );
+        } else {
           isWaitingForSelection = false;
+          isAssertionMode = false;
+          modeBtn.textContent = "Assertion Mode";
+          modeBtn.classList.remove("interact");
+          modeBtn.classList.add("assert");
+          showPopup("Returned to interaction mode", "info");
+
           trackingFrame.contentWindow.postMessage(
             { type: "staktrak-disable-selection" },
             "*"
           );
         }
-
-        showPopup("Recording stopped", "warning");
       });
 
-      assertBtn.addEventListener("click", () => {
-        isWaitingForSelection = true;
-        showPopup("Select text in the iframe to add assertions", "info");
-
-        trackingFrame.contentWindow.postMessage(
-          { type: "staktrak-enable-selection" },
-          "*"
-        );
-      });
+      modeBtn.disabled = true;
 
       function addAssertion() {
         if (!selectedSelector) {
@@ -303,10 +336,25 @@
           ) {
             const filteredClicks =
               currentTrackingData.clicks.clickDetails.filter((clickDetail) => {
+                const clickSelector = clickDetail[2];
+                const clickTime = clickDetail[3];
+
                 return !assertions.some((assertion) => {
                   const assertionTime = assertion.timestamp;
-                  const clickTime = clickDetail[3];
-                  return Math.abs(clickTime - assertionTime) < 500;
+                  const assertionSelector = assertion.selector;
+
+                  const isCloseInTime =
+                    Math.abs(clickTime - assertionTime) < 1000;
+
+                  const isSameElement =
+                    clickSelector.includes(assertionSelector) ||
+                    assertionSelector.includes(clickSelector) ||
+                    (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
+                      assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
+                      clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
+                        assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
+
+                  return isCloseInTime && isSameElement;
                 });
               });
 
