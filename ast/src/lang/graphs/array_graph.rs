@@ -37,22 +37,15 @@ impl Graph for ArrayGraph {
         Self::default()
     }
     fn analysis(&self) {
-        for edge in &self.edges {
-            println!(
-                "From {:?}-{:?} to {:?}-{:?} type: {:?}",
-                edge.source.node_data.name,
-                edge.source.node_type,
-                edge.target.node_data.name,
-                edge.target.node_type,
-                edge.edge
-            );
+        for node in &self.nodes {
+            let node_key = create_node_key(node);
+            println!("Node: {}", node_key);
         }
 
-        for node in &self.nodes {
-            println!(
-                "Node: {:?}-{:?}-{:?}",
-                node.node_data.name, node.node_type, node.node_data.file
-            );
+        for edge in &self.edges {
+            let source_key = create_node_key_from_ref(&edge.source);
+            let target_key = create_node_key_from_ref(&edge.target);
+            println!("Edge: {} - {:?} -> {}", source_key, edge.edge, target_key);
         }
     }
     fn create_filtered_graph(self, final_filter: &[String], lang_kind: Language) -> Self {

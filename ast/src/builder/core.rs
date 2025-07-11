@@ -49,7 +49,6 @@ impl Repo {
         self.process_pages_and_templates(&mut graph, &filez)?;
         self.process_endpoints(&mut graph, &filez)?;
         self.finalize_graph(&mut graph, &filez).await?;
-
         let graph = filter_by_revs(
             &self.root.to_str().unwrap(),
             self.revs.clone(),

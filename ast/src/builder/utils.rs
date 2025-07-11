@@ -1,11 +1,9 @@
-use crate::lang::graphs::Graph;
-use crate::lang::Node;
 use crate::lang::{asg::NodeData, graphs::NodeType};
+use crate::lang::{Graph, Node};
 use crate::repo::{check_revs_files, Repo};
 use crate::utils::create_node_key;
 use anyhow::Result;
-use lsp::Language;
-use lsp::{strip_root, strip_tmp};
+use lsp::{strip_root, strip_tmp, Language};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::debug;
@@ -108,15 +106,6 @@ pub fn combine_import_sections(nodes: Vec<NodeData>) -> Vec<NodeData> {
 }
 
 impl Repo {
-    pub fn root_less_tmp(&self) -> String {
-        let mut ret = self.root.display().to_string();
-        if ret.starts_with("/tmp/") {
-            ret.drain(0..5);
-            ret
-        } else {
-            ret
-        }
-    }
     pub fn prepare_file_data(&self, path: &str, code: &str) -> NodeData {
         let mut file_data = NodeData::in_file(path);
         let filename = path.split('/').last().unwrap_or(path);
