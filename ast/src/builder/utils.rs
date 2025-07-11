@@ -3,12 +3,12 @@ use crate::lang::{Graph, Node};
 use crate::repo::{check_revs_files, Repo};
 use crate::utils::create_node_key;
 use anyhow::Result;
-use lsp::{strip_root, strip_tmp, Language};
+use lsp::{strip_tmp, Language};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::debug;
 
-pub const MAX_FILE_SIZE: u64 = 100_000;
+pub const MAX_FILE_SIZE: u64 = 500_000;
 
 pub fn filter_by_revs<G: Graph>(root: &str, revs: Vec<String>, graph: G, lang_kind: Language) -> G {
     if revs.is_empty() {
@@ -119,13 +119,21 @@ impl Repo {
         file_data
     }
     pub fn get_parent_info(&self, path: &PathBuf) -> (NodeType, String) {
-        let stripped_path = strip_root(&path, &self.root).display().to_string();
+        let stripped_path = strip_tmp(&path).display().to_string();
+
+        let root_no_tmp = strip_tmp(&self.root).display().to_string();
+        let mut dir_no_root = stripped_path
+            .strip_prefix(&root_no_tmp)
+            .unwrap_or(&stripped_path);
+        dir_no_root = dir_no_root.trim_start_matches('/');
 
         let filepath = path.display().to_string();
-        if stripped_path.contains('/') {
+        if dir_no_root.contains("/") {
             let mut paths: Vec<&str> = filepath.split('/').collect();
             paths.pop();
-            (NodeType::Directory, paths.join("/"))
+            let dirpath = paths.join("/");
+            let fin = strip_tmp(&PathBuf::from(dirpath)).display().to_string();
+            (NodeType::Directory, fin)
         } else {
             (NodeType::Repository, "main".to_string())
         }
