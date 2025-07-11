@@ -39,6 +39,17 @@ input:focus {
   outline: none;
 }
 
+.content-section {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #333;
+  border-radius: 5px;
+}
+
+.staktrak-selection-active {
+  cursor: pointer;
+}
+
 /* Popup styles */
 .popup {
   position: fixed;
@@ -80,5 +91,11 @@ input:focus {
 .popup-input {
   background-color: #ff9944;
   border: 2px solid #ffaa66;
+  color: #ffffff;
+}
+
+.popup-selection {
+  background-color: #9c27b0;
+  border: 2px solid #ba68c8;
   color: #ffffff;
 }

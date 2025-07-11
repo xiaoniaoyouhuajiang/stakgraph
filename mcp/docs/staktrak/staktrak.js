@@ -26,6 +26,7 @@ var userBehaviour = (function () {
     mouseInterval: null,
     mousePosition: [], //x,y,timestamp
     inputDebounceTimers: {},
+    selectionMode: false,
     eventListeners: {
       scroll: null,
       click: null,
@@ -39,6 +40,8 @@ var userBehaviour = (function () {
       documentFocus: null,
       documentBlur: null,
       documentInput: null,
+      mouseUp: null,
+      keyDown: null,
     },
     mutationObserver: null,
     eventsFunctions: {
@@ -199,9 +202,85 @@ var userBehaviour = (function () {
           getTimeStamp(),
         ]);
       },
+      mouseUp: (e) => {
+        if (!mem.selectionMode) return;
+
+        const selection = window.getSelection();
+        if (selection && selection.toString().trim() !== "") {
+          const selectedText = selection.toString().trim();
+          let selectedElement = null;
+
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            selectedElement = range.commonAncestorContainer;
+
+            if (selectedElement.nodeType === 3) {
+              selectedElement = selectedElement.parentElement;
+            }
+          }
+
+          const selector = selectedElement
+            ? getElementSelector(selectedElement)
+            : "";
+
+          results.assertions = results.assertions || [];
+          results.assertions.push({
+            type: "hasText",
+            selector: selector,
+            value: selectedText,
+            timestamp: getTimeStamp(),
+          });
+
+          window.parent.postMessage(
+            {
+              type: "staktrak-selection",
+              text: selectedText,
+              selector: selector,
+            },
+            "*"
+          );
+
+          window.parent.postMessage(
+            {
+              type: "staktrak-show-popup",
+              text: selectedText,
+              selector: selector,
+            },
+            "*"
+          );
+
+          setTimeout(() => {
+            if (window.getSelection) {
+              if (window.getSelection().empty) {
+                window.getSelection().empty();
+              } else if (window.getSelection().removeAllRanges) {
+                window.getSelection().removeAllRanges();
+              }
+            }
+          }, 500);
+        }
+      },
+      keyDown: (e) => {
+        if (mem.selectionMode && e.key === "Escape") {
+          setSelectionMode(false);
+          window.parent.postMessage(
+            { type: "staktrak-selection-mode-ended" },
+            "*"
+          );
+        }
+      },
     },
   };
   var results = {};
+
+  function setSelectionMode(isActive) {
+    mem.selectionMode = isActive;
+    if (isActive) {
+      document.body.classList.add("staktrak-selection-active");
+    } else {
+      document.body.classList.remove("staktrak-selection-active");
+    }
+  }
 
   function isInputOrTextarea(element) {
     return (
@@ -222,14 +301,28 @@ var userBehaviour = (function () {
       return `#${element.id}`;
     }
 
+    if (
+      element.tagName.match(
+        /^(P|H1|H2|H3|H4|H5|H6|SPAN|DIV|LI|TD|TH|BUTTON|LABEL)$/i
+      )
+    ) {
+      return element.tagName.toLowerCase();
+    }
+
+    let selector = element.tagName.toLowerCase();
     if (element.className) {
-      let classSelector = "";
-      element.classList.forEach((cls) => {
-        classSelector += `.${cls}`;
-      });
-      if (classSelector) {
-        return classSelector;
+      const classes = Array.from(element.classList).join(".");
+      if (classes) {
+        selector += `.${classes}`;
       }
+    }
+
+    let classSelector = "";
+    element.classList.forEach((cls) => {
+      classSelector += `.${cls}`;
+    });
+    if (classSelector) {
+      return classSelector;
     }
 
     let path = "";
@@ -257,7 +350,7 @@ var userBehaviour = (function () {
       depth++;
     }
 
-    return path;
+    return path || selector;
   }
 
   function resetResults() {
@@ -290,6 +383,7 @@ var userBehaviour = (function () {
       mediaInteractions: [],
       windowSizes: [],
       visibilitychanges: [],
+      assertions: [],
     };
   }
   resetResults();
@@ -474,6 +568,11 @@ var userBehaviour = (function () {
       });
     }
 
+    document.addEventListener("mouseup", mem.eventsFunctions.mouseUp);
+    document.addEventListener("keydown", mem.eventsFunctions.keyDown);
+    mem.eventListeners.mouseUp = true;
+    mem.eventListeners.keyDown = true;
+
     mem.mutationObserver = setupMutationObserver();
   }
 
@@ -519,10 +618,15 @@ var userBehaviour = (function () {
 
     window.removeEventListener("touchstart", mem.eventsFunctions.touchStart);
 
+    document.removeEventListener("mouseup", mem.eventsFunctions.mouseUp);
+    document.removeEventListener("keydown", mem.eventsFunctions.keyDown);
+
     if (mem.mutationObserver) {
       mem.mutationObserver.disconnect();
       mem.mutationObserver = null;
     }
+
+    setSelectionMode(false);
 
     results.time.stopTime = getTimeStamp();
     processResults();
@@ -559,6 +663,12 @@ var userBehaviour = (function () {
     registerCustomEvent: (eventName, callback) => {
       window.addEventListener(eventName, callback);
     },
+    enableSelectionMode: () => {
+      setSelectionMode(true);
+    },
+    disableSelectionMode: () => {
+      setSelectionMode(false);
+    },
   };
 })();
 
@@ -584,6 +694,12 @@ window.addEventListener("message", (event) => {
           "*"
         );
         userBehaviour.stop();
+        break;
+      case "staktrak-enable-selection":
+        userBehaviour.enableSelectionMode();
+        break;
+      case "staktrak-disable-selection":
+        userBehaviour.disableSelectionMode();
         break;
     }
   }

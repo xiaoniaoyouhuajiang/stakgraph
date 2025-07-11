@@ -1,7 +1,7 @@
 // frame.js
 import htm from "https://esm.sh/htm";
 import { h, render } from "https://esm.sh/preact";
-import { useState } from "https://esm.sh/preact/hooks";
+import { useState, useEffect } from "https://esm.sh/preact/hooks";
 
 export const html = htm.bind(h);
 
@@ -69,6 +69,20 @@ const Frame = () => {
   const toggleInput = () => {
     setShowInput(!showInput);
   };
+
+  useEffect(() => {
+    const messageHandler = (event) => {
+      if (event.data && event.data.type === "staktrak-show-popup") {
+        showPopup(`Selected: "${event.data.text}"`, "popup-selection");
+      }
+    };
+
+    window.addEventListener("message", messageHandler);
+
+    return () => {
+      window.removeEventListener("message", messageHandler);
+    };
+  }, []);
 
   return html`
     <div>

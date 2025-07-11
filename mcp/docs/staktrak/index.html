@@ -39,6 +39,9 @@
       button.save {
         background-color: #9c27b0;
       }
+      button.assert {
+        background-color: #ff9800;
+      }
       button:disabled {
         background-color: #cccccc;
         cursor: not-allowed;
@@ -93,21 +96,64 @@
         background-color: #f44336;
         display: block;
       }
+      .popup {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 1000;
+        transform: translateY(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .popup.show {
+        transform: translateY(0);
+      }
+
+      .popup-success {
+        background-color: #4caf50;
+        border: 2px solid #6abf6e;
+        color: #ffffff;
+      }
+
+      .popup-error {
+        background-color: #f44336;
+        border: 2px solid #f66e66;
+        color: #ffffff;
+      }
+
+      .popup-info {
+        background-color: #2196f3;
+        border: 2px solid #66a6ff;
+        color: #ffffff;
+      }
+
+      .popup-warning {
+        background-color: #ff9800;
+        border: 2px solid #ffb84d;
+        color: #ffffff;
+      }
     </style>
   </head>
   <body>
+    <div id="popupContainer"></div>
     <h1>Tracking Script Demo</h1>
     <iframe src="preact/frame.html" id="trackingFrame"></iframe>
 
     <div class="controls" id="trackingControls">
       <button id="recordBtn" class="record">Start Recording</button>
       <button id="stopBtn" class="stop" disabled>Stop Recording</button>
+      <button id="assertBtn" class="assert" disabled>Add Assertion</button>
       <button id="generateBtn" class="generate" disabled>
         Generate Playwright Test
       </button>
     </div>
-
     <!-- <div id="results"></div> -->
+
     <div id="playwrightTest"></div>
 
     <script type="module" src="playwright-generator.js"></script>
@@ -116,6 +162,7 @@
       const trackingControls = document.getElementById("trackingControls");
       const recordBtn = document.getElementById("recordBtn");
       const stopBtn = document.getElementById("stopBtn");
+      const assertBtn = document.getElementById("assertBtn");
       const generateBtn = document.getElementById("generateBtn");
       // const resultsDiv = document.getElementById("results");
       const playwrightTestDiv = document.getElementById("playwrightTest");
@@ -123,6 +170,11 @@
       let isRecording = false;
       let currentTrackingData = null;
       let currentTestCode = null;
+      let assertions = [];
+      let selectedText = "";
+      let selectedSelector = "";
+      let isWaitingForSelection = false;
+      let assertionCount = 0;
 
       window.addEventListener("message", (event) => {
         if (event.data && event.data.type) {
@@ -135,6 +187,29 @@
               currentTrackingData = event.data.data;
               generateBtn.disabled = false;
               break;
+            case "staktrak-selection":
+              if (isWaitingForSelection) {
+                selectedText = event.data.text || "";
+                selectedSelector = event.data.selector || "";
+
+                if (selectedText && selectedSelector) {
+                  addAssertion();
+                  assertionCount++;
+                }
+              }
+              break;
+            case "staktrak-show-popup":
+              trackingFrame.contentWindow.postMessage(
+                {
+                  type: "staktrak-show-popup",
+                  text: event.data.text,
+                  selector: event.data.selector,
+                },
+                "*"
+              );
+              break;
+            case "staktrak-selection-mode-ended":
+              break;
           }
         }
       });
@@ -146,27 +221,108 @@
         );
         recordBtn.disabled = true;
         stopBtn.disabled = false;
+        assertBtn.disabled = false;
         generateBtn.disabled = true;
         isRecording = true;
+        assertions = [];
+        assertionCount = 0;
         // resultsDiv.innerHTML = "";
         playwrightTestDiv.innerHTML = "";
+
+        showPopup("Recording started", "info");
       });
 
       stopBtn.addEventListener("click", () => {
         trackingFrame.contentWindow.postMessage({ type: "staktrak-stop" }, "*");
         recordBtn.disabled = false;
         stopBtn.disabled = true;
+        assertBtn.disabled = true;
         isRecording = false;
+
+        if (isWaitingForSelection) {
+          isWaitingForSelection = false;
+          trackingFrame.contentWindow.postMessage(
+            { type: "staktrak-disable-selection" },
+            "*"
+          );
+        }
+
+        showPopup("Recording stopped", "warning");
       });
+
+      assertBtn.addEventListener("click", () => {
+        isWaitingForSelection = true;
+        showPopup("Select text in the iframe to add assertions", "info");
+
+        trackingFrame.contentWindow.postMessage(
+          { type: "staktrak-enable-selection" },
+          "*"
+        );
+      });
+
+      function addAssertion() {
+        if (!selectedSelector) {
+          showPopup("No element selected", "error");
+          return;
+        }
+
+        let type = "isVisible";
+        let value = "";
+
+        if (selectedText && selectedText.trim() !== "") {
+          type = "hasText";
+          value = selectedText;
+        }
+
+        assertions.push({
+          type,
+          selector: selectedSelector,
+          value,
+          timestamp: Date.now(),
+        });
+
+        showPopup(`Assertion added: ${type} "${value || ""}"`, "success");
+
+        selectedText = "";
+        selectedSelector = "";
+      }
 
       generateBtn.addEventListener("click", () => {
         if (currentTrackingData) {
+          if (isWaitingForSelection) {
+            isWaitingForSelection = false;
+            trackingFrame.contentWindow.postMessage(
+              { type: "staktrak-disable-selection" },
+              "*"
+            );
+          }
+
+          if (
+            currentTrackingData.clicks &&
+            currentTrackingData.clicks.clickDetails
+          ) {
+            const filteredClicks =
+              currentTrackingData.clicks.clickDetails.filter((clickDetail) => {
+                return !assertions.some((assertion) => {
+                  const assertionTime = assertion.timestamp;
+                  const clickTime = clickDetail[3];
+                  return Math.abs(clickTime - assertionTime) < 500;
+                });
+              });
+
+            currentTrackingData.clicks.clickDetails = filteredClicks;
+          }
+
+          currentTrackingData.assertions = assertions;
+
           const testCode = window.PlaywrightGenerator.generatePlaywrightTest(
             "http://localhost:3000/preact/frame.html",
             currentTrackingData
           );
           currentTestCode = testCode;
           displayPlaywrightTest(testCode);
+
+          showPopup("Playwright test generated successfully", "success");
         }
       });
 
@@ -193,7 +349,7 @@
       function copyTestToClipboard() {
         const testCode = playwrightTestDiv.querySelector("pre").textContent;
         navigator.clipboard.writeText(testCode).then(() => {
-          showStatus("Test code copied to clipboard!", "success");
+          showPopup("Test code copied to clipboard!", "success");
         });
       }
 
@@ -202,6 +358,11 @@
 
         const filenameInput = document.getElementById("filenameInput");
         const filename = filenameInput.value.trim();
+
+        if (!filename) {
+          showPopup("Please enter a filename", "error");
+          return;
+        }
 
         try {
           const response = await fetch("/api/save-test", {
@@ -218,23 +379,39 @@
           const result = await response.json();
 
           if (result.success) {
-            showStatus(`Test saved as ${result.filename}`, "success");
+            showPopup(`Test saved as ${result.filename}`, "success");
             filenameInput.value = "";
           } else {
-            showStatus(result.error || "Failed to save test", "error");
+            showPopup(result.error || "Failed to save test", "error");
           }
         } catch (error) {
-          showStatus("Error saving test: " + error.message, "error");
+          showPopup("Error saving test: " + error.message, "error");
         }
       }
 
-      function showStatus(message, type) {
-        const statusDiv = document.getElementById("saveStatus");
-        statusDiv.textContent = message;
-        statusDiv.className = `status ${type}`;
+      function showPopup(message, type = "info") {
+        const existingPopup = document.querySelector(".popup");
+        if (existingPopup) {
+          existingPopup.remove();
+        }
+
+        const popup = document.createElement("div");
+        popup.className = `popup popup-${type}`;
+        popup.textContent = message;
+
+        document.getElementById("popupContainer").appendChild(popup);
 
         setTimeout(() => {
-          statusDiv.style.display = "none";
+          popup.classList.add("show");
+        }, 10);
+
+        setTimeout(() => {
+          popup.classList.remove("show");
+          setTimeout(() => {
+            if (popup.parentNode) {
+              popup.parentNode.removeChild(popup);
+            }
+          }, 300);
         }, 3000);
       }
     </script>

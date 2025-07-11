@@ -9,13 +9,15 @@ export function generatePlaywrightTest(url, trackingData) {
     keyboardActivities,
     inputChanges,
     focusChanges,
+    assertions,
     userInfo,
     time,
   } = trackingData;
 
   if (
     (!clicks || !clicks.clickDetails || clicks.clickDetails.length === 0) &&
-    (!inputChanges || inputChanges.length === 0)
+    (!inputChanges || inputChanges.length === 0) &&
+    (!assertions || assertions.length === 0)
   ) {
     return generateEmptyTest(url);
   }
@@ -35,7 +37,7 @@ export function generatePlaywrightTest(url, trackingData) {
       height: ${userInfo.windowSize[1]} 
     });
   
-  ${generateUserInteractions(clicks, inputChanges, focusChanges)}
+  ${generateUserInteractions(clicks, inputChanges, focusChanges, assertions)}
 
     await page.waitForTimeout(2500);
   });`;
@@ -48,9 +50,15 @@ export function generatePlaywrightTest(url, trackingData) {
  * @param {Object} clicks - Click data
  * @param {Array} inputChanges - Input change data
  * @param {Array} focusChanges - Focus change data
+ * @param {Array} assertions - Assertions to add
  * @returns {string} - Generated interactions code
  */
-function generateUserInteractions(clicks, inputChanges, focusChanges) {
+function generateUserInteractions(
+  clicks,
+  inputChanges,
+  focusChanges,
+  assertions = []
+) {
   const allEvents = [];
 
   if (clicks && clicks.clickDetails && clicks.clickDetails.length > 0) {
@@ -82,6 +90,18 @@ function generateUserInteractions(clicks, inputChanges, focusChanges) {
     });
 
     allEvents.push(...inputEvents);
+  }
+
+  if (assertions && assertions.length > 0) {
+    assertions.forEach((assertion) => {
+      allEvents.push({
+        type: "assertion",
+        assertionType: assertion.type,
+        selector: assertion.selector,
+        value: assertion.value,
+        timestamp: assertion.timestamp,
+      });
+    });
   }
 
   allEvents.sort((a, b) => a.timestamp - b.timestamp);
@@ -130,6 +150,42 @@ function generateUserInteractions(clicks, inputChanges, focusChanges) {
 
         generatedSelectors.add(playwrightSelector);
       }
+    } else if (event.type === "assertion") {
+      const playwrightSelector = convertToPlaywrightSelector(event.selector);
+      let assertionCode = "";
+
+      switch (event.assertionType) {
+        case "hasText":
+          assertionCode = `await expect(page.locator('${playwrightSelector}')).toHaveText('${event.value.replace(
+            /'/g,
+            "\\'"
+          )}');`;
+          break;
+        case "containsText":
+          assertionCode = `await expect(page.locator('${playwrightSelector}')).toContainText('${event.value.replace(
+            /'/g,
+            "\\'"
+          )}');`;
+          break;
+        case "isVisible":
+          assertionCode = `await expect(page.locator('${playwrightSelector}')).toBeVisible();`;
+          break;
+        case "hasValue":
+          assertionCode = `await expect(page.locator('${playwrightSelector}')).toHaveValue('${event.value.replace(
+            /'/g,
+            "\\'"
+          )}');`;
+          break;
+        default:
+          assertionCode = `await expect(page.locator('${playwrightSelector}')).toBeVisible();`;
+      }
+
+      actionsCode += `  
+    // Assert that ${playwrightSelector} ${event.assertionType}: "${
+        event.value || ""
+      }"
+    ${assertionCode}
+  `;
     }
 
     previousTimestamp = event.timestamp;
