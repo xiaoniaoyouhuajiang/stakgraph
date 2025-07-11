@@ -94,7 +94,7 @@ server
       }
       default:
         if (USE_STAGEHAND && name.startsWith("stagehand_")) {
-          return await stagehand.call(name, args || {}, extra.sessionId);
+          return await stagehand.call(name, args || {});
         }
         throw new Error(`Unknown tool: ${name}`);
     }

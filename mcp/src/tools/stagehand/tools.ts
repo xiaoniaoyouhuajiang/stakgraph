@@ -2,7 +2,12 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../index.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize, getConsoleLogs } from "./utils.js";
+import {
+  getOrCreateStagehand,
+  sanitize,
+  getConsoleLogs,
+  getCurrentPlaywrightSessionId,
+} from "./utils.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -142,10 +147,9 @@ type SimpleResult = TextResult | ImageResult;
 
 export async function call(
   name: string,
-  args: Record<string, any>,
-  sessionId?: string
+  args: Record<string, any>
 ): Promise<CallToolResult> {
-  const stagehand = await getOrCreateStagehand(sessionId);
+  const stagehand = await getOrCreateStagehand();
 
   const error = (msg: string): CallToolResult => ({
     content: [{ type: "text" as const, text: msg }],
@@ -236,7 +240,8 @@ export async function call(
 
       case LogsTool.name: {
         LogsSchema.parse(args); // Validate even though no args expected
-        const logs = getConsoleLogs(sessionId || "default-session-id");
+        const playwrightSessionId = getCurrentPlaywrightSessionId();
+        const logs = getConsoleLogs(playwrightSessionId);
         return success(JSON.stringify(logs, null, 2));
       }
 

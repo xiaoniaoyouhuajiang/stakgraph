@@ -6,6 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { Request, Response } from "express";
 import { randomUUID } from "crypto";
+import { setCurrentPlaywrightSessionId } from "./stagehand/utils.js";
 
 export class MCPServer {
   server: Server;
@@ -26,6 +27,11 @@ export class MCPServer {
     // res.status(405).set('Allow', 'POST').send('Method Not Allowed')
 
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
+    const playwrightSessionId = req.headers["x-session-id"] as
+      | string
+      | undefined;
+    setCurrentPlaywrightSessionId(playwrightSessionId);
+
     if (!sessionId || !this.transports[sessionId]) {
       res
         .status(400)
@@ -44,31 +50,35 @@ export class MCPServer {
 
   async handlePostRequest(req: Request, res: Response) {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
+    const playwrightSessionId = req.headers["x-session-id"] as
+      | string
+      | undefined;
     let transport: StreamableHTTPServerTransport;
 
-    console.log("handlePostRequest", sessionId);
+    setCurrentPlaywrightSessionId(playwrightSessionId);
+
     try {
       // reuse existing transport
       if (sessionId && this.transports[sessionId]) {
-        console.log("Reusing existing transport", sessionId);
         transport = this.transports[sessionId];
         await transport.handleRequest(req, res, req.body);
         return;
       }
 
       // create new transport
-      if (this.isInitializeRequest(req.body)) {
-        console.log("Creating new transport");
-
-        const sessionIdGenerator = () => sessionId || randomUUID();
+      if (!sessionId && this.isInitializeRequest(req.body)) {
         const transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator,
+          sessionIdGenerator: () => randomUUID(),
         });
+
         await this.server.connect(transport);
         await transport.handleRequest(req, res, req.body);
-        const newSessionId = transport.sessionId;
-        if (newSessionId) {
-          this.transports[newSessionId] = transport;
+
+        // session ID will only be available (if in not Stateless-Mode)
+        // after handling the first request
+        const sessionId = transport.sessionId;
+        if (sessionId) {
+          this.transports[sessionId] = transport;
         }
 
         return;

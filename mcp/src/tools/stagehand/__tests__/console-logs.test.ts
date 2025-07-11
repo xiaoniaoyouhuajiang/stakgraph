@@ -5,11 +5,7 @@
 
 import { test, expect } from "@playwright/test";
 import { call } from "../tools.js";
-import {
-  getOrCreateStagehand,
-  clearConsoleLogs,
-  getConsoleLogs,
-} from "../utils.js";
+import { getOrCreateStagehand, clearConsoleLogs } from "../utils.js";
 import type { ConsoleLog } from "../utils.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Stagehand } from "@browserbasehq/stagehand";
@@ -35,7 +31,7 @@ test.describe("Stagehand Console Logs", () => {
   });
 
   test.beforeEach(async () => {
-    clearConsoleLogs();
+    clearConsoleLogs("default-session-id");
   });
 
   test("should demonstrate real debugging workflow: find and capture JavaScript errors", async () => {
@@ -44,7 +40,7 @@ test.describe("Stagehand Console Logs", () => {
     );
 
     // Clear logs to start fresh
-    clearConsoleLogs();
+    clearConsoleLogs("default-session-id");
 
     // Navigate to a page that has intentional JavaScript errors (common debugging scenario)
     const buggyPage = `
@@ -622,7 +618,7 @@ test.describe("Stagehand Console Logs", () => {
 
     // Clear logs for new session
     console.log("🧹 Clearing logs between monitoring sessions...");
-    clearConsoleLogs();
+    clearConsoleLogs("default-session-id");
 
     // Session 2: Monitor dashboard activity
     console.log("📊 SESSION 2: Monitoring dashboard interactions...");

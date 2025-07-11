@@ -1,7 +1,23 @@
 import { Stagehand } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
-let STAGEHANDS: { [sessionId: string]: Stagehand } = {};
+let STATE: {
+  [sessionId: string]: {
+    stagehand: Stagehand;
+    last_used: Date;
+    logs: ConsoleLog[];
+  };
+} = {};
+
+let CURRENT_PLAYWRIGHT_SESSION_ID: string | undefined;
+
+export function setCurrentPlaywrightSessionId(sessionId: string | undefined) {
+  CURRENT_PLAYWRIGHT_SESSION_ID = sessionId || "default-session-id";
+}
+
+export function getCurrentPlaywrightSessionId() {
+  return CURRENT_PLAYWRIGHT_SESSION_ID || "default-session-id";
+}
 
 export interface ConsoleLog {
   timestamp: string;
@@ -14,17 +30,18 @@ export interface ConsoleLog {
   };
 }
 
-let CONSOLE_LOGS: { [sessionId: string]: ConsoleLog[] } = {};
 const MAX_LOGS = parseInt(process.env.STAGEHAND_MAX_CONSOLE_LOGS || "1000");
 
-// TODO: remove old unused CONSOLE_LOGS after a while
+// TODO: remove old unused STAGEHANDS and CONSOLE_LOGS after a while
 const MAX_ACTIONS = 100; // LRU limit
 const ACTION_TTL_MS = 60 * 60 * 1000; // 1 hour TTL
 
 export async function getOrCreateStagehand(sessionIdMaybe?: string) {
-  const sessionId = sessionIdMaybe || "default-session-id";
-  if (STAGEHANDS[sessionId]) {
-    return STAGEHANDS[sessionId];
+  const sessionId = sessionIdMaybe || getCurrentPlaywrightSessionId();
+
+  console.log("getOrCreateStagehand SESSION ID", sessionId);
+  if (STATE[sessionId]) {
+    return STATE[sessionId].stagehand;
   }
   let provider = getProvider();
   console.log("initializing stagehand!", provider.model);
@@ -46,6 +63,12 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
   // Clear any existing logs when stagehand is recreated (only on new creation)
   clearConsoleLogs(sessionId);
 
+  STATE[sessionId] = {
+    stagehand: sh,
+    last_used: new Date(),
+    logs: [],
+  };
+
   // Set up console log listener
   sh.page.on("console", (msg) => {
     addConsoleLog(sessionId, {
@@ -56,7 +79,6 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
     });
   });
 
-  STAGEHANDS[sessionId] = sh;
   return sh;
 }
 
@@ -84,19 +106,19 @@ export function sanitize(bodyText: string) {
 
 export function addConsoleLog(sessionId: string, log: ConsoleLog): void {
   // Add to global logs (backward compatibility)
-  if (!CONSOLE_LOGS[sessionId]) {
-    CONSOLE_LOGS[sessionId] = [];
+  if (!STATE[sessionId]) {
+    return;
   }
-  CONSOLE_LOGS[sessionId].push(log);
-  if (CONSOLE_LOGS[sessionId].length > MAX_LOGS) {
-    CONSOLE_LOGS[sessionId].shift(); // FIFO rotation
+  STATE[sessionId].logs.push(log);
+  if (STATE[sessionId].logs.length > MAX_LOGS) {
+    STATE[sessionId].logs.shift(); // FIFO rotation
   }
 }
 
 export function getConsoleLogs(sessionId: string): ConsoleLog[] {
-  return [...(CONSOLE_LOGS[sessionId] || [])];
+  return [...(STATE[sessionId]?.logs || [])];
 }
 
 export function clearConsoleLogs(sessionId: string): void {
-  CONSOLE_LOGS[sessionId] = [];
+  STATE[sessionId].logs = [];
 }
