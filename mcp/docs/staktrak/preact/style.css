@@ -46,7 +46,7 @@ input:focus {
   border-radius: 5px;
 }
 
-.selection-active {
+.staktrak-selection-active {
   cursor: pointer;
 }
 

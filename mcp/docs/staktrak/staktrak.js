@@ -276,9 +276,9 @@ var userBehaviour = (function () {
   function setSelectionMode(isActive) {
     mem.selectionMode = isActive;
     if (isActive) {
-      document.body.classList.add("selection-active");
+      document.body.classList.add("staktrak-selection-active");
     } else {
-      document.body.classList.remove("selection-active");
+      document.body.classList.remove("staktrak-selection-active");
     }
   }
 
@@ -700,9 +700,6 @@ window.addEventListener("message", (event) => {
         break;
       case "staktrak-disable-selection":
         userBehaviour.disableSelectionMode();
-        break;
-      case "staktrak-request-selection":
-        userBehaviour.enableSelectionMode();
         break;
     }
   }
