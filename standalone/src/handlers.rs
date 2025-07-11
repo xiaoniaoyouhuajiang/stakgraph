@@ -229,17 +229,14 @@ pub async fn ingest(
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
-    let start_upload = Instant::now();
-
+    info!("Clearing old data...");
     graph_ops.graph.clear().await?;
+
+    let start_upload = Instant::now();
 
     info!("Uploading to Neo4j...");
     let (nodes, edges) = graph_ops.upload_btreemap_to_neo4j(&btree_graph).await?;
     graph_ops.graph.create_indexes().await?;
-
-    if std::env::var("PRINT_ROOT").is_ok() {
-        ast::utils::print_json(&btree_graph, "standalone")?;
-    }
 
     info!(
         "\n\n ==>> Uploading to Neo4j took {:.2?} \n\n",
@@ -250,6 +247,16 @@ pub async fn ingest(
         "\n\n ==>> Total ingest time: {:.2?} \n\n",
         start_total.elapsed()
     );
+
+    if let Ok(diry) = std::env::var("PRINT_ROOT") {
+        // add timestamp to the filename
+        let timestamp = Instant::now().elapsed().as_millis();
+        let filename = format!("{}/standalone-{}", diry, timestamp);
+        info!("Printing nodes and edges to files... {}", filename);
+        if let Err(e) = ast::utils::print_json(&btree_graph, &filename) {
+            tracing::warn!("Error printing nodes and edges to files: {}", e);
+        }
+    }
 
     Ok(Json(ProcessResponse {
         status: "success".to_string(),
