@@ -39,7 +39,6 @@ const ACTION_TTL_MS = 60 * 60 * 1000; // 1 hour TTL
 export async function getOrCreateStagehand(sessionIdMaybe?: string) {
   const sessionId = sessionIdMaybe || getCurrentPlaywrightSessionId();
 
-  console.log("getOrCreateStagehand SESSION ID", sessionId);
   if (STATE[sessionId]) {
     return STATE[sessionId].stagehand;
   }

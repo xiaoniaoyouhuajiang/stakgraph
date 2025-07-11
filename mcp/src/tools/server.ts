@@ -41,7 +41,6 @@ export class MCPServer {
       return;
     }
 
-    console.log(`Establishing SSE stream for session ${sessionId}`);
     const transport = this.transports[sessionId];
     await transport.handleRequest(req, res);
 
