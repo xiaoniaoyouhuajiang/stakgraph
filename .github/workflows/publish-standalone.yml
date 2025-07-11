@@ -32,6 +32,9 @@ jobs:
           file: Dockerfile.standalone
           platforms: linux/amd64,linux/arm64
           push: true
+          # caching
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ghcr.io/stakwork/stakgraph-standalone:${{ github.ref_name }}
             ghcr.io/stakwork/stakgraph-standalone:latest
