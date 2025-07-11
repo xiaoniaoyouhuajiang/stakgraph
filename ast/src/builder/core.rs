@@ -49,6 +49,12 @@ impl Repo {
         self.process_pages_and_templates(&mut graph, &filez)?;
         self.process_endpoints(&mut graph, &filez)?;
         self.finalize_graph(&mut graph, &filez).await?;
+        let graph = filter_by_revs(
+            &self.root.to_str().unwrap(),
+            self.revs.clone(),
+            graph,
+            self.lang.kind.clone(),
+        );
 
         println!("done!");
         let (num_of_nodes, num_of_edges) = graph.get_graph_size();

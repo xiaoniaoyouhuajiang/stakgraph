@@ -122,6 +122,31 @@ impl Graph for BTreeMapGraph {
         }
     }
 
+    fn create_filtered_graph(self, final_filter: &[String], lang_kind: Language) -> Self {
+        let mut filtered = Self::new(String::new(), lang_kind);
+
+        for (key, node) in &self.nodes {
+            if node.node_type == NodeType::Repository || final_filter.contains(&node.node_data.file)
+            {
+                filtered.nodes.insert(key.clone(), node.clone());
+            }
+        }
+
+        for (src, dst, edge_type) in &self.edges {
+            if let (Some(src_node), Some(dst_node)) = (self.nodes.get(src), self.nodes.get(dst)) {
+                if final_filter.contains(&src_node.node_data.file)
+                    || final_filter.contains(&dst_node.node_data.file)
+                {
+                    filtered
+                        .edges
+                        .insert((src.clone(), dst.clone(), edge_type.clone()));
+                }
+            }
+        }
+
+        filtered
+    }
+
     fn find_node_in_range(&self, node_type: NodeType, row: u32, file: &str) -> Option<NodeData> {
         let prefix = format!("{:?}-", node_type).to_lowercase();
 
