@@ -42,11 +42,12 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
     STATE[sessionId].last_used = new Date();
     return STATE[sessionId].stagehand;
   }
+
   let provider = getProvider();
   console.log("initializing stagehand!", provider.model);
   const sh = new Stagehand({
     env: "LOCAL",
-    domSettleTimeoutMs: 30000,
+    domSettleTimeoutMs: 60000,
     localBrowserLaunchOptions: {
       headless: true,
       viewport: { width: 1024, height: 768 },
@@ -65,7 +66,7 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
     last_used: new Date(),
     logs: [],
   };
-
+  
   // Clear any existing logs when stagehand is recreated (only on new creation)
   clearConsoleLogs(sessionId);
 
@@ -84,7 +85,6 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
     console.log(`[LRU] Session limit exceeded: ${Object.keys(STATE).length}/${MAX_SESSIONS}`);
     await evictOldestSession();
   }
-
   return sh;
 }
 

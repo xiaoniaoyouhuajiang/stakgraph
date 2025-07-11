@@ -29,6 +29,7 @@ sse_routes(app);
 app.use(express.json());
 
 mcp_routes(app);
+
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
 
