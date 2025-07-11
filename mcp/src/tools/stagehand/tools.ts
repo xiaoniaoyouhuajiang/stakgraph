@@ -142,9 +142,10 @@ type SimpleResult = TextResult | ImageResult;
 
 export async function call(
   name: string,
-  args: Record<string, any>
+  args: Record<string, any>,
+  sessionId?: string
 ): Promise<CallToolResult> {
-  const stagehand = await getOrCreateStagehand();
+  const stagehand = await getOrCreateStagehand(sessionId);
 
   const error = (msg: string): CallToolResult => ({
     content: [{ type: "text" as const, text: msg }],
@@ -235,7 +236,7 @@ export async function call(
 
       case LogsTool.name: {
         LogsSchema.parse(args); // Validate even though no args expected
-        const logs = getConsoleLogs();
+        const logs = getConsoleLogs(sessionId || "default-session-id");
         return success(JSON.stringify(logs, null, 2));
       }
 

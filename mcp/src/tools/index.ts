@@ -62,7 +62,7 @@ server.get_server().setRequestHandler(ListToolsRequestSchema, async () => {
 
 server
   .get_server()
-  .setRequestHandler(CallToolRequestSchema, async (request) => {
+  .setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const { name, arguments: args } = request.params;
     switch (name) {
       case search.SearchTool.name: {
@@ -94,7 +94,7 @@ server
       }
       default:
         if (USE_STAGEHAND && name.startsWith("stagehand_")) {
-          return await stagehand.call(name, args || {});
+          return await stagehand.call(name, args || {}, extra.sessionId);
         }
         throw new Error(`Unknown tool: ${name}`);
     }

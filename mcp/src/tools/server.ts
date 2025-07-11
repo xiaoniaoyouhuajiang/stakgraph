@@ -50,6 +50,7 @@ export class MCPServer {
     try {
       // reuse existing transport
       if (sessionId && this.transports[sessionId]) {
+        console.log("Reusing existing transport", sessionId);
         transport = this.transports[sessionId];
         await transport.handleRequest(req, res, req.body);
         return;
