@@ -8,7 +8,7 @@ use crate::lang::{ArrayGraph, BTreeMapGraph};
 use crate::repo::Repo;
 use anyhow::Result;
 use git_url_parse::GitUrl;
-use lsp::{git::get_commit_hash, strip_root, strip_tmp, Cmd as LspCmd, DidOpen};
+use lsp::{git::get_commit_hash, strip_tmp, Cmd as LspCmd, DidOpen};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tokio::fs;
@@ -56,9 +56,8 @@ impl Repo {
             self.lang.kind.clone(),
         );
 
-        println!("done!");
         let (num_of_nodes, num_of_edges) = graph.get_graph_size();
-        println!(
+        info!(
             "Returning Graph with {} nodes and {} edges",
             num_of_nodes, num_of_edges
         );
@@ -89,13 +88,15 @@ impl Repo {
             // i += 1;
 
             let dir_no_tmp_buf = strip_tmp(dir);
-            let mut dir_no_root = strip_root(&dir_no_tmp_buf, &self.root)
-                .display()
-                .to_string();
-            let dir_no_tmp = dir_no_tmp_buf.display().to_string();
+            let mut dir_no_tmp = dir_no_tmp_buf.display().to_string();
 
             // remove leading /
-            dir_no_root = dir_no_root.trim_start_matches('/').to_string();
+            dir_no_tmp = dir_no_tmp.trim_start_matches('/').to_string();
+
+            let root_no_tmp = strip_tmp(&self.root).display().to_string();
+
+            let mut dir_no_root = dir_no_tmp.strip_prefix(&root_no_tmp).unwrap_or(&dir_no_tmp);
+            dir_no_root = dir_no_root.trim_start_matches('/');
 
             let (parent_type, parent_file) = if dir_no_root.contains("/") {
                 // remove LAST slash and any characters after it:
@@ -108,7 +109,7 @@ impl Repo {
                 (NodeType::Repository, "main".to_string())
             };
 
-            let dir_name = dir_no_root.rsplit('/').next().unwrap().to_string();
+            let dir_name = dir_no_tmp.rsplit('/').next().unwrap().to_string();
             let mut dir_data = NodeData::in_file(&dir_no_tmp);
             dir_data.name = dir_name;
 
@@ -271,9 +272,9 @@ impl Repo {
     }
     async fn add_repository_and_language_nodes<G: Graph>(&self, graph: &mut G) -> Result<()> {
         self.send_status_update("add_repository_and_language_nodes", 1);
-        println!("Root: {:?}", self.root);
+        info!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
-        println!("Commit(commit_hash): {:?}", commit_hash);
+        info!("Commit(commit_hash): {:?}", commit_hash);
 
         let (org, repo_name) = if !self.url.is_empty() {
             let gurl = GitUrl::parse(&self.url)?;
@@ -294,7 +295,7 @@ impl Repo {
         debug!("add language...");
         let lang_data = NodeData {
             name: self.lang.kind.to_string(),
-            file: self.root.display().to_string(),
+            file: strip_tmp(&self.root).display().to_string(),
             ..Default::default()
         };
         graph.add_node_with_parent(NodeType::Language, lang_data, NodeType::Repository, "main");
@@ -649,7 +650,7 @@ impl Repo {
 
         let skip_calls = std::env::var("DEV_SKIP_CALLS").is_ok();
         if skip_calls {
-            println!("=> Skipping function_calls...");
+            info!("=> Skipping function_calls...");
         } else {
             self.send_status_update("process_function_calls", 15);
             i = 0;

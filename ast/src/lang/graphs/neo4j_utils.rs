@@ -667,6 +667,7 @@ pub fn add_node_with_parent_query(
         parent_type.to_string(),
         node_type.to_string()
     );
+
     queries.push((query_str, params));
     queries
 }

@@ -3,7 +3,8 @@ pub mod git;
 pub mod language;
 mod utils;
 
-pub use client::{strip_root, strip_tmp};
+use client::strip_root;
+pub use client::strip_tmp;
 pub use language::Language;
 pub use utils::*;
 
