@@ -192,7 +192,7 @@ func NewRouter() *http.Server {
 name: Function: main
 ref_id: test_ref_id
 file: stakwork/demo-repo/main.go
-start: 14, end: 33
+start: 14, end: 30
 ```
 func main() {
 	fmt.Println("Hello, World!")
