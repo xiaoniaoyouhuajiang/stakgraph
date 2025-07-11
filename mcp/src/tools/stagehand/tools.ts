@@ -157,7 +157,9 @@ export async function call(
   });
 
   const success = (text: string, extra?: SimpleResult): CallToolResult => {
-    const content: SimpleResult[] = [{ type: "text" as const, text }];
+    const sessionId = getCurrentPlaywrightSessionId();
+    const sessionNote = `\n\n📝 Session ID: ${sessionId}\nTo continue in the same browser session, use this x-session-id header in future requests.`;
+    const content: SimpleResult[] = [{ type: "text" as const, text: text + sessionNote }];
     if (extra) {
       content.push(extra as SimpleResult);
     }
