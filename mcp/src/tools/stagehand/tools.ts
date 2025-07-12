@@ -64,7 +64,9 @@ export const AgentSchema = z.object({
     ),
 });
 
-export const LogsSchema = z.object({});
+export const LogsSchema = z.object({
+  verbose: z.boolean().optional().default(false),
+});
 
 // Tools
 export const NavigateTool: Tool = {
@@ -235,9 +237,17 @@ export async function call(
       }
 
       case LogsTool.name: {
-        LogsSchema.parse(args); // Validate even though no args expected
+        const parsedArgs = LogsSchema.parse(args);
         const logs = getConsoleLogs(sessionId || "default-session-id");
-        return success(JSON.stringify(logs, null, 2));
+        if (parsedArgs.verbose) {
+          return success(JSON.stringify(logs, null, 2));
+        } else {
+          let log_str = "";
+          for (const log of logs) {
+            log_str += `${log.text}\n`;
+          }
+          return success(log_str);
+        }
       }
 
       default:

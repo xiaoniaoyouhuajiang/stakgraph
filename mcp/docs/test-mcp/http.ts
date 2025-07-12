@@ -44,6 +44,15 @@ async function runAgent() {
       }
     );
     console.log(result2);
+
+    const result3 = await tools.stagehand_logs.execute(
+      {},
+      {
+        toolCallId: "3",
+        messages: [],
+      }
+    );
+    console.log(result3);
   } catch (error) {
     console.error("Error setting up MCP client:", error);
   }
