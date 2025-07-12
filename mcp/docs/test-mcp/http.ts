@@ -1,6 +1,7 @@
 import { experimental_createMCPClient } from "ai";
 import * as dotenv from "dotenv";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { randomUUID } from "crypto";
 
 dotenv.config();
 
@@ -13,7 +14,7 @@ async function runAgent() {
           requestInit: {
             headers: {
               authorization: `Bearer asdfasdf`,
-              "x-session-id": "my-session-id-123",
+              "x-session-id": randomUUID(),
             },
           },
         }

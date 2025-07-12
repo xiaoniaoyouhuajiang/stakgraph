@@ -31,16 +31,15 @@ export interface ConsoleLog {
 }
 
 const MAX_LOGS = parseInt(process.env.STAGEHAND_MAX_CONSOLE_LOGS || "1000");
-
-// TODO: remove old unused STAGEHANDS and CONSOLE_LOGS after a while
-const MAX_ACTIONS = 100; // LRU limit
-const ACTION_TTL_MS = 60 * 60 * 1000; // 1 hour TTL
+const MAX_SESSIONS = 25; // LRU limit for stagehand instances
 
 export async function getOrCreateStagehand(sessionIdMaybe?: string) {
   const sessionId = sessionIdMaybe || getCurrentPlaywrightSessionId();
 
+  console.log("getOrCreateStagehand SESSION ID", sessionId);
   if (STATE[sessionId]) {
-    console.log("sessionId exists:", sessionId);
+    // Update last_used timestamp for LRU tracking
+    STATE[sessionId].last_used = new Date();
     return STATE[sessionId].stagehand;
   }
 
@@ -61,7 +60,7 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
   });
   await sh.init();
 
-  // empty
+  // Initialize session state
   STATE[sessionId] = {
     stagehand: sh,
     last_used: new Date(),
@@ -78,6 +77,11 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
     });
   });
 
+  // Check if we need to evict old sessions (LRU)
+  if (Object.keys(STATE).length > MAX_SESSIONS) {
+    console.log(`[LRU] Session limit exceeded: ${Object.keys(STATE).length}/${MAX_SESSIONS}`);
+    await evictOldestSession();
+  }
   return sh;
 }
 
@@ -119,5 +123,31 @@ export function getConsoleLogs(sessionId: string): ConsoleLog[] {
 }
 
 export function clearConsoleLogs(sessionId: string): void {
-  STATE[sessionId].logs = [];
+  if (STATE[sessionId]) {
+    STATE[sessionId].logs = [];
+  }
+}
+
+async function evictOldestSession(): Promise<void> {
+  const sessionIds = Object.keys(STATE);
+  if (sessionIds.length === 0) return;
+
+  // Find the session with the oldest last_used timestamp
+  const oldestSessionId = sessionIds.reduce((oldest, current) =>
+    STATE[current].last_used < STATE[oldest].last_used ? current : oldest
+  );
+
+  console.log(`[LRU] Evicting oldest session: ${oldestSessionId}`);
+
+  // Properly close the stagehand browser instance
+  try {
+    await STATE[oldestSessionId].stagehand.close();
+  } catch (error) {
+    console.error(`[LRU] Error closing stagehand for session ${oldestSessionId}:`, error);
+  }
+
+  // Remove from STATE
+  delete STATE[oldestSessionId];
+
+  console.log(`[LRU] Sessions after eviction: ${Object.keys(STATE).length}/${MAX_SESSIONS}`);
 }
