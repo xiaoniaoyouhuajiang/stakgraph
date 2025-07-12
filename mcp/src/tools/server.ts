@@ -44,7 +44,6 @@ export class MCPServer {
       return;
     }
 
-    console.log(`Handling StreamableHTTP request for session ${sessionId}`);
     const transport = this.transports[sessionId];
     await transport.handleRequest(req, res);
 

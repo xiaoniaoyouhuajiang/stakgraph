@@ -66,9 +66,6 @@ export async function getOrCreateStagehand(sessionIdMaybe?: string) {
     last_used: new Date(),
     logs: [],
   };
-  
-  // Clear any existing logs when stagehand is recreated (only on new creation)
-  clearConsoleLogs(sessionId);
 
   // Set up console log listener
   sh.page.on("console", (msg) => {
@@ -141,7 +138,7 @@ async function evictOldestSession(): Promise<void> {
   );
 
   console.log(`[LRU] Evicting oldest session: ${oldestSessionId}`);
-  
+
   // Properly close the stagehand browser instance
   try {
     await STATE[oldestSessionId].stagehand.close();
@@ -151,6 +148,6 @@ async function evictOldestSession(): Promise<void> {
 
   // Remove from STATE
   delete STATE[oldestSessionId];
-  
+
   console.log(`[LRU] Sessions after eviction: ${Object.keys(STATE).length}/${MAX_SESSIONS}`);
 }
