@@ -21,7 +21,7 @@ export async function evalRoutes(app: Express) {
         return;
       }
 
-      const result = await evaluate(test_url, prompt);
+      const result = await evaluate(test_url, prompt, sessionId);
 
       res.json(result);
     } catch (error) {
