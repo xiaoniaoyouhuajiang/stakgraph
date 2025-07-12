@@ -167,7 +167,7 @@ impl Repo {
             println!("Cloning repo to {:?}...", &root);
             clone_repo(url, &root, username.clone(), pat.clone(), commit)
                 .await
-                .map_err(|e| anyhow!("Failed to clone repo {}: {}", url, e))?;
+                .map_err(|e| anyhow!("Failed to clone repo {} at root {}: {}", url, root, e))?;
             // Extract the revs for this specific repository
             let repo_revs = if revs_per_repo > 0 {
                 revs[i * revs_per_repo..(i + 1) * revs_per_repo].to_vec()
