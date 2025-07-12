@@ -265,7 +265,7 @@ impl Lang {
                 };
 
                 let template_name = std::path::Path::new(&path)
-                    .file_stem()
+                    .file_name()
                     .and_then(|s| s.to_str())
                     .unwrap_or("template");
 
@@ -291,7 +291,7 @@ impl Lang {
                 };
 
                 let style_name = std::path::Path::new(&path)
-                    .file_stem()
+                    .file_name()
                     .and_then(|s| s.to_str())
                     .unwrap_or("style");
 
