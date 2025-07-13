@@ -3,7 +3,7 @@ import * as dotenv from "dotenv";
 import { generateObject } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
-import { getOrCreateStagehand } from "../tools/stagehand/utils.js";
+import { getOrCreateStagehand } from "../tools/stagehand/core.js";
 import { Step, TestResult } from "./types.js";
 
 // Load environment variables

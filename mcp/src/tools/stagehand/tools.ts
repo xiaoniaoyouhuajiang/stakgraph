@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../types.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize, getConsoleLogs } from "./utils.js";
+import { getOrCreateStagehand, sanitize, getConsoleLogs } from "./core.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -53,7 +53,7 @@ export const AgentSchema = z.object({
   provider: z
     .enum(["openai", "anthropic"])
     .optional()
-    .default("openai")
+    .default("anthropic")
     .describe("The provider to use for agent functionality."),
   include_screenshot: z
     .boolean()
