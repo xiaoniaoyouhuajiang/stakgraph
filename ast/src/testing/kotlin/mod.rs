@@ -110,7 +110,6 @@ import com.kotlintestapp.db.PersonDatabase"#
     assert_eq!(functions.len(), 19, "Expected 19 functions");
 
     let function_names: Vec<&str> = functions.iter().map(|f| f.name.as_str()).collect();
-    println!("Function names: {:?}", function_names);
     assert!(
         function_names.contains(&"useAppContext"),
         "Should contain useAppContext function"
@@ -141,7 +140,7 @@ import com.kotlintestapp.db.PersonDatabase"#
     );
 
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls);
-    assert_eq!(calls_edges_count, 16, "Expected 16 calls edges");
+    assert_eq!(calls_edges_count, 14, "Expected 14 calls edges");
 
     let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     assert_eq!(import_edges_count, 6, "Expected 6 import edges");
@@ -155,12 +154,12 @@ import com.kotlintestapp.db.PersonDatabase"#
         })
         .expect("MainActivity class not found");
     assert!(
-        main_activity.body.contains("setContentView"),
-        "MainActivity should contain setContentView"
+        main_activity.body.contains("PersonViewModel"),
+        "MainActivity should contain PersonViewModel"
     );
     assert!(
-        main_activity.body.contains("AppCompatActivity"),
-        "MainActivity should extend AppCompatActivity"
+        main_activity.body.contains("ComponentActivity"),
+        "MainActivity should extend ComponentActivity"
     );
 
     let database_helper = classes
@@ -203,55 +202,44 @@ import com.kotlintestapp.db.PersonDatabase"#
         "Person should be a data class"
     );
     assert!(
-        person_model.body.contains("val name"),
-        "Person should have name property"
+        person_model.body.contains("val owner_pubkey: String,"),
+        "Person should have owner_pubkey property"
     );
     assert!(
-        person_model.body.contains("val age"),
-        "Person should have age property"
-    );
-
-    let api_service = classes
-        .iter()
-        .find(|c| c.name == "ApiService")
-        .expect("ApiService class not found");
-    assert!(
-        api_service.body.contains("Retrofit"),
-        "ApiService should use Retrofit"
+        person_model.body.contains("val img: String,"),
+        "Person should have img property"
     );
 
     let create_person_fn = functions
         .iter()
         .find(|f| {
-            f.name == "createPerson"
+            f.name == "insertPersonsIntoDatabase"
                 && normalize_path(&f.file)
-                    == "src/testing/kotlin/app/src/main/java/com/kotlintestapp/ApiService.kt"
+                    == "src/testing/kotlin/app/src/main/java/com/kotlintestapp/viewModels/PersonViewModel.kt"
         })
-        .expect("createPerson function not found");
+        .expect("insertPersonsIntoDatabase function not found");
     assert!(
-        create_person_fn.body.contains("POST"),
-        "createPerson should be a POST request"
-    );
-    assert!(
-        create_person_fn.body.contains("Call<Person>"),
-        "createPerson should return Call<Person>"
+        create_person_fn.body.contains("Dispatchers.IO"),
+        "insertPersonsIntoDatabase should use Dispatchers.IO"
     );
 
     let get_person_fn = functions
         .iter()
         .find(|f| {
-            f.name == "getPerson"
+            f.name == "fetchPeople"
                 && normalize_path(&f.file)
-                    == "src/testing/kotlin/app/src/main/java/com/kotlintestapp/ApiService.kt"
+                    == "src/testing/kotlin/app/src/main/java/com/kotlintestapp/viewModels/PersonViewModel.kt"
         })
-        .expect("getPerson function not found");
+        .expect("fetchPeople function not found");
     assert!(
-        get_person_fn.body.contains("GET"),
+        get_person_fn.body.contains(".get()"),
         "getPerson should be a GET request"
     );
     assert!(
-        get_person_fn.body.contains("Path"),
-        "getPerson should use Path annotation"
+        get_person_fn
+            .body
+            .contains("Gson().fromJson(json, listType)"),
+        "getPerson should use Gson for JSON parsing"
     );
 
     let insert_person_fn_check = functions
@@ -259,12 +247,8 @@ import com.kotlintestapp.db.PersonDatabase"#
         .find(|f| f.name == "insertPerson" && normalize_path(&f.file) == "src/testing/kotlin/app/src/main/java/com/kotlintestapp/sqldelight/DatabaseHelper.kt")
         .expect("insertPerson function not found");
     assert!(
-        insert_person_fn_check.body.contains("PersonQueries"),
+        insert_person_fn_check.body.contains("queries.insertPerson"),
         "insertPerson should use PersonQueries"
-    );
-    assert!(
-        insert_person_fn_check.body.contains("insert"),
-        "insertPerson should contain insert operation"
     );
 
     let update_person_fn_check = functions
@@ -272,7 +256,7 @@ import com.kotlintestapp.db.PersonDatabase"#
         .find(|f| f.name == "updatePerson" && normalize_path(&f.file) == "src/testing/kotlin/app/src/main/java/com/kotlintestapp/sqldelight/DatabaseHelper.kt")
         .expect("updatePerson function not found");
     assert!(
-        update_person_fn_check.body.contains("PersonQueries"),
+        update_person_fn_check.body.contains("queries.updatePerson"),
         "updatePerson should use PersonQueries"
     );
     assert!(
@@ -291,11 +275,11 @@ import com.kotlintestapp.db.PersonDatabase"#
 
     let delete_person_fn = functions
         .iter()
-        .find(|f| f.name == "deletePerson")
-        .expect("deletePerson function not found");
+        .find(|f| f.name == "clearDatabase")
+        .expect("clearDatabase function not found");
     assert!(
-        delete_person_fn.body.contains("delete"),
-        "deletePerson should contain delete operation"
+        delete_person_fn.body.contains("deleteAll"),
+        "clearDatabase should contain deleteAll operation"
     );
 
     let oncreate_fn = functions
@@ -381,18 +365,15 @@ import com.kotlintestapp.db.PersonDatabase"#
         "Expected Person.kt file to contain Person DataModel"
     );
 
-    let operand_edges_count = graph.count_edges_of_type(EdgeType::Operand);
-    assert_eq!(operand_edges_count, 10, "Expected 10 operand edges");
-
     let contains_edges_count = graph.count_edges_of_type(EdgeType::Contains);
-    assert_eq!(contains_edges_count, 157, "Expected 157 contains edges");
+    assert_eq!(contains_edges_count, 169, "Expected 169 contains edges");
 
     let operand_edges =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
     assert_eq!(
         operand_edges.len(),
-        10,
-        "Expected 10 class to function operand edges"
+        11,
+        "Expected 11 class to function operand edges"
     );
 
     let main_activity_operand = operand_edges
@@ -441,7 +422,7 @@ import com.kotlintestapp.db.PersonDatabase"#
 
     let database_helper_imports = import_edges
         .iter()
-        .any(|(src, dst)| src.name == "DatabaseHelper.kt");
+        .any(|(src, _dst)| src.name == "DatabaseHelper.kt");
     assert!(
         database_helper_imports,
         "Expected DatabaseHelper.kt to have imports"
@@ -449,20 +430,20 @@ import com.kotlintestapp.db.PersonDatabase"#
 
     let main_activity_imports = import_edges
         .iter()
-        .any(|(src, dst)| src.name == "MainActivity.kt");
+        .any(|(src, _dst)| src.name == "MainActivity.kt");
     assert!(
         main_activity_imports,
         "Expected MainActivity.kt to have imports"
     );
 
     let files = graph.find_nodes_by_type(NodeType::File);
-    assert_eq!(files.len(), 21, "Expected 21 files");
+    assert_eq!(files.len(), 31, "Expected 31 files");
 
     let kotlin_files: Vec<_> = files.iter().filter(|f| f.name.ends_with(".kt")).collect();
-    assert_eq!(kotlin_files.len(), 7, "Expected 7 Kotlin files");
+    assert_eq!(kotlin_files.len(), 9, "Expected 9 Kotlin files");
 
     let gradle_files: Vec<_> = files.iter().filter(|f| f.name.contains("gradle")).collect();
-    assert_eq!(gradle_files.len(), 4, "Expected 4 Gradle files");
+    assert_eq!(gradle_files.len(), 6, "Expected 6 Gradle files");
 
     let manifest_files: Vec<_> = files
         .iter()
@@ -475,7 +456,7 @@ import com.kotlintestapp.db.PersonDatabase"#
     );
 
     let directories = graph.find_nodes_by_type(NodeType::Directory);
-    assert_eq!(directories.len(), 23, "Expected 23 directories");
+    assert_eq!(directories.len(), 35, "Expected 35 directories");
 
     let app_directory = directories
         .iter()
@@ -521,7 +502,7 @@ import com.kotlintestapp.db.PersonDatabase"#
 
     let person_sqldelight_file = files
         .iter()
-        .find(|f| f.name == "Person.sq")
+        .find(|f| f.name == "person.sq")
         .expect("Person.sq file not found");
     assert!(
         person_sqldelight_file.body.contains("CREATE TABLE"),
@@ -541,7 +522,7 @@ import com.kotlintestapp.db.PersonDatabase"#
         .filter(|f| f.name == "build.gradle.kts")
         .collect();
     assert!(
-        build_gradle_files.len() >= 2,
+        build_gradle_files.len() == 2,
         "Should have at least 2 build.gradle.kts files"
     );
 
