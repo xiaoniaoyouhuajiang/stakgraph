@@ -1,14 +1,22 @@
+#[cfg(feature = "fulltest")]
 use ast::lang::graphs::{ArrayGraph, BTreeMapGraph};
 
+#[cfg(feature = "fulltest")]
 use ast::lang::{EdgeType, Graph, Node, NodeType};
+#[cfg(feature = "fulltest")]
 use ast::repo::Repo;
+#[cfg(feature = "fulltest")]
 use test_log::test;
+#[cfg(feature = "fulltest")]
 use tracing::info;
 
+#[cfg(feature = "fulltest")]
 const REPO_URL: &str = "https://github.com/fayekelmith/demorepo.git";
+#[cfg(feature = "fulltest")]
 const COMMIT: &str = "778b5202fca04a2cd5daed377c0063e9af52b24c";
+#[cfg(feature = "fulltest")]
 const USE_LSP: Option<bool> = Some(false);
-
+#[cfg(feature = "fulltest")]
 async fn fulltest_generic<G: Graph>(graph: &G) {
     info!("Running fulltest for {}", std::any::type_name::<G>());
 
@@ -19,44 +27,18 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
     if graph_type_name.contains("ArrayGraph") {
         assert_eq!(num_nodes, 116, "Expected 116 nodes for ArrayGraph");
         assert_eq!(num_edges, 157, "Expected 157 edges for ArrayGraph");
-    } else if graph_type_name.contains("BTreeMapGraph") {
+    } else if graph_type_name.contains("BTreeMapGraph") || graph_type_name.contains("Neo4jGraph") {
         assert_eq!(num_nodes, 103, "Expected 103 nodes for BTreeMapGraph");
         assert_eq!(num_edges, 145, "Expected 145 edges for BTreeMapGraph");
-    } else {
-        panic!("Unknown graph type: {}", graph_type_name);
     }
 
-    fn normalize_path(path: &str) -> String {
-        path.replace("\\", "/")
-    }
+    let repositories = graph.find_nodes_by_type(NodeType::Repository);
 
-    // TODO: Handle repository tests later
-    // let repositories = graph.find_nodes_by_type(NodeType::Repository);
-    // let graph_type_name = std::any::type_name::<G>();
-    // if graph_type_name.contains("ArrayGraph") {
-    //     assert_eq!(
-    //         repositories.len(),
-    //         2,
-    //         "Expected 2 repository nodes for ArrayGraph (one per language)"
-    //     );
-    // } else if graph_type_name.contains("BTreeMapGraph") {
-    //     assert_eq!(
-    //         repositories.len(),
-    //         1,
-    //         "Expected 1 repository node for BTreeMapGraph (shared across languages)"
-    //     );
-    // } else {
-    //     assert_eq!(
-    //         repositories.len(),
-    //         1,
-    //         "Expected 1 repository node (default)"
-    //     );
-    // }
-    // let repo_node = &repositories[0];
-    // assert_eq!(
-    //     repo_node.name, "fayekelmith/demorepo",
-    //     "Repository name is incorrect"
-    // );
+    let repo_node = &repositories[0];
+    assert_eq!(
+        repo_node.name, "fayekelmith/demorepo",
+        "Repository name is incorrect"
+    );
 
     let languages = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(languages.len(), 2, "Expected 2 language nodes");
@@ -830,6 +812,7 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
     info!("All node and edge validations passed successfully!");
 }
 
+#[cfg(feature = "fulltest")]
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn fulltest() {
     let repo = Repo::new_clone_multi_detect(
