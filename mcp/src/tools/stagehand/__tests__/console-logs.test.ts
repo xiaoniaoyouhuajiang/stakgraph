@@ -5,8 +5,8 @@
 
 import { test, expect } from "@playwright/test";
 import { call } from "../tools.js";
-import { getOrCreateStagehand, clearConsoleLogs } from "../utils.js";
-import type { ConsoleLog } from "../utils.js";
+import { getOrCreateStagehand, clearConsoleLogs } from "../core.js";
+import type { ConsoleLog } from "../core.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Stagehand } from "@browserbasehq/stagehand";
 

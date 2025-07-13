@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
-import { mcp_routes, sse_routes } from "./tools/index.js";
+import { mcp_routes } from "./tools/server.js";
+import { sse_routes } from "./tools/sse.js";
 import fileUpload from "express-fileupload";
 import * as r from "./graph/routes.js";
 import * as uploads from "./graph/uploads.js";
