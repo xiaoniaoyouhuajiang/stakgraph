@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { Tool } from "./index.js";
-import { parseSchema } from "./utils.js";
-import * as G from "../graph/graph.js";
+import { Tool } from "../types.js";
+import { parseSchema } from "../utils.js";
+import * as G from "../../graph/graph.js";
 
 export const GetRulesFilesSchema = z.object({});
 

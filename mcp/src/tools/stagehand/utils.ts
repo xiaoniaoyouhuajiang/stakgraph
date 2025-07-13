@@ -26,7 +26,7 @@ const MAX_SESSIONS = 25; // LRU limit for stagehand instances
 export async function getOrCreateStagehand(sessionIdMaybe?: string) {
   const sessionId = sessionIdMaybe || "default-session-id";
 
-  console.log("getOrCreateStagehand SESSION ID", sessionId);
+  // console.log("getOrCreateStagehand SESSION ID", sessionId);
   if (STATE[sessionId]) {
     // Update last_used timestamp for LRU tracking
     STATE[sessionId].last_used = new Date();

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { Tool } from "../index.js";
+import { Tool } from "../types.js";
 import { parseSchema } from "../utils.js";
 import { getOrCreateStagehand, sanitize, getConsoleLogs } from "./utils.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
