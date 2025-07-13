@@ -472,9 +472,9 @@ import NewPerson from "./components/NewPerson";"#
     );
 
     let contains_edges_count = graph.count_edges_of_type(EdgeType::Contains);
-    assert!(
-        contains_edges_count >= 30,
-        "Expected at least 30 contains edges, got {}",
+    assert_eq!(
+        contains_edges_count, 69,
+        "Expected 69 contains edges, got {}",
         contains_edges_count
     );
 
@@ -483,18 +483,14 @@ import NewPerson from "./components/NewPerson";"#
         .iter()
         .filter(|f| f.name.ends_with(".tsx"))
         .count();
-    assert!(
-        tsx_files >= 4,
-        "Expected at least 4 TSX files, got {}",
-        tsx_files
-    );
+    assert_eq!(tsx_files, 6, "Expected 6 TSX files, got {}", tsx_files);
 
     let component_pattern_functions = functions
         .iter()
         .filter(|f| normalize_path(&f.file) == "src/testing/react/src/ComponentPatterns.tsx")
         .count();
-    assert!(
-        component_pattern_functions >= 5,
+    assert_eq!(
+        component_pattern_functions, 5,
         "Expected at least 5 component patterns, got {}",
         component_pattern_functions
     );

@@ -19,7 +19,7 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     assert_eq!(num_nodes, 91, "Expected 91 nodes");
-    assert_eq!(num_edges, 112, "Expected 112 edges");
+    assert_eq!(num_edges, 113, "Expected 113 edges");
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
@@ -235,7 +235,7 @@ end
     assert_eq!(variables.len(), 2, "Expected 2 variables");
 
     let directories = graph.find_nodes_by_type(NodeType::Directory);
-    assert!(directories.len() >= 10, "Expected at least 10 directories");
+    assert_eq!(directories.len(), 19, "Expected 19 directories");
 
     let sphinx_test_app_dir = directories
         .iter()
@@ -264,13 +264,14 @@ end
     assert_eq!(contains, 89, "Expected 89 contains edges");
 
     let operands = graph.count_edges_of_type(EdgeType::Operand);
-    assert_eq!(operands, 21, "Expected 21 operand edges");
+    assert_eq!(operands, 22, "Expected 22 operand edges");
 
     let operand_edges =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
-    assert!(
-        operand_edges.len() >= 17,
-        "Expected at least 17 operand edges"
+    assert_eq!(
+        operand_edges.len(),
+        22,
+        "Expected at least 22 operand edges"
     );
 
     let api_operand = operand_edges
