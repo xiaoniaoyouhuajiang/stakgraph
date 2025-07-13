@@ -66,7 +66,7 @@ impl Language {
             Self::Python => vec!["py", "ipynb"],
             Self::Ruby => vec!["rb"],
             Self::Kotlin => vec!["kt", "kts", "java"],
-            Self::Swift => vec!["swift"],
+            Self::Swift => vec!["swift", "plist"],
             Self::Java => vec!["java", "gradle", "gradlew"],
             Self::Bash => vec!["sh"],
             Self::Toml => vec!["toml"],
