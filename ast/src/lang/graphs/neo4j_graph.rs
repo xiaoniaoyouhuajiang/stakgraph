@@ -235,6 +235,26 @@ impl Neo4jGraph {
         }
         Ok(incoming)
     }
+
+    pub async fn clear_existing_graph(&self, root: &str) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        info!("Clearing existing graph for root: {}", root);
+        let (query_str, params) = clear_existing_graph_query(root);
+        let mut txn = connection.start_txn().await?;
+        let mut query_obj = query(&query_str);
+        for (key, value) in params.value.iter() {
+            query_obj = query_obj.param(key.value.as_str(), value.clone());
+        }
+        if let Err(e) = txn.run(query_obj).await {
+            txn.rollback().await?;
+            return Err(anyhow::anyhow!(
+                "Neo4j selective node deletion error: {}",
+                e
+            ));
+        }
+        txn.commit().await?;
+        Ok(())
+    }
 }
 
 impl Default for Neo4jGraph {
