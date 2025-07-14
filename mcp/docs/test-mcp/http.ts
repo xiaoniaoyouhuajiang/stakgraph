@@ -45,7 +45,7 @@ async function runAgent() {
     );
     console.log(result2);
 
-    const result3 = await tools.stagehand_logs.execute(
+    const result3 = await tools.stagehand_network_activity.execute(
       {},
       {
         toolCallId: "3",

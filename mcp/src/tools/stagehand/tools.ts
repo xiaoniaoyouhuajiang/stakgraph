@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../types.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize, getConsoleLogs, getNetworkEntries } from "./core.js";
+import { getOrCreateStagehand, sanitize, getConsoleLogs, getNetworkEntries, groupNetworkEntries } from "./core.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -275,21 +275,32 @@ export async function call(
           );
         }
         
+        // Apply grouping to reduce duplicate noise
+        const groupedEntries = groupNetworkEntries(filteredEntries);
+        
         if (parsedArgs.verbose) {
-          return success(JSON.stringify(filteredEntries, null, 2));
+          return success(JSON.stringify(groupedEntries, null, 2));
         } else {
-          // Simple mode: group by URL and show key info
+          // Simple mode: clean entries with summary
           const summary = {
-            entries: filteredEntries.map(entry => ({
-              method: entry.method,
-              url: entry.url,
-              type: entry.type,
-              status: entry.status,
-              duration: entry.duration,
-              resourceType: entry.resourceType
-            })),
+            entries: groupedEntries.map(entry => {
+              if ('grouped' in entry) {
+                // Keep group objects as-is for clarity
+                return entry;
+              } else {
+                // Simplify individual entries
+                return {
+                  method: entry.method,
+                  url: entry.url,
+                  type: entry.type,
+                  status: entry.status,
+                  duration: entry.duration,
+                  resourceType: entry.resourceType
+                };
+              }
+            }),
             summary: {
-              total_entries: filteredEntries.length,
+              total_entries: groupedEntries.length,
               requests: filteredEntries.filter(e => e.type === 'request').length,
               responses: filteredEntries.filter(e => e.type === 'response').length
             }

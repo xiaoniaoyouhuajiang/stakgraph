@@ -33,8 +33,21 @@ export interface NetworkEntry {
   size?: number;
 }
 
+export interface NetworkGroup {
+  grouped: true;
+  pattern: string;
+  method: string;
+  count: number;
+  successful: number;
+  failed: number;
+  avg_duration?: number;
+  sample_urls: string[];
+  resourceType: string;
+}
+
 const MAX_LOGS = parseInt(process.env.STAGEHAND_MAX_CONSOLE_LOGS || "1000");
 const MAX_NETWORK_ENTRIES = parseInt(process.env.STAGEHAND_MAX_NETWORK_ENTRIES || "500");
+const NETWORK_GROUPING_THRESHOLD = parseInt(process.env.STAGEHAND_NETWORK_GROUPING_THRESHOLD || "5");
 const MAX_SESSIONS = 25; // LRU limit for stagehand instances
 
 export async function getOrCreateStagehand(sessionIdMaybe?: string) {
@@ -212,6 +225,75 @@ async function evictOldestSession(): Promise<void> {
       Object.keys(STATE).length
     }/${MAX_SESSIONS}`
   );
+}
+
+/**
+ * Converts URLs with dynamic IDs to patterns for grouping similar requests.
+ * Example: "/person/abc123" becomes "/person/*", "/api/users/456" becomes "/api/users/*"
+ * Used by analytics platforms to group URLs that follow the same template.
+ */
+export function extractUrlPattern(url: string): string {
+  return url.replace(/\/[a-f0-9]{20,}/g, '/*').replace(/\/\d+/g, '/*');
+}
+
+export function groupNetworkEntries(entries: NetworkEntry[]): (NetworkEntry | NetworkGroup)[] {
+  // Group entries by method + URL pattern + resource type
+  const groups = new Map<string, NetworkEntry[]>();
+  
+  for (const entry of entries) {
+    const pattern = extractUrlPattern(entry.url);
+    const groupKey = `${entry.method}_${pattern}_${entry.resourceType}`;
+    
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, []);
+    }
+    groups.get(groupKey)!.push(entry);
+  }
+  
+  const result: (NetworkEntry | NetworkGroup)[] = [];
+  
+  for (const [groupKey, groupEntries] of groups) {
+    if (groupEntries.length <= NETWORK_GROUPING_THRESHOLD) {
+      // Add individual entries
+      result.push(...groupEntries);
+    } else {
+      // Create group summary
+      const pattern = extractUrlPattern(groupEntries[0].url);
+      const method = groupEntries[0].method;
+      const resourceType = groupEntries[0].resourceType;
+      
+      const responses = groupEntries.filter(e => e.type === 'response');
+      const successful = responses.filter(e => e.status && e.status >= 200 && e.status < 400).length;
+      const failed = responses.filter(e => e.status && (e.status < 200 || e.status >= 400)).length;
+      
+      const durationsWithValues = responses
+        .map(e => e.duration)
+        .filter((d): d is number => d !== undefined && d > 0);
+      const avg_duration = durationsWithValues.length > 0 
+        ? Math.round(durationsWithValues.reduce((sum, d) => sum + d, 0) / durationsWithValues.length)
+        : undefined;
+      
+      // Sample URLs (first 3 unique URLs)
+      const uniqueUrls = [...new Set(groupEntries.map(e => e.url))];
+      const sample_urls = uniqueUrls.slice(0, 3);
+      
+      const group: NetworkGroup = {
+        grouped: true,
+        pattern,
+        method,
+        count: groupEntries.length,
+        successful,
+        failed,
+        avg_duration,
+        sample_urls,
+        resourceType
+      };
+      
+      result.push(group);
+    }
+  }
+  
+  return result;
 }
 
 export function sanitize(bodyText: string) {

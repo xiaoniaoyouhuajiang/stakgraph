@@ -1,21 +1,22 @@
 import { call } from '../src/tools/stagehand/tools.js';
 
-async function testNetworkActivity() {
-  console.log('Testing Network Activity Tool...');
+async function testNetworkActivityGrouping() {
+  console.log('Testing Network Activity Tool with Grouping...');
   
-  const sessionId = 'test-network-session';
+  const sessionId = 'test-grouping-session';
   
   try {
-    // Test 1: Navigate to a simple page
-    console.log('1. Navigating to httpbin.org...');
-    const navResult = await call('stagehand_navigate', { url: 'https://httpbin.org/get' }, sessionId);
+    // Test with Sphinx leaderboard (lots of repetitive requests)
+    console.log('1. Navigating to Sphinx leaderboard (should generate many duplicate requests)...');
+    const navResult = await call('stagehand_navigate', { url: 'https://community.sphinx.chat/leaderboard' }, sessionId);
     console.log('Navigation result:', navResult.isError ? 'ERROR' : 'SUCCESS');
     
-    // Wait for network activity
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for all network activity to complete
+    console.log('Waiting for network activity to complete...');
+    await new Promise(resolve => setTimeout(resolve, 8000));
     
-    // Test 2: Get network activity (simple mode)
-    console.log('2. Getting network activity (simple mode)...');
+    // Test 2: Get network activity (simple mode with grouping)
+    console.log('2. Getting network activity (simple mode with grouping)...');
     const networkResult = await call('stagehand_network_activity', {}, sessionId);
     
     if (networkResult.isError) {
@@ -24,31 +25,54 @@ async function testNetworkActivity() {
     }
     
     const networkData = JSON.parse(networkResult.content[0].text);
-    console.log('Network entries found:', networkData.entries.length);
+    console.log('\n=== GROUPING RESULTS ===');
+    console.log('Total entries found:', networkData.entries.length);
     console.log('Summary:', networkData.summary);
     
-    // Test 3: Get network activity (verbose mode)
-    console.log('3. Getting network activity (verbose mode)...');
+    // Count grouped vs individual entries
+    const groupedEntries = networkData.entries.filter(entry => entry.grouped);
+    const individualEntries = networkData.entries.filter(entry => !entry.grouped);
+    
+    console.log('\n=== BREAKDOWN ===');
+    console.log('Grouped patterns:', groupedEntries.length);
+    console.log('Individual entries:', individualEntries.length);
+    
+    // Show grouped entries
+    if (groupedEntries.length > 0) {
+      console.log('\n=== GROUPED PATTERNS ===');
+      groupedEntries.forEach(group => {
+        console.log(`${group.pattern}: ${group.count} requests (${group.successful} successful, ${group.failed} failed)`);
+        console.log(`  Sample URLs: ${group.sample_urls.slice(0, 2).join(', ')}...`);
+      });
+    }
+    
+    // Show individual entries
+    if (individualEntries.length > 0) {
+      console.log('\n=== INDIVIDUAL ENTRIES ===');
+      individualEntries.slice(0, 5).forEach(entry => {
+        console.log(`${entry.method} ${entry.url} (${entry.type})`);
+      });
+      if (individualEntries.length > 5) {
+        console.log(`... and ${individualEntries.length - 5} more individual entries`);
+      }
+    }
+    
+    // Test 3: Get network activity (verbose mode - should show all details)
+    console.log('\n3. Testing verbose mode...');
     const verboseResult = await call('stagehand_network_activity', { verbose: true }, sessionId);
     
     if (!verboseResult.isError) {
       const verboseData = JSON.parse(verboseResult.content[0].text);
-      console.log('Verbose entries found:', verboseData.length);
-      if (verboseData.length > 0) {
-        console.log('First entry:', verboseData[0]);
-      }
+      console.log('Verbose mode entries found:', verboseData.length);
+      
+      // Count how many are grouped vs individual in verbose mode
+      const verboseGrouped = verboseData.filter(entry => entry.grouped);
+      const verboseIndividual = verboseData.filter(entry => !entry.grouped);
+      console.log('Verbose grouped:', verboseGrouped.length);
+      console.log('Verbose individual:', verboseIndividual.length);
     }
     
-    // Test 4: Filter by document type
-    console.log('4. Filtering by document type...');
-    const docResult = await call('stagehand_network_activity', { filter: 'document' }, sessionId);
-    
-    if (!docResult.isError) {
-      const docData = JSON.parse(docResult.content[0].text);
-      console.log('Document entries found:', docData.entries.length);
-    }
-    
-    console.log('✅ Network Activity Tool test completed successfully!');
+    console.log('\n✅ Network Activity Grouping test completed successfully!');
     
   } catch (error) {
     console.error('❌ Test failed:', error);
@@ -56,4 +80,4 @@ async function testNetworkActivity() {
 }
 
 // Run the test
-testNetworkActivity().catch(console.error);
+testNetworkActivityGrouping().catch(console.error);
