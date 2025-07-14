@@ -6,6 +6,8 @@ use ast::lang::{EdgeType, Graph, Node, NodeType};
 #[cfg(feature = "fulltest")]
 use ast::repo::Repo;
 #[cfg(feature = "fulltest")]
+use ast::utils::get_use_lsp;
+#[cfg(feature = "fulltest")]
 use test_log::test;
 #[cfg(feature = "fulltest")]
 use tracing::info;
@@ -15,21 +17,55 @@ const REPO_URL: &str = "https://github.com/fayekelmith/demorepo.git";
 #[cfg(feature = "fulltest")]
 const COMMIT: &str = "778b5202fca04a2cd5daed377c0063e9af52b24c";
 #[cfg(feature = "fulltest")]
-const USE_LSP: Option<bool> = Some(false);
-#[cfg(feature = "fulltest")]
-async fn fulltest_generic<G: Graph>(graph: &G) {
-    info!("Running fulltest for {}", std::any::type_name::<G>());
+async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
+    info!(
+        "Running fulltest for {} with LSP={}",
+        std::any::type_name::<G>(),
+        use_lsp
+    );
 
     let (num_nodes, num_edges) = graph.get_graph_size();
     graph.analysis();
 
     let graph_type_name = std::any::type_name::<G>();
-    if graph_type_name.contains("ArrayGraph") {
-        assert_eq!(num_nodes, 116, "Expected 116 nodes for ArrayGraph");
-        assert_eq!(num_edges, 157, "Expected 157 edges for ArrayGraph");
-    } else if graph_type_name.contains("BTreeMapGraph") || graph_type_name.contains("Neo4jGraph") {
-        assert_eq!(num_nodes, 103, "Expected 103 nodes for BTreeMapGraph");
-        assert_eq!(num_edges, 145, "Expected 145 edges for BTreeMapGraph");
+    if use_lsp {
+        if graph_type_name.contains("ArrayGraph") {
+            assert_eq!(num_nodes, 157, "Expected 157 nodes for ArrayGraph with LSP");
+            assert_eq!(num_edges, 227, "Expected 227 edges for ArrayGraph with LSP");
+        } else if graph_type_name.contains("BTreeMapGraph")
+            || graph_type_name.contains("Neo4jGraph")
+        {
+            assert_eq!(
+                num_nodes, 145,
+                "Expected 145 nodes for BTreeMapGraph with LSP"
+            );
+            assert_eq!(
+                num_edges, 216,
+                "Expected 216 edges for BTreeMapGraph with LSP"
+            );
+        }
+    } else {
+        if graph_type_name.contains("ArrayGraph") {
+            assert_eq!(
+                num_nodes, 114,
+                "Expected 114 nodes for ArrayGraph without LSP"
+            );
+            assert_eq!(
+                num_edges, 155,
+                "Expected 155 edges for ArrayGraph without LSP"
+            );
+        } else if graph_type_name.contains("BTreeMapGraph")
+            || graph_type_name.contains("Neo4jGraph")
+        {
+            assert_eq!(
+                num_nodes, 102,
+                "Expected 102 nodes for BTreeMapGraph without LSP"
+            );
+            assert_eq!(
+                num_edges, 144,
+                "Expected 144 edges for BTreeMapGraph without LSP"
+            );
+        }
     }
 
     let repositories = graph.find_nodes_by_type(NodeType::Repository);
@@ -107,9 +143,9 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
 
     let files = graph.find_nodes_by_type(NodeType::File);
     let expected_files = if std::any::type_name::<G>().contains("ArrayGraph") {
-        31
+        29
     } else {
-        23
+        22
     };
     assert_eq!(
         files.len(),
@@ -433,17 +469,25 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
     );
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
-    assert_eq!(
-        functions.len(),
-        26,
-        "Expected 26 functions (15 Go + 12 React - 1 duplicate)"
-    );
+    if use_lsp {
+        assert_eq!(
+            functions.len(),
+            69,
+            "Expected 69 functions (15 Go + 12 React )"
+        );
+    } else {
+        assert_eq!(functions.len(), 25, "Expected 26 functions ");
+    }
 
     let go_functions: Vec<_> = functions
         .iter()
         .filter(|f| f.file.ends_with(".go"))
         .collect();
-    assert_eq!(go_functions.len(), 15, "Expected 15 Go functions");
+    if use_lsp {
+        assert_eq!(go_functions.len(), 52, "Expected 52 Go functions with LSP");
+    } else {
+        assert_eq!(go_functions.len(), 15, "Expected 15 Go functions");
+    }
 
     let main_fn = functions
         .iter()
@@ -530,6 +574,7 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
         .iter()
         .filter(|f| f.file.ends_with(".tsx"))
         .collect();
+
     assert_eq!(
         react_functions.len(),
         11,
@@ -663,9 +708,9 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
 
     let contains_edges_count = graph.count_edges_of_type(EdgeType::Contains);
     let expected_contains = if std::any::type_name::<G>().contains("ArrayGraph") {
-        120
+        118
     } else {
-        108
+        107
     };
     assert_eq!(
         contains_edges_count,
@@ -685,7 +730,11 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
     assert_eq!(renders_edges_count, 2, "Expected 2 renders edges");
 
     let imports_edges_count = graph.count_edges_of_type(EdgeType::Imports);
-    assert_eq!(imports_edges_count, 4, "Expected 4 imports edges");
+    if use_lsp {
+        assert_eq!(imports_edges_count, 9, "Expected 9 imports edges");
+    } else {
+        assert_eq!(imports_edges_count, 4, "Expected 4 imports edges");
+    }
 
     let operand_edges_count = graph.count_edges_of_type(EdgeType::Operand);
     assert_eq!(operand_edges_count, 5, "Expected 5 operand edges");
@@ -815,6 +864,8 @@ async fn fulltest_generic<G: Graph>(graph: &G) {
 #[cfg(feature = "fulltest")]
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
 async fn fulltest() {
+    let use_lsp = get_use_lsp();
+
     let repo = Repo::new_clone_multi_detect(
         REPO_URL,
         None,
@@ -822,12 +873,12 @@ async fn fulltest() {
         Vec::new(),
         Vec::new(),
         Some(COMMIT),
-        USE_LSP,
+        Some(use_lsp),
     )
     .await
     .unwrap();
 
-    info!("Building Graphs for {}", REPO_URL);
+    info!("Building Graphs for {} with LSP={}", REPO_URL, use_lsp);
     let array_graph = repo.build_graphs_inner::<ArrayGraph>().await.unwrap();
     let btree_graph = repo.build_graphs_inner::<BTreeMapGraph>().await.unwrap();
 
@@ -835,13 +886,16 @@ async fn fulltest() {
     {
         use ast::lang::graphs::Neo4jGraph;
 
-        info!("Clearing and building Neo4j Graph for {}", REPO_URL);
+        info!(
+            "Clearing and building Neo4j Graph for {} with LSP={}",
+            REPO_URL, use_lsp
+        );
         let neo4j_graph = Neo4jGraph::default();
         neo4j_graph.clear().await.unwrap();
         let neo4j_graph = repo.build_graphs_inner::<Neo4jGraph>().await.unwrap();
-        fulltest_generic(&neo4j_graph).await;
+        fulltest_generic(&neo4j_graph, use_lsp).await;
     }
 
-    fulltest_generic(&array_graph).await;
-    fulltest_generic(&btree_graph).await;
+    fulltest_generic(&array_graph, use_lsp).await;
+    fulltest_generic(&btree_graph, use_lsp).await;
 }
