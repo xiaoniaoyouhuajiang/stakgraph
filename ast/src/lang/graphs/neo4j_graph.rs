@@ -172,7 +172,7 @@ impl Neo4jGraph {
 
     pub async fn remove_nodes_by_file(&self, file_path: &str) -> Result<u32> {
         let connection = self.ensure_connected().await?;
-        let (query_str, params) = remove_nodes_by_file_query(file_path);
+        let (query_str, params) = remove_nodes_by_file_query(file_path, &self.root);
         let mut query_obj = query(&query_str);
         for (k, v) in params.value.iter() {
             query_obj = query_obj.param(k.value.as_str(), v.clone());
