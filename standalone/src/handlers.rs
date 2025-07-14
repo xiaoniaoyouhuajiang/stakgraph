@@ -3,15 +3,14 @@ use crate::types::{
 };
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
-use ast::lang::{self, Graph};
+use ast::lang::Graph;
 use ast::repo::{clone_repo, Repo};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::{extract::State, Json};
 use broadcast::error::RecvError;
 use futures::stream;
-use lsp::client::strip_tmp;
-use lsp::git::get_commit_hash;
+use lsp::{git::get_commit_hash, strip_tmp};
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
@@ -230,8 +229,8 @@ pub async fn ingest(
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
-    let root = repos.0[0].root;
-    let stripped_root = strip_tmp(&root.into()).display().to_string();
+    let root = repos.0[0].root.display().to_string();
+    let stripped_root = strip_tmp(std::path::Path::new(&root)).display().to_string();
 
     info!("Clearing old data...");
     graph_ops.clear_existing_graph(&stripped_root).await?;
