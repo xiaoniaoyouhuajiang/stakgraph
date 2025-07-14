@@ -229,9 +229,6 @@ pub async fn ingest(
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
-    info!("Clearing old data...");
-    graph_ops.graph.clear().await?;
-
     let start_upload = Instant::now();
 
     info!("Uploading to Neo4j...");
