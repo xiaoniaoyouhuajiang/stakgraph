@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../types.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize, getConsoleLogs } from "./core.js";
+import { getOrCreateStagehand, sanitize, getConsoleLogs, getNetworkEntries } from "./core.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -68,6 +68,11 @@ export const LogsSchema = z.object({
   verbose: z.boolean().optional().default(false),
 });
 
+export const NetworkActivitySchema = z.object({
+  filter: z.enum(['all', 'xhr', 'document', 'image', 'stylesheet', 'script']).optional().default('all'),
+  verbose: z.boolean().optional().default(false),
+});
+
 // Tools
 export const NavigateTool: Tool = {
   name: "stagehand_navigate",
@@ -117,6 +122,13 @@ export const LogsTool: Tool = {
   inputSchema: parseSchema(LogsSchema),
 };
 
+export const NetworkActivityTool: Tool = {
+  name: "stagehand_network_activity",
+  description:
+    "Monitor network requests and responses during browser automation. Captures HTTP traffic with timing and metadata including method, URL, status, duration, and resource type.",
+  inputSchema: parseSchema(NetworkActivitySchema),
+};
+
 export const TOOLS: Tool[] = [
   NavigateTool,
   ActTool,
@@ -125,6 +137,7 @@ export const TOOLS: Tool[] = [
   ScreenshotTool,
   AgentTool,
   LogsTool,
+  NetworkActivityTool,
 ];
 
 type TextResult = {
@@ -247,6 +260,41 @@ export async function call(
             log_str += `${log.text}\n`;
           }
           return success(log_str);
+        }
+      }
+
+      case NetworkActivityTool.name: {
+        const parsedArgs = NetworkActivitySchema.parse(args);
+        const networkEntries = getNetworkEntries(sessionId || "default-session-id");
+        
+        // Apply filtering
+        let filteredEntries = networkEntries;
+        if (parsedArgs.filter !== 'all') {
+          filteredEntries = networkEntries.filter(entry => 
+            entry.resourceType === parsedArgs.filter
+          );
+        }
+        
+        if (parsedArgs.verbose) {
+          return success(JSON.stringify(filteredEntries, null, 2));
+        } else {
+          // Simple mode: group by URL and show key info
+          const summary = {
+            entries: filteredEntries.map(entry => ({
+              method: entry.method,
+              url: entry.url,
+              type: entry.type,
+              status: entry.status,
+              duration: entry.duration,
+              resourceType: entry.resourceType
+            })),
+            summary: {
+              total_entries: filteredEntries.length,
+              requests: filteredEntries.filter(e => e.type === 'request').length,
+              responses: filteredEntries.filter(e => e.type === 'response').length
+            }
+          };
+          return success(JSON.stringify(summary, null, 2));
         }
       }
 

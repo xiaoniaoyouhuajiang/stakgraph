@@ -23,16 +23,16 @@ async function runAgent() {
     const tools = await client.tools();
     console.log("MCP tools available:", Object.keys(tools));
 
-    // const result = await tools.stagehand_navigate.execute(
-    //   {
-    //     url: "https://community.sphinx.chat/leaderboard",
-    //   },
-    //   {
-    //     toolCallId: "1",
-    //     messages: [],
-    //   }
-    // );
-    // console.log(result);
+    const result = await tools.stagehand_navigate.execute(
+      {
+        url: "https://community.sphinx.chat/leaderboard",
+      },
+      {
+        toolCallId: "1",
+        messages: [],
+      }
+    );
+    console.log(result);
 
     const result2 = await tools.stagehand_observe.execute(
       {
