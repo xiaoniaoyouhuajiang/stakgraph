@@ -2,7 +2,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
-import { Request, Response } from "express";
+import express, { Request, Response, Express } from "express";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -320,4 +320,30 @@ export async function deleteTestByName(
       timestamp: new Date().toISOString(),
     });
   }
+}
+
+export function test_routes(app: Express) {
+  app.get("/test", runPlaywrightTests);
+  app.get("/test/list", listTests);
+  app.get("/test/get", getTestByName);
+  app.get("/test/delete", deleteTestByName);
+  app.get("/test/save", saveTest);
+
+  app.get("/tests", (req, res) => {
+    res.sendFile(path.join(__dirname, "../../tests/tests.html"));
+  });
+  const static_files = ["app.js", "style.css", "hooks.js"];
+  serveStaticFiles(app, static_files);
+}
+
+function serveStaticFiles(
+  app: Express,
+  files: string[],
+  basePath: string = "../../tests"
+) {
+  files.forEach((file) => {
+    app.get(`/tests/${file}`, (req, res) => {
+      res.sendFile(path.join(__dirname, basePath, file));
+    });
+  });
 }
