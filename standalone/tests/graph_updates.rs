@@ -21,10 +21,10 @@ async fn test_graph_update() {
     use lsp::git::get_changed_files_between;
     use tracing::info;
 
-    let repo_url = "https://github.com/fayekelmith/demo-repo";
+    let repo_url = "https://github.com/fayekelmith/graph-update";
     let repo_path = Repo::get_path_from_url(repo_url).unwrap();
-    let before_commit = "ebb64dd615de5c6c83f4fceb170773f28c06cbea";
-    let after_commit = "311dfd5e10d5003737dba60a70370515350e8a18";
+    let before_commit = "f31f8371936097c20a4384dbf8620ae7776198c4";
+    let after_commit = "f427783e90338f55fb21eec582dd0bb0735991d8";
     let use_lsp = Some(false);
 
     let mut graph_ops = GraphOps::new();
