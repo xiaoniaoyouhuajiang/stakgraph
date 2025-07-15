@@ -27,10 +27,17 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
     let (num_nodes, num_edges) = graph.get_graph_size();
     graph.analysis();
 
-    // Node and edge counters
     let mut nodes_count = 0;
     let mut edges_count = 0;
     let graph_type_name = std::any::type_name::<G>();
+
+    /*****
+     *
+     ** NODES TESTS **
+     *
+     *****/
+
+    /* REPOSITORY */
 
     let repositories = graph.find_nodes_by_type(NodeType::Repository);
     nodes_count += repositories.len();
@@ -40,6 +47,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         repo_node.name, "fayekelmith/demorepo",
         "Repository name is incorrect"
     );
+
+    /* LANGUAGE TESTS */
 
     let languages = graph.find_nodes_by_type(NodeType::Language);
     nodes_count += languages.len();
@@ -56,6 +65,10 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         .find(|l| l.name == "react")
         .expect("React language node not found");
     assert_eq!(react_lang.name, "react", "React language name is incorrect");
+
+    /* FILE SYSTEM TESTS */
+
+    /* DIRECTORY */
 
     let directories = graph.find_nodes_by_type(NodeType::Directory);
     nodes_count += directories.len();
@@ -108,6 +121,9 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "Components directory path is incorrect"
     );
 
+    /* FILES */
+
+    /* GO FILES */
     let files = graph.find_nodes_by_type(NodeType::File);
     nodes_count += files.len();
     let expected_files = if graph_type_name.contains("ArrayGraph") {
@@ -168,6 +184,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "delta.go path is incorrect"
     );
 
+    /* REACT FILES */
+
     let tsx_files: Vec<_> = files.iter().filter(|f| f.name.ends_with(".tsx")).collect();
     assert_eq!(tsx_files.len(), 5, "Expected 5 TSX files");
 
@@ -216,6 +234,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "index.tsx path is incorrect"
     );
 
+    /* PACKAGE FILES */
+
     let go_mod = files
         .iter()
         .find(|f| f.name == "go.mod")
@@ -231,6 +251,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "package.json path is incorrect"
     );
 
+    /* LIBRARIES */
+
     let libraries = graph.find_nodes_by_type(NodeType::Library);
     nodes_count += libraries.len();
     assert_eq!(
@@ -238,6 +260,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         23,
         "Expected 23 libraries (5 Go + 18 React)"
     );
+
+    /* GO LIBRARIES */
 
     let go_libraries: Vec<_> = libraries
         .iter()
@@ -262,6 +286,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         chi_lib.file.contains("go.mod"),
         "Chi library should be in go.mod"
     );
+
+    /* REACT LIBRARIES */
 
     let react_libraries: Vec<_> = libraries
         .iter()
@@ -296,9 +322,13 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "TypeScript library should be in package.json"
     );
 
+    /* IMPORTS */
+
     let imports = graph.find_nodes_by_type(NodeType::Import);
     nodes_count += imports.len();
     assert_eq!(imports.len(), 10, "Expected 10 import sections");
+
+    /* GO IMPORTS */
 
     let go_imports: Vec<_> = imports.iter().filter(|i| i.file.ends_with(".go")).collect();
     assert_eq!(go_imports.len(), 5, "Expected 5 Go import sections");
@@ -325,6 +355,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "routes.go should import chi"
     );
 
+    /* REACT IMPORTS */
+
     let react_imports: Vec<_> = imports
         .iter()
         .filter(|i| i.file.ends_with(".tsx"))
@@ -344,6 +376,7 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "App.tsx should import react-router-dom"
     );
 
+    /* VARIABLES */
     let variables = graph.find_nodes_by_type(NodeType::Var);
     nodes_count += variables.len();
     assert_eq!(variables.len(), 2, "Expected 2 variables");
@@ -370,6 +403,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "host variable should be in api.ts"
     );
 
+    /* CLASSES */
+
     let classes = graph.find_nodes_by_type(NodeType::Class);
     nodes_count += classes.len();
     assert_eq!(classes.len(), 1, "Expected 1 class");
@@ -384,6 +419,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "Database class should be in db.go"
     );
 
+    /* INSTANCES */
+
     let instances = graph.find_nodes_by_type(NodeType::Instance);
     nodes_count += instances.len();
     assert_eq!(instances.len(), 1, "Expected 1 instance");
@@ -394,6 +431,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         db_instance.file.contains("db.go"),
         "DB instance should be in db.go"
     );
+
+    /* DATA MODELS */
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     nodes_count += data_models.len();
@@ -442,6 +481,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "React Person should have email field"
     );
 
+    /* FUNCTIONS */
+
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
     if use_lsp {
@@ -453,6 +494,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
     } else {
         assert_eq!(functions.len(), 26, "Expected 26 functions ");
     }
+
+    /* GO FUNCTIONS */
 
     let go_functions: Vec<_> = functions
         .iter()
@@ -545,6 +588,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "Delta should be in delta.go"
     );
 
+    /* REACT FUNCTIONS */
+
     let react_functions: Vec<_> = functions
         .iter()
         .filter(|f| f.file.ends_with(".tsx"))
@@ -601,6 +646,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "Expected at least 6 styled components"
     );
 
+    /* ENDPOINTS */
+
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
     nodes_count += endpoints.len();
     assert_eq!(endpoints.len(), 3, "Expected 3 endpoints");
@@ -632,6 +679,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "GET /people endpoint should be in routes.go"
     );
 
+    /* REQUESTS */
+
     let requests = graph.find_nodes_by_type(NodeType::Request);
     nodes_count += requests.len();
     assert_eq!(requests.len(), 2, "Expected 2 requests");
@@ -662,6 +711,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "GET request should be in People.tsx"
     );
 
+    /* PAGES */
+
     let pages = graph.find_nodes_by_type(NodeType::Page);
     nodes_count += pages.len();
     assert_eq!(pages.len(), 2, "Expected 2 pages");
@@ -684,6 +735,12 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "New person page should be in App.tsx"
     );
 
+    /*****
+     *
+     ** EDGES TESTS **
+     *
+     *****/
+
     let contains_edges_count = graph.count_edges_of_type(EdgeType::Contains);
     edges_count += contains_edges_count;
 
@@ -704,7 +761,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
 
     let of_edges_count = graph.count_edges_of_type(EdgeType::Of);
     edges_count += of_edges_count;
-    // At the end, compare counted nodes and edges to graph size
+
+    /* ACCOUNT FOR ALL NODES AND EDGES */
     assert_eq!(
         num_nodes as usize, nodes_count,
         "Graph node count should match sum of all tested nodes"
@@ -713,6 +771,14 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         num_edges as usize, edges_count,
         "Graph edge count should match sum of all tested edges"
     );
+
+    /*****
+     *
+     ** SPECIFIC TESTING **
+     *
+     *****/
+
+    /* FUNCTION CALLS */
 
     let main_fn_node = Node::new(NodeType::Function, main_fn.clone());
     let init_db_fn_node = Node::new(NodeType::Function, init_db_fn.clone());
@@ -726,6 +792,19 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         graph.has_edge(&main_fn_node, &new_router_fn_node, EdgeType::Calls),
         "main should call NewRouter"
     );
+
+    let alpha_fn_node = Node::new(NodeType::Function, alpha_fn.clone());
+    let delta_fn_node = Node::new(NodeType::Function, delta_fn.clone());
+    assert!(
+        graph.has_edge(&alpha_fn_node, &delta_fn_node, EdgeType::Calls),
+        "Alpha should call Delta"
+    );
+    assert!(
+        graph.has_edge(&delta_fn_node, &alpha_fn_node, EdgeType::Calls),
+        "Delta should call Alpha"
+    );
+
+    /* HANDLER EDGES TESTS */
 
     let get_person_endpoint_node = Node::new(NodeType::Endpoint, get_person_endpoint.clone());
     let get_person_fn_node = Node::new(NodeType::Function, get_person_fn.clone());
@@ -760,16 +839,7 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "GET /people should be handled by GetPeople"
     );
 
-    let alpha_fn_node = Node::new(NodeType::Function, alpha_fn.clone());
-    let delta_fn_node = Node::new(NodeType::Function, delta_fn.clone());
-    assert!(
-        graph.has_edge(&alpha_fn_node, &delta_fn_node, EdgeType::Calls),
-        "Alpha should call Delta"
-    );
-    assert!(
-        graph.has_edge(&delta_fn_node, &alpha_fn_node, EdgeType::Calls),
-        "Delta should call Alpha"
-    );
+    /* PAGE RENDERING TESTS */
 
     let home_page_node = Node::new(NodeType::Page, home_page.clone());
     let people_component_node = Node::new(NodeType::Function, (*people_component).clone());
@@ -788,6 +858,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         ),
         "New person page should render NewPerson component"
     );
+
+    /* REQUEST - [CALLS] -> ENDPOINT TESTS for link_api_nodes */
 
     let post_request_node = Node::new(NodeType::Request, post_request.clone());
     assert!(
@@ -809,6 +881,8 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         "GET request should call GET /people endpoint"
     );
 
+    /* INSTANCE - OF -> CLASS */
+
     let database_class_node = Node::new(NodeType::Class, database_class.clone());
     let db_instance_node = Node::new(NodeType::Instance, db_instance.clone());
     assert!(
@@ -829,11 +903,6 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         ),
         "App component should call NewPerson component"
     );
-
-    let (actual_nodes, actual_edges) = graph.get_graph_size();
-
-    assert_eq!(actual_nodes, num_nodes, "Node count mismatch");
-    assert_eq!(actual_edges, num_edges, "Edge count mismatch");
 }
 
 #[cfg(feature = "fulltest")]
