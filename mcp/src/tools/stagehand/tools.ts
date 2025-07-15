@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../types.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize, getConsoleLogs, getNetworkEntries, groupNetworkEntries } from "./core.js";
+import { getOrCreateStagehand, sanitize, getConsoleLogs, getNetworkEntries } from "./core.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -69,7 +69,8 @@ export const LogsSchema = z.object({
 });
 
 export const NetworkActivitySchema = z.object({
-  filter: z.enum(['all', 'xhr', 'document', 'image', 'stylesheet', 'script']).optional().default('all'),
+  filter: z.enum(['all', 'xhr', 'fetch']).optional().default('all'),
+  status_filter: z.enum(['all', 'success', 'failed']).optional().default('all'),
   verbose: z.boolean().optional().default(false),
 });
 
@@ -125,7 +126,7 @@ export const LogsTool: Tool = {
 export const NetworkActivityTool: Tool = {
   name: "stagehand_network_activity",
   description:
-    "Monitor network requests and responses during browser automation. Captures HTTP traffic with timing and metadata including method, URL, status, duration, and resource type.",
+    "Monitor API calls during browser automation. Captures meaningful network activity with timing and metadata, filtering out resource noise. Supports filtering by request type (XHR and fetch requests) and HTTP status (success/failed).",
   inputSchema: parseSchema(NetworkActivitySchema),
 };
 
@@ -267,45 +268,63 @@ export async function call(
         const parsedArgs = NetworkActivitySchema.parse(args);
         const networkEntries = getNetworkEntries(sessionId || "default-session-id");
         
-        // Apply filtering
+        // Apply resource type filtering - default to showing only xhr and fetch (API calls)
         let filteredEntries = networkEntries;
-        if (parsedArgs.filter !== 'all') {
+        if (parsedArgs.filter === 'all') {
+          // Show both xhr and fetch requests (API calls only)
+          filteredEntries = networkEntries.filter(entry => 
+            entry.resourceType === 'xhr' || entry.resourceType === 'fetch'
+          );
+        } else {
+          // Show specific type
           filteredEntries = networkEntries.filter(entry => 
             entry.resourceType === parsedArgs.filter
           );
         }
         
-        // Apply grouping to reduce duplicate noise
-        const groupedEntries = groupNetworkEntries(filteredEntries);
+        // Apply status filtering
+        if (parsedArgs.status_filter === 'success') {
+          filteredEntries = filteredEntries.filter(entry => 
+            entry.status && entry.status >= 200 && entry.status < 400
+          );
+        } else if (parsedArgs.status_filter === 'failed') {
+          filteredEntries = filteredEntries.filter(entry => 
+            entry.status && entry.status >= 400
+          );
+        }
+        // 'all' status_filter requires no additional filtering
         
         if (parsedArgs.verbose) {
-          return success(JSON.stringify(groupedEntries, null, 2));
+          return success(JSON.stringify(filteredEntries, null, 2));
         } else {
-          // Simple mode: clean entries with summary
-          const summary = {
-            entries: groupedEntries.map(entry => {
-              if ('grouped' in entry) {
-                // Keep group objects as-is for clarity
-                return entry;
-              } else {
-                // Simplify individual entries
-                return {
-                  method: entry.method,
-                  url: entry.url,
-                  type: entry.type,
-                  status: entry.status,
-                  duration: entry.duration,
-                  resourceType: entry.resourceType
-                };
-              }
-            }),
+          // Generate comprehensive summary with all API data regardless of filters
+          const allEntries = getNetworkEntries(sessionId || "default-session-id");
+          const allApiEntries = allEntries.filter(entry => 
+            entry.resourceType === 'xhr' || entry.resourceType === 'fetch'
+          );
+          
+          // Simple mode: comprehensive summary first, then filtered entries
+          const response = {
             summary: {
-              total_entries: groupedEntries.length,
-              requests: filteredEntries.filter(e => e.type === 'request').length,
-              responses: filteredEntries.filter(e => e.type === 'response').length
-            }
+              total_entries: allApiEntries.length,
+              requests: allApiEntries.filter(e => e.type === 'request').length,
+              responses: allApiEntries.filter(e => e.type === 'response').length,
+              successful: allApiEntries.filter(e => e.status && e.status >= 200 && e.status < 400).length,
+              failed: allApiEntries.filter(e => e.status && e.status >= 400).length,
+              xhr_requests: allApiEntries.filter(e => e.resourceType === 'xhr').length,
+              fetch_requests: allApiEntries.filter(e => e.resourceType === 'fetch').length,
+              filtered_count: filteredEntries.length
+            },
+            entries: filteredEntries.map(entry => ({
+              method: entry.method,
+              url: entry.url,
+              type: entry.type,
+              status: entry.status,
+              duration: entry.duration,
+              resourceType: entry.resourceType
+            }))
           };
-          return success(JSON.stringify(summary, null, 2));
+          return success(JSON.stringify(response, null, 2));
         }
       }
 
