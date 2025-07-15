@@ -1,6 +1,16 @@
 #[cfg(feature = "neo4j")]
 use ast::lang::graphs::graph_ops::GraphOps;
 
+use ast::lang::linker::{normalize_backend_path, normalize_frontend_path};
+
+fn standardized_request_name(name: &str) -> String {
+    normalize_frontend_path(name).unwrap_or_else(|| name.to_string())
+}
+
+fn standardized_endpoint_name(name: &str) -> String {
+    normalize_backend_path(name).unwrap_or_else(|| name.to_string())
+}
+
 #[cfg(feature = "neo4j")]
 async fn assert_edge_exists(graph: &mut GraphOps, src: &str, tgt: &str) -> bool {
     use ast::lang::{graphs::EdgeType, Graph, NodeType};
@@ -11,6 +21,24 @@ async fn assert_edge_exists(graph: &mut GraphOps, src: &str, tgt: &str) -> bool 
         EdgeType::Calls,
     );
     pairs.iter().any(|(s, t)| s.name == src && t.name == tgt)
+}
+
+#[cfg(feature = "neo4j")]
+async fn assert_request_calls_endpoint(
+    graph: &mut GraphOps,
+    request_name: &str,
+    endpoint_name: &str,
+) -> bool {
+    use ast::lang::{graphs::EdgeType, Graph, NodeType};
+    let pairs = graph.graph.find_nodes_with_edge_type(
+        NodeType::Request,
+        NodeType::Endpoint,
+        EdgeType::Calls,
+    );
+    pairs.iter().any(|(req, ep)| {
+        standardized_request_name(&req.name) == request_name
+            && standardized_endpoint_name(&ep.name) == endpoint_name
+    })
 }
 
 #[cfg(feature = "neo4j")]
@@ -55,6 +83,27 @@ async fn test_graph_update() {
     assert!(assert_node_exists(&mut graph_ops, "AlphaHelper").await);
     assert!(assert_node_exists(&mut graph_ops, "Gamma").await);
     assert!(!assert_node_exists(&mut graph_ops, "Delta").await);
+
+    // REQUEST - CALLS -> ENDPOINT
+    assert!(
+        assert_request_calls_endpoint(
+            &mut graph_ops,
+            &standardized_request_name("${api.host}/people"),
+            &standardized_endpoint_name("/people")
+        )
+        .await
+    );
+
+    assert!(
+        assert_request_calls_endpoint(
+            &mut graph_ops,
+            &standardized_request_name("${api.host}/person"),
+            &standardized_endpoint_name("/person")
+        )
+        .await
+    );
+    // This one should NOT exist before update
+    assert!(!assert_request_calls_endpoint(&mut graph_ops, "/updateAlpha", "/updateAlpha").await);
 
     let changed_files = get_changed_files_between(&repo_path, before_commit, after_commit)
         .await
@@ -107,6 +156,28 @@ async fn test_graph_update() {
     // Stable elements
     assert!(assert_node_exists(&mut graph_ops, "main").await);
     assert!(assert_node_exists(&mut graph_ops, "ExistingUtil").await);
+
+    // REQUEST - CALLS -> ENDPOINT
+    assert!(assert_request_calls_endpoint(&mut graph_ops, "/updateAlpha", "/updateAlpha").await);
+    assert!(assert_request_calls_endpoint(&mut graph_ops, "/fetchAlpha", "/fetchAlpha").await);
+    // Stable requests
+    assert!(
+        assert_request_calls_endpoint(
+            &mut graph_ops,
+            &standardized_request_name("${api.host}/people"),
+            &standardized_endpoint_name("/people")
+        )
+        .await
+    );
+
+    assert!(
+        assert_request_calls_endpoint(
+            &mut graph_ops,
+            &standardized_request_name("${api.host}/person"),
+            &standardized_endpoint_name("/person")
+        )
+        .await
+    );
 }
 
 #[cfg(feature = "neo4j")]
