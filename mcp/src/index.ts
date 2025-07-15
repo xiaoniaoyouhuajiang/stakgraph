@@ -11,6 +11,7 @@ import { App as SageApp } from "./sage/src/app.js";
 import dotenv from "dotenv";
 import { cacheMiddleware, cacheInfo, clearCache } from "./graph/cache.js";
 import { evalRoutes } from "./eval/route.js";
+import { runPlaywrightTests } from "./eval/test.js";
 
 dotenv.config();
 
@@ -63,6 +64,8 @@ app.get("/embed_code", uploads.embed_code);
 app.get("/update_token_counts", uploads.update_token_counts);
 app.get("/rules_files", r.get_rules_files);
 app.get("/services", r.get_services);
+
+app.get("/test", runPlaywrightTests);
 
 app.get("/_cache/info", cacheInfo);
 app.post("/_cache/clear", (req: Request, res: Response): void => {
