@@ -47,6 +47,10 @@ async fn fulltest_generic<G: Graph>(graph: &G, use_lsp: bool) {
         repo_node.name, "fayekelmith/demorepo",
         "Repository name is incorrect"
     );
+    assert_eq!(
+        repo_node.file, "fayekelmith/demorepo",
+        "Repository file is incorrect"
+    );
 
     /* LANGUAGE TESTS */
 
