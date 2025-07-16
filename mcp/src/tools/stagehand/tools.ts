@@ -69,7 +69,7 @@ export const LogsSchema = z.object({
 });
 
 export const NetworkActivitySchema = z.object({
-  filter: z.enum(['all', 'xhr', 'fetch']).optional().default('all'),
+  resource_type_filter: z.enum(['all', 'xhr', 'fetch']).optional().default('all'),
   status_filter: z.enum(['all', 'success', 'failed']).optional().default('all'),
   verbose: z.boolean().optional().default(false),
 });
@@ -267,42 +267,42 @@ export async function call(
       case NetworkActivityTool.name: {
         const parsedArgs = NetworkActivitySchema.parse(args);
         const networkEntries = getNetworkEntries(sessionId || "default-session-id");
-        
+
         // Apply resource type filtering - default to showing only xhr and fetch (API calls)
         let filteredEntries = networkEntries;
-        if (parsedArgs.filter === 'all') {
+        if (parsedArgs.resource_type_filter === 'all') {
           // Show both xhr and fetch requests (API calls only)
-          filteredEntries = networkEntries.filter(entry => 
+          filteredEntries = networkEntries.filter(entry =>
             entry.resourceType === 'xhr' || entry.resourceType === 'fetch'
           );
         } else {
           // Show specific type
-          filteredEntries = networkEntries.filter(entry => 
-            entry.resourceType === parsedArgs.filter
+          filteredEntries = networkEntries.filter(entry =>
+            entry.resourceType === parsedArgs.resource_type_filter
           );
         }
-        
+
         // Apply status filtering
         if (parsedArgs.status_filter === 'success') {
-          filteredEntries = filteredEntries.filter(entry => 
+          filteredEntries = filteredEntries.filter(entry =>
             entry.status && entry.status >= 200 && entry.status < 400
           );
         } else if (parsedArgs.status_filter === 'failed') {
-          filteredEntries = filteredEntries.filter(entry => 
+          filteredEntries = filteredEntries.filter(entry =>
             entry.status && entry.status >= 400
           );
         }
         // 'all' status_filter requires no additional filtering
-        
+
         if (parsedArgs.verbose) {
           return success(JSON.stringify(filteredEntries, null, 2));
         } else {
           // Generate comprehensive summary with all API data regardless of filters
           const allEntries = getNetworkEntries(sessionId || "default-session-id");
-          const allApiEntries = allEntries.filter(entry => 
+          const allApiEntries = allEntries.filter(entry =>
             entry.resourceType === 'xhr' || entry.resourceType === 'fetch'
           );
-          
+
           // Simple mode: comprehensive summary first, then filtered entries
           const response = {
             summary: {
