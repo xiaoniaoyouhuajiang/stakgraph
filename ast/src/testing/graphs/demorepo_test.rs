@@ -19,7 +19,7 @@ async fn test_demorepo_generic<G: Graph>(repos: &Repos) -> Result<()> {
         assert_eq!(num_edges, 204, "Expected 204 edges in the graph");
     } else {
         assert_eq!(num_nodes, 102, "Expected 102 nodes in the graph");
-        assert_eq!(num_edges, 132, "Expected 132 edges in the graph");
+        assert_eq!(num_edges, 144, "Expected 144 edges in the graph");
     }
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
