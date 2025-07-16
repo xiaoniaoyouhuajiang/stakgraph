@@ -177,6 +177,7 @@ export function getNetworkEntries(sessionId: string): NetworkEntry[] {
   return [...(STATE[sessionId]?.networkEntries || [])];
 }
 
+// TODO: decide if this is needed, as network entries are captured fresh in each session
 export function clearNetworkEntries(sessionId: string): void {
   if (STATE[sessionId]) {
     STATE[sessionId].networkEntries = [];
