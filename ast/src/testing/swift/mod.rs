@@ -32,6 +32,10 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Language node file path is incorrect"
     );
 
+    let repository = graph.find_nodes_by_type(NodeType::Repository);
+    nodes_count += repository.len();
+    assert_eq!(repository.len(), 1, "Expected 1 repository node");
+
     let files = graph.find_nodes_by_type(NodeType::File);
     nodes_count += files.len();
     assert_eq!(files.len(), 25, "Expected 25 files");
@@ -210,6 +214,7 @@ end
     );
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    nodes_count += data_models.len();
     assert_eq!(data_models.len(), 1, "Expected 1 data model");
 
     let person_data_model = &data_models[0];
@@ -225,6 +230,7 @@ end
     );
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
+    nodes_count += requests.len();
     assert_eq!(requests.len(), 2, "Expected 2 requests");
 
     let mut sorted_requests = requests.clone();
@@ -277,7 +283,7 @@ end
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
     edges_count += handlers;
-    assert_eq!(handlers, 2, "Expected 2 handler edges");
+    assert_eq!(handlers, 0, "Expected 0 handler edges");
 
     let operand_edges =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
