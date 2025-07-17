@@ -20,3 +20,4 @@ base64 = "0.21"
 
 [features]
 neo4j = ["ast/neo4j"]
+fulltest = ["ast/fulltest"]
