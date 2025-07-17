@@ -489,6 +489,14 @@ import NewPerson from "./components/NewPerson";"#
         contains_edges_count
     );
 
+    let calls = graph.count_edges_of_type(EdgeType::Calls);
+    edges_count += calls;
+    assert_eq!(calls, 12, "Expected 12 calls edges");
+
+    let imports = graph.count_edges_of_type(EdgeType::Imports);
+    edges_count += imports;
+    assert_eq!(imports, 5, "Expected 5 imports edges");
+
     let file_nodes = graph.find_nodes_by_type(NodeType::File);
     nodes_count += file_nodes.len();
     let tsx_files = file_nodes
@@ -512,7 +520,7 @@ import NewPerson from "./components/NewPerson";"#
     assert_eq!(directories.len(), 3, "Expected 3 directories");
 
     let uses = graph.count_edges_of_type(EdgeType::Uses);
-    nodes_count += uses;
+    edges_count += uses;
 
     if use_lsp {
         assert_eq!(uses, 14, "Expected 14 uses edges");
