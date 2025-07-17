@@ -29,34 +29,14 @@ impl Stack for Python {
         Ok(parser.parse(code, None).context("failed to parse")?)
     }
 
-    //suggested by Claude
-
     fn lib_query(&self) -> Option<String> {
         Some(format!(
             r#"[
-            (import_statement
-                name: (dotted_name) @{LIBRARY_NAME}
-            )
-            (import_statement
-                name: (aliased_import
-                    name: (dotted_name) @{LIBRARY_NAME}
-                )
-            )
-            (import_from_statement
-                module_name: (dotted_name) @{LIBRARY_NAME}
-            )
-        ] @{LIBRARY}
-        "#
+            (word) @{LIBRARY_NAME}
+                ] @{LIBRARY}
+             "#
         ))
     }
-    //     fn lib_query(&self) -> Option<String> {
-    //         Some(format!(
-    //             "(variable_assignment
-    // 	name: (variable_name) @{LIBRARY_NAME}
-    //     value: (word) @{LIBRARY_VERSION}
-    // ) @{LIBRARY}"
-    //         ))
-    //     }
 
     fn imports_query(&self) -> Option<String> {
         Some(format!(

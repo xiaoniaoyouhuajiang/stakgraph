@@ -53,7 +53,7 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(calls, 12, "Expected 12 call edges");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
-    assert_eq!(contains, 91, "Expected 91 contains edges");
+    assert_eq!(contains, 95, "Expected 95 contains edges");
     edges_count += contains;
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
@@ -61,17 +61,41 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     //FIXME: this ough t o be 6 hadndlers
     assert_eq!(handlers, 4, "Expected 4 handler edges");
 
+    let uses = graph.count_edges_of_type(EdgeType::Uses);
+    edges_count += uses;
+    assert_eq!(uses, 0, "Expected 0 uses edges");
+
+    let of_edges = graph.count_edges_of_type(EdgeType::Of);
+    edges_count += of_edges;
+    assert_eq!(of_edges, 0, "Expected 0 of edges");
+
+    let parent_of = graph.count_edges_of_type(EdgeType::ParentOf);
+    edges_count += parent_of;
+    assert_eq!(parent_of, 0, "Expected 0 parent_of edges");
+
+    let renders = graph.count_edges_of_type(EdgeType::Renders);
+    edges_count += renders;
+    assert_eq!(renders, 0, "Expected 0 renders edges");
+
+    let argof = graph.count_edges_of_type(EdgeType::ArgOf);
+    edges_count += argof;
+    assert_eq!(argof, 0, "Expected 0 argof edges");
+
+    let operand = graph.count_edges_of_type(EdgeType::Operand);
+    edges_count += operand;
+    assert_eq!(operand, 2, "Expected 2 operand edges");
+
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
     assert_eq!(functions.len(), 16, "Expected 16 functions");
 
     let librabries = graph.find_nodes_by_type(NodeType::Library);
     nodes_count += librabries.len();
-    assert_eq!(librabries.len(), 0, "Expected 0 libraries");
+    assert_eq!(librabries.len(), 4, "Expected 4 libraries");
 
     let instances = graph.find_nodes_by_type(NodeType::Instance);
     nodes_count += instances.len();
-    assert_eq!(instances.len(), 1, "Expected 1 instance");
+    assert_eq!(instances.len(), 0, "Expected 0 instance");
 
     let main_import_body = format!(
         r#"import os
