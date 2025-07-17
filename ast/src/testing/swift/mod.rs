@@ -17,11 +17,11 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     graph.analysis();
 
-    let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 91, "Expected 91 nodes");
-    assert_eq!(num_edges, 113, "Expected 113 edges");
+    let mut nodes_count = 0;
+    let mut edges_count = 0;
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    nodes_count += language_nodes.len();
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
     assert_eq!(
         language_nodes[0].name, "swift",
@@ -33,6 +33,7 @@ pub async fn test_swift_generic<G: Graph>() -> Result<(), anyhow::Error> {
     );
 
     let files = graph.find_nodes_by_type(NodeType::File);
+    nodes_count += files.len();
     assert_eq!(files.len(), 25, "Expected 25 files");
 
     let pkg_files = graph.find_nodes_by_name(NodeType::File, "Podfile");
@@ -64,6 +65,7 @@ end
     assert_eq!(info_plist.len(), 1, "Expected 1 Info.plist");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
+    nodes_count += imports.len();
     assert_eq!(imports.len(), 7, "Expected 7 imports");
 
     let ui_kit_import = imports
@@ -94,6 +96,7 @@ end
     );
 
     let classes = graph.find_nodes_by_type(NodeType::Class);
+    nodes_count += classes.len();
     assert_eq!(classes.len(), 7, "Expected 7 classes");
 
     let mut sorted_classes = classes.clone();
@@ -150,6 +153,7 @@ end
     );
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
+    nodes_count += functions.len();
     assert_eq!(functions.len(), 26, "Expected 26 functions");
 
     let mut sorted_functions = functions.clone();
@@ -232,9 +236,11 @@ end
     );
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
+    nodes_count += variables.len();
     assert_eq!(variables.len(), 2, "Expected 2 variables");
 
     let directories = graph.find_nodes_by_type(NodeType::Directory);
+    nodes_count += directories.len();
     assert_eq!(directories.len(), 19, "Expected 19 directories");
 
     let sphinx_test_app_dir = directories
@@ -258,13 +264,20 @@ end
     );
 
     let calls = graph.count_edges_of_type(EdgeType::Calls);
+    edges_count += calls;
     assert_eq!(calls, 2, "Expected 2 call edges");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
+    edges_count += contains;
     assert_eq!(contains, 89, "Expected 89 contains edges");
 
     let operands = graph.count_edges_of_type(EdgeType::Operand);
+    edges_count += operands;
     assert_eq!(operands, 22, "Expected 22 operand edges");
+
+    let handlers = graph.count_edges_of_type(EdgeType::Handler);
+    edges_count += handlers;
+    assert_eq!(handlers, 2, "Expected 2 handler edges");
 
     let operand_edges =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
@@ -313,6 +326,10 @@ end
         get_people_call,
         "Expected getPeopleList -> Calls -> people request edge"
     );
+
+    let (nodes, edges) = graph.get_graph_size();
+    assert_eq!(nodes as usize, nodes_count, "Node count mismatch");
+    assert_eq!(edges as usize, edges_count, "Edge count mismatch");
 
     Ok(())
 }
