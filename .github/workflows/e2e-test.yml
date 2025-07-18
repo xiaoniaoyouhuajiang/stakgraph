@@ -87,20 +87,13 @@ jobs:
         working-directory: ./mcp
         run: |
           export TEST_REF_ID=1 
-          yarn run dev > server.log 2>&1 &
-          echo $! > server.pid
-          echo "Server started with PID: $(cat server.pid)"
+          yarn run dev > server.log 2>&1 & #capture logs
 
       - name: Wait for the server
         working-directory: ./mcp
         run: |
-          echo "Waiting for server..."
-          npx wait-on http://localhost:3000 -t 120000 || {
-            echo "Server failed to start. Last 50 lines of logs:"
-            tail -50 server.log
-            exit 1
-          }
-          echo "Server is ready!"
+          tail -n +1 -f server.log &
+          npx wait-on http://localhost:3000 -t 120000
 
       - name: Upload data
         run: |
@@ -145,16 +138,7 @@ jobs:
             shift @snippets if $snippets[0] !~ /<snippet>/;
             print join("", sort @snippets);
           ' > ./testing/actual-fulltext-search.txt
-
-          if [ ! -s ./testing/actual-fulltext-search.txt ]; then
-            echo "Output file is empty! Last 30 lines of server logs:"
-            tail -30 server.log
-            exit 1
-          fi
-
-          echo "File contents:"
-          cat ./testing/actual-fulltext-search.txt
-          "
+          echo "$(<./testing/actual-fulltext-search.txt)"
 
       - name: Compare Fulltext Search Response with Expected Output
         working-directory: ./mcp
@@ -195,15 +179,3 @@ jobs:
             echo "Nodetypes Response does NOT match expected output ❌"
             exit 1
           fi
-
-      - name: Cleanup and Show Final Logs
-        if: always()
-        working-directory: ./mcp
-        run: |
-          if [ -f server.pid ]; then
-            echo "Stopping server..."
-            kill $(cat server.pid) 2>/dev/null || true
-          fi
-
-          echo "=== FINAL SERVER LOGS (last 100 lines) ==="
-          tail -100 server.log 2>/dev/null || echo "No server logs found"
