@@ -2,8 +2,11 @@
 # filepath: /Users/fayekelmith/Kelmith/Projects/stakgraph/standalone/tests/local_e2e.sh
 
 REPO_URL="https://github.com/fayekelmith/demo-repo.git"
-EXPECTED_MAP="./standalone/tests/map.html"
-ACTUAL_MAP="./standalone/tests/actual-map-response.html"
+EXPECTED_MAP="./standalone/tests/maps/actual-map-response.html"
+ACTUAL_MAP="./standalone/tests/maps/map-response.html"
+
+# Cleanup database first
+rm -rf ./mcp/.neo4j
 
 #  Start Neo4j 
 docker compose -f ./mcp/neo4j.yaml up -d
@@ -75,13 +78,21 @@ done
 curl "http://localhost:3000/map?name=App&node_type=Function" -o "$ACTUAL_MAP"
 
 
-# 7. Compare output
-# SORTED_ACTUAL="/tmp/sorted_actual.html"
-# SORTED_EXPECTED="/tmp/sorted_expected.html"
-# sed '1d;$d' "$ACTUAL_MAP" | sed 's/^[[:space:]]*[├└│┬─][├└│┬─[:space:]]*//' | sort > "$SORTED_ACTUAL"
-# sed '1d;$d' "$EXPECTED_MAP" | sed 's/^[[:space:]]*[├└│┬─][├└│┬─[:space:]]*//' | sort > "$SORTED_EXPECTED"
+# Remove <pre> tags and sort the content before comparing
+grep -v '^<pre>' "$ACTUAL_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/sorted_actual.html
+grep -v '^<pre>' "$EXPECTED_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/sorted_expected.html
 
-# if diff --color=always -u "$SORTED_EXPECTED" "$SORTED_ACTUAL"; then
+if diff --color=always -u /tmp/sorted_expected.html /tmp/sorted_actual.html; then
+  echo "✅ Output matches expected (order-insensitive)"
+else
+  echo "❌ Output does not match expected"
+  kill $RUST_PID $NODE_PID
+  exit 1
+fi
+
+
+# 7. Compare output
+# if diff --color=always -u "$EXPECTED_MAP" "$ACTUAL_MAP"; then
 #   echo "✅ Output matches expected"
 # else
 #   echo "❌ Output does not match expected"
