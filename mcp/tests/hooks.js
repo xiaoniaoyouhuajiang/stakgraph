@@ -239,11 +239,15 @@ export function useTestGenerator(url) {
         assertions: assertions.current,
       };
 
-      processTrackingData(modifiedTrackingData);
+      let processedData = modifiedTrackingData;
+      if (window.StakTrakUtils && window.StakTrakUtils.processTrackingData) {
+        processedData =
+          window.StakTrakUtils.processTrackingData(modifiedTrackingData);
+      }
 
       const testCode = window.PlaywrightGenerator.generatePlaywrightTest(
         url,
-        modifiedTrackingData
+        processedData
       );
 
       setGeneratedTest(testCode);
@@ -272,72 +276,6 @@ export function useTestGenerator(url) {
         reject(err);
       };
     });
-  };
-
-  const processTrackingData = (trackingData) => {
-    if (trackingData.clicks && trackingData.clicks.clickDetails) {
-      const MAX_MULTICLICK_INTERVAL = 300;
-
-      let filteredClicks = trackingData.clicks.clickDetails.filter(
-        (clickDetail) => {
-          const clickSelector = clickDetail[2];
-          const clickTime = clickDetail[3];
-
-          return !trackingData.assertions.some((assertion) => {
-            const assertionTime = assertion.timestamp;
-            const assertionSelector = assertion.selector;
-
-            const isCloseInTime = Math.abs(clickTime - assertionTime) < 1000;
-            const isSameElement =
-              clickSelector.includes(assertionSelector) ||
-              assertionSelector.includes(clickSelector) ||
-              (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
-                assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
-                clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
-                  assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
-
-            return isCloseInTime && isSameElement;
-          });
-        }
-      );
-
-      const clicksBySelector = {};
-      filteredClicks.forEach((clickDetail) => {
-        const selector = clickDetail[2];
-        const timestamp = clickDetail[3];
-
-        if (!clicksBySelector[selector]) {
-          clicksBySelector[selector] = [];
-        }
-        clicksBySelector[selector].push({
-          detail: clickDetail,
-          timestamp,
-        });
-      });
-
-      const finalFilteredClicks = [];
-      Object.values(clicksBySelector).forEach((clicks) => {
-        clicks.sort((a, b) => a.timestamp - b.timestamp);
-
-        const resultClicks = [];
-        let lastClick = null;
-
-        clicks.forEach((click) => {
-          if (
-            !lastClick ||
-            click.timestamp - lastClick.timestamp > MAX_MULTICLICK_INTERVAL
-          ) {
-            resultClicks.push(click);
-          }
-          lastClick = click;
-        });
-
-        resultClicks.forEach((click) => finalFilteredClicks.push(click.detail));
-      });
-
-      finalFilteredClicks.sort((a, b) => a[3] - b[3]);
-      trackingData.clicks.clickDetails = finalFilteredClicks;
-    }
   };
 
   return {
