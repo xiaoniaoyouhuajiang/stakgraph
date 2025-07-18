@@ -110,10 +110,6 @@ impl Graph for ArrayGraph {
         let new_node = Node::new(node_type.clone(), node_data);
         let key = create_node_key(&new_node);
 
-        if node_type == NodeType::Directory {
-            println!("Adding directory node: {}", key);
-        }
-
         if !self.node_keys.contains(&key) {
             self.node_keys.insert(key);
             self.nodes.push(new_node);
