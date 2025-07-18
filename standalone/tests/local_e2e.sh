@@ -5,7 +5,7 @@ REPO_URL="https://github.com/fayekelmith/demo-repo.git"
 EXPECTED_MAP="./standalone/tests/map.html"
 ACTUAL_MAP="./standalone/tests/actual-map-response.html"
 
-# 1. Start Neo4j 
+#  Start Neo4j 
 docker compose -f ./mcp/neo4j.yaml up -d
 
 echo "Waiting for Neo4j to be healthy..."
@@ -15,11 +15,18 @@ until docker inspect --format "{{json .State.Health.Status }}" neo4j.sphinx | gr
 done
 echo "Neo4j is healthy!"
 
-# 2. Start the Rust Server (background)
+# Start the Rust Server (background)
 export USE_LSP=false
 cargo run --bin standalone --features neo4j > standalone.log 2>&1 &
 RUST_PID=$!
-sleep 10
+
+
+# Wait for Rust server to be ready
+echo "Waiting for Rust server on :7799..."
+until curl -s http://localhost:7799/fetch-repos > /dev/null; do
+  sleep 2
+done
+echo "Rust server is ready!"
 
 # 3. Start the Nodejs Server 
 cd mcp
@@ -27,13 +34,42 @@ yarn install
 yarn run dev > server.log 2>&1 &
 NODE_PID=$!
 cd ..
-sleep 10
 
-# 4. INGEST repo data
+
+# Wait for Node server to be ready
+echo "Waiting for Node server on :3000..."
+until curl -s http://localhost:3000 > /dev/null; do
+  sleep 2
+done
+echo "Node server is ready!"
+
+# 4. INGEST repo data asynchronously
 echo "Ingesting data from $REPO_URL"
-curl -X POST -H "Content-Type: application/json" -d "{\"repo_url\": \"$REPO_URL\"}" http://localhost:7799/ingest
+RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"repo_url\": \"$REPO_URL\"}" http://localhost:7799/ingest_async)
+REQUEST_ID=$(echo "$RESPONSE" | grep -o '"request_id":"[^"]*' | grep -o '[^"]*$')
 
-echo "Ingested data from $REPO_URL"
+if [ -z "$REQUEST_ID" ]; then
+  echo "Failed to get request_id from /ingest_async response: $RESPONSE"
+  kill $RUST_PID $NODE_PID
+  exit 1
+fi
+
+echo "Polling status for request_id: $REQUEST_ID"
+while true; do
+  STATUS_JSON=$(curl -s http://localhost:7799/status/$REQUEST_ID)
+  STATUS=$(echo "$STATUS_JSON" | grep -o '"status":"[^"]*' | grep -o '[^"]*$')
+  if [ "$STATUS" = "Complete" ]; then
+    echo "Ingest complete!"
+    break
+  elif [[ "$STATUS" == Failed* ]]; then
+    echo "Ingest failed: $STATUS_JSON"
+    kill $RUST_PID $NODE_PID
+    exit 1
+  else
+    echo "Still processing... ($STATUS)"
+    sleep 3
+  fi
+done
 
 # 5. Query /map endpoint
 curl "http://localhost:3000/map?name=App&node_type=Function" -o "$ACTUAL_MAP"
@@ -53,5 +89,5 @@ curl "http://localhost:3000/map?name=App&node_type=Function" -o "$ACTUAL_MAP"
 #   exit 1
 # fi
 
-# 8. Cleanup
-# kill $RUST_PID $NODE_PID
+#  Cleanup
+kill $RUST_PID $NODE_PID
