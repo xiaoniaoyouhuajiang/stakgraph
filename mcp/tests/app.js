@@ -1,559 +1,83 @@
 // app.js
 import htm from "https://esm.sh/htm";
 import { h, render } from "https://esm.sh/preact";
-import { useState, useEffect, useRef } from "https://esm.sh/preact/hooks";
-import { useMessageListener } from "./hooks.js";
+import { useState } from "https://esm.sh/preact/hooks";
+import {
+  useIframeMessaging,
+  useTestGenerator,
+  useTestFiles,
+  usePopup,
+  useURL,
+} from "./hooks.js";
 
 export const html = htm.bind(h);
 
-let playGenLoaded = false;
-
-function waitForPlaywrightGenerator() {
-  return new Promise((resolve) => {
-    if (window.PlaywrightGenerator) {
-      playGenLoaded = true;
-      resolve(window.PlaywrightGenerator);
-      return;
-    }
-
-    const maxAttempts = 300;
-    let attempts = 0;
-
-    const interval = setInterval(() => {
-      attempts++;
-      if (window.PlaywrightGenerator) {
-        clearInterval(interval);
-        playGenLoaded = true;
-        console.log("PlaywrightGenerator found after waiting");
-        resolve(window.PlaywrightGenerator);
-      } else if (attempts >= maxAttempts) {
-        clearInterval(interval);
-        console.error("PlaywrightGenerator not found after waiting");
-        resolve(null);
-      }
-    }, 100);
-  });
-}
-
 const Staktrak = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isAssertionMode, setIsAssertionMode] = useState(false);
-  const [canGenerate, setCanGenerate] = useState(false);
-  const [url, setUrl] = useState("http://localhost:3001/preact/frame.html");
-  const [trackingData, setTrackingData] = useState(null);
-  const [generatedTest, setGeneratedTest] = useState(null);
-  const [testFiles, setTestFiles] = useState([]);
-  const [testResults, setTestResults] = useState({});
-  const [expandedTests, setExpandedTests] = useState({});
+  const { showPopup } = usePopup();
+  const { url, handleUrlChange, navigateToUrl, iframeRef } = useURL(
+    "http://localhost:3001/preact/frame.html"
+  );
+  const {
+    isRecording,
+    isAssertionMode,
+    canGenerate,
+    trackingData,
+    assertions,
+    selectedText,
+    startRecording,
+    stopRecording,
+    enableAssertionMode,
+    disableAssertionMode,
+  } = useIframeMessaging(iframeRef);
+
+  const { generatedTest, generateTest } = useTestGenerator(url);
+
+  const {
+    testFiles,
+    testResults,
+    expandedTests,
+    loadingTests,
+    runTest,
+    deleteTest,
+    saveTest,
+    toggleTestExpansion,
+  } = useTestFiles();
+
   const [filenameInput, setFilenameInput] = useState("");
-  const [loadingTests, setLoadingTests] = useState({});
-
-  const iframeRef = useRef(null);
-  const assertions = useRef([]);
-  const selectedTextRef = useRef("");
-  const selectedSelectorRef = useRef("");
-  const isWaitingForSelectionRef = useRef(false);
-  const assertionCountRef = useRef(0);
-
-  useEffect(() => {
-    waitForPlaywrightGenerator().then((generator) => {
-      if (generator) {
-        console.log("PlaywrightGenerator is ready to use");
-      }
-    });
-
-    const handleMessage = (event) => {
-      if (event.data && event.data.type) {
-        switch (event.data.type) {
-          case "staktrak-setup":
-            console.log("Staktrak setup message received");
-            break;
-          case "staktrak-results":
-            console.log("Staktrak results received:", event.data.data);
-            setTrackingData(event.data.data);
-            setCanGenerate(true);
-            break;
-          case "staktrak-selection":
-            if (isWaitingForSelectionRef.current) {
-              selectedTextRef.current = event.data.text || "";
-              selectedSelectorRef.current = event.data.selector || "";
-
-              const isCheckbox =
-                selectedSelectorRef.current.includes(
-                  'input[type="checkbox"]'
-                ) || selectedSelectorRef.current.includes("checkbox");
-              const isRadio =
-                selectedSelectorRef.current.includes('input[type="radio"]') ||
-                selectedSelectorRef.current.includes("radio");
-
-              if (selectedTextRef.current && selectedSelectorRef.current) {
-                if (isCheckbox || isRadio) {
-                  const assertionType = confirm(
-                    "Is this a checked state assertion? Click OK for 'isChecked', Cancel for 'isNotChecked'"
-                  )
-                    ? "isChecked"
-                    : "isNotChecked";
-
-                  addAssertion(assertionType);
-                } else {
-                  addAssertion();
-                }
-                assertionCountRef.current++;
-              }
-            }
-            break;
-        }
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    fetchTestFiles();
-
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, []);
-
-  const normalizeTestFile = (file) => {
-    if (file.filename) {
-      return file;
-    }
-
-    if (file.name) {
-      return {
-        filename: file.name,
-        created: file.created || new Date().toISOString(),
-        modified: file.modified || new Date().toISOString(),
-        size: file.size || 0,
-      };
-    }
-
-    return {
-      filename: file.name || file.filename || "unknown.spec.js",
-      created: file.created || new Date().toISOString(),
-      modified: file.modified || new Date().toISOString(),
-      size: file.size || 0,
-    };
-  };
-
-  const fetchTestFiles = async () => {
-    try {
-      const response = await fetch("/test/list");
-      const data = await response.json();
-      if (data.success) {
-        setTestFiles((data.tests || []).map(normalizeTestFile));
-      } else {
-        console.error("Unexpected response format:", data);
-        showPopup(
-          "Failed to load test files: Unexpected response format",
-          "error"
-        );
-      }
-    } catch (error) {
-      console.error("Error fetching test files:", error);
-      showPopup("Failed to load test files", "error");
-    }
-  };
-
-  const runTest = async (testName) => {
-    setLoadingTests((prev) => ({
-      ...prev,
-      [testName]: true,
-    }));
-
-    try {
-      const getResponse = await fetch(
-        `/test/get?name=${encodeURIComponent(testName)}`
-      );
-      const testData = await getResponse.json();
-
-      if (!testData || !testData.success) {
-        throw new Error(testData.error || "Failed to retrieve test content");
-      }
-
-      const runResponse = await fetch(
-        `/test?test=${encodeURIComponent(testName)}`
-      );
-      const runResult = await runResponse.json();
-
-      const testResult = {
-        success: runResult.success,
-        output: runResult.output || "",
-        errors: runResult.errors || "",
-      };
-
-      setTestResults((prevResults) => ({
-        ...prevResults,
-        [testName]: testResult,
-      }));
-
-      setExpandedTests((prev) => ({
-        ...prev,
-        [testName]: true,
-      }));
-
-      showPopup(
-        `Test ${testName} ${testResult.success ? "completed" : "failed"}`,
-        testResult.success ? "success" : "error"
-      );
-    } catch (error) {
-      console.error("Error running test:", error);
-      showPopup("Failed to run test: " + error.message, "error");
-    } finally {
-      setLoadingTests((prev) => ({
-        ...prev,
-        [testName]: false,
-      }));
-    }
-  };
-
-  const deleteTest = async (testName) => {
-    if (!confirm(`Are you sure you want to delete ${testName}?`)) return;
-
-    try {
-      const response = await fetch(
-        `/test/delete?name=${encodeURIComponent(testName)}`
-      );
-      const data = await response.json();
-
-      if (data.success) {
-        showPopup(`Test ${testName} deleted successfully`, "success");
-        fetchTestFiles();
-
-        setTestResults((prevResults) => {
-          const newResults = { ...prevResults };
-          delete newResults[testName];
-          return newResults;
-        });
-      } else {
-        showPopup(`Failed to delete test: ${data.error}`, "error");
-      }
-    } catch (error) {
-      console.error("Error deleting test:", error);
-      showPopup("Failed to delete test: " + error.message, "error");
-    }
-  };
-
-  const toggleTestExpansion = (testName) => {
-    setExpandedTests((prev) => ({
-      ...prev,
-      [testName]: !prev[testName],
-    }));
-  };
-
-  const handleUrlChange = (e) => {
-    setUrl(e.target.value);
-  };
-
-  const navigateToUrl = () => {
-    if (iframeRef.current) {
-      iframeRef.current.src = url;
-    }
-  };
 
   const handleRecord = () => {
     if (!isRecording) {
-      if (iframeRef.current && iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          { type: "staktrak-start" },
-          "*"
-        );
-        setIsRecording(true);
-        setIsAssertionMode(false);
-        setCanGenerate(false);
-        assertions.current = [];
-        assertionCountRef.current = 0;
-        setGeneratedTest(null);
-        showPopup("Recording started", "info");
-      }
+      startRecording();
+      showPopup("Recording started", "info");
     } else {
-      if (iframeRef.current && iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          { type: "staktrak-stop" },
-          "*"
-        );
-        setIsRecording(false);
-
-        if (isWaitingForSelectionRef.current) {
-          isWaitingForSelectionRef.current = false;
-          iframeRef.current.contentWindow.postMessage(
-            { type: "staktrak-disable-selection" },
-            "*"
-          );
-        }
-        setIsAssertionMode(false);
-        showPopup("Recording stopped", "warning");
-      }
+      stopRecording();
+      showPopup("Recording stopped", "warning");
     }
   };
 
   const handleMode = () => {
     if (!isAssertionMode) {
-      isWaitingForSelectionRef.current = true;
-      setIsAssertionMode(true);
+      enableAssertionMode();
       showPopup("Select text in the iframe to add assertions", "info");
-
-      if (iframeRef.current && iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          { type: "staktrak-enable-selection" },
-          "*"
-        );
-      }
     } else {
-      isWaitingForSelectionRef.current = false;
-      setIsAssertionMode(false);
+      disableAssertionMode();
       showPopup("Returned to interaction mode", "info");
-
-      if (iframeRef.current && iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          { type: "staktrak-disable-selection" },
-          "*"
-        );
-      }
     }
-  };
-
-  const addAssertion = (assertionType = null) => {
-    if (!selectedSelectorRef.current) {
-      showPopup("No element selected", "error");
-      return;
-    }
-
-    let type = "isVisible";
-    let value = "";
-
-    if (assertionType) {
-      type = assertionType;
-      value = "";
-    } else if (
-      selectedTextRef.current &&
-      selectedTextRef.current.trim() !== ""
-    ) {
-      type = "hasText";
-      value = selectedTextRef.current;
-    }
-
-    assertions.current.push({
-      type,
-      selector: selectedSelectorRef.current,
-      value,
-      timestamp: Date.now(),
-    });
-
-    showPopup(`Assertion added: ${type} "${value || ""}"`, "success");
-
-    selectedTextRef.current = "";
-    selectedSelectorRef.current = "";
   };
 
   const handleGenerate = async () => {
-    console.log("Generate button clicked");
-    console.log("trackingData:", trackingData);
-
-    if (!window.PlaywrightGenerator) {
-      console.error("PlaywrightGenerator not available");
-      showPopup(
-        "Error: PlaywrightGenerator not available. Try refreshing the page.",
-        "error"
-      );
-
-      try {
-        const script = document.createElement("script");
-        script.type = "module";
-        script.src = "/tests/playwright-generator.js";
-        document.head.appendChild(script);
-
-        await new Promise((resolve) => {
-          script.onload = () => {
-            console.log("PlaywrightGenerator script loaded dynamically");
-            resolve();
-          };
-          script.onerror = (err) => {
-            console.error("Error loading PlaywrightGenerator script:", err);
-            resolve();
-          };
-        });
-      } catch (err) {
-        console.error("Failed to load PlaywrightGenerator:", err);
-      }
-    }
-
-    if (trackingData) {
-      if (isWaitingForSelectionRef.current) {
-        isWaitingForSelectionRef.current = false;
-        if (iframeRef.current && iframeRef.current.contentWindow) {
-          iframeRef.current.contentWindow.postMessage(
-            { type: "staktrak-disable-selection" },
-            "*"
-          );
-        }
-      }
-
-      if (trackingData.clicks && trackingData.clicks.clickDetails) {
-        let filteredClicks = trackingData.clicks.clickDetails.filter(
-          (clickDetail) => {
-            const clickSelector = clickDetail[2];
-            const clickTime = clickDetail[3];
-
-            return !assertions.current.some((assertion) => {
-              const assertionTime = assertion.timestamp;
-              const assertionSelector = assertion.selector;
-
-              const isCloseInTime = Math.abs(clickTime - assertionTime) < 1000;
-
-              const isSameElement =
-                clickSelector.includes(assertionSelector) ||
-                assertionSelector.includes(clickSelector) ||
-                (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
-                  assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
-                  clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
-                    assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
-
-              return isCloseInTime && isSameElement;
-            });
-          }
-        );
-
-        const MAX_MULTICLICK_INTERVAL = 300;
-
-        const clicksBySelector = {};
-        filteredClicks.forEach((clickDetail) => {
-          const selector = clickDetail[2];
-          const timestamp = clickDetail[3];
-
-          if (!clicksBySelector[selector]) {
-            clicksBySelector[selector] = [];
-          }
-          clicksBySelector[selector].push({
-            detail: clickDetail,
-            timestamp,
-          });
-        });
-
-        const finalFilteredClicks = [];
-        Object.values(clicksBySelector).forEach((clicks) => {
-          clicks.sort((a, b) => a.timestamp - b.timestamp);
-
-          const resultClicks = [];
-          let lastClick = null;
-
-          clicks.forEach((click) => {
-            if (
-              !lastClick ||
-              click.timestamp - lastClick.timestamp > MAX_MULTICLICK_INTERVAL
-            ) {
-              resultClicks.push(click);
-            }
-            lastClick = click;
-          });
-
-          resultClicks.forEach((click) =>
-            finalFilteredClicks.push(click.detail)
-          );
-        });
-
-        finalFilteredClicks.sort((a, b) => a[3] - b[3]);
-
-        trackingData.clicks.clickDetails = finalFilteredClicks;
-      }
-
-      const modifiedTrackingData = {
-        ...trackingData,
-        assertions: assertions.current,
-      };
-
-      console.log("Modified tracking data:", modifiedTrackingData);
-      console.log(
-        "window.PlaywrightGenerator available:",
-        !!window.PlaywrightGenerator
-      );
-
-      try {
-        let testCode;
-
-        if (window.PlaywrightGenerator) {
-          console.log("Using window.PlaywrightGenerator");
-          testCode = window.PlaywrightGenerator.generatePlaywrightTest(
-            url,
-            modifiedTrackingData
-          );
-        } else {
-          console.log("Using fallback generator");
-          testCode = generateFallbackTest(url, modifiedTrackingData);
-        }
-
-        console.log(
-          "Generated test code:",
-          testCode ? testCode.substring(0, 100) + "..." : "undefined"
-        );
-
-        if (testCode) {
-          setGeneratedTest(testCode);
-          showPopup("Playwright test generated successfully", "success");
-        } else {
-          throw new Error("Failed to generate test code");
-        }
-      } catch (error) {
-        console.error("Error generating test:", error);
-        showPopup("Error generating test: " + error.message, "error");
-      }
-    } else {
-      console.log("No tracking data available");
+    if (!trackingData) {
       showPopup("No tracking data available", "error");
-    }
-  };
-
-  const generateFallbackTest = (url, trackingData) => {
-    const { userInfo = { windowSize: [1280, 720] } } = trackingData;
-
-    let interactions = "";
-
-    if (trackingData.clicks && trackingData.clicks.clickDetails) {
-      trackingData.clicks.clickDetails.forEach((click) => {
-        interactions += `\n  // Click on ${click[2]}\n  await page.click('${click[2]}');\n`;
-      });
+      return;
     }
 
-    if (trackingData.inputChanges) {
-      trackingData.inputChanges
-        .filter((change) => change.action === "complete" || !change.action)
-        .forEach((change) => {
-          interactions += `\n  // Fill input\n  await page.fill('${change.elementSelector}', '${change.value}');\n`;
-        });
-    }
+    const testCode = await generateTest(trackingData, assertions);
 
-    if (trackingData.assertions) {
-      trackingData.assertions.forEach((assertion) => {
-        if (assertion.type === "hasText") {
-          interactions += `\n  // Assert text\n  await expect(page.locator('${assertion.selector}')).toHaveText('${assertion.value}');\n`;
-        } else if (assertion.type === "isVisible") {
-          interactions += `\n  // Assert visibility\n  await expect(page.locator('${assertion.selector}')).toBeVisible();\n`;
-        } else if (assertion.type === "isChecked") {
-          interactions += `\n  // Assert checked state\n  await expect(page.locator('${assertion.selector}')).toBeChecked();\n`;
-        } else if (assertion.type === "isNotChecked") {
-          interactions += `\n  // Assert not checked state\n  await expect(page.locator('${assertion.selector}')).not.toBeChecked();\n`;
-        }
-      });
+    if (testCode) {
+      showPopup("Playwright test generated successfully", "success");
+    } else {
+      showPopup("Failed to generate test", "error");
     }
-
-    return `import { test, expect } from '@playwright/test';
-  
-test('User interaction replay', async ({ page }) => {
-  // Navigate to the page
-  await page.goto('${url}');
-  
-  // Wait for page to load
-  await page.waitForLoadState('networkidle');
-  
-  // Set viewport size to match recorded session
-  await page.setViewportSize({ 
-    width: ${userInfo.windowSize[0]}, 
-    height: ${userInfo.windowSize[1]} 
-  });
-  ${interactions}
-  await page.waitForTimeout(2500);
-});`;
   };
 
   const copyTestToClipboard = () => {
@@ -564,7 +88,7 @@ test('User interaction replay', async ({ page }) => {
     }
   };
 
-  const saveTestToDisk = async () => {
+  const handleSaveTest = async () => {
     if (!generatedTest) return;
 
     if (!filenameInput.trim()) {
@@ -572,64 +96,31 @@ test('User interaction replay', async ({ page }) => {
       return;
     }
 
-    try {
-      let filename = filenameInput;
-      if (!filename.endsWith(".spec.js")) {
-        filename = filename.endsWith(".js")
-          ? filename.replace(".js", ".spec.js")
-          : `${filename}.spec.js`;
-      }
+    const result = await saveTest(filenameInput, generatedTest);
 
-      const response = await fetch("/test/save", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: filename,
-          text: generatedTest,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        showPopup(`Test saved as ${result.filename}`, "success");
-        setFilenameInput("");
-        fetchTestFiles();
-      } else {
-        showPopup(result.error || "Failed to save test", "error");
-      }
-    } catch (error) {
-      console.error("Error saving test:", error);
-      showPopup("Error saving test: " + error.message, "error");
+    if (result.success) {
+      showPopup(`Test saved as ${result.filename}`, "success");
+      setFilenameInput("");
+    } else {
+      showPopup(result.error || "Failed to save test", "error");
     }
   };
 
-  const showPopup = (message, type = "info") => {
-    const existingPopup = document.querySelector(".popup");
-    if (existingPopup) {
-      existingPopup.remove();
+  const handleDeleteTest = async (testName) => {
+    const success = await deleteTest(testName);
+    if (success) {
+      showPopup(`Test ${testName} deleted successfully`, "success");
+    } else {
+      showPopup(`Failed to delete test: ${testName}`, "error");
     }
+  };
 
-    const popup = document.createElement("div");
-    popup.className = `popup popup-${type}`;
-    popup.textContent = message;
-
-    document.getElementById("popupContainer").appendChild(popup);
-
-    setTimeout(() => {
-      popup.classList.add("show");
-    }, 10);
-
-    setTimeout(() => {
-      popup.classList.remove("show");
-      setTimeout(() => {
-        if (popup.parentNode) {
-          popup.parentNode.removeChild(popup);
-        }
-      }, 300);
-    }, 3000);
+  const handleRunTest = async (testName) => {
+    const result = await runTest(testName);
+    showPopup(
+      `Test ${testName} ${result.success ? "completed" : "failed"}`,
+      result.success ? "success" : "error"
+    );
   };
 
   return html`
@@ -690,6 +181,10 @@ test('User interaction replay', async ({ page }) => {
       </header>
 
       <div class="main-content">
+        ${selectedText &&
+        html`<div class="selected-text" id="app-selection-display">
+          Selected: "${selectedText}"
+        </div>`}
         <div class="iframe-container">
           <iframe ref=${iframeRef} src=${url} id="trackingFrame"></iframe>
         </div>
@@ -711,7 +206,7 @@ test('User interaction replay', async ({ page }) => {
                     value=${filenameInput}
                     onChange=${(e) => setFilenameInput(e.target.value)}
                   />
-                  <button class="save" onClick=${saveTestToDisk}>
+                  <button class="save" onClick=${handleSaveTest}>
                     <span class="btn-icon">💾</span> Save to Disk
                   </button>
                 </div>
@@ -796,7 +291,7 @@ test('User interaction replay', async ({ page }) => {
                     <div class="test-actions">
                       <button
                         class="run-test"
-                        onClick=${() => runTest(file.filename)}
+                        onClick=${() => handleRunTest(file.filename)}
                         disabled=${loadingTests[file.filename]}
                       >
                         <span class="btn-icon">▶️</span> ${loadingTests[
@@ -807,7 +302,7 @@ test('User interaction replay', async ({ page }) => {
                       </button>
                       <button
                         class="delete-test"
-                        onClick=${() => deleteTest(file.filename)}
+                        onClick=${() => handleDeleteTest(file.filename)}
                       >
                         <span class="btn-icon">🗑️</span> Delete
                       </button>

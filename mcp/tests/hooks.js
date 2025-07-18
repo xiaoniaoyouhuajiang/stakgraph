@@ -1,93 +1,430 @@
-import { useState, useEffect } from "https://esm.sh/preact/hooks";
+import { useState, useEffect, useRef } from "https://esm.sh/preact/hooks";
 
-export function useMessageListener() {
-  const [showControls, setShowControls] = useState(false);
+export function useIframeMessaging(iframeRef) {
+  const popupHook = usePopup();
+  const [isRecording, setIsRecording] = useState(false);
+  const [isAssertionMode, setIsAssertionMode] = useState(false);
+  const [canGenerate, setCanGenerate] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
-  const [selectedElement, setSelectedElement] = useState({
-    text: "",
-    selector: "",
-  });
+  const [selectedText, setSelectedText] = useState(null);
+
+  const assertions = useRef([]);
+  const selectedTextRef = useRef("");
+  const selectedSelectorRef = useRef("");
+  const isWaitingForSelectionRef = useRef(false);
+  const assertionCountRef = useRef(0);
+  const { showPopup } = popupHook;
+  const selectedDisplayTimeout = useRef(null);
+
+  const displaySelectedText = (text) => {
+    clearSelectedTextDisplay();
+    setSelectedText(text);
+
+    if (selectedDisplayTimeout.current) {
+      clearTimeout(selectedDisplayTimeout.current);
+    }
+
+    selectedDisplayTimeout.current = setTimeout(() => {
+      clearSelectedTextDisplay();
+    }, 5000);
+  };
+
+  const clearSelectedTextDisplay = () => {
+    const appDisplayEl = document.getElementById("app-selection-display");
+    if (appDisplayEl) {
+      appDisplayEl.classList.add("slide-out");
+      setTimeout(() => {
+        setSelectedText(null);
+      }, 300);
+    } else {
+      setSelectedText(null);
+    }
+
+    if (selectedDisplayTimeout.current) {
+      clearTimeout(selectedDisplayTimeout.current);
+      selectedDisplayTimeout.current = null;
+    }
+  };
 
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data && event.data.type) {
         switch (event.data.type) {
           case "staktrak-setup":
-            setShowControls(true);
+            console.log("Staktrak setup message received");
             break;
           case "staktrak-results":
+            console.log("Staktrak results received");
             setTrackingData(event.data.data);
+            setCanGenerate(true);
             break;
           case "staktrak-selection":
-            setSelectedElement({
-              text: event.data.text || "",
-              selector: event.data.selector || "",
-            });
+            if (isWaitingForSelectionRef.current) {
+              selectedTextRef.current = event.data.text || "";
+              selectedSelectorRef.current = event.data.selector || "";
+
+              displaySelectedText(selectedTextRef.current);
+
+              const isCheckbox =
+                selectedSelectorRef.current.includes(
+                  'input[type="checkbox"]'
+                ) || selectedSelectorRef.current.includes("checkbox");
+              const isRadio =
+                selectedSelectorRef.current.includes('input[type="radio"]') ||
+                selectedSelectorRef.current.includes("radio");
+
+              if (selectedTextRef.current && selectedSelectorRef.current) {
+                if (isCheckbox || isRadio) {
+                  const assertionType = confirm(
+                    "Is this a checked state assertion? Click OK for 'isChecked', Cancel for 'isNotChecked'"
+                  )
+                    ? "isChecked"
+                    : "isNotChecked";
+
+                  addAssertion(assertionType);
+                } else {
+                  addAssertion();
+                }
+                assertionCountRef.current++;
+              }
+            }
             break;
-          default:
+          case "staktrak-popup":
+            if (event.data.message) {
+              showPopup(event.data.message, event.data.type || "info");
+            }
             break;
         }
       }
     };
 
     window.addEventListener("message", handleMessage);
-
-    // Cleanup function to remove event listener
     return () => {
       window.removeEventListener("message", handleMessage);
+      clearSelectedTextDisplay();
     };
   }, []);
 
-  return { showControls, trackingData, selectedElement };
+  const startRecording = () => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: "staktrak-start" },
+        "*"
+      );
+      setIsRecording(true);
+      setIsAssertionMode(false);
+      setCanGenerate(false);
+      assertions.current = [];
+      assertionCountRef.current = 0;
+    }
+  };
+
+  const stopRecording = () => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: "staktrak-stop" },
+        "*"
+      );
+      setIsRecording(false);
+
+      if (isWaitingForSelectionRef.current) {
+        isWaitingForSelectionRef.current = false;
+        iframeRef.current.contentWindow.postMessage(
+          { type: "staktrak-disable-selection" },
+          "*"
+        );
+      }
+      setIsAssertionMode(false);
+      clearSelectedTextDisplay();
+    }
+  };
+
+  const enableAssertionMode = () => {
+    isWaitingForSelectionRef.current = true;
+    setIsAssertionMode(true);
+
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: "staktrak-enable-selection" },
+        "*"
+      );
+    }
+  };
+
+  const disableAssertionMode = () => {
+    isWaitingForSelectionRef.current = false;
+    setIsAssertionMode(false);
+    clearSelectedTextDisplay();
+
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: "staktrak-disable-selection" },
+        "*"
+      );
+    }
+  };
+
+  const addAssertion = (assertionType = null) => {
+    if (!selectedSelectorRef.current) return;
+
+    let type = "isVisible";
+    let value = "";
+
+    if (assertionType) {
+      type = assertionType;
+    } else if (
+      selectedTextRef.current &&
+      selectedTextRef.current.trim() !== ""
+    ) {
+      type = "hasText";
+      value = selectedTextRef.current;
+    }
+
+    assertions.current.push({
+      type,
+      selector: selectedSelectorRef.current,
+      value,
+      timestamp: Date.now(),
+    });
+
+    showPopup(`Assertion added: ${type} "${value || ""}"`, "success");
+
+    selectedTextRef.current = "";
+    selectedSelectorRef.current = "";
+  };
+
+  return {
+    isRecording,
+    isAssertionMode,
+    canGenerate,
+    trackingData,
+    assertions,
+    selectedText,
+    startRecording,
+    stopRecording,
+    enableAssertionMode,
+    disableAssertionMode,
+    isWaitingForSelectionRef,
+  };
+}
+
+export function useTestGenerator(url) {
+  const [generatedTest, setGeneratedTest] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
+
+  const generateTest = async (trackingData, assertions) => {
+    setIsGenerating(true);
+    setError(null);
+
+    if (!window.PlaywrightGenerator) {
+      try {
+        await loadPlaywrightGenerator();
+      } catch (err) {
+        setError("Failed to load test generator");
+        setIsGenerating(false);
+        return null;
+      }
+    }
+
+    try {
+      if (!window.PlaywrightGenerator) {
+        setError("PlaywrightGenerator not available");
+        setIsGenerating(false);
+        return null;
+      }
+
+      const modifiedTrackingData = {
+        ...trackingData,
+        assertions: assertions.current,
+      };
+
+      processTrackingData(modifiedTrackingData);
+
+      const testCode = window.PlaywrightGenerator.generatePlaywrightTest(
+        url,
+        modifiedTrackingData
+      );
+
+      setGeneratedTest(testCode);
+      setIsGenerating(false);
+      return testCode;
+    } catch (err) {
+      setError(err.message || "Error generating test");
+      setIsGenerating(false);
+      return null;
+    }
+  };
+
+  const loadPlaywrightGenerator = async () => {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = "/tests/playwright-generator.js";
+      document.head.appendChild(script);
+
+      script.onload = () => {
+        console.log("PlaywrightGenerator script loaded dynamically");
+        resolve();
+      };
+      script.onerror = (err) => {
+        console.error("Error loading PlaywrightGenerator script:", err);
+        reject(err);
+      };
+    });
+  };
+
+  const processTrackingData = (trackingData) => {
+    if (trackingData.clicks && trackingData.clicks.clickDetails) {
+      const MAX_MULTICLICK_INTERVAL = 300;
+
+      let filteredClicks = trackingData.clicks.clickDetails.filter(
+        (clickDetail) => {
+          const clickSelector = clickDetail[2];
+          const clickTime = clickDetail[3];
+
+          return !trackingData.assertions.some((assertion) => {
+            const assertionTime = assertion.timestamp;
+            const assertionSelector = assertion.selector;
+
+            const isCloseInTime = Math.abs(clickTime - assertionTime) < 1000;
+            const isSameElement =
+              clickSelector.includes(assertionSelector) ||
+              assertionSelector.includes(clickSelector) ||
+              (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
+                assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
+                clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
+                  assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
+
+            return isCloseInTime && isSameElement;
+          });
+        }
+      );
+
+      const clicksBySelector = {};
+      filteredClicks.forEach((clickDetail) => {
+        const selector = clickDetail[2];
+        const timestamp = clickDetail[3];
+
+        if (!clicksBySelector[selector]) {
+          clicksBySelector[selector] = [];
+        }
+        clicksBySelector[selector].push({
+          detail: clickDetail,
+          timestamp,
+        });
+      });
+
+      const finalFilteredClicks = [];
+      Object.values(clicksBySelector).forEach((clicks) => {
+        clicks.sort((a, b) => a.timestamp - b.timestamp);
+
+        const resultClicks = [];
+        let lastClick = null;
+
+        clicks.forEach((click) => {
+          if (
+            !lastClick ||
+            click.timestamp - lastClick.timestamp > MAX_MULTICLICK_INTERVAL
+          ) {
+            resultClicks.push(click);
+          }
+          lastClick = click;
+        });
+
+        resultClicks.forEach((click) => finalFilteredClicks.push(click.detail));
+      });
+
+      finalFilteredClicks.sort((a, b) => a[3] - b[3]);
+      trackingData.clicks.clickDetails = finalFilteredClicks;
+    }
+  };
+
+  return {
+    generatedTest,
+    isGenerating,
+    error,
+    generateTest,
+    setGeneratedTest,
+  };
 }
 
 export function useTestFiles() {
   const [testFiles, setTestFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [testResults, setTestResults] = useState({});
+  const [expandedTests, setExpandedTests] = useState({});
+  const [loadingTests, setLoadingTests] = useState({});
 
   const fetchTestFiles = async () => {
     setIsLoading(true);
-    setError(null);
     try {
       const response = await fetch("/test/list");
       const data = await response.json();
       if (data.success) {
-        setTestFiles(data.tests || []);
+        setTestFiles((data.tests || []).map(normalizeTestFile));
       } else {
-        setError(data.error || "Failed to load test files");
+        console.error("Unexpected response format:", data);
       }
     } catch (error) {
       console.error("Error fetching test files:", error);
-      setError("Failed to load test files");
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchTestFiles();
-  }, []);
+  const normalizeTestFile = (file) => {
+    if (file.filename) {
+      return file;
+    }
 
-  return { testFiles, isLoading, error, refreshTestFiles: fetchTestFiles };
-}
+    if (file.name) {
+      return {
+        filename: file.name,
+        created: file.created || new Date().toISOString(),
+        modified: file.modified || new Date().toISOString(),
+        size: file.size || 0,
+      };
+    }
 
-export function useTestExecution() {
-  const [testResults, setTestResults] = useState({});
-  const [expandedTests, setExpandedTests] = useState({});
-  const [isRunning, setIsRunning] = useState(false);
+    return {
+      filename: file.name || file.filename || "unknown.spec.js",
+      created: file.created || new Date().toISOString(),
+      modified: file.modified || new Date().toISOString(),
+      size: file.size || 0,
+    };
+  };
 
   const runTest = async (testName) => {
-    setIsRunning(true);
+    setLoadingTests((prev) => ({
+      ...prev,
+      [testName]: true,
+    }));
+
     try {
-      const response = await fetch(
+      const getResponse = await fetch(
+        `/test/get?name=${encodeURIComponent(testName)}`
+      );
+      const testData = await getResponse.json();
+
+      if (!testData || !testData.success) {
+        throw new Error(testData.error || "Failed to retrieve test content");
+      }
+
+      const runResponse = await fetch(
         `/test?test=${encodeURIComponent(testName)}`
       );
-      const data = await response.json();
+      const runResult = await runResponse.json();
+
+      const testResult = {
+        success: runResult.success,
+        output: runResult.output || "",
+        errors: runResult.errors || "",
+      };
 
       setTestResults((prevResults) => ({
         ...prevResults,
-        [testName]: data,
+        [testName]: testResult,
       }));
 
       setExpandedTests((prev) => ({
@@ -95,42 +432,105 @@ export function useTestExecution() {
         [testName]: true,
       }));
 
-      return data;
+      return testResult;
     } catch (error) {
       console.error("Error running test:", error);
       return { success: false, error: error.message };
     } finally {
-      setIsRunning(false);
+      setLoadingTests((prev) => ({
+        ...prev,
+        [testName]: false,
+      }));
     }
   };
 
   const deleteTest = async (testName) => {
+    if (!confirm(`Are you sure you want to delete ${testName}?`)) return false;
+
     try {
       const response = await fetch(
         `/test/delete?name=${encodeURIComponent(testName)}`
       );
       const data = await response.json();
-      return data;
+
+      if (data.success) {
+        setTestResults((prevResults) => {
+          const newResults = { ...prevResults };
+          delete newResults[testName];
+          return newResults;
+        });
+
+        await fetchTestFiles();
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error("Error deleting test:", error);
+      return false;
+    }
+  };
+
+  const saveTest = async (filename, testCode) => {
+    if (!testCode) return { success: false, error: "No test code to save" };
+
+    if (!filename.trim()) {
+      return { success: false, error: "Filename is required" };
+    }
+
+    try {
+      let formattedFilename = filename;
+      if (!formattedFilename.endsWith(".spec.js")) {
+        formattedFilename = formattedFilename.endsWith(".js")
+          ? formattedFilename.replace(".js", ".spec.js")
+          : `${formattedFilename}.spec.js`;
+      }
+
+      const response = await fetch("/test/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formattedFilename,
+          text: testCode,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchTestFiles();
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error saving test:", error);
       return { success: false, error: error.message };
     }
   };
 
-  const toggleExpansion = (testName) => {
+  const toggleTestExpansion = (testName) => {
     setExpandedTests((prev) => ({
       ...prev,
       [testName]: !prev[testName],
     }));
   };
 
+  useEffect(() => {
+    fetchTestFiles();
+  }, []);
+
   return {
+    testFiles,
+    isLoading,
     testResults,
     expandedTests,
-    isRunning,
+    loadingTests,
+    fetchTestFiles,
     runTest,
     deleteTest,
-    toggleExpansion,
+    saveTest,
+    toggleTestExpansion,
   };
 }
 
@@ -165,4 +565,21 @@ export function usePopup() {
   };
 
   return { showPopup };
+}
+
+export function useURL(initialURL) {
+  const [url, setUrl] = useState(initialURL);
+  const iframeRef = useRef(null);
+
+  const handleUrlChange = (e) => {
+    setUrl(e.target.value);
+  };
+
+  const navigateToUrl = () => {
+    if (iframeRef.current) {
+      iframeRef.current.src = url;
+    }
+  };
+
+  return { url, setUrl, handleUrlChange, navigateToUrl, iframeRef };
 }

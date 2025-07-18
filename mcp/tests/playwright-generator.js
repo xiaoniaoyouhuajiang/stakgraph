@@ -1,9 +1,104 @@
 /**
+ * @param {Object} trackingData - Raw tracking data from recording
+ * @returns {Object} - Processed tracking data
+ */
+function preprocessTrackingData(trackingData) {
+  if (!trackingData) return null;
+
+  const processedData = { ...trackingData };
+
+  if (processedData.clicks && processedData.clicks.clickDetails) {
+    processedData.clicks.clickDetails = filterClicks(
+      processedData.clicks.clickDetails,
+      processedData.assertions || []
+    );
+  }
+
+  return processedData;
+}
+
+/**
+ * @param {Array} clickDetails - Raw click data
+ * @param {Array} assertions - Assertions data
+ * @returns {Array} - Filtered click data
+ */
+function filterClicks(clickDetails, assertions) {
+  if (!clickDetails || !clickDetails.length) return [];
+
+  const MAX_MULTICLICK_INTERVAL = 300;
+
+  let filteredClicks = clickDetails.filter((clickDetail) => {
+    const clickSelector = clickDetail[2];
+    const clickTime = clickDetail[3];
+
+    return !assertions.some((assertion) => {
+      const assertionTime = assertion.timestamp;
+      const assertionSelector = assertion.selector;
+
+      const isCloseInTime = Math.abs(clickTime - assertionTime) < 1000;
+      const isSameElement =
+        clickSelector.includes(assertionSelector) ||
+        assertionSelector.includes(clickSelector) ||
+        (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
+          assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
+          clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
+            assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
+
+      return isCloseInTime && isSameElement;
+    });
+  });
+
+  const clicksBySelector = {};
+  filteredClicks.forEach((clickDetail) => {
+    const selector = clickDetail[2];
+    const timestamp = clickDetail[3];
+
+    if (!clicksBySelector[selector]) {
+      clicksBySelector[selector] = [];
+    }
+    clicksBySelector[selector].push({
+      detail: clickDetail,
+      timestamp,
+    });
+  });
+
+  const finalFilteredClicks = [];
+  Object.values(clicksBySelector).forEach((clicks) => {
+    clicks.sort((a, b) => a.timestamp - b.timestamp);
+
+    const resultClicks = [];
+    let lastClick = null;
+
+    clicks.forEach((click) => {
+      if (
+        !lastClick ||
+        click.timestamp - lastClick.timestamp > MAX_MULTICLICK_INTERVAL
+      ) {
+        resultClicks.push(click);
+      }
+      lastClick = click;
+    });
+
+    resultClicks.forEach((click) => finalFilteredClicks.push(click.detail));
+  });
+
+  finalFilteredClicks.sort((a, b) => a[3] - b[3]);
+  return finalFilteredClicks;
+}
+
+/**
  * Generates a Playwright test from tracking data
+ * @param {string} url - The URL being tested
  * @param {Object} trackingData - The tracking data object
  * @returns {string} - Generated Playwright test code
  */
-export function generatePlaywrightTest(url, trackingData) {
+function generatePlaywrightTest(url, trackingData) {
+  const processedData = preprocessTrackingData(trackingData);
+
+  if (!processedData) {
+    return generateEmptyTest(url);
+  }
+
   const {
     clicks,
     keyboardActivities,
@@ -13,7 +108,7 @@ export function generatePlaywrightTest(url, trackingData) {
     userInfo,
     time,
     formElementChanges,
-  } = trackingData;
+  } = processedData;
 
   if (
     (!clicks || !clicks.clickDetails || clicks.clickDetails.length === 0) &&
@@ -51,6 +146,25 @@ ${generateUserInteractions(
 });`;
 
   return testCode;
+}
+
+/**
+ * @param {string} url - The URL to test
+ * @returns {string} - Empty test template
+ */
+function generateEmptyTest(url) {
+  return `import { test, expect } from '@playwright/test';
+
+test('Empty test template', async ({ page }) => {
+  // Navigate to the page
+  await page.goto('${url}');
+  
+  // Wait for page to load
+  await page.waitForLoadState('networkidle');
+  
+  // No interactions were recorded
+    console.log('No user interactions to replay');
+});`;
 }
 
 /**
@@ -205,7 +319,7 @@ function generateUserInteractions(
 
   let code = "";
 
-  uniqueEvents.forEach((event, index) => {
+  uniqueEvents.forEach((event) => {
     switch (event.type) {
       case "click":
         const playwrightSelector = convertToPlaywrightSelector(event.selector);
@@ -279,7 +393,7 @@ function generateUserInteractions(
  * @param {string} cssSelector - CSS selector string
  * @returns {string} - Playwright compatible selector
  */
-export function convertToPlaywrightSelector(cssSelector) {
+function convertToPlaywrightSelector(cssSelector) {
   if (!cssSelector) return "";
 
   let playwrightSelector = cssSelector;
@@ -309,35 +423,13 @@ export function convertToPlaywrightSelector(cssSelector) {
   return playwrightSelector;
 }
 
-/**
- * Generate an empty Playwright test template when no interactions are recorded
- * @param {string} url - The URL to test
- * @returns {string} - Empty test template
- */
-function generateEmptyTest(url) {
-  return `import { test, expect } from '@playwright/test';
-
-test('Empty test template', async ({ page }) => {
-  // Navigate to the page
-  await page.goto('${url}');
-  
-  // Wait for page to load
-  await page.waitForLoadState('networkidle');
-  
-  // No interactions were recorded. Add your test steps here.
-  // For example:
-  // await page.click('button');
-  // await page.fill('input', 'text');
-  // await expect(page.locator('.element')).toBeVisible();
-});`;
-}
-
 if (typeof window !== "undefined") {
   window.PlaywrightGenerator = {
     generatePlaywrightTest,
     convertToPlaywrightSelector,
+    preprocessTrackingData,
   };
   console.log("PlaywrightGenerator loaded and attached to window object");
 }
 
-export { generatePlaywrightTest, convertToPlaywrightSelector };
+export { generatePlaywrightTest };

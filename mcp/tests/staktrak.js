@@ -16,10 +16,13 @@ var userBehaviour = (function () {
     audioVideoInteraction: true,
     customEventRegistration: true,
     inputDebounceDelay: 2000,
+    multiClickInterval: 300,
+    filterAssertionClicks: true,
     processData: function (results) {
       console.log(results);
     },
   };
+
   var user_config = {};
   var mem = {
     processInterval: null,
@@ -28,6 +31,7 @@ var userBehaviour = (function () {
     inputDebounceTimers: {},
     selectionMode: false,
     assertionDebounceTimer: null,
+    assertions: [],
     eventListeners: {
       scroll: null,
       click: null,
@@ -236,6 +240,15 @@ var userBehaviour = (function () {
             }
 
             mem.assertionDebounceTimer = setTimeout(() => {
+              const assertion = {
+                type: "hasText",
+                selector: selector,
+                value: text,
+                timestamp: getTimeStamp(),
+              };
+
+              mem.assertions.push(assertion);
+
               window.parent.postMessage(
                 {
                   type: "staktrak-selection",
@@ -247,9 +260,11 @@ var userBehaviour = (function () {
 
               window.parent.postMessage(
                 {
-                  type: "staktrak-show-popup",
-                  text: "Selection captured",
-                  selector: selector,
+                  type: "staktrak-popup",
+                  message: `Assertion added: hasText "${text.slice(0, 30)}${
+                    text.length > 30 ? "..." : ""
+                  }"`,
+                  type: "success",
                 },
                 "*"
               );
@@ -261,6 +276,97 @@ var userBehaviour = (function () {
   };
 
   var results = {};
+
+  function processRecordedResults() {
+    if (
+      results.clicks &&
+      results.clicks.clickDetails &&
+      results.clicks.clickDetails.length > 0
+    ) {
+      const filteredClicks = filterClickDetails(
+        results.clicks.clickDetails,
+        mem.assertions
+      );
+
+      results.clicks.clickDetails = filteredClicks;
+    }
+
+    results.assertions = mem.assertions;
+
+    return results;
+  }
+
+  /**
+   * @param {Array} clickDetails - Raw click data
+   * @param {Array} assertions - User assertions
+   * @returns {Array} - Filtered click data
+   */
+  function filterClickDetails(clickDetails, assertions) {
+    if (!clickDetails || !clickDetails.length) return [];
+
+    let filteredClicks = clickDetails;
+
+    if (user_config.filterAssertionClicks && assertions.length > 0) {
+      filteredClicks = filteredClicks.filter((clickDetail) => {
+        const clickSelector = clickDetail[2];
+        const clickTime = clickDetail[3];
+
+        return !assertions.some((assertion) => {
+          const assertionTime = assertion.timestamp;
+          const assertionSelector = assertion.selector;
+
+          const isCloseInTime = Math.abs(clickTime - assertionTime) < 1000;
+          const isSameElement =
+            clickSelector.includes(assertionSelector) ||
+            assertionSelector.includes(clickSelector) ||
+            (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
+              assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
+              clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
+                assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
+
+          return isCloseInTime && isSameElement;
+        });
+      });
+    }
+
+    const clicksBySelector = {};
+    filteredClicks.forEach((clickDetail) => {
+      const selector = clickDetail[2];
+      const timestamp = clickDetail[3];
+
+      if (!clicksBySelector[selector]) {
+        clicksBySelector[selector] = [];
+      }
+      clicksBySelector[selector].push({
+        detail: clickDetail,
+        timestamp,
+      });
+    });
+
+    const finalFilteredClicks = [];
+    Object.values(clicksBySelector).forEach((clicks) => {
+      clicks.sort((a, b) => a.timestamp - b.timestamp);
+
+      const resultClicks = [];
+      let lastClick = null;
+
+      clicks.forEach((click) => {
+        if (
+          !lastClick ||
+          click.timestamp - lastClick.timestamp > user_config.multiClickInterval
+        ) {
+          resultClicks.push(click);
+        }
+        lastClick = click;
+      });
+
+      resultClicks.forEach((click) => finalFilteredClicks.push(click.detail));
+    });
+
+    finalFilteredClicks.sort((a, b) => a[3] - b[3]);
+
+    return finalFilteredClicks;
+  }
 
   function setupMutationObserver() {
     const observerCallback = (mutationsList) => {
@@ -372,6 +478,8 @@ var userBehaviour = (function () {
   }
 
   function resetResults() {
+    mem.assertions = [];
+
     results = {
       userInfo: user_config.userInfo
         ? {
@@ -396,6 +504,7 @@ var userBehaviour = (function () {
       formElementChanges: [],
       touchEvents: [],
       audioVideoInteractions: [],
+      assertions: [],
     };
 
     if (user_config.timeCount) {
@@ -514,17 +623,36 @@ var userBehaviour = (function () {
     window.addEventListener("message", function (event) {
       if (event.data && event.data.type) {
         switch (event.data.type) {
+          case "staktrak-start":
+            resetResults();
+            break;
+
           case "staktrak-stop":
             userBehaviour.stop();
             break;
+
           case "staktrak-enable-selection":
             setSelectionMode(true);
             break;
+
           case "staktrak-disable-selection":
             setSelectionMode(false);
             break;
-          case "staktrak-show-popup":
-            showPopup(event.data.text, "popup-selection");
+
+          case "staktrak-add-assertion":
+            if (event.data.assertion) {
+              mem.assertions.push({
+                type: event.data.assertion.type || "hasText",
+                selector: event.data.assertion.selector,
+                value: event.data.assertion.value || "",
+                timestamp: getTimeStamp(),
+              });
+
+              showPopup(
+                `Assertion added: ${event.data.assertion.type}`,
+                "popup-success"
+              );
+            }
             break;
         }
       }
@@ -540,15 +668,17 @@ var userBehaviour = (function () {
         (results.time.completedAt - results.time.startedAt) / 1000;
     }
 
+    const processedResults = processRecordedResults();
+
     window.parent.postMessage(
       {
         type: "staktrak-results",
-        data: results,
+        data: processedResults,
       },
       "*"
     );
 
-    user_config.processData(results);
+    user_config.processData(processedResults);
 
     if (user_config.clearAfterProcess) {
       resetResults();
@@ -678,6 +808,14 @@ var userBehaviour = (function () {
     stop,
     result,
     showConfig,
+    addAssertion: function (type, selector, value) {
+      mem.assertions.push({
+        type: type || "hasText",
+        selector: selector,
+        value: value || "",
+        timestamp: getTimeStamp(),
+      });
+    },
   };
 })();
 
