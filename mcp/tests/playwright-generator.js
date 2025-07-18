@@ -3,6 +3,14 @@
  * @returns {Object} - Processed tracking data
  */
 function preprocessTrackingData(trackingData) {
+  if (
+    typeof window !== "undefined" &&
+    window.StakTrakUtils &&
+    window.StakTrakUtils.processTrackingData
+  ) {
+    return window.StakTrakUtils.processTrackingData(trackingData);
+  }
+
   if (!trackingData) return null;
 
   const processedData = { ...trackingData };
@@ -427,7 +435,6 @@ if (typeof window !== "undefined") {
   window.PlaywrightGenerator = {
     generatePlaywrightTest,
     convertToPlaywrightSelector,
-    preprocessTrackingData,
   };
   console.log("PlaywrightGenerator loaded and attached to window object");
 }

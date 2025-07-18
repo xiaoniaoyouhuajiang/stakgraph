@@ -819,6 +819,107 @@ var userBehaviour = (function () {
   };
 })();
 
+if (typeof window !== "undefined") {
+  window.StakTrakUtils = {
+    /**
+     * @param {Object} trackingData
+     * @returns {Object}
+     */
+    processTrackingData: function (trackingData) {
+      if (!trackingData) return trackingData;
+
+      const processedData = { ...trackingData };
+
+      if (
+        processedData.clicks &&
+        processedData.clicks.clickDetails &&
+        processedData.clicks.clickDetails.length > 0
+      ) {
+        processedData.clicks.clickDetails = this.filterClickDetails(
+          processedData.clicks.clickDetails,
+          processedData.assertions || []
+        );
+      }
+
+      return processedData;
+    },
+
+    /**
+     * @param {Array} clickDetails
+     * @param {Array} assertions
+     * @returns {Array}
+     */
+    filterClickDetails: function (clickDetails, assertions) {
+      if (!clickDetails || !clickDetails.length) return [];
+
+      const MAX_MULTICLICK_INTERVAL = 300;
+
+      let filteredClicks = clickDetails;
+
+      if (assertions && assertions.length > 0) {
+        filteredClicks = filteredClicks.filter((clickDetail) => {
+          const clickSelector = clickDetail[2];
+          const clickTime = clickDetail[3];
+
+          return !assertions.some((assertion) => {
+            const assertionTime = assertion.timestamp;
+            const assertionSelector = assertion.selector;
+
+            const isCloseInTime = Math.abs(clickTime - assertionTime) < 1000;
+            const isSameElement =
+              clickSelector.includes(assertionSelector) ||
+              assertionSelector.includes(clickSelector) ||
+              (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
+                assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
+                clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
+                  assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
+
+            return isCloseInTime && isSameElement;
+          });
+        });
+      }
+
+      const clicksBySelector = {};
+      filteredClicks.forEach((clickDetail) => {
+        const selector = clickDetail[2];
+        const timestamp = clickDetail[3];
+
+        if (!clicksBySelector[selector]) {
+          clicksBySelector[selector] = [];
+        }
+        clicksBySelector[selector].push({
+          detail: clickDetail,
+          timestamp,
+        });
+      });
+
+      const finalFilteredClicks = [];
+      Object.values(clicksBySelector).forEach((clicks) => {
+        clicks.sort((a, b) => a.timestamp - b.timestamp);
+
+        const resultClicks = [];
+        let lastClick = null;
+
+        clicks.forEach((click) => {
+          if (
+            !lastClick ||
+            click.timestamp - lastClick.timestamp > MAX_MULTICLICK_INTERVAL
+          ) {
+            resultClicks.push(click);
+          }
+          lastClick = click;
+        });
+
+        resultClicks.forEach((click) => finalFilteredClicks.push(click.detail));
+      });
+
+      finalFilteredClicks.sort((a, b) => a[3] - b[3]);
+
+      return finalFilteredClicks;
+    },
+  };
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   userBehaviour
     .config({
