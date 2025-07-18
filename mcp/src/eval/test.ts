@@ -34,13 +34,14 @@ const ensureSpecExtension = (filename: string): string => {
   return `${filename}.spec.js`;
 };
 
-// Run Playwright tests
-export async function runPlaywrightTests(
+// Run Playwright test
+export async function runPlaywrightTest(
   req: Request,
   res: Response
 ): Promise<void> {
   try {
     const { test } = req.query;
+    console.log("===> runPlaywrightTest", test);
 
     if (!test || typeof test !== "string") {
       res.status(400).json({ error: "Test name is required" });
@@ -125,6 +126,7 @@ export async function runPlaywrightTests(
 export async function saveTest(req: Request, res: Response): Promise<void> {
   try {
     const { name, text } = req.body;
+    console.log("===> saveTest", name);
 
     if (!name || !text) {
       res.status(400).json({ error: "Name and text are required" });
@@ -173,6 +175,7 @@ export async function saveTest(req: Request, res: Response): Promise<void> {
 export async function listTests(req: Request, res: Response): Promise<void> {
   try {
     const testsDir = getTestsDir();
+    console.log("===> listTests", testsDir);
 
     // Check if tests directory exists
     try {
@@ -226,6 +229,7 @@ export async function getTestByName(
 ): Promise<void> {
   try {
     const { name } = req.query;
+    console.log("===> getTestByName", name);
 
     if (!name || typeof name !== "string") {
       res.status(400).json({ error: "Test name is required" });
@@ -278,6 +282,7 @@ export async function deleteTestByName(
 ): Promise<void> {
   try {
     const { name } = req.query;
+    console.log("===> deleteTestByName", name);
 
     if (!name || typeof name !== "string") {
       res.status(400).json({ error: "Test name is required" });
@@ -368,12 +373,11 @@ export async function generatePlaywrightTest(
 }
 
 export function test_routes(app: Express) {
-  app.get("/test", runPlaywrightTests);
+  app.get("/test", runPlaywrightTest);
   app.get("/test/list", listTests);
   app.get("/test/get", getTestByName);
   app.get("/test/delete", deleteTestByName);
   app.post("/test/save", saveTest);
-  app.post("/api/generate-test", generatePlaywrightTest);
 
   app.get("/tests", (req, res) => {
     res.sendFile(path.join(__dirname, "../../tests/tests.html"));

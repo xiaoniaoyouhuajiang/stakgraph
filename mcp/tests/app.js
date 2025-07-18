@@ -22,7 +22,6 @@ const Staktrak = () => {
     isAssertionMode,
     canGenerate,
     trackingData,
-    assertions,
     selectedText,
     startRecording,
     stopRecording,
@@ -30,7 +29,7 @@ const Staktrak = () => {
     disableAssertionMode,
   } = useIframeMessaging(iframeRef);
 
-  const { generatedTest, generateTest } = useTestGenerator(url);
+  const { generatedTest, generateTest } = useTestGenerator();
 
   const {
     testFiles,
@@ -71,7 +70,7 @@ const Staktrak = () => {
       return;
     }
 
-    const testCode = await generateTest(trackingData, assertions);
+    const testCode = await generateTest(url, trackingData);
 
     if (testCode) {
       showPopup("Playwright test generated successfully", "success");

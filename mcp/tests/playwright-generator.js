@@ -1,109 +1,11 @@
 /**
- * @param {Object} trackingData - Raw tracking data from recording
- * @returns {Object} - Processed tracking data
- */
-function preprocessTrackingData(trackingData) {
-  if (
-    typeof window !== "undefined" &&
-    window.StakTrakUtils &&
-    window.StakTrakUtils.processTrackingData
-  ) {
-    return window.StakTrakUtils.processTrackingData(trackingData);
-  }
-
-  if (!trackingData) return null;
-
-  const processedData = { ...trackingData };
-
-  if (processedData.clicks && processedData.clicks.clickDetails) {
-    processedData.clicks.clickDetails = filterClicks(
-      processedData.clicks.clickDetails,
-      processedData.assertions || []
-    );
-  }
-
-  return processedData;
-}
-
-/**
- * @param {Array} clickDetails - Raw click data
- * @param {Array} assertions - Assertions data
- * @returns {Array} - Filtered click data
- */
-function filterClicks(clickDetails, assertions) {
-  if (!clickDetails || !clickDetails.length) return [];
-
-  const MAX_MULTICLICK_INTERVAL = 300;
-
-  let filteredClicks = clickDetails.filter((clickDetail) => {
-    const clickSelector = clickDetail[2];
-    const clickTime = clickDetail[3];
-
-    return !assertions.some((assertion) => {
-      const assertionTime = assertion.timestamp;
-      const assertionSelector = assertion.selector;
-
-      const isCloseInTime = Math.abs(clickTime - assertionTime) < 1000;
-      const isSameElement =
-        clickSelector.includes(assertionSelector) ||
-        assertionSelector.includes(clickSelector) ||
-        (clickSelector.match(/\w+(?=[.#\[]|$)/) &&
-          assertionSelector.match(/\w+(?=[.#\[]|$)/) &&
-          clickSelector.match(/\w+(?=[.#\[]|$)/)[0] ===
-            assertionSelector.match(/\w+(?=[.#\[]|$)/)[0]);
-
-      return isCloseInTime && isSameElement;
-    });
-  });
-
-  const clicksBySelector = {};
-  filteredClicks.forEach((clickDetail) => {
-    const selector = clickDetail[2];
-    const timestamp = clickDetail[3];
-
-    if (!clicksBySelector[selector]) {
-      clicksBySelector[selector] = [];
-    }
-    clicksBySelector[selector].push({
-      detail: clickDetail,
-      timestamp,
-    });
-  });
-
-  const finalFilteredClicks = [];
-  Object.values(clicksBySelector).forEach((clicks) => {
-    clicks.sort((a, b) => a.timestamp - b.timestamp);
-
-    const resultClicks = [];
-    let lastClick = null;
-
-    clicks.forEach((click) => {
-      if (
-        !lastClick ||
-        click.timestamp - lastClick.timestamp > MAX_MULTICLICK_INTERVAL
-      ) {
-        resultClicks.push(click);
-      }
-      lastClick = click;
-    });
-
-    resultClicks.forEach((click) => finalFilteredClicks.push(click.detail));
-  });
-
-  finalFilteredClicks.sort((a, b) => a[3] - b[3]);
-  return finalFilteredClicks;
-}
-
-/**
  * Generates a Playwright test from tracking data
  * @param {string} url - The URL being tested
- * @param {Object} trackingData - The tracking data object
+ * @param {Object} trackingData - The processed tracking data object
  * @returns {string} - Generated Playwright test code
  */
 function generatePlaywrightTest(url, trackingData) {
-  const processedData = preprocessTrackingData(trackingData);
-
-  if (!processedData) {
+  if (!trackingData) {
     return generateEmptyTest(url);
   }
 
@@ -116,7 +18,7 @@ function generatePlaywrightTest(url, trackingData) {
     userInfo,
     time,
     formElementChanges,
-  } = processedData;
+  } = trackingData;
 
   if (
     (!clicks || !clicks.clickDetails || clicks.clickDetails.length === 0) &&
@@ -171,7 +73,7 @@ test('Empty test template', async ({ page }) => {
   await page.waitForLoadState('networkidle');
   
   // No interactions were recorded
-    console.log('No user interactions to replay');
+  console.log('No user interactions to replay');
 });`;
 }
 
@@ -218,6 +120,7 @@ function generateUserInteractions(
           value: latestChange.value,
           checked: latestChange.checked,
           timestamp: latestChange.timestamp,
+          isUserAction: true,
         });
         formElementTimestamps[selector] = latestChange.timestamp;
       } else if (changes[0].type === "select") {
@@ -231,6 +134,7 @@ function generateUserInteractions(
               value: change.value,
               text: change.text,
               timestamp: change.timestamp,
+              isUserAction: true,
             });
             formElementTimestamps[selector] = change.timestamp;
             lastValue = change.value;
@@ -265,6 +169,7 @@ function generateUserInteractions(
           y,
           selector,
           timestamp,
+          isUserAction: true,
         });
       }
     });
@@ -287,6 +192,7 @@ function generateUserInteractions(
           selector: change.elementSelector,
           value: change.value,
           timestamp: change.timestamp,
+          isUserAction: true,
         });
       }
     });
@@ -302,6 +208,7 @@ function generateUserInteractions(
         selector: assertion.selector,
         value: assertion.value,
         timestamp: assertion.timestamp,
+        isUserAction: false, // Assertions are not user actions
       });
     });
   }
@@ -326,22 +233,52 @@ function generateUserInteractions(
   });
 
   let code = "";
+  let lastUserActionTimestamp = null;
 
-  uniqueEvents.forEach((event) => {
+  uniqueEvents.forEach((event, index) => {
+    // Calculate wait time before this event
+    if (index > 0) {
+      const prevEvent = uniqueEvents[index - 1];
+
+      // Only add waits between user actions or before user actions
+      // Never add waits before assertions
+      if (event.isUserAction) {
+        let waitTime = 0;
+
+        if (lastUserActionTimestamp) {
+          // Calculate time difference from last user action
+          waitTime = event.timestamp - lastUserActionTimestamp;
+        } else if (prevEvent.isUserAction) {
+          // If this is the first user action after some assertions
+          waitTime = event.timestamp - prevEvent.timestamp;
+        }
+
+        // Convert to milliseconds and apply reasonable bounds
+        waitTime = Math.max(100, Math.min(5000, waitTime)); // Between 100ms and 5s
+
+        if (waitTime > 100) {
+          code += `  // Wait ${waitTime}ms before next action\n`;
+          code += `  await page.waitForTimeout(${waitTime});\n\n`;
+        }
+      }
+    }
+
     switch (event.type) {
       case "click":
         const playwrightSelector = convertToPlaywrightSelector(event.selector);
-        code += `  // Click on element: ${event.selector}
-  await page.click('${playwrightSelector}');\n\n`;
+        code += `  // Click on element: ${event.selector}\n`;
+        code += `  await page.click('${playwrightSelector}');\n\n`;
+        lastUserActionTimestamp = event.timestamp;
         break;
 
       case "input":
         const inputSelector = convertToPlaywrightSelector(event.selector);
-        code += `  // Fill input: ${event.selector}
-  await page.fill('${inputSelector}', '${event.value.replace(
+        code += `  // Fill input: ${event.selector}\n`;
+        code += `  await page.fill('${inputSelector}', '${event.value.replace(
           /'/g,
           "\\'"
         )}');\n\n`;
+        lastUserActionTimestamp = event.timestamp;
         break;
 
       case "form":
@@ -349,46 +286,48 @@ function generateUserInteractions(
 
         if (event.formType === "checkbox" || event.formType === "radio") {
           if (event.checked) {
-            code += `  // Check ${event.formType}: ${event.selector}
-  await page.check('${formSelector}');\n\n`;
+            code += `  // Check ${event.formType}: ${event.selector}\n`;
+            code += `  await page.check('${formSelector}');\n\n`;
           } else {
-            code += `  // Uncheck ${event.formType}: ${event.selector}
-  await page.uncheck('${formSelector}');\n\n`;
+            code += `  // Uncheck ${event.formType}: ${event.selector}\n`;
+            code += `  await page.uncheck('${formSelector}');\n\n`;
           }
         } else if (event.formType === "select") {
           code += `  // Select option: ${event.text || event.value} in ${
             event.selector
-          }
-  await page.selectOption('${formSelector}', '${event.value.replace(
+          }\n`;
+          code += `  await page.selectOption('${formSelector}', '${event.value.replace(
             /'/g,
             "\\'"
           )}');\n\n`;
         }
+        lastUserActionTimestamp = event.timestamp;
         break;
 
       case "assertion":
         const assertionSelector = convertToPlaywrightSelector(event.selector);
         switch (event.assertionType) {
           case "isVisible":
-            code += `  // Assert element is visible: ${event.selector}
-  await expect(page.locator('${assertionSelector}')).toBeVisible();\n\n`;
+            code += `  // Assert element is visible: ${event.selector}\n`;
+            code += `  await expect(page.locator('${assertionSelector}')).toBeVisible();\n\n`;
             break;
           case "hasText":
-            code += `  // Assert element has text: ${event.selector}
-  await expect(page.locator('${assertionSelector}')).toHaveText('${event.value.replace(
+            code += `  // Assert element contains text: ${event.selector}\n`;
+            code += `  await expect(page.locator('${assertionSelector}')).toContainText('${event.value.replace(
               /'/g,
               "\\'"
             )}');\n\n`;
             break;
           case "isChecked":
-            code += `  // Assert checkbox/radio is checked: ${event.selector}
-  await expect(page.locator('${assertionSelector}')).toBeChecked();\n\n`;
+            code += `  // Assert checkbox/radio is checked: ${event.selector}\n`;
+            code += `  await expect(page.locator('${assertionSelector}')).toBeChecked();\n\n`;
             break;
           case "isNotChecked":
-            code += `  // Assert checkbox/radio is not checked: ${event.selector}
-  await expect(page.locator('${assertionSelector}')).not.toBeChecked();\n\n`;
+            code += `  // Assert checkbox/radio is not checked: ${event.selector}\n`;
+            code += `  await expect(page.locator('${assertionSelector}')).not.toBeChecked();\n\n`;
             break;
         }
+        // Note: We don't update lastUserActionTimestamp for assertions
         break;
     }
   });

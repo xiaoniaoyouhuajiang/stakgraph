@@ -8,11 +8,6 @@ export function useIframeMessaging(iframeRef) {
   const [trackingData, setTrackingData] = useState(null);
   const [selectedText, setSelectedText] = useState(null);
 
-  const assertions = useRef([]);
-  const selectedTextRef = useRef("");
-  const selectedSelectorRef = useRef("");
-  const isWaitingForSelectionRef = useRef(false);
-  const assertionCountRef = useRef(0);
   const { showPopup } = popupHook;
   const selectedDisplayTimeout = useRef(null);
 
@@ -59,35 +54,7 @@ export function useIframeMessaging(iframeRef) {
             setCanGenerate(true);
             break;
           case "staktrak-selection":
-            if (isWaitingForSelectionRef.current) {
-              selectedTextRef.current = event.data.text || "";
-              selectedSelectorRef.current = event.data.selector || "";
-
-              displaySelectedText(selectedTextRef.current);
-
-              const isCheckbox =
-                selectedSelectorRef.current.includes(
-                  'input[type="checkbox"]'
-                ) || selectedSelectorRef.current.includes("checkbox");
-              const isRadio =
-                selectedSelectorRef.current.includes('input[type="radio"]') ||
-                selectedSelectorRef.current.includes("radio");
-
-              if (selectedTextRef.current && selectedSelectorRef.current) {
-                if (isCheckbox || isRadio) {
-                  const assertionType = confirm(
-                    "Is this a checked state assertion? Click OK for 'isChecked', Cancel for 'isNotChecked'"
-                  )
-                    ? "isChecked"
-                    : "isNotChecked";
-
-                  addAssertion(assertionType);
-                } else {
-                  addAssertion();
-                }
-                assertionCountRef.current++;
-              }
-            }
+            displaySelectedText(event.data.text);
             break;
           case "staktrak-popup":
             if (event.data.message) {
@@ -114,8 +81,6 @@ export function useIframeMessaging(iframeRef) {
       setIsRecording(true);
       setIsAssertionMode(false);
       setCanGenerate(false);
-      assertions.current = [];
-      assertionCountRef.current = 0;
     }
   };
 
@@ -126,23 +91,13 @@ export function useIframeMessaging(iframeRef) {
         "*"
       );
       setIsRecording(false);
-
-      if (isWaitingForSelectionRef.current) {
-        isWaitingForSelectionRef.current = false;
-        iframeRef.current.contentWindow.postMessage(
-          { type: "staktrak-disable-selection" },
-          "*"
-        );
-      }
       setIsAssertionMode(false);
       clearSelectedTextDisplay();
     }
   };
 
   const enableAssertionMode = () => {
-    isWaitingForSelectionRef.current = true;
     setIsAssertionMode(true);
-
     if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         { type: "staktrak-enable-selection" },
@@ -152,10 +107,8 @@ export function useIframeMessaging(iframeRef) {
   };
 
   const disableAssertionMode = () => {
-    isWaitingForSelectionRef.current = false;
     setIsAssertionMode(false);
     clearSelectedTextDisplay();
-
     if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         { type: "staktrak-disable-selection" },
@@ -164,56 +117,25 @@ export function useIframeMessaging(iframeRef) {
     }
   };
 
-  const addAssertion = (assertionType = null) => {
-    if (!selectedSelectorRef.current) return;
-
-    let type = "isVisible";
-    let value = "";
-
-    if (assertionType) {
-      type = assertionType;
-    } else if (
-      selectedTextRef.current &&
-      selectedTextRef.current.trim() !== ""
-    ) {
-      type = "hasText";
-      value = selectedTextRef.current;
-    }
-
-    assertions.current.push({
-      type,
-      selector: selectedSelectorRef.current,
-      value,
-      timestamp: Date.now(),
-    });
-
-    showPopup(`Assertion added: ${type} "${value || ""}"`, "success");
-
-    selectedTextRef.current = "";
-    selectedSelectorRef.current = "";
-  };
-
   return {
     isRecording,
     isAssertionMode,
     canGenerate,
     trackingData,
-    assertions,
     selectedText,
     startRecording,
     stopRecording,
     enableAssertionMode,
     disableAssertionMode,
-    isWaitingForSelectionRef,
   };
 }
 
-export function useTestGenerator(url) {
+export function useTestGenerator() {
   const [generatedTest, setGeneratedTest] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
 
-  const generateTest = async (trackingData, assertions) => {
+  const generateTest = async (url, trackingData) => {
     setIsGenerating(true);
     setError(null);
 
@@ -234,20 +156,9 @@ export function useTestGenerator(url) {
         return null;
       }
 
-      const modifiedTrackingData = {
-        ...trackingData,
-        assertions: assertions.current,
-      };
-
-      let processedData = modifiedTrackingData;
-      if (window.StakTrakUtils && window.StakTrakUtils.processTrackingData) {
-        processedData =
-          window.StakTrakUtils.processTrackingData(modifiedTrackingData);
-      }
-
       const testCode = window.PlaywrightGenerator.generatePlaywrightTest(
         url,
-        processedData
+        trackingData
       );
 
       setGeneratedTest(testCode);
