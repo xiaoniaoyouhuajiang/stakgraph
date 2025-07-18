@@ -313,9 +313,7 @@ class Db {
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
 
-    const q = `name:${query}^10 OR file:*${query}^4 OR body:${query}^3 OR name:${query}*^2 OR body:${query}*`;
-    console.log("===> search query:", q, `node_types: ${node_types}`);
-    const q_escaped = prepareFulltextSearchQuery(q);
+    const q_escaped = prepareFulltextSearchQuery(query);
     console.log("===> search query escaped:", q_escaped);
 
     // skip Import nodes
@@ -536,65 +534,38 @@ async function execute_batch(session: Session, batch: MergeQuery[]) {
     throw error;
   }
 }
+
 /**
  * Prepares a fulltext search query for Neo4j by properly handling special characters
- *
- * @param searchQuery - The original search query
- * @returns A properly formatted search query for Neo4j fulltext search
  */
-export function prepareFulltextSearchQuery(searchQuery: string): string {
-  // If the query is very simple (no special operators), return it as is
-  if (!/[:^*]/.test(searchQuery)) {
-    return searchQuery;
-  }
+export function prepareFulltextSearchQuery(searchTerm: string): string {
+  // Escape the raw search term first
+  const escapedTerm = escapeSearchTerm(searchTerm);
 
-  // For queries with field specifications and boosting, handle with care
-  const parts = searchQuery.split(/ OR /);
+  // Build the query with proper structure
+  const queryParts = [
+    `name:${escapedTerm}^10`,
+    `file:*${escapedTerm}*^4`,
+    `body:${escapedTerm}^3`,
+    `name:${escapedTerm}*^2`,
+    `body:${escapedTerm}*^1`,
+  ];
 
-  const processedParts = parts.map((part) => {
-    // Check if this part has a field specification (contains a colon)
-    const colonIndex = part.indexOf(":");
-    if (colonIndex === -1) {
-      return escapeSearchTerm(part);
-    }
-
-    // Extract field name and search value
-    const fieldName = part.substring(0, colonIndex);
-    let remaining = part.substring(colonIndex + 1);
-
-    // Handle boosting factor if present
-    let boostFactor = "";
-    const boostMatch = remaining.match(/\^(\d+)$/);
-    if (boostMatch) {
-      boostFactor = boostMatch[0]; // e.g., "^10"
-      remaining = remaining.substring(0, remaining.length - boostFactor.length);
-    }
-
-    // Handle wildcards carefully
-    if (remaining.includes("*")) {
-      // Preserve the wildcards, but escape other special characters
-      const segments = remaining.split("*");
-      const escapedSegments = segments.map((seg) => escapeSearchTerm(seg));
-      remaining = escapedSegments.join("*");
-    } else {
-      // No wildcards, just escape the term
-      remaining = escapeSearchTerm(remaining);
-    }
-
-    // Reconstruct the part
-    return `${fieldName}:${remaining}${boostFactor}`;
-  });
-
-  return processedParts.join(" OR ");
+  return queryParts.join(" OR ");
 }
 
 /**
- * Escapes only the characters that need escaping in search terms
- * (not field names, operators, or wildcards)
+ * Escapes special characters in search terms
  */
 function escapeSearchTerm(term: string): string {
-  // Characters that should be escaped in the actual search term
-  // Note: * is handled separately to preserve wildcards
+  // Handle phrases with spaces by wrapping in quotes
+  if (term.includes(" ")) {
+    // Escape quotes within the term and wrap the whole thing in quotes
+    const escapedTerm = term.replace(/"/g, '\\"');
+    return `"${escapedTerm}"`;
+  }
+
+  // For single terms, escape special characters
   const charsToEscape = [
     "+",
     "-",
@@ -614,13 +585,15 @@ function escapeSearchTerm(term: string): string {
     ":",
     "\\",
     "/",
+    "*",
   ];
 
   let result = term;
   for (const char of charsToEscape) {
-    // Create a regex that globally matches the character
-    const regex = new RegExp(`\\${char}`, "g");
-    // Replace with escaped version
+    const regex = new RegExp(
+      `\\${char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+      "g"
+    );
     result = result.replace(regex, `\\${char}`);
   }
 
