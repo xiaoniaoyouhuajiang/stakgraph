@@ -539,6 +539,7 @@ async function execute_batch(session: Session, batch: MergeQuery[]) {
  * Prepares a fulltext search query for Neo4j by properly handling special characters
  */
 export function prepareFulltextSearchQuery(searchTerm: string): string {
+  console.log("===> prepareFulltextSearchQuery", searchTerm);
   // Escape the raw search term first
   const escapedTerm = escapeSearchTerm(searchTerm);
 
@@ -591,7 +592,7 @@ function escapeSearchTerm(term: string): string {
   let result = term;
   for (const char of charsToEscape) {
     const regex = new RegExp(
-      `\\${char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+      char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), // Removed the extra \\
       "g"
     );
     result = result.replace(regex, `\\${char}`);

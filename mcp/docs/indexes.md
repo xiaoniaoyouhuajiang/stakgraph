@@ -18,6 +18,8 @@ CALL db.index.fulltext.queryNodes("nameBodyFileIndex", 'body:"margin-bottom: 5px
 
 ```
 curl "http://localhost:3000/search?query=margin-bottom:%205px"
+
+curl "http://localhost:3000/search?query=NewRouter"
 ```
 
 composite:
