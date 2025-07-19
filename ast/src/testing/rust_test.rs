@@ -49,7 +49,7 @@ pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let libraries = graph.find_nodes_by_type(NodeType::Library);
     nodes_count += libraries.len();
     //should be ~9
-    assert_eq!(libraries.len(), 1, "Expected 1 library node");
+    assert_eq!(libraries.len(), 9, "Expected 9 library nodes");
 
     let main_import_body = format!(
         r#"use crate::db::init_db;
@@ -88,7 +88,7 @@ use std::net::SocketAddr;"#
 
     let calls_edges = graph.count_edges_of_type(EdgeType::Contains);
     edges_count += calls_edges;
-    assert_eq!(calls_edges, 63, "Expected 63 contains edges");
+    assert_eq!(calls_edges, 71, "Expected 71 contains edges");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
