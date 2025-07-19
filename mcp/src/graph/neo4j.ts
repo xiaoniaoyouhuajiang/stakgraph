@@ -2,7 +2,11 @@ import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
 import { Node, Edge, Neo4jNode, NodeType, all_node_types } from "./types.js";
-import { create_node_key, deser_node } from "./utils.js";
+import {
+  create_node_key,
+  deser_node,
+  getExtensionsForLanguage,
+} from "./utils.js";
 import * as Q from "./queries.js";
 import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
 import { v4 as uuidv4 } from "uuid";
@@ -45,20 +49,34 @@ class Db {
     }
   }
 
-  async nodes_by_type(label: NodeType): Promise<Neo4jNode[]> {
+  async nodes_by_type(
+    label: NodeType,
+    language?: string
+  ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
-      const r = await session.run(Q.LIST_QUERY, { node_label: label });
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+      const r = await session.run(Q.LIST_QUERY, {
+        node_label: label,
+        extensions,
+      });
       return r.records.map((record) => deser_node(record, "f"));
     } finally {
       await session.close();
     }
   }
 
-  async nodes_by_ref_ids(ref_ids: string[]): Promise<Neo4jNode[]> {
+  async nodes_by_ref_ids(
+    ref_ids: string[],
+    language?: string
+  ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
-      const r = await session.run(Q.REF_IDS_LIST_QUERY, { ref_ids });
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+      const r = await session.run(Q.REF_IDS_LIST_QUERY, {
+        ref_ids,
+        extensions,
+      });
       return r.records.map((record) => deser_node(record, "n"));
     } finally {
       await session.close();
@@ -309,7 +327,8 @@ class Db {
     limit: number,
     node_types: NodeType[],
     skip_node_types: NodeType[],
-    maxTokens: number // Optional parameter for token limit
+    maxTokens: number, // Optional parameter for token limit
+    language?: string
   ): Promise<Neo4jNode[]> {
     const session = this.driver.session();
 
@@ -320,12 +339,16 @@ class Db {
     if (!skip_node_types.includes("Import")) {
       skip_node_types.push("Import");
     }
+
+    const extensions = language ? getExtensionsForLanguage(language) : [];
+
     try {
       const result = await session.run(Q.SEARCH_QUERY_COMPOSITE, {
         query: q_escaped,
         limit,
         node_types,
         skip_node_types,
+        extensions,
       });
       const nodes = result.records.map((record) => {
         const node: Neo4jNode = deser_node(record, "node");
@@ -362,17 +385,22 @@ class Db {
     query: string,
     limit: number,
     node_types: NodeType[],
-    similarityThreshold: number = 0.7
+    similarityThreshold: number = 0.7,
+    language?: string
   ): Promise<Neo4jNode[]> {
     let session: Session | null = null;
     try {
       session = this.driver.session();
       const embeddings = await vectorizeQuery(query);
+
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+
       const result = await session.run(Q.VECTOR_SEARCH_QUERY, {
         embeddings,
         limit,
         node_types,
         similarityThreshold,
+        extensions,
       });
       return result.records.map((record) => {
         const node: Neo4jNode = deser_node(record, "node");
