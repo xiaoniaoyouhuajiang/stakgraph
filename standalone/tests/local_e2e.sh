@@ -2,8 +2,11 @@
 # filepath: /Users/fayekelmith/Kelmith/Projects/stakgraph/standalone/tests/local_e2e.sh
 
 REPO_URL="https://github.com/fayekelmith/demo-repo.git"
-EXPECTED_MAP="./standalone/tests/maps/actual-map-response.html"
-ACTUAL_MAP="./standalone/tests/maps/map-response.html"
+EXPECTED_MAP_ONE="./standalone/tests/maps/actual-map-response.html"
+ACTUAL_MAP_ONE="./standalone/tests/maps/map-response.html"
+EXPECTED_MAP_TWO="./standalone/tests/maps/actual-map-response-two.html"
+ACTUAL_MAP_TWO="./standalone/tests/maps/map-response-two.html"
+COMMIT="ebb64dd615de5c6c83f4fceb170773f28c06cbea"
 
 # Cleanup database first
 rm -rf ./mcp/.neo4j
@@ -48,7 +51,7 @@ echo "Node server is ready!"
 
 # 4. INGEST repo data asynchronously
 echo "Ingesting data from $REPO_URL"
-RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"repo_url\": \"$REPO_URL\"}" http://localhost:7799/ingest_async)
+RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"repo_url\": \"$REPO_URL\", \"commit\": \"$COMMIT\"}" http://localhost:7799/ingest_async)
 REQUEST_ID=$(echo "$RESPONSE" | grep -o '"request_id":"[^"]*' | grep -o '[^"]*$')
 
 if [ -z "$REQUEST_ID" ]; then
@@ -75,15 +78,15 @@ while true; do
 done
 
 # 5. Query /map endpoint
-curl "http://localhost:3000/map?name=App&node_type=Function" -o "$ACTUAL_MAP"
+curl "http://localhost:3000/map?name=App&node_type=Function" -o "$ACTUAL_MAP_ONE"
 
 
-# Remove <pre> tags and sort the content before comparing
-grep -v '^<pre>' "$ACTUAL_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/sorted_actual.html
-grep -v '^<pre>' "$EXPECTED_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/sorted_expected.html
 
-if diff --color=always -u /tmp/sorted_expected.html /tmp/sorted_actual.html; then
-  echo "✅ Output matches expected (order-insensitive)"
+grep -v '^<pre>' "$ACTUAL_MAP_ONE" | grep -v '^</pre>' | grep -v 'Total tokens:' > /tmp/actual_clean.html
+grep -v '^<pre>' "$EXPECTED_MAP_ONE" | grep -v '^</pre>' | grep -v 'Total tokens:' > /tmp/expected_clean.html
+
+if diff --color=always -u /tmp/expected_clean.html /tmp/actual_clean.html; then
+  echo "✅ Output matches expected (structure-sensitive)"
 else
   echo "❌ Output does not match expected"
   kill $RUST_PID $NODE_PID
@@ -91,14 +94,47 @@ else
 fi
 
 
-# 7. Compare output
-# if diff --color=always -u "$EXPECTED_MAP" "$ACTUAL_MAP"; then
-#   echo "✅ Output matches expected"
-# else
-#   echo "❌ Output does not match expected"
-#   kill $RUST_PID $NODE_PID
-#   exit 1
-# fi
+# Sync the graph and make another request
+echo "Syncing the graph to latest commit..."
+SYNC_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"repo_url\": \"$REPO_URL\"}" http://localhost:7799/sync_async)
+SYNC_REQUEST_ID=$(echo "$SYNC_RESPONSE" | grep -o '"request_id":"[^"]*' | grep -o '[^"]*$')
+
+if [ -z "$SYNC_REQUEST_ID" ]; then
+  echo "Failed to get request_id from /sync_async response: $SYNC_RESPONSE"
+  kill $RUST_PID $NODE_PID
+  exit 1
+fi
+
+echo "Polling status for sync_request_id: $SYNC_REQUEST_ID"
+while true; do
+  SYNC_STATUS_JSON=$(curl -s http://localhost:7799/status/$SYNC_REQUEST_ID)
+  SYNC_STATUS=$(echo "$SYNC_STATUS_JSON" | grep -o '"status":"[^"]*' | grep -o '[^"]*$')
+  if [ "$SYNC_STATUS" = "Complete" ]; then
+    echo "Sync complete!"
+    break
+  elif [[ "$SYNC_STATUS" == Failed* ]]; then
+    echo "Sync failed: $SYNC_STATUS_JSON"
+    kill $RUST_PID $NODE_PID
+    exit 1
+  else
+    echo "Still syncing... ($SYNC_STATUS)"
+    sleep 3
+  fi
+done
+
+# --- Query for NewPerson for main Function ---
+curl "http://localhost:3000/map?name=NewPerson&node_type=Function" -o "$ACTUAL_MAP_TWO"
+
+grep -v '^<pre>' "$ACTUAL_MAP_TWO" | grep -v '^</pre>' | grep -v 'Total tokens:'  > /tmp/sorted_actual_two.html
+grep -v '^<pre>' "$EXPECTED_MAP_TWO" | grep -v '^</pre>' | grep -v 'Total tokens:'  > /tmp/sorted_expected_two.html
+
+if diff --color=always -u /tmp/sorted_expected_two.html /tmp/sorted_actual_two.html; then
+  echo "✅ main Function output matches expected (order-insensitive)"
+else
+  echo "❌ main Function output does not match expected"
+  kill $RUST_PID $NODE_PID
+  exit 1
+fi
 
 #  Cleanup
 kill $RUST_PID $NODE_PID
