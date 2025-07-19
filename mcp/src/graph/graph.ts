@@ -145,12 +145,7 @@ export async function get_map(params: MapParams): Promise<string> {
   const tokenizer = await createByModelName("gpt-4");
 
   const tree = await buildTree(record, params.direction, tokenizer);
-  const sortedTreeNodes = [];
-  for (const node of tree.root.nodes) {
-    const sortedNode = alphabetizeNodeLabels(node);
-    sortedTreeNodes.push(sortedNode);
-  }
-  tree.root.nodes = sortedTreeNodes;
+  alphabetizeNodeLabels(tree.root);
 
   const text = archy(tree.root);
   let themap = ``;
