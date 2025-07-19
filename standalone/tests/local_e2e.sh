@@ -10,11 +10,10 @@ EXPECTED_REPO_MAP="./standalone/tests/maps/actual-repo-map-response.html"
 ACTUAL_REPO_MAP="./standalone/tests/maps/map-repomap-response.html"
 COMMIT="ebb64dd615de5c6c83f4fceb170773f28c06cbea"
 
-# Cleanup database first
-rm -rf ./mcp/.neo4j
 
-#  Start Neo4j 
-docker compose -f ./mcp/neo4j.yaml up -d
+docker compose -f mcp/neo4j.yaml down -v
+rm -rf ./mcp/.neo4j
+docker compose -f mcp/neo4j.yaml up -d
 
 echo "Waiting for Neo4j to be healthy..."
 until docker inspect --format "{{json .State.Health.Status }}" neo4j.sphinx | grep -q "healthy"; do
@@ -84,8 +83,8 @@ curl "http://localhost:3000/map?name=App&node_type=Function" -o "$ACTUAL_MAP_ONE
 
 
 
-grep -v '^<pre>' "$ACTUAL_MAP_ONE" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/actual_clean.html
-grep -v '^<pre>' "$EXPECTED_MAP_ONE" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/expected_clean.html
+grep -v '^<pre>' "$ACTUAL_MAP_ONE" | grep -v '^</pre>' | grep -v 'Total tokens:' > /tmp/actual_clean.html
+grep -v '^<pre>' "$EXPECTED_MAP_ONE" | grep -v '^</pre>' | grep -v 'Total tokens:' > /tmp/expected_clean.html
 
 if diff --color=always -u /tmp/expected_clean.html /tmp/actual_clean.html; then
   echo "✅ Output matches expected (structure-sensitive)"
@@ -127,8 +126,8 @@ done
 # --- Query for NewPerson for main Function ---
 curl "http://localhost:3000/map?name=NewPerson&node_type=Function" -o "$ACTUAL_MAP_TWO"
 
-grep -v '^<pre>' "$ACTUAL_MAP_TWO" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort  > /tmp/sorted_actual_two.html
-grep -v '^<pre>' "$EXPECTED_MAP_TWO" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort  > /tmp/sorted_expected_two.html
+grep -v '^<pre>' "$ACTUAL_MAP_TWO" | grep -v '^</pre>' | grep -v 'Total tokens:'  > /tmp/sorted_actual_two.html
+grep -v '^<pre>' "$EXPECTED_MAP_TWO" | grep -v '^</pre>' | grep -v 'Total tokens:'  > /tmp/sorted_expected_two.html
 
 if diff --color=always -u /tmp/sorted_expected_two.html /tmp/sorted_actual_two.html; then
   echo "✅ main Function output matches expected (order-insensitive)"
@@ -140,8 +139,8 @@ fi
 
 curl "http://localhost:3000/repo_map?name=fayekelmith/demo-repo" -o "$ACTUAL_REPO_MAP"
 
-grep -v '^<pre>' "$ACTUAL_REPO_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/actual_repo_map_clean.html
-grep -v '^<pre>' "$EXPECTED_REPO_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:' | sort > /tmp/expected_repo_map_clean.html
+grep -v '^<pre>' "$ACTUAL_REPO_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:'  > /tmp/actual_repo_map_clean.html
+grep -v '^<pre>' "$EXPECTED_REPO_MAP" | grep -v '^</pre>' | grep -v 'Total tokens:' > /tmp/expected_repo_map_clean.html
 
 if diff --color=always -u /tmp/expected_repo_map_clean.html /tmp/actual_repo_map_clean.html; then
   echo "✅ Repo map output matches expected (structure-sensitive)"
