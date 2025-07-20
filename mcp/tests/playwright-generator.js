@@ -201,15 +201,32 @@ function generateUserInteractions(
   }
 
   if (assertions && assertions.length > 0) {
+    const ambiguousKeywords = [
+      "iframe",
+      "content",
+      "inside",
+      "preact",
+      "running",
+    ];
+
     assertions.forEach((assertion) => {
-      allEvents.push({
-        type: "assertion",
-        assertionType: assertion.type,
-        selector: assertion.selector,
-        value: assertion.value,
-        timestamp: assertion.timestamp,
-        isUserAction: false, // Assertions are not user actions
-      });
+      const text = assertion.value || "";
+
+      const isShortText = text.length < 5 || text.split(" ").length <= 1;
+      const isAmbiguousText = ambiguousKeywords.some((keyword) =>
+        text.toLowerCase().includes(keyword)
+      );
+
+      if (!isShortText && !isAmbiguousText && text.trim().length > 0) {
+        allEvents.push({
+          type: "assertion",
+          assertionType: assertion.type,
+          selector: assertion.selector,
+          value: assertion.value,
+          timestamp: assertion.timestamp,
+          isUserAction: false, // Assertions are not user actions
+        });
+      }
     });
   }
 
@@ -253,11 +270,9 @@ function generateUserInteractions(
           waitTime = event.timestamp - prevEvent.timestamp;
         }
 
-        // Convert to milliseconds and apply reasonable bounds
-        waitTime = Math.max(100, Math.min(5000, waitTime)); // Between 100ms and 5s
+        waitTime = Math.max(100, Math.min(5000, waitTime));
 
         if (waitTime > 100) {
-          code += `  // Wait ${waitTime}ms before next action\n`;
           code += `  await page.waitForTimeout(${waitTime});\n\n`;
         }
       }
@@ -273,11 +288,9 @@ function generateUserInteractions(
 
       case "input":
         const inputSelector = convertToPlaywrightSelector(event.selector);
+        const escapedInputValue = escapeTextForAssertion(event.value);
         code += `  // Fill input: ${event.selector}\n`;
-        code += `  await page.fill('${inputSelector}', '${event.value.replace(
-          /'/g,
-          "\\'"
-        )}');\n\n`;
+        code += `  await page.fill('${inputSelector}', '${escapedInputValue}');\n\n`;
         lastUserActionTimestamp = event.timestamp;
         break;
 
@@ -293,13 +306,11 @@ function generateUserInteractions(
             code += `  await page.uncheck('${formSelector}');\n\n`;
           }
         } else if (event.formType === "select") {
+          const escapedSelectValue = escapeTextForAssertion(event.value);
           code += `  // Select option: ${event.text || event.value} in ${
             event.selector
           }\n`;
-          code += `  await page.selectOption('${formSelector}', '${event.value.replace(
-            /'/g,
-            "\\'"
-          )}');\n\n`;
+          code += `  await page.selectOption('${formSelector}', '${escapedSelectValue}');\n\n`;
         }
         lastUserActionTimestamp = event.timestamp;
         break;
@@ -312,11 +323,35 @@ function generateUserInteractions(
             code += `  await expect(page.locator('${assertionSelector}')).toBeVisible();\n\n`;
             break;
           case "hasText":
-            code += `  // Assert element contains text: ${event.selector}\n`;
-            code += `  await expect(page.locator('${assertionSelector}')).toContainText('${event.value.replace(
-              /'/g,
-              "\\'"
-            )}');\n\n`;
+            const genericSelectors = [
+              "div",
+              "p",
+              "span",
+              "h1",
+              "h2",
+              "h3",
+              "h4",
+              "h5",
+              "h6",
+            ];
+            const isGenericSelector = genericSelectors.includes(event.selector);
+
+            if (isGenericSelector) {
+              const cleanedText = cleanTextForGetByText(event.value);
+              const isShortText =
+                cleanedText.length < 10 || cleanedText.split(" ").length <= 2;
+
+              code += `  // Assert element contains text: ${event.selector}\n`;
+              if (isShortText) {
+                code += `  await expect(page.locator('${event.selector}').filter({ hasText: '${cleanedText}' })).toBeVisible();\n\n`;
+              } else {
+                code += `  await expect(page.getByText('${cleanedText}', { exact: false })).toBeVisible();\n\n`;
+              }
+            } else {
+              const escapedText = escapeTextForAssertion(event.value);
+              code += `  // Assert element contains text: ${event.selector}\n`;
+              code += `  await expect(page.locator('${assertionSelector}')).toContainText('${escapedText}');\n\n`;
+            }
             break;
           case "isChecked":
             code += `  // Assert checkbox/radio is checked: ${event.selector}\n`;
@@ -335,6 +370,22 @@ function generateUserInteractions(
   return code;
 }
 
+function escapeTextForAssertion(text) {
+  if (!text) return "";
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    .replace(/\t/g, "\\t")
+    .trim();
+}
+
+function cleanTextForGetByText(text) {
+  if (!text) return "";
+  return text.replace(/\s+/g, " ").replace(/\n+/g, " ").trim();
+}
+
 /**
  * Convert CSS selector to Playwright selector format
  * @param {string} cssSelector - CSS selector string
@@ -343,39 +394,40 @@ function generateUserInteractions(
 function convertToPlaywrightSelector(cssSelector) {
   if (!cssSelector) return "";
 
-  let playwrightSelector = cssSelector;
+  let selector = cssSelector;
 
-  if (playwrightSelector.includes("[data-testid=")) {
-    const testIdPattern = /\[data-testid="([^"]+)"\]/;
-    const match = playwrightSelector.match(testIdPattern);
-    if (match) {
-      return `[data-testid="${match[1]}"]`;
-    }
+  if (selector.includes("[data-testid=")) {
+    const match = selector.match(/\[data-testid="([^"]+)"\]/);
+    if (match) return `[data-testid="${match[1]}"]`;
   }
 
-  if (playwrightSelector.includes("html>body>")) {
-    playwrightSelector = playwrightSelector.replace("html>body>", "");
+  if (selector.includes("html>body>")) {
+    selector = selector.replace("html>body>", "");
   }
 
-  const selectorParts = playwrightSelector.split(">");
-  if (selectorParts.length > 2) {
-    playwrightSelector = selectorParts.slice(-2).join(" ");
+  const parts = selector.split(">");
+  if (parts.length > 2) {
+    selector = parts.slice(-2).join(" ");
   }
 
-  const idMatch = playwrightSelector.match(/#([a-zA-Z0-9_-]+)/);
-  if (idMatch) {
-    return `#${idMatch[1]}`;
-  }
+  const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
+  if (idMatch) return `#${idMatch[1]}`;
 
-  return playwrightSelector;
+  return selector;
 }
 
 if (typeof window !== "undefined") {
   window.PlaywrightGenerator = {
     generatePlaywrightTest,
     convertToPlaywrightSelector,
+    escapeTextForAssertion,
+    cleanTextForGetByText,
   };
   console.log("PlaywrightGenerator loaded and attached to window object");
 }
 
-export { generatePlaywrightTest };
+export {
+  generatePlaywrightTest,
+  escapeTextForAssertion,
+  cleanTextForGetByText,
+};
