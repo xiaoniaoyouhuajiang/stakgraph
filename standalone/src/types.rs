@@ -45,6 +45,7 @@ pub enum AsyncStatus {
 pub struct AsyncRequestStatus {
     pub status: AsyncStatus,
     pub result: Option<ProcessResponse>,
+    pub progress: u32,
 }
 
 pub type AsyncStatusMap = Arc<Mutex<HashMap<String, AsyncRequestStatus>>>;
