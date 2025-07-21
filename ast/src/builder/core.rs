@@ -36,11 +36,11 @@ impl Repo {
         self.add_repository_and_language_nodes(&mut graph).await?;
         let files = self.collect_and_add_directories(&mut graph)?;
         stats.insert("directories".to_string(), files.len());
-        self.process_and_add_files(&mut graph, &files).await?;
 
-        let filez = fileys(&files)?;
+        let filez = self.process_and_add_files(&mut graph, &files).await?;
         stats.insert("files".to_string(), filez.len());
         self.send_status_with_stats(stats.clone());
+
         self.setup_lsp(&filez)?;
 
         self.process_libraries(&mut graph, &filez)?;
@@ -133,26 +133,31 @@ impl Repo {
         &self,
         graph: &mut G,
         files: &[PathBuf],
-    ) -> Result<()> {
+    ) -> Result<Vec<(String, String)>> {
         self.send_status_update("process_and_add_files", 3);
         info!("parsing {} files...", files.len());
-        
         let mut i = 0;
         let total_files = files.len();
+        let mut ret = Vec::new();
+        // let mut i = 0;
         for filepath in files {
             i += 1;
             if i % 10 == 0 || i == total_files {
                 self.send_status_progress(i, total_files);
             }
-            
+
             let filename = strip_tmp(filepath);
+            let file_name = filename.display().to_string();
             let meta = fs::metadata(&filepath).await?;
             let code = if meta.len() > MAX_FILE_SIZE {
                 debug!("Skipping large file: {:?}", filename);
                 "".to_string()
             } else {
                 match std::fs::read_to_string(&filepath) {
-                    Ok(content) => content,
+                    Ok(content) => {
+                        ret.push((file_name, content.clone()));
+                        content
+                    }
                     Err(_) => {
                         debug!(
                             "Could not read file as string (likely binary): {:?}",
@@ -182,7 +187,7 @@ impl Repo {
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
         }
         self.send_status_progress(100, 100);
-        Ok(())
+        Ok(ret)
     }
     fn setup_lsp(&self, filez: &[(String, String)]) -> Result<()> {
         self.send_status_update("setup_lsp", 4);
@@ -195,7 +200,7 @@ impl Repo {
                 if i % 5 == 0 || i == total {
                     self.send_status_progress(i, total);
                 }
-                
+
                 if !self.lang.kind.is_source_file(&filename) {
                     continue;
                 }
@@ -219,15 +224,15 @@ impl Repo {
             .iter()
             .filter(|(f, _)| self.lang.kind.is_package_file(f))
             .collect::<Vec<_>>();
-            
+
         let total_pkg_files = pkg_files.len();
-        
+
         for (pkg_file, code) in pkg_files {
             i += 1;
             if i % 2 == 0 || i == total_pkg_files {
                 self.send_status_progress(i, total_pkg_files);
             }
-            
+
             info!("=> get_packages in... {:?}", pkg_file);
 
             let mut file_data = self.prepare_file_data(&pkg_file, code);
@@ -244,11 +249,11 @@ impl Repo {
                 graph.add_node_with_parent(NodeType::Library, lib, NodeType::File, &pkg_file);
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("libraries".to_string(), lib_count);
         self.send_status_with_stats(stats);
-        
+
         self.send_status_progress(100, 100);
         info!("=> got {} libs", lib_count);
         Ok(())
@@ -262,19 +267,19 @@ impl Repo {
         let mut i = 0;
         let mut import_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_imports...");
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
                 self.send_status_progress(i, total);
             }
-            
+
             let imports = self.lang.get_imports::<G>(&code, &filename)?;
 
             let import_section = combine_import_sections(imports);
             import_count += import_section.len();
-            
+
             for import in import_section {
                 graph.add_node_with_parent(
                     NodeType::Import,
@@ -284,11 +289,11 @@ impl Repo {
                 );
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("imports".to_string(), import_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} import sections", import_count);
         Ok(())
     }
@@ -297,14 +302,14 @@ impl Repo {
         let mut i = 0;
         let mut var_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_vars...");
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
                 self.send_status_progress(i, total);
             }
-            
+
             let variables = self.lang.get_vars::<G>(&code, &filename)?;
 
             var_count += variables.len();
@@ -317,11 +322,11 @@ impl Repo {
                 );
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("variables".to_string(), var_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} all vars", var_count);
         Ok(())
     }
@@ -360,12 +365,12 @@ impl Repo {
             NodeType::Repository,
             &repo_file,
         );
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("repository".to_string(), 1);
         stats.insert("language".to_string(), 1);
         self.send_status_with_stats(stats);
-        
+
         self.send_status_progress(100, 100);
         Ok(())
     }
@@ -374,14 +379,14 @@ impl Repo {
         let mut i = 0;
         let mut class_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_classes...");
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
                 self.send_status_progress(i, total);
             }
-            
+
             if !self.lang.kind.is_source_file(&filename) {
                 continue;
             }
@@ -404,11 +409,11 @@ impl Repo {
                 }
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("classes".to_string(), class_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} classes", class_count);
         graph.class_inherits();
         graph.class_includes();
@@ -424,14 +429,14 @@ impl Repo {
         let mut instance_count = 0;
         let mut trait_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_instances...");
         for (filename, code) in filez {
             cnt += 1;
             if cnt % 20 == 0 || cnt == total {
                 self.send_status_progress(cnt, total);
             }
-            
+
             if !self.lang.kind.is_source_file(&filename) {
                 continue;
             }
@@ -442,7 +447,7 @@ impl Repo {
             instance_count += instances.len();
             graph.add_instances(instances);
         }
-        
+
         info!("=> get_traits...");
         for (filename, code) in filez {
             if !self.lang.kind.is_source_file(&filename) {
@@ -455,12 +460,12 @@ impl Repo {
                 graph.add_node_with_parent(NodeType::Trait, tr.clone(), NodeType::File, &tr.file);
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("instances".to_string(), instance_count);
         stats.insert("traits".to_string(), trait_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} traits", trait_count);
         Ok(())
     }
@@ -473,14 +478,14 @@ impl Repo {
         let mut i = 0;
         let mut datamodel_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_structs...");
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
                 self.send_status_progress(i, total);
             }
-            
+
             if !self.lang.kind.is_source_file(&filename) {
                 continue;
             }
@@ -510,11 +515,11 @@ impl Repo {
                 }
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("data_models".to_string(), datamodel_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} data models", datamodel_count);
         Ok(())
     }
@@ -528,14 +533,14 @@ impl Repo {
         let mut function_count = 0;
         let mut test_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_functions_and_tests...");
         for (filename, code) in filez {
             i += 1;
             if i % 10 == 0 || i == total {
                 self.send_status_progress(i, total);
             }
-            
+
             if !self.lang.kind.is_source_file(&filename) {
                 continue;
             }
@@ -555,12 +560,12 @@ impl Repo {
                 );
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("functions".to_string(), function_count);
         stats.insert("tests".to_string(), test_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} functions and tests", function_count + test_count);
         Ok(())
     }
@@ -574,14 +579,14 @@ impl Repo {
         let mut page_count = 0;
         let mut template_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_pages");
         for (filename, code) in filez {
             i += 1;
             if i % 10 == 0 || i == total {
                 self.send_status_progress(i, total);
             }
-            
+
             if !self.lang.kind.is_source_file(&filename) {
                 continue;
             }
@@ -600,7 +605,7 @@ impl Repo {
             let extra_page_count = extra_pages.len();
             info!("=> got {} extra pages", extra_page_count);
             page_count += extra_page_count;
-            
+
             for pagepath in extra_pages {
                 if let Some(pagename) = get_page_name(&pagepath) {
                     let code = filez
@@ -651,12 +656,12 @@ impl Repo {
                 }
             }
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("pages".to_string(), page_count);
         stats.insert("templates".to_string(), template_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} component templates/styles", template_count);
 
         let selector_map = self.lang.lang().component_selector_to_template_map(filez);
@@ -690,14 +695,14 @@ impl Repo {
         let mut _i = 0;
         let mut endpoint_count = 0;
         let total = filez.len();
-        
+
         info!("=> get_endpoints...");
         for (filename, code) in filez {
             _i += 1;
             if _i % 10 == 0 || _i == total {
                 self.send_status_progress(_i, total);
             }
-            
+
             if !self.lang.kind.is_source_file(&filename) {
                 continue;
             }
@@ -717,11 +722,11 @@ impl Repo {
 
             graph.add_endpoints(endpoints);
         }
-        
+
         let mut stats = std::collections::HashMap::new();
         stats.insert("endpoints".to_string(), endpoint_count);
         self.send_status_with_stats(stats);
-        
+
         info!("=> got {} endpoints", endpoint_count);
 
         info!("=> get_endpoint_groups...");
@@ -776,7 +781,7 @@ impl Repo {
         let mut cnt = 0;
         let mut integration_test_count = 0;
         let total = filez.len();
-        
+
         if self.lang.lang().use_integration_test_finder() {
             info!("=> get_integration_tests...");
             for (filename, code) in filez {
@@ -784,7 +789,7 @@ impl Repo {
                 if cnt % 10 == 0 || cnt == total {
                     self.send_status_progress(cnt, total);
                 }
-                
+
                 if !self.lang.lang().is_test_file(&filename) {
                     continue;
                 }
@@ -808,14 +813,14 @@ impl Repo {
             let mut cnt = 0;
             let mut function_call_count = 0;
             let total = filez.len();
-            
+
             info!("=> get_function_calls...");
             for (filename, code) in filez {
                 cnt += 1;
                 if cnt % 5 == 0 || cnt == total {
                     self.send_status_progress(cnt, total);
                 }
-                
+
                 let all_calls = self
                     .lang
                     .get_function_calls(&code, &filename, graph, &self.lsp_tx)
