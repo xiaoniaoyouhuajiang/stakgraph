@@ -20,23 +20,6 @@ pub fn filter_by_revs<G: Graph>(root: &str, revs: Vec<String>, graph: G, lang_ki
     }
 }
 
-// (file, code)
-pub fn fileys(files: &Vec<PathBuf>) -> Result<Vec<(String, String)>> {
-    let mut ret = Vec::new();
-    for f in files {
-        let filename = strip_tmp(&f).display().to_string();
-        match std::fs::read_to_string(&f) {
-            Ok(code) => {
-                ret.push((filename, code));
-            }
-            Err(_) => {
-                debug!("Skipping non-text file during parsing: {}", filename);
-            }
-        }
-    }
-    Ok(ret)
-}
-
 pub fn _filenamey(f: &PathBuf) -> String {
     let full = f.display().to_string();
     if !f.starts_with("/tmp/") {
