@@ -201,23 +201,12 @@ function generateUserInteractions(
   }
 
   if (assertions && assertions.length > 0) {
-    const ambiguousKeywords = [
-      "iframe",
-      "content",
-      "inside",
-      "preact",
-      "running",
-    ];
-
     assertions.forEach((assertion) => {
       const text = assertion.value || "";
 
       const isShortText = text.length < 5 || text.split(" ").length <= 1;
-      const isAmbiguousText = ambiguousKeywords.some((keyword) =>
-        text.toLowerCase().includes(keyword)
-      );
 
-      if (!isShortText && !isAmbiguousText && text.trim().length > 0) {
+      if (!isShortText && text.trim().length > 0) {
         allEvents.push({
           type: "assertion",
           assertionType: assertion.type,
@@ -422,12 +411,28 @@ if (typeof window !== "undefined") {
     convertToPlaywrightSelector,
     escapeTextForAssertion,
     cleanTextForGetByText,
+    isTextAmbiguous,
   };
   console.log("PlaywrightGenerator loaded and attached to window object");
+}
+
+/**
+ * @param {string} text - The text to check
+ * @returns {boolean} - Whether the text is likely ambiguous
+ */
+function isTextAmbiguous(text) {
+  if (!text) return true;
+
+  if (text.length < 8) return true;
+
+  if (text.split(/\s+/).length <= 2) return true;
+
+  return false;
 }
 
 export {
   generatePlaywrightTest,
   escapeTextForAssertion,
   cleanTextForGetByText,
+  isTextAmbiguous,
 };
