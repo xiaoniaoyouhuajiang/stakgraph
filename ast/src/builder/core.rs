@@ -94,7 +94,7 @@ impl Repo {
         for dir in &dirs {
             i += 1;
             if i % 10 == 0 || i == total_dirs {
-                self.send_status_progress(i, total_dirs);
+                self.send_status_progress(i, total_dirs, 1);
             }
 
             let dir_no_tmp_buf = strip_tmp(dir);
@@ -126,7 +126,7 @@ impl Repo {
 
             graph.add_node_with_parent(NodeType::Directory, dir_data, parent_type, &parent_file);
         }
-        self.send_status_progress(100, 100);
+        self.send_status_progress(100, 100, 1);
         Ok(files)
     }
     async fn process_and_add_files<G: Graph>(
@@ -143,7 +143,7 @@ impl Repo {
         for filepath in files {
             i += 1;
             if i % 10 == 0 || i == total_files {
-                self.send_status_progress(i, total_files);
+                self.send_status_progress(i, total_files, 2);
             }
 
             let filename = strip_tmp(filepath);
@@ -186,7 +186,7 @@ impl Repo {
 
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
         }
-        self.send_status_progress(100, 100);
+        self.send_status_progress(100, 100, 3);
         Ok(ret)
     }
     fn setup_lsp(&self, filez: &[(String, String)]) -> Result<()> {
@@ -198,7 +198,7 @@ impl Repo {
             for (filename, code) in filez {
                 i += 1;
                 if i % 5 == 0 || i == total {
-                    self.send_status_progress(i, total);
+                    self.send_status_progress(i, total, 4);
                 }
 
                 if !self.lang.kind.is_source_file(&filename) {
@@ -212,7 +212,7 @@ impl Repo {
                 trace!("didopen: {:?}", didopen);
                 let _ = LspCmd::DidOpen(didopen).send(&lsp_tx)?;
             }
-            self.send_status_progress(100, 100);
+            self.send_status_progress(100, 100, 4);
         }
         Ok(())
     }
@@ -230,7 +230,7 @@ impl Repo {
         for (pkg_file, code) in pkg_files {
             i += 1;
             if i % 2 == 0 || i == total_pkg_files {
-                self.send_status_progress(i, total_pkg_files);
+                self.send_status_progress(i, total_pkg_files, 5);
             }
 
             info!("=> get_packages in... {:?}", pkg_file);
@@ -254,7 +254,7 @@ impl Repo {
         stats.insert("libraries".to_string(), lib_count);
         self.send_status_with_stats(stats);
 
-        self.send_status_progress(100, 100);
+        self.send_status_progress(100, 100, 5);
         info!("=> got {} libs", lib_count);
         Ok(())
     }
@@ -272,7 +272,7 @@ impl Repo {
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
-                self.send_status_progress(i, total);
+                self.send_status_progress(i, total, 6);
             }
 
             let imports = self.lang.get_imports::<G>(&code, &filename)?;
@@ -307,7 +307,7 @@ impl Repo {
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
-                self.send_status_progress(i, total);
+                self.send_status_progress(i, total, 7);
             }
 
             let variables = self.lang.get_vars::<G>(&code, &filename)?;
@@ -371,7 +371,7 @@ impl Repo {
         stats.insert("language".to_string(), 1);
         self.send_status_with_stats(stats);
 
-        self.send_status_progress(100, 100);
+        self.send_status_progress(100, 100, 1);
         Ok(())
     }
     fn process_classes<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
@@ -384,7 +384,7 @@ impl Repo {
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
-                self.send_status_progress(i, total);
+                self.send_status_progress(i, total, 8);
             }
 
             if !self.lang.kind.is_source_file(&filename) {
@@ -434,7 +434,7 @@ impl Repo {
         for (filename, code) in filez {
             cnt += 1;
             if cnt % 20 == 0 || cnt == total {
-                self.send_status_progress(cnt, total);
+                self.send_status_progress(cnt, total, 9);
             }
 
             if !self.lang.kind.is_source_file(&filename) {
@@ -483,7 +483,7 @@ impl Repo {
         for (filename, code) in filez {
             i += 1;
             if i % 20 == 0 || i == total {
-                self.send_status_progress(i, total);
+                self.send_status_progress(i, total, 10);
             }
 
             if !self.lang.kind.is_source_file(&filename) {
@@ -538,7 +538,7 @@ impl Repo {
         for (filename, code) in filez {
             i += 1;
             if i % 10 == 0 || i == total {
-                self.send_status_progress(i, total);
+                self.send_status_progress(i, total, 11);
             }
 
             if !self.lang.kind.is_source_file(&filename) {
@@ -584,7 +584,7 @@ impl Repo {
         for (filename, code) in filez {
             i += 1;
             if i % 10 == 0 || i == total {
-                self.send_status_progress(i, total);
+                self.send_status_progress(i, total, 12);
             }
 
             if !self.lang.kind.is_source_file(&filename) {
@@ -700,7 +700,7 @@ impl Repo {
         for (filename, code) in filez {
             _i += 1;
             if _i % 10 == 0 || _i == total {
-                self.send_status_progress(_i, total);
+                self.send_status_progress(_i, total, 13);
             }
 
             if !self.lang.kind.is_source_file(&filename) {
@@ -787,7 +787,7 @@ impl Repo {
             for (filename, code) in filez {
                 cnt += 1;
                 if cnt % 10 == 0 || cnt == total {
-                    self.send_status_progress(cnt, total);
+                    self.send_status_progress(cnt, total, 14);
                 }
 
                 if !self.lang.lang().is_test_file(&filename) {
@@ -818,7 +818,7 @@ impl Repo {
             for (filename, code) in filez {
                 cnt += 1;
                 if cnt % 5 == 0 || cnt == total {
-                    self.send_status_progress(cnt, total);
+                    self.send_status_progress(cnt, total, 15);
                 }
 
                 let all_calls = self
