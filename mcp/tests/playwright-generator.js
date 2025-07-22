@@ -423,7 +423,7 @@ if (typeof window !== "undefined") {
 function isTextAmbiguous(text) {
   if (!text) return true;
 
-  if (text.length < 8) return true;
+  if (text.length < 6) return true;
 
   if (text.split(/\s+/).length <= 2) return true;
 
