@@ -12,7 +12,6 @@ export function useIframeMessaging(iframeRef) {
   const selectedDisplayTimeout = useRef(null);
 
   const displaySelectedText = (text) => {
-    clearSelectedTextDisplay();
     setSelectedText(text);
 
     if (selectedDisplayTimeout.current) {
@@ -21,7 +20,7 @@ export function useIframeMessaging(iframeRef) {
 
     selectedDisplayTimeout.current = setTimeout(() => {
       clearSelectedTextDisplay();
-    }, 5000);
+    }, 2000);
   };
 
   const clearSelectedTextDisplay = () => {
