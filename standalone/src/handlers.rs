@@ -295,12 +295,14 @@ pub async fn ingest_async(
         while let Ok(update) = rx.recv().await {
             let mut map = status_map_clone.lock().await;
             if let Some(status) = map.get_mut(&request_id_clone) {
-                let total_steps = update.total_steps.max(1);
-                let step = update.step.max(1);
-                let step_progress = update.progress.min(100);
-                let overall_progress =
-                    ((step as f64 / total_steps as f64) * step_progress as f64) as u32;
-                status.progress = overall_progress.min(100);
+                let total_steps = update.total_steps.max(1) as f64;
+                let step = update.step.max(1) as f64;
+                let step_progress = update.progress.min(100) as f64;
+
+                let overall_progress = (((step - 1.0) + (step_progress / 100.0)) / total_steps
+                    * 100.0)
+                    .min(100.0) as u32;
+                status.progress = overall_progress;
             }
         }
     });
