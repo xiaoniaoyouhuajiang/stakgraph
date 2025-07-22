@@ -15,7 +15,7 @@ export const html = htm.bind(h);
 const Staktrak = () => {
   const { showPopup } = usePopup();
   const { url, handleUrlChange, navigateToUrl, iframeRef } = useURL(
-    "http://localhost:3001/preact/frame.html"
+    "http://localhost:3000/tests/frame/frame.html"
   );
   const {
     isRecording,

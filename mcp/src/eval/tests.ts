@@ -389,12 +389,14 @@ export function test_routes(app: Express) {
     "hooks.js",
     "playwright-generator.js",
     "staktrak.js",
+    "frame/app.js",
+    "frame/style.css",
   ];
 
   serveStaticFiles(app, static_files);
 
-  app.get("/tests/frame.html", (req, res) => {
-    res.sendFile(path.join(__dirname, "../../tests/frame.html"));
+  app.get("/tests/frame/frame.html", (req, res) => {
+    res.sendFile(path.join(__dirname, "../../tests/frame/frame.html"));
   });
 }
 
