@@ -49,7 +49,7 @@ impl Repo {
         };
 
         let formatted_msg = format!("Step {}: {}", step, step_description);
-        
+
         let su = StatusUpdate {
             status: "".to_string(),
             message: formatted_msg,
@@ -59,7 +59,7 @@ impl Repo {
             stats: None,
             step_description: Some(step_description.to_string()),
         };
-        
+
         info!("status_update: {:?}", su);
         if let Some(status_tx) = &self.status_tx {
             if let Err(e) = status_tx.send(su) {
@@ -68,7 +68,7 @@ impl Repo {
         }
     }
 
-    pub fn send_status_progress(&self, progress: usize, total_files: usize) {
+    pub fn send_status_progress(&self, progress: usize, total_files: usize, step: u32) {
         if total_files == 0 {
             return;
         }
@@ -100,6 +100,7 @@ impl Repo {
             let su = StatusUpdate {
                 total_steps: 16,
                 progress: current_progress,
+                step,
                 ..Default::default()
             };
             debug!("progress: {:?}", su);
@@ -117,7 +118,7 @@ impl Repo {
             stats: Some(stats),
             ..Default::default()
         };
-        
+
         debug!("stats update: {:?}", su);
         if let Some(status_tx) = &self.status_tx {
             if let Err(e) = status_tx.send(su) {
