@@ -272,6 +272,7 @@ pub async fn ingest_async(
 ) -> impl IntoResponse {
     let request_id = uuid::Uuid::new_v4().to_string();
     let status_map = state.async_status.clone();
+    let mut rx = state.tx.subscribe();
 
     {
         let mut map = status_map.lock().await;
@@ -280,12 +281,30 @@ pub async fn ingest_async(
             AsyncRequestStatus {
                 status: AsyncStatus::InProgress,
                 result: None,
+                progress: 0,
             },
         );
     }
 
     let state_clone = state.clone();
+    let status_map_clone = status_map.clone();
     let body_clone = body.clone();
+    let request_id_clone = request_id.clone();
+
+    tokio::spawn(async move {
+        while let Ok(update) = rx.recv().await {
+            let mut map = status_map_clone.lock().await;
+            if let Some(status) = map.get_mut(&request_id_clone) {
+                let total_steps = update.total_steps.max(1);
+                let step = update.step.max(1);
+                let step_progress = update.progress.min(100);
+                let overall_progress =
+                    ((step as f64 / total_steps as f64) * step_progress as f64) as u32;
+                status.progress = overall_progress.min(100);
+            }
+        }
+    });
+
     let request_id_clone = request_id.clone();
 
     //run ingest as a background task
@@ -299,6 +318,7 @@ pub async fn ingest_async(
                 AsyncRequestStatus {
                     status: AsyncStatus::Complete,
                     result: Some(resp),
+                    progress: 100,
                 },
             ),
             Err(e) => map.insert(
@@ -306,6 +326,7 @@ pub async fn ingest_async(
                 AsyncRequestStatus {
                     status: AsyncStatus::Failed(format!("{:?}", e)),
                     result: None,
+                    progress: 0,
                 },
             ),
         }
@@ -329,6 +350,7 @@ pub async fn sync_async(
             AsyncRequestStatus {
                 status: AsyncStatus::InProgress,
                 result: None,
+                progress: 0,
             },
         );
     }
@@ -346,6 +368,7 @@ pub async fn sync_async(
                 AsyncRequestStatus {
                     status: AsyncStatus::Complete,
                     result: Some(resp),
+                    progress: 100,
                 },
             ),
             Err(e) => map.insert(
@@ -353,6 +376,7 @@ pub async fn sync_async(
                 AsyncRequestStatus {
                     status: AsyncStatus::Failed(format!("{:?}", e)),
                     result: None,
+                    progress: 0,
                 },
             ),
         }
