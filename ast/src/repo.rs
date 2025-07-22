@@ -74,7 +74,7 @@ impl Repos {
         }
 
         if let Some(first_repo) = &self.0.get(0) {
-            first_repo.send_status_update("linking_graphs", 16);
+            first_repo.send_status_update("linking_graphs", 14);
         }
         info!("linking e2e tests");
         linker::link_e2e_tests(&mut graph)?;
