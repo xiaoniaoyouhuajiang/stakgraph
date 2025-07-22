@@ -138,16 +138,6 @@ export function useTestGenerator() {
     setIsGenerating(true);
     setError(null);
 
-    if (!window.PlaywrightGenerator) {
-      try {
-        await loadPlaywrightGenerator();
-      } catch (err) {
-        setError("Failed to load test generator");
-        setIsGenerating(false);
-        return null;
-      }
-    }
-
     try {
       if (!window.PlaywrightGenerator) {
         setError("PlaywrightGenerator not available");
@@ -168,24 +158,6 @@ export function useTestGenerator() {
       setIsGenerating(false);
       return null;
     }
-  };
-
-  const loadPlaywrightGenerator = async () => {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.type = "module";
-      script.src = "/tests/playwright-generator.js";
-      document.head.appendChild(script);
-
-      script.onload = () => {
-        console.log("PlaywrightGenerator script loaded dynamically");
-        resolve();
-      };
-      script.onerror = (err) => {
-        console.error("Error loading PlaywrightGenerator script:", err);
-        reject(err);
-      };
-    });
   };
 
   return {

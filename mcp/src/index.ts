@@ -11,7 +11,7 @@ import { App as SageApp } from "./sage/src/app.js";
 import dotenv from "dotenv";
 import { cacheMiddleware, cacheInfo, clearCache } from "./graph/cache.js";
 import { evalRoutes } from "./eval/route.js";
-import { test_routes } from "./eval/test.js";
+import { test_routes } from "./eval/tests.js";
 
 dotenv.config();
 

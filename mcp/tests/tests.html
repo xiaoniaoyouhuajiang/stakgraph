@@ -28,19 +28,6 @@
     <script type="module" src="/tests/playwright-generator.js"></script>
 
     <script type="module" src="/tests/app.js"></script>
-
-    <script>
-      window.addEventListener("DOMContentLoaded", () => {
-        console.log("DOMContentLoaded fired");
-        if (window.PlaywrightGenerator) {
-          console.log("PlaywrightGenerator is available on page load");
-        } else {
-          console.warn(
-            "PlaywrightGenerator not available on page load, will try to load dynamically"
-          );
-        }
-      });
-    </script>
   </head>
   <body>
     <div id="app"></div>
