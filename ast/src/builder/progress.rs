@@ -29,9 +29,7 @@ impl StatusUpdate {
 impl Repo {
     pub fn send_status_update(&self, msg: &str, step: u32) {
         let step_description = match msg {
-            "add_repository_and_language_nodes" => "Setting up repository",
-            "collect_and_add_directories" => "Scanning directories",
-            "process_and_add_files" => "Processing files",
+            "initialization" => "Initializing repository, directories, and files",
             "setup_lsp" => "Initializing language server",
             "process_libraries" => "Analyzing libraries",
             "process_imports" => "Processing imports",
@@ -54,7 +52,7 @@ impl Repo {
             status: "".to_string(),
             message: formatted_msg,
             step,
-            total_steps: 16,
+            total_steps: 14,
             progress: 0,
             stats: None,
             step_description: Some(step_description.to_string()),
@@ -98,7 +96,7 @@ impl Repo {
             *last_time_mutex.lock().unwrap() = now;
 
             let su = StatusUpdate {
-                total_steps: 16,
+                total_steps: 14,
                 progress: current_progress,
                 step,
                 ..Default::default()
@@ -114,7 +112,7 @@ impl Repo {
 
     pub fn send_status_with_stats(&self, stats: HashMap<String, usize>) {
         let su = StatusUpdate {
-            total_steps: 16,
+            total_steps: 14,
             stats: Some(stats),
             ..Default::default()
         };

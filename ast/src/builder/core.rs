@@ -33,6 +33,7 @@ impl Repo {
         let mut graph = G::new(graph_root, self.lang.kind.clone());
         let mut stats = std::collections::HashMap::new();
 
+        self.send_status_update("initialization", 1);
         self.add_repository_and_language_nodes(&mut graph).await?;
         let files = self.collect_and_add_directories(&mut graph)?;
         stats.insert("directories".to_string(), files.len());
@@ -40,6 +41,7 @@ impl Repo {
         let filez = self.process_and_add_files(&mut graph, &files).await?;
         stats.insert("files".to_string(), filez.len());
         self.send_status_with_stats(stats.clone());
+        self.send_status_progress(100, 100, 1);
 
         self.setup_lsp(&filez)?;
 
@@ -74,7 +76,6 @@ impl Repo {
 
 impl Repo {
     fn collect_and_add_directories<G: Graph>(&self, graph: &mut G) -> Result<Vec<PathBuf>> {
-        self.send_status_update("collect_and_add_directories", 2);
         debug!("collecting dirs...");
         let dirs = self.collect_dirs_with_tmp()?; // /tmp/stakwork/stakgraph/my_directory
         let all_files = self.collect_all_files()?; // /tmp/stakwork/stakgraph/my_directory/my_file.go
@@ -126,7 +127,6 @@ impl Repo {
 
             graph.add_node_with_parent(NodeType::Directory, dir_data, parent_type, &parent_file);
         }
-        self.send_status_progress(100, 100, 1);
         Ok(files)
     }
     async fn process_and_add_files<G: Graph>(
@@ -134,7 +134,6 @@ impl Repo {
         graph: &mut G,
         files: &[PathBuf],
     ) -> Result<Vec<(String, String)>> {
-        self.send_status_update("process_and_add_files", 3);
         info!("parsing {} files...", files.len());
         let mut i = 0;
         let total_files = files.len();
@@ -186,11 +185,10 @@ impl Repo {
 
             graph.add_node_with_parent(NodeType::File, file_data, parent_type, &parent_file);
         }
-        self.send_status_progress(100, 100, 3);
         Ok(ret)
     }
     fn setup_lsp(&self, filez: &[(String, String)]) -> Result<()> {
-        self.send_status_update("setup_lsp", 4);
+        self.send_status_update("setup_lsp", 2);
         info!("=> DidOpen...");
         if let Some(lsp_tx) = self.lsp_tx.as_ref() {
             let mut i = 0;
@@ -212,12 +210,12 @@ impl Repo {
                 trace!("didopen: {:?}", didopen);
                 let _ = LspCmd::DidOpen(didopen).send(&lsp_tx)?;
             }
-            self.send_status_progress(100, 100, 4);
+            self.send_status_progress(100, 100, 2);
         }
         Ok(())
     }
     fn process_libraries<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
-        self.send_status_update("process_libraries", 5);
+        self.send_status_update("process_libraries", 3);
         let mut i = 0;
         let mut lib_count = 0;
         let pkg_files = filez
@@ -254,7 +252,7 @@ impl Repo {
         stats.insert("libraries".to_string(), lib_count);
         self.send_status_with_stats(stats);
 
-        self.send_status_progress(100, 100, 5);
+        self.send_status_progress(100, 100, 3);
         info!("=> got {} libs", lib_count);
         Ok(())
     }
@@ -263,7 +261,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
-        self.send_status_update("process_imports", 6);
+        self.send_status_update("process_imports", 4);
         let mut i = 0;
         let mut import_count = 0;
         let total = filez.len();
@@ -293,12 +291,12 @@ impl Repo {
         let mut stats = std::collections::HashMap::new();
         stats.insert("imports".to_string(), import_count);
         self.send_status_with_stats(stats);
-
+        self.send_status_progress(100, 100, 4);
         info!("=> got {} import sections", import_count);
         Ok(())
     }
     fn process_variables<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
-        self.send_status_update("process_variables", 7);
+        self.send_status_update("process_variables", 5);
         let mut i = 0;
         let mut var_count = 0;
         let total = filez.len();
@@ -326,12 +324,12 @@ impl Repo {
         let mut stats = std::collections::HashMap::new();
         stats.insert("variables".to_string(), var_count);
         self.send_status_with_stats(stats);
+        self.send_status_progress(100, 100, 5);
 
         info!("=> got {} all vars", var_count);
         Ok(())
     }
     async fn add_repository_and_language_nodes<G: Graph>(&self, graph: &mut G) -> Result<()> {
-        self.send_status_update("add_repository_and_language_nodes", 1);
         info!("Root: {:?}", self.root);
         let commit_hash = get_commit_hash(&self.root.to_str().unwrap()).await?;
         info!("Commit(commit_hash): {:?}", commit_hash);
@@ -371,11 +369,10 @@ impl Repo {
         stats.insert("language".to_string(), 1);
         self.send_status_with_stats(stats);
 
-        self.send_status_progress(100, 100, 1);
         Ok(())
     }
     fn process_classes<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
-        self.send_status_update("process_classes", 8);
+        self.send_status_update("process_classes", 6);
         let mut i = 0;
         let mut class_count = 0;
         let total = filez.len();
@@ -413,6 +410,7 @@ impl Repo {
         let mut stats = std::collections::HashMap::new();
         stats.insert("classes".to_string(), class_count);
         self.send_status_with_stats(stats);
+        self.send_status_progress(100, 100, 6);
 
         info!("=> got {} classes", class_count);
         graph.class_inherits();
@@ -424,7 +422,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
-        self.send_status_update("process_instances_and_traits", 9);
+        self.send_status_update("process_instances_and_traits", 7);
         let mut cnt = 0;
         let mut instance_count = 0;
         let mut trait_count = 0;
@@ -465,6 +463,7 @@ impl Repo {
         stats.insert("instances".to_string(), instance_count);
         stats.insert("traits".to_string(), trait_count);
         self.send_status_with_stats(stats);
+        self.send_status_progress(100, 100, 7);
 
         info!("=> got {} traits", trait_count);
         Ok(())
@@ -474,7 +473,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
-        self.send_status_update("process_data_models", 10);
+        self.send_status_update("process_data_models", 8);
         let mut i = 0;
         let mut datamodel_count = 0;
         let total = filez.len();
@@ -519,6 +518,7 @@ impl Repo {
         let mut stats = std::collections::HashMap::new();
         stats.insert("data_models".to_string(), datamodel_count);
         self.send_status_with_stats(stats);
+        self.send_status_progress(100, 100, 8);
 
         info!("=> got {} data models", datamodel_count);
         Ok(())
@@ -528,7 +528,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
-        self.send_status_update("process_functions_and_tests", 11);
+        self.send_status_update("process_functions_and_tests", 9);
         let mut i = 0;
         let mut function_count = 0;
         let mut test_count = 0;
@@ -565,6 +565,7 @@ impl Repo {
         stats.insert("functions".to_string(), function_count);
         stats.insert("tests".to_string(), test_count);
         self.send_status_with_stats(stats);
+        self.send_status_progress(100, 100, 9);
 
         info!("=> got {} functions and tests", function_count + test_count);
         Ok(())
@@ -574,7 +575,7 @@ impl Repo {
         graph: &mut G,
         filez: &[(String, String)],
     ) -> Result<()> {
-        self.send_status_update("process_pages_and_templates", 12);
+        self.send_status_update("process_pages_and_templates", 10);
         let mut i = 0;
         let mut page_count = 0;
         let mut template_count = 0;
@@ -661,6 +662,7 @@ impl Repo {
         stats.insert("pages".to_string(), page_count);
         stats.insert("templates".to_string(), template_count);
         self.send_status_with_stats(stats);
+        self.send_status_progress(100, 100, 10);
 
         info!("=> got {} component templates/styles", template_count);
 
@@ -691,7 +693,7 @@ impl Repo {
         Ok(())
     }
     fn process_endpoints<G: Graph>(&self, graph: &mut G, filez: &[(String, String)]) -> Result<()> {
-        self.send_status_update("process_endpoints", 13);
+        self.send_status_update("process_endpoints", 11);
         let mut _i = 0;
         let mut endpoint_count = 0;
         let total = filez.len();
@@ -700,7 +702,7 @@ impl Repo {
         for (filename, code) in filez {
             _i += 1;
             if _i % 10 == 0 || _i == total {
-                self.send_status_progress(_i, total, 13);
+                self.send_status_progress(_i, total, 11);
             }
 
             if !self.lang.kind.is_source_file(&filename) {
@@ -775,7 +777,7 @@ impl Repo {
         stats.insert("import_edges".to_string(), import_edges_count);
         info!("=> got {} import edges", import_edges_count);
 
-        self.send_status_update("process_integration_tests", 14);
+        self.send_status_update("process_integration_tests", 12);
 
         let mut _i = 0;
         let mut cnt = 0;
@@ -787,7 +789,7 @@ impl Repo {
             for (filename, code) in filez {
                 cnt += 1;
                 if cnt % 10 == 0 || cnt == total {
-                    self.send_status_progress(cnt, total, 14);
+                    self.send_status_progress(cnt, total, 12);
                 }
 
                 if !self.lang.lang().is_test_file(&filename) {
@@ -808,7 +810,7 @@ impl Repo {
         if skip_calls {
             info!("=> Skipping function_calls...");
         } else {
-            self.send_status_update("process_function_calls", 15);
+            self.send_status_update("process_function_calls", 13);
             _i = 0;
             let mut cnt = 0;
             let mut function_call_count = 0;
@@ -818,7 +820,7 @@ impl Repo {
             for (filename, code) in filez {
                 cnt += 1;
                 if cnt % 5 == 0 || cnt == total {
-                    self.send_status_progress(cnt, total, 15);
+                    self.send_status_progress(cnt, total, 13);
                 }
 
                 let all_calls = self
