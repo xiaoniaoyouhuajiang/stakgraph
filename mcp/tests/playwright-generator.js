@@ -204,7 +204,7 @@ function generateUserInteractions(
     assertions.forEach((assertion) => {
       const text = assertion.value || "";
 
-      const isShortText = text.length < 5 || text.split(" ").length <= 1;
+      const isShortText = text.length < 4; // || text.split(" ").length <= 1;
 
       if (!isShortText && text.trim().length > 0) {
         allEvents.push({
