@@ -2,7 +2,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
-import express, { Request, Response, Express } from "express";
+import { Request, Response, Express } from "express";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -388,9 +388,10 @@ export function test_routes(app: Express) {
     "style.css",
     "hooks.js",
     "playwright-generator.js",
-    "staktrak.js",
     "frame/app.js",
     "frame/style.css",
+    "staktrak/dist/staktrak.js",
+    "staktrak/dist/playwright-generator.js",
   ];
 
   serveStaticFiles(app, static_files);

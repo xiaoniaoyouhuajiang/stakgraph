@@ -48,7 +48,7 @@ export function useIframeMessaging(iframeRef) {
             console.log("Staktrak setup message received");
             break;
           case "staktrak-results":
-            console.log("Staktrak results received");
+            console.log("Staktrak results received", event.data.data);
             setTrackingData(event.data.data);
             setCanGenerate(true);
             break;
