@@ -81,6 +81,9 @@ pub trait Stack {
     fn instance_definition_query(&self) -> Option<String> {
         None
     }
+    fn implements_query(&self) -> Option<String> {
+        None
+    }
     fn function_definition_query(&self) -> String;
     fn test_query(&self) -> Option<String> {
         None

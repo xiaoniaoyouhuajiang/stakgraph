@@ -136,6 +136,19 @@ impl Stack for Rust {
         )
     }
 
+    fn implements_query(&self) -> Option<String> {
+        Some(
+            r#"
+        (impl_item
+            trait: (type_identifier) @trait-name
+            type: (type_identifier) @class-name
+            body: (declaration_list)?
+        ) @implements
+        "#
+            .to_string(),
+        )
+    }
+
     fn function_definition_query(&self) -> String {
         format!(
             r#"

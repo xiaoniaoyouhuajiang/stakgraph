@@ -253,6 +253,26 @@ impl Lang {
         })?;
         Ok(inst)
     }
+
+    pub fn format_implements(
+        &self,
+        m: &QueryMatch,
+        code: &str,
+        q: &Query,
+    ) -> Result<(String, String)> {
+        let mut class_name = String::new();
+        let mut trait_name = String::new();
+        Self::loop_captures(q, &m, code, |body, _node, o| {
+            if o == CLASS_NAME {
+                class_name = body;
+            } else if o == TRAIT_NAME {
+                trait_name = body;
+            }
+            Ok(())
+        })?;
+        Ok((class_name, trait_name))
+    }
+
     pub fn format_endpoint<G: Graph>(
         &self,
         m: &QueryMatch,
