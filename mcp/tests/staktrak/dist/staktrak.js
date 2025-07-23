@@ -183,7 +183,6 @@ var userBehaviour = (() => {
       this.setupMessageHandling();
     }
     start() {
-      console.log("=> START");
       this.cleanup();
       this.resetResults();
       this.setupEventListeners();
@@ -234,10 +233,8 @@ var userBehaviour = (() => {
       }
     }
     setupEventListeners() {
-      console.log("=> setupEventListeners", this.config.clicks);
       if (this.config.clicks) {
         const clickHandler = (e) => {
-          console.log("=> clickHandler", e);
           this.results.clicks.clickCount++;
           const path = createClickPath(e);
           this.results.clicks.clickDetails.push([
@@ -487,7 +484,6 @@ var userBehaviour = (() => {
       );
     }
     setupMessageHandling() {
-      console.log("=> setupMessageHandling", this.memory.postMessageListeners);
       if (this.memory.postMessageListeners.length > 0)
         return;
       const messageHandler = (event) => {
@@ -496,7 +492,6 @@ var userBehaviour = (() => {
           return;
         switch (event.data.type) {
           case "staktrak-start":
-            console.log("=> staktrak-start");
             this.resetResults();
             this.start();
             break;
@@ -532,7 +527,6 @@ var userBehaviour = (() => {
       if (isActive) {
         document.body.classList.add("staktrak-selection-active");
         const mouseUpHandler = () => {
-          console.log("=> MOUSEUP");
           const selection = window.getSelection();
           if (selection == null ? void 0 : selection.toString().trim()) {
             const text = selection.toString();
@@ -595,7 +589,6 @@ var userBehaviour = (() => {
     stop() {
       if (!this.isRunning)
         return this;
-      console.log("=> STOP");
       this.cleanup();
       this.processResults();
       this.isRunning = false;
@@ -622,7 +615,6 @@ var userBehaviour = (() => {
       processData: (results) => console.log("StakTrak recording processed:", results)
     }).listen();
   });
-  globalThis.userBehaviour = userBehaviour;
   var src_default = userBehaviour;
   return __toCommonJS(src_exports);
 })();

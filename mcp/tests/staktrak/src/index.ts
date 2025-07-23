@@ -602,7 +602,4 @@ document.addEventListener("DOMContentLoaded", () => {
     .listen();
 });
 
-// Export for global access
-(globalThis as any).userBehaviour = userBehaviour;
-
 export default userBehaviour;
