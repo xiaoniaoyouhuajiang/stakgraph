@@ -58,6 +58,9 @@ const App = () => {
       }
       if (data && data.progress !== undefined) {
         setProgress(data.progress);
+        if (data.progress === 100 || data.status === "Complete") {
+          setIsLoading(false);
+        }
       }
       if (data && data.stats) {
         setStats((prevStats) => ({ ...prevStats, ...data.stats }));
@@ -168,6 +171,33 @@ const App = () => {
     `;
   };
 
+  const renderActionButtons = () => {
+    if (
+      !isLoading &&
+      status &&
+      (status.status === "Complete" || progress === 100)
+    ) {
+      return html`
+        <div style="margin-top: 24px; display: flex; gap: 12px;">
+          <button onClick=${handleSync}>Sync Repo to Latest</button>
+          <button onClick=${handleReset}>Ingest Another Repo</button>
+        </div>
+      `;
+    }
+    return null;
+  };
+
+  const handleReset = () => {
+    setRepoUrl("");
+    setUsername("");
+    setPat("");
+    setCurrentRepoName("");
+    setStatus(null);
+    setProgress(0);
+    setStats({});
+    setRepoExists(false);
+  };
+
   const formatStatLabel = (key) => {
     return key
       .replace(/_/g, " ")
@@ -216,7 +246,7 @@ const App = () => {
             ? html`<div class="loading"><${LoadingSvg} /></div>`
             : buttonText}
         </button>
-        ${status && renderProgressBar()}
+        ${status && renderProgressBar()} ${renderActionButtons()}
       </div>
     </div>
   `;
