@@ -325,9 +325,6 @@ impl Stack for Rust {
         }
     }
 
-    fn clean_graph(&self, callback: &mut dyn FnMut(NodeType, NodeType, &str)) {
-        callback(NodeType::Class, NodeType::Function, "operand");
-    }
     fn resolve_import_path(&self, import_path: &str, _current_file: &str) -> String {
         let mut path = import_path.to_string();
         path = path.replace("::", "/");

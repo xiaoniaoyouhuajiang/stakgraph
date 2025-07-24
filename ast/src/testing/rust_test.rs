@@ -80,6 +80,11 @@ use std::net::SocketAddr;"#
     nodes_count += vars.len();
     assert_eq!(vars.len(), 5, "Expected 5 variables");
 
+    let classes = graph.find_nodes_by_type(NodeType::Class);
+
+    nodes_count += classes.len();
+    assert_eq!(classes.len(), 2, "Expected 2 class node");
+
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     nodes_count += data_models.len();
     assert_eq!(data_models.len(), 3, "Expected 3 data models");
@@ -90,11 +95,11 @@ use std::net::SocketAddr;"#
 
     let imported_edges = graph.count_edges_of_type(EdgeType::Imports);
     edges_count += imported_edges;
-    assert_eq!(imported_edges, 4, "Expected 4 import edges");
+    assert_eq!(imported_edges, 10, "Expected 10 import edges");
 
     let calls_edges = graph.count_edges_of_type(EdgeType::Contains);
     edges_count += calls_edges;
-    assert_eq!(calls_edges, 76, "Expected 76 contains edges");
+    assert_eq!(calls_edges, 79, "Expected 79 contains edges");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
