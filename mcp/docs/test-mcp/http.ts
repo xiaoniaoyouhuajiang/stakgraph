@@ -7,18 +7,18 @@ dotenv.config();
 
 async function runAgent() {
   try {
+    const url = "https://repo2graph.swarm38.sphinx.chat/mcp";
+    // const url = "http://localhost:3000/mcp";
+    const token = process.env.API_TOKEN || "asdfasdf";
     const client = await experimental_createMCPClient({
-      transport: new StreamableHTTPClientTransport(
-        new URL("http://localhost:3000/mcp"),
-        {
-          requestInit: {
-            headers: {
-              authorization: `Bearer asdfasdf`,
-              "x-session-id": randomUUID(),
-            },
+      transport: new StreamableHTTPClientTransport(new URL(url), {
+        requestInit: {
+          headers: {
+            authorization: `Bearer ${token}`,
+            "x-session-id": randomUUID(),
           },
-        }
-      ),
+        },
+      }),
     });
 
     const tools = await client.tools();
