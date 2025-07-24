@@ -8,8 +8,8 @@ async function runAgent() {
     const client = await experimental_createMCPClient({
       transport: {
         type: "sse",
-        // url: "https://repo2graph.swarm38.sphinx.chat/sse",
-        url: "http://localhost:3000/sse",
+        url: "https://repo2graph.swarm38.sphinx.chat/sse",
+        // url: "http://localhost:3000/sse",
         headers: {
           Authorization: `Bearer ${process.env.API_TOKEN}`,
           "mcp-session-id": "my-session-id-123",
