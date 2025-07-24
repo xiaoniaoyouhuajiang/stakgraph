@@ -604,25 +604,37 @@ pub fn all_nodes_and_edges_query() -> (String, String) {
 pub fn filter_out_nodes_without_children_query(
     parent_type: NodeType,
     child_type: NodeType,
-    _child_meta_key: &str,
+    child_meta_key: &str,
 ) -> (String, BoltMap) {
     let mut params = BoltMap::new();
-
     boltmap_insert_str(&mut params, "parent_type", &parent_type.to_string());
     boltmap_insert_str(&mut params, "child_type", &child_type.to_string());
 
-    let query = format!(
-        "MATCH (parent:{})
-        WHERE NOT EXISTS {{
-            MATCH (parent)<-[:OPERAND]-(child:{})
-        }}
-        AND NOT EXISTS {{
-            MATCH (instance:Instance)-[:OF]->(parent)
-        }}
-        DETACH DELETE parent",
-        parent_type.to_string(),
-        child_type.to_string()
-    );
+    let query = if parent_type == NodeType::Class
+        && child_type == NodeType::Trait
+        && child_meta_key == "implements"
+    {
+        // Remove Class nodes that do NOT have "implements" property
+        format!(
+            "MATCH (parent:{})
+             WHERE parent.implements IS NULL
+             DETACH DELETE parent",
+            parent_type.to_string()
+        )
+    } else {
+        format!(
+            "MATCH (parent:{})
+            WHERE NOT EXISTS {{
+                MATCH (parent)<-[:OPERAND]-(child:{})
+            }}
+            AND NOT EXISTS {{
+                MATCH (instance:Instance)-[:OF]->(parent)
+            }}
+            DETACH DELETE parent",
+            parent_type.to_string(),
+            child_type.to_string()
+        )
+    };
 
     (query, params)
 }

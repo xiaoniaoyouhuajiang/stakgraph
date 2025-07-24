@@ -140,7 +140,7 @@ impl Stack for Rust {
         Some(
             r#"
         (impl_item
-            trait: (type_identifier) @trait-name
+            trait: (type_identifier)? @trait-name
             type: (type_identifier) @class-name
             body: (declaration_list)?
         ) @implements
@@ -325,6 +325,9 @@ impl Stack for Rust {
         }
     }
 
+    fn clean_graph(&self, callback: &mut dyn FnMut(NodeType, NodeType, &str)) {
+        callback(NodeType::Class, NodeType::Trait, "implements");
+    }
     fn resolve_import_path(&self, import_path: &str, _current_file: &str) -> String {
         let mut path = import_path.to_string();
         path = path.replace("::", "/");

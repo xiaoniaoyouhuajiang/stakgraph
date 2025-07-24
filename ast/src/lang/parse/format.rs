@@ -54,6 +54,19 @@ impl Lang {
             }
             Ok(())
         })?;
+
+        if let Some(implements_query) = self.lang.implements_query() {
+            let implements_q = self.lang.q(&implements_query, &NodeType::Class);
+            let tree = self.lang.parse(code, &NodeType::Class)?;
+            let mut cursoe = QueryCursor::new();
+            let mut matches = cursoe.matches(&implements_q, tree.root_node(), code.as_bytes());
+            while let Some(m) = matches.next() {
+                let (class_name, trait_name) = self.format_implements(&m, code, &implements_q)?;
+                if class_name == cls.name {
+                    cls.add_implements(trait_name.as_str());
+                }
+            }
+        }
         Ok((cls, associations))
     }
     pub fn format_library(
