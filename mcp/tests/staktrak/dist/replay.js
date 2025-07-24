@@ -30,21 +30,37 @@ var stakReplay = (() => {
     MIN_DELAY: () => MIN_DELAY,
     convertToReplayActions: () => convertToReplayActions,
     createCursor: () => createCursor,
-    createFallbackActions: () => createFallbackActions,
     createReplayStyles: () => createReplayStyles,
     executeAction: () => executeAction,
     findElement: () => findElement,
     highlightElement: () => highlightElement,
     initReplay: () => initReplay,
     moveCursorToElement: () => moveCursorToElement,
+    pauseReplay: () => pauseReplay,
+    resumeReplay: () => resumeReplay,
     selectOption: () => selectOption,
     showClickEffect: () => showClickEffect,
+    stopReplay: () => stopReplay,
     typeText: () => typeText,
   });
   var DEFAULT_SPEED = 1,
     MIN_DELAY = 1e3,
     MAX_DELAY = 5e3,
-    INITIAL_DELAY = 2e3;
+    INITIAL_DELAY = 2e3,
+    cursorRef = { current: null },
+    statusRef = { current: "idle" },
+    speedRef = { current: DEFAULT_SPEED },
+    actionsRef = { current: [] },
+    currentActionIndexRef = { current: 0 },
+    isTypingRef = { current: !1 },
+    timeoutIdsRef = { current: [] },
+    timeoutRef = { current: null };
+  function registerTimeout(timeoutId) {
+    return (timeoutIdsRef.current.push(timeoutId), timeoutId);
+  }
+  function clearAllTimeouts() {
+    (timeoutIdsRef.current.forEach(clearTimeout), (timeoutIdsRef.current = []));
+  }
   function convertToReplayActions(trackingData) {
     var _a;
     if (!trackingData)
@@ -262,43 +278,9 @@ var stakReplay = (() => {
     } catch (e) {
       console.error("Error processing tracking data", e);
     }
-    if (actions.length === 0) {
-      console.warn(
-        "No actions extracted from tracking data, creating fallbacks",
-      );
-      try {
-        let testIdButtons = document.querySelectorAll("[data-testid]"),
-          timestamp = Date.now();
-        if (
-          (testIdButtons.forEach((button, index) => {
-            actions.push({
-              type: "click",
-              selector: `[data-testid="${button.getAttribute("data-testid")}"]`,
-              timestamp: timestamp + index * 1e3,
-              x: 100,
-              y: 100,
-            });
-          }),
-          actions.length === 0)
-        ) {
-          let commonSelectors = ["button", "a", "input", "#app"];
-          ((timestamp = Date.now()),
-            commonSelectors.forEach((selector, index) => {
-              document.querySelectorAll(selector).length > 0 &&
-                actions.push({
-                  type: "click",
-                  selector,
-                  timestamp: timestamp + index * 1e3,
-                  x: 100,
-                  y: 100,
-                });
-            }));
-        }
-      } catch (e) {
-        console.error("Error creating fallback actions", e);
-      }
-    }
-    actions.sort((a, b) => a.timestamp - b.timestamp);
+    (actions.length === 0 &&
+      console.warn("No actions extracted from tracking data"),
+      actions.sort((a, b) => a.timestamp - b.timestamp));
     for (let i = 1; i < actions.length; i++)
       actions[i].timestamp - actions[i - 1].timestamp < 600 &&
         (actions[i].timestamp = actions[i - 1].timestamp + 600);
@@ -358,56 +340,6 @@ var stakReplay = (() => {
     let style = document.createElement("style");
     return (
       (style.textContent = `
-    .replay-overlay {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.85);
-      color: white;
-      padding: 15px;
-      border-radius: 8px;
-      z-index: 9999;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
-      max-width: 300px;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      transition: opacity 1.5s ease-out;
-      border: 2px solid #3b82f6;
-    }
-    
-    .replay-info {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    
-    .replay-info h3 {
-      margin: 0 0 5px 0;
-      font-size: 18px;
-      color: #3b82f6;
-      font-weight: bold;
-    }
-    
-    .replay-progress {
-      font-size: 14px;
-      font-weight: 500;
-    }
-    
-    .replay-action {
-      font-size: 13px;
-      word-break: break-all;
-      opacity: 0.9;
-    }
-    
-    .replay-status-text {
-      font-weight: bold;
-      margin-top: 5px;
-      color: #10b981;
-    }
-    
-    .replay-overlay.fade-out {
-      opacity: 0;
-    }
-    
     @keyframes click-ripple {
       0% {
         transform: translate(-50%, -50%) scale(1);
@@ -433,13 +365,13 @@ var stakReplay = (() => {
       style
     );
   }
-  function showClickEffect(cursorRef) {
-    if (!cursorRef.current) return;
+  function showClickEffect(cursorRef2) {
+    if (!cursorRef2.current) return;
     let ripple = document.createElement("div");
     ((ripple.className = "click-ripple"),
       (ripple.style.position = "fixed"),
-      (ripple.style.left = cursorRef.current.style.left),
-      (ripple.style.top = cursorRef.current.style.top),
+      (ripple.style.left = cursorRef2.current.style.left),
+      (ripple.style.top = cursorRef2.current.style.top),
       (ripple.style.transform = "translate(-50%, -50%)"),
       (ripple.style.width = "20px"),
       (ripple.style.height = "20px"),
@@ -449,17 +381,17 @@ var stakReplay = (() => {
       (ripple.style.pointerEvents = "none"),
       (ripple.style.animation = "click-ripple 1s ease-out forwards"),
       document.body.appendChild(ripple),
-      (cursorRef.current.style.transform = "translate(-50%, -50%) scale(0.8)"),
+      (cursorRef2.current.style.transform = "translate(-50%, -50%) scale(0.8)"),
       setTimeout(() => {
-        cursorRef.current &&
-          (cursorRef.current.style.transform =
+        cursorRef2.current &&
+          (cursorRef2.current.style.transform =
             "translate(-50%, -50%) scale(1)");
       }, 200),
       setTimeout(() => {
         ripple.parentNode && ripple.parentNode.removeChild(ripple);
       }, 1e3));
   }
-  function highlightElement(element, speedRef) {
+  function highlightElement(element, speedRef2) {
     let originalOutline = element.style.outline,
       originalBoxShadow = element.style.boxShadow,
       originalZIndex = element.style.zIndex,
@@ -476,23 +408,23 @@ var stakReplay = (() => {
           (element.style.zIndex = originalZIndex),
           (element.style.transition = originalTransition),
           element.classList.remove("replay-pulse"));
-      }, 2e3 / speedRef.current));
+      }, 2e3 / speedRef2.current));
   }
-  function moveCursorToElement(element, cursorRef, statusRef) {
+  function moveCursorToElement(element, cursorRef2, statusRef2) {
     return new Promise((resolve) => {
-      if (!element || !cursorRef.current || statusRef.current !== "playing") {
+      if (!element || !cursorRef2.current || statusRef2.current !== "playing") {
         resolve();
         return;
       }
       let rect = element.getBoundingClientRect(),
         targetX = rect.left + rect.width / 2,
         targetY = rect.top + rect.height / 2;
-      ((cursorRef.current.style.display = "block"),
+      ((cursorRef2.current.style.display = "block"),
         element.scrollIntoView({ behavior: "smooth", block: "center" }),
         setTimeout(() => {
-          (cursorRef.current &&
-            ((cursorRef.current.style.left = `${targetX}px`),
-            (cursorRef.current.style.top = `${targetY}px`)),
+          (cursorRef2.current &&
+            ((cursorRef2.current.style.left = `${targetX}px`),
+            (cursorRef2.current.style.top = `${targetY}px`)),
             setTimeout(resolve, 800));
         }, 400));
     });
@@ -500,240 +432,118 @@ var stakReplay = (() => {
   function typeText(
     element,
     value,
-    speedRef,
-    statusRef,
-    isTypingRef,
-    registerTimeout,
+    speedRef2,
+    statusRef2,
+    isTypingRef2,
+    registerTimeout2,
   ) {
     return new Promise((resolve) => {
-      if (statusRef.current !== "playing") {
+      if (statusRef2.current !== "playing") {
         resolve();
         return;
       }
-      ((isTypingRef.current = !0), element.focus(), (element.value = ""));
+      ((isTypingRef2.current = !0), element.focus(), (element.value = ""));
       let index = 0,
         typeChar = () => {
-          if (statusRef.current !== "playing") {
-            ((isTypingRef.current = !1), resolve());
+          if (statusRef2.current !== "playing") {
+            ((isTypingRef2.current = !1), resolve());
             return;
           }
           index < value.length
             ? ((element.value += value[index]),
               element.dispatchEvent(new Event("input", { bubbles: !0 })),
               index++,
-              registerTimeout(setTimeout(typeChar, 100 / speedRef.current)))
+              registerTimeout2(setTimeout(typeChar, 100 / speedRef2.current)))
             : (element.dispatchEvent(new Event("change", { bubbles: !0 })),
-              (isTypingRef.current = !1),
+              (isTypingRef2.current = !1),
               resolve());
         };
       typeChar();
     });
   }
-  function selectOption(element, value, speedRef, statusRef, registerTimeout) {
+  function selectOption(
+    element,
+    value,
+    speedRef2,
+    statusRef2,
+    registerTimeout2,
+  ) {
     return new Promise((resolve) => {
-      if (statusRef.current !== "playing") {
+      if (statusRef2.current !== "playing") {
         resolve();
         return;
       }
       (element.focus(),
-        registerTimeout(
+        registerTimeout2(
           setTimeout(() => {
-            (statusRef.current === "playing" &&
+            (statusRef2.current === "playing" &&
               ((element.value = value),
               element.dispatchEvent(new Event("change", { bubbles: !0 }))),
               resolve());
-          }, 500 / speedRef.current),
+          }, 500 / speedRef2.current),
         ));
     });
   }
-  function createFallbackActions() {
-    let actions = [],
-      timestamp = Date.now();
-    try {
-      let selectors = [
-        '[data-testid="staktrak-div"]',
-        "button.staktrak-div",
-        "#staktrak-div",
-        "button",
-        "a",
-        "input",
-        "#app",
-      ];
-      for (let selector of selectors)
-        try {
-          let element = document.querySelector(selector);
-          if (element) {
-            let rect = element.getBoundingClientRect();
-            if (
-              (actions.push({
-                type: "click",
-                selector,
-                timestamp,
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2,
-              }),
-              (timestamp += 1e3),
-              actions.length >= 3)
-            )
-              break;
-          }
-        } catch (e) {
-          console.error(`Error creating fallback action for ${selector}:`, e);
-        }
-    } catch (e) {
-      console.error("Error creating fallback actions:", e);
-    }
-    return actions;
-  }
   async function executeAction(
     index,
-    actionsRef,
-    statusRef,
-    cursorRef,
-    speedRef,
-    isTypingRef,
-    registerTimeout,
+    actionsRef2,
+    statusRef2,
+    cursorRef2,
+    speedRef2,
+    isTypingRef2,
+    registerTimeout2,
     setCurrentActionIndex,
     setStatus,
-    timeoutRef,
+    timeoutRef2,
   ) {
-    if (statusRef.current !== "playing") return;
-    if (window.replayOverlay) {
-      let progressEl = window.replayOverlay.querySelector(".replay-progress"),
-        actionEl = window.replayOverlay.querySelector(".replay-action"),
-        statusEl = window.replayOverlay.querySelector(".replay-status-text");
-      (progressEl &&
-        (progressEl.textContent = `Step ${index + 1} of ${actionsRef.current.length}`),
-        statusEl && (statusEl.textContent = "Playing"));
-    }
-    if (index >= actionsRef.current.length) {
-      if (
-        (setCurrentActionIndex(actionsRef.current.length - 1),
+    if (statusRef2.current !== "playing") return;
+    if (index >= actionsRef2.current.length) {
+      (setCurrentActionIndex(actionsRef2.current.length - 1),
         setStatus("completed"),
-        window.replayOverlay)
-      ) {
-        let progressEl = window.replayOverlay.querySelector(".replay-progress"),
-          actionEl = window.replayOverlay.querySelector(".replay-action"),
-          statusEl = window.replayOverlay.querySelector(".replay-status-text");
-        (progressEl &&
-          (progressEl.textContent = `Step ${actionsRef.current.length} of ${actionsRef.current.length}`),
-          actionEl && (actionEl.textContent = "Completed"),
-          statusEl &&
-            ((statusEl.textContent = "Completed"),
-            (statusEl.style.color = "#10b981")));
-      }
-      (window.parent.postMessage(
-        {
-          type: "staktrak-replay-completed",
-          totalActions: actionsRef.current.length,
-        },
-        "*",
-      ),
+        window.parent.postMessage(
+          {
+            type: "staktrak-replay-completed",
+            totalActions: actionsRef2.current.length,
+          },
+          "*",
+        ),
         setTimeout(() => {
-          (window.parent.postMessage({ type: "staktrak-replay-fadeout" }, "*"),
-            window.replayOverlay &&
-              (window.replayOverlay.classList.add("fade-out"),
-              setTimeout(() => {
-                window.replayOverlay &&
-                  window.replayOverlay.parentNode &&
-                  (window.replayOverlay.parentNode.removeChild(
-                    window.replayOverlay,
-                  ),
-                  (window.replayOverlay = null));
-              }, 1500)));
-        }, 3e3),
-        cursorRef.current && (cursorRef.current.style.display = "none"));
+          window.parent.postMessage({ type: "staktrak-replay-fadeout" }, "*");
+        }, 1e3),
+        cursorRef2.current && (cursorRef2.current.style.display = "none"));
       return;
     }
-    let action = actionsRef.current[index];
-    if (window.replayOverlay) {
-      let actionEl = window.replayOverlay.querySelector(".replay-action");
-      if (actionEl) {
-        let actionText = "";
-        switch (action.type) {
-          case "click":
-            actionText = `Clicking: ${action.selector}`;
-            break;
-          case "input":
-            actionText = `Typing into: ${action.selector}`;
-            break;
-          case "select":
-            actionText = `Selecting option in: ${action.selector}`;
-            break;
-          case "check":
-            actionText = `Checking: ${action.selector}`;
-            break;
-          case "uncheck":
-            actionText = `Unchecking: ${action.selector}`;
-            break;
-          default:
-            actionText = `Action: ${action.type} on ${action.selector}`;
-        }
-        actionEl.textContent = actionText;
-      }
-    }
+    let action = actionsRef2.current[index];
     try {
-      let element = findElement(action.selector);
-      if (
-        (element ||
-          (await new Promise((resolve) => setTimeout(resolve, 500)),
-          (element = findElement(action.selector))),
-        !element)
-      ) {
+      let element = findElement(action.selector),
+        attempts = 0,
+        maxAttempts = 5;
+      for (; !element && attempts < maxAttempts; ) {
+        attempts++;
+        let delay2 = Math.min(500 * attempts, 2e3);
         if (
-          (console.error(
-            `Element not found: ${action.selector}, trying simpler selector`,
-          ),
-          action.selector.includes("data-testid"))
-        ) {
-          let testIdMatch = action.selector.match(/data-testid="([^"]+)"/);
-          testIdMatch &&
-            testIdMatch[1] &&
-            (element = document.querySelector(
-              `[data-testid="${testIdMatch[1]}"]`,
-            ));
-        } else if (action.selector.includes("class=")) {
-          let classMatch = action.selector.match(/class="([^"]+)"/);
-          if (classMatch && classMatch[1]) {
-            let classNames = classMatch[1].split(" ");
-            classNames.length > 0 &&
-              (element = document.querySelector(`.${classNames[0]}`));
-          }
-        } else if (action.selector.includes("#")) {
-          let idMatch = action.selector.match(/#([^\s.>]+)/);
-          idMatch &&
-            idMatch[1] &&
-            (element = document.getElementById(idMatch[1]));
-        }
-        if (!element && action.selector.match(/^[a-zA-Z]+/)) {
-          let tagMatch = action.selector.match(/^([a-zA-Z]+)/);
-          if (tagMatch && tagMatch[1]) {
-            let elements = document.getElementsByTagName(tagMatch[1]);
-            elements.length > 0 && (element = elements[0]);
-          }
-        }
+          (await new Promise((resolve) => setTimeout(resolve, delay2)),
+          (element = findElement(action.selector)),
+          statusRef2.current !== "playing")
+        )
+          return;
       }
       if (!element) {
-        (console.error(
-          `Element not found after all attempts: ${action.selector}, skipping action`,
+        (console.warn(
+          `Could not find element for action ${index}: ${action.type} on ${action.selector} after ${maxAttempts} attempts`,
         ),
-          registerTimeout(
-            setTimeout(() => {
-              statusRef.current === "playing" &&
-                (setCurrentActionIndex(index + 1),
-                executeAction(
-                  index + 1,
-                  actionsRef,
-                  statusRef,
-                  cursorRef,
-                  speedRef,
-                  isTypingRef,
-                  registerTimeout,
-                  setCurrentActionIndex,
-                  setStatus,
-                  timeoutRef,
-                ));
-            }, 1e3),
+          setCurrentActionIndex(index + 1),
+          executeAction(
+            index + 1,
+            actionsRef2,
+            statusRef2,
+            cursorRef2,
+            speedRef2,
+            isTypingRef2,
+            registerTimeout2,
+            setCurrentActionIndex,
+            setStatus,
+            timeoutRef2,
           ));
         return;
       }
@@ -743,18 +553,18 @@ var stakReplay = (() => {
           {
             type: "staktrak-replay-progress",
             currentAction: index,
-            totalActions: actionsRef.current.length,
+            totalActions: actionsRef2.current.length,
             action,
           },
           "*",
         ),
-        await moveCursorToElement(element, cursorRef, statusRef),
-        statusRef.current !== "playing")
+        await moveCursorToElement(element, cursorRef2, statusRef2),
+        statusRef2.current !== "playing")
       )
         return;
-      switch ((highlightElement(element, speedRef), action.type)) {
+      switch ((highlightElement(element, speedRef2), action.type)) {
         case "click":
-          (showClickEffect(cursorRef),
+          (showClickEffect(cursorRef2),
             element.scrollIntoView({ behavior: "smooth", block: "center" }),
             await new Promise((resolve) => setTimeout(resolve, 300)));
           try {
@@ -796,19 +606,19 @@ var stakReplay = (() => {
           await typeText(
             element,
             action.value || "",
-            speedRef,
-            statusRef,
-            isTypingRef,
-            registerTimeout,
+            speedRef2,
+            statusRef2,
+            isTypingRef2,
+            registerTimeout2,
           );
           break;
         case "select":
           await selectOption(
             element,
             action.value || "",
-            speedRef,
-            statusRef,
-            registerTimeout,
+            speedRef2,
+            statusRef2,
+            registerTimeout2,
           );
           break;
         case "check":
@@ -820,32 +630,33 @@ var stakReplay = (() => {
             element.dispatchEvent(new Event("change", { bubbles: !0 })));
           break;
       }
-      if (statusRef.current !== "playing") return;
-      let nextAction = actionsRef.current[index + 1],
-        delay = MIN_DELAY;
+      if (statusRef2.current !== "playing") return;
+      let nextAction = actionsRef2.current[index + 1],
+        delay = MIN_DELAY / speedRef2.current;
       if (nextAction && action.timestamp && nextAction.timestamp) {
         let timeDiff = nextAction.timestamp - action.timestamp;
         delay =
-          Math.max(MIN_DELAY, Math.min(MAX_DELAY, timeDiff)) / speedRef.current;
+          Math.max(MIN_DELAY, Math.min(MAX_DELAY, timeDiff)) /
+          speedRef2.current;
       }
-      timeoutRef.current = registerTimeout(
+      timeoutRef2.current = registerTimeout2(
         setTimeout(() => {
-          statusRef.current === "playing"
+          statusRef2.current === "playing"
             ? (setCurrentActionIndex(index + 1),
               executeAction(
                 index + 1,
-                actionsRef,
-                statusRef,
-                cursorRef,
-                speedRef,
-                isTypingRef,
-                registerTimeout,
+                actionsRef2,
+                statusRef2,
+                cursorRef2,
+                speedRef2,
+                isTypingRef2,
+                registerTimeout2,
                 setCurrentActionIndex,
                 setStatus,
-                timeoutRef,
+                timeoutRef2,
               ))
             : console.warn(
-                `Not moving to next action because status is ${statusRef.current}`,
+                `Not moving to next action because status is ${statusRef2.current}`,
               );
         }, delay),
       );
@@ -855,165 +666,123 @@ var stakReplay = (() => {
           { type: "staktrak-replay-error", error: error.message, action },
           "*",
         ),
-        statusRef.current === "playing" &&
-          (timeoutRef.current = registerTimeout(
+        statusRef2.current === "playing" &&
+          (timeoutRef2.current = registerTimeout2(
             setTimeout(() => {
               (setCurrentActionIndex(index + 1),
                 executeAction(
                   index + 1,
-                  actionsRef,
-                  statusRef,
-                  cursorRef,
-                  speedRef,
-                  isTypingRef,
-                  registerTimeout,
+                  actionsRef2,
+                  statusRef2,
+                  cursorRef2,
+                  speedRef2,
+                  isTypingRef2,
+                  registerTimeout2,
                   setCurrentActionIndex,
                   setStatus,
-                  timeoutRef,
+                  timeoutRef2,
                 ));
             }, 2e3),
           )));
     }
   }
+  function pauseReplay() {
+    statusRef.current === "playing" &&
+      ((statusRef.current = "paused"),
+      window.parent.postMessage({ type: "staktrak-replay-paused" }, "*"));
+  }
+  function resumeReplay() {
+    statusRef.current === "paused" &&
+      ((statusRef.current = "playing"),
+      executeAction(
+        currentActionIndexRef.current,
+        actionsRef,
+        statusRef,
+        cursorRef,
+        speedRef,
+        isTypingRef,
+        registerTimeout,
+        (index) => {
+          currentActionIndexRef.current = index;
+        },
+        (status) => {
+          statusRef.current = status;
+        },
+        timeoutRef,
+      ),
+      window.parent.postMessage({ type: "staktrak-replay-resumed" }, "*"));
+  }
+  function stopReplay() {
+    (clearAllTimeouts(),
+      (statusRef.current = "idle"),
+      cursorRef.current && (cursorRef.current.style.display = "none"),
+      document.querySelectorAll(".click-ripple").forEach((ripple) => {
+        ripple.parentNode && ripple.parentNode.removeChild(ripple);
+      }),
+      document.querySelectorAll(".replay-pulse").forEach((element) => {
+        (element.classList.remove("replay-pulse"),
+          (element.style.outline = ""),
+          (element.style.boxShadow = ""),
+          (element.style.zIndex = ""),
+          (element.style.transition = ""));
+      }),
+      window.parent.postMessage({ type: "staktrak-replay-stopped" }, "*"));
+  }
   function initReplay(options) {
-    window.convertToReplayActions = convertToReplayActions;
     let replayStyles = createReplayStyles(),
       cursor = createCursor();
-    ((window.cursorRef = { current: cursor }),
-      (window.statusRef = { current: "idle" }),
-      (window.speedRef = { current: DEFAULT_SPEED }),
-      (window.actionsRef = { current: [] }),
-      (window.currentActionIndexRef = { current: 0 }),
-      (window.isTypingRef = { current: !1 }),
-      (window.timeoutIdsRef = { current: [] }),
-      (window.timeoutRef = { current: null }),
-      (window.replayOverlay = null),
-      (window.registerTimeout = (timeoutId) => (
-        window.timeoutIdsRef.current.push(timeoutId),
-        timeoutId
-      )),
-      (window.clearAllTimeouts = () => {
-        (window.timeoutIdsRef.current.forEach(clearTimeout),
-          (window.timeoutIdsRef.current = []));
-      }),
-      (window.pauseReplay = () => {
-        if (window.statusRef.current === "playing") {
-          if (((window.statusRef.current = "paused"), window.replayOverlay)) {
-            let statusEl = window.replayOverlay.querySelector(
-              ".replay-status-text",
-            );
-            statusEl && (statusEl.textContent = "Paused");
-          }
-          window.parent.postMessage({ type: "staktrak-replay-paused" }, "*");
-        }
-      }),
-      (window.resumeReplay = () => {
-        if (window.statusRef.current === "paused") {
-          if (((window.statusRef.current = "playing"), window.replayOverlay)) {
-            let statusEl = window.replayOverlay.querySelector(
-              ".replay-status-text",
-            );
-            statusEl && (statusEl.textContent = "Playing");
-          }
-          (executeAction(
-            window.currentActionIndexRef.current,
-            window.actionsRef,
-            window.statusRef,
-            window.cursorRef,
-            window.speedRef,
-            window.isTypingRef,
-            window.registerTimeout,
-            (index) => {
-              window.currentActionIndexRef.current = index;
-            },
-            (status) => {
-              window.statusRef.current = status;
-            },
-            window.timeoutRef,
-          ),
-            window.parent.postMessage(
-              { type: "staktrak-replay-resumed" },
-              "*",
-            ));
-        }
-      }),
-      (window.stopReplay = () => {
-        (window.clearAllTimeouts(),
-          (window.statusRef.current = "idle"),
-          window.cursorRef.current &&
-            (window.cursorRef.current.style.display = "none"),
-          window.replayOverlay &&
-            window.replayOverlay.parentNode &&
-            (window.replayOverlay.parentNode.removeChild(window.replayOverlay),
-            (window.replayOverlay = null)),
-          document.querySelectorAll(".click-ripple").forEach((ripple) => {
-            ripple.parentNode && ripple.parentNode.removeChild(ripple);
-          }),
-          document.querySelectorAll(".replay-pulse").forEach((element) => {
-            (element.classList.remove("replay-pulse"),
-              (element.style.outline = ""),
-              (element.style.boxShadow = ""));
-          }),
-          window.parent.postMessage({ type: "staktrak-replay-stopped" }, "*"));
-      }),
+    ((cursorRef.current = cursor),
+      (statusRef.current = "idle"),
+      (speedRef.current = DEFAULT_SPEED),
+      (actionsRef.current = []),
+      (currentActionIndexRef.current = 0),
+      (isTypingRef.current = !1),
+      (timeoutIdsRef.current = []),
+      (timeoutRef.current = null),
       window.addEventListener("message", (event) => {
         let { data } = event;
         if (!(!data || !data.type))
           switch (data.type) {
             case "staktrak-replay-actions":
-              window.actionsRef.current = data.actions || [];
+              actionsRef.current = data.actions || [];
               break;
             case "staktrak-replay-start":
-              (window.clearAllTimeouts(),
-                (window.statusRef.current = "playing"),
-                (window.currentActionIndexRef.current = 0),
-                (window.speedRef.current = data.speed || DEFAULT_SPEED),
-                window.replayOverlay ||
-                  ((window.replayOverlay = document.createElement("div")),
-                  (window.replayOverlay.className = "replay-overlay"),
-                  (window.replayOverlay.style.zIndex = "10000"),
-                  (window.replayOverlay.innerHTML = `
-            <div class="replay-info">
-              <h3>Replaying Test</h3>
-              <div class="replay-progress">Step 0 of ${window.actionsRef.current.length}</div>
-              <div class="replay-action">Starting...</div>
-              <div class="replay-status-text">Playing</div>
-            </div>
-          `),
-                  document.body.appendChild(window.replayOverlay),
-                  window.replayOverlay.getBoundingClientRect()),
-                window.cursorRef.current &&
-                  (window.cursorRef.current.style.display = "block"),
+              (clearAllTimeouts(),
+                (statusRef.current = "playing"),
+                (currentActionIndexRef.current = 0),
+                (speedRef.current = data.speed || DEFAULT_SPEED),
+                cursorRef.current &&
+                  (cursorRef.current.style.display = "block"),
                 setTimeout(() => {
                   executeAction(
                     0,
-                    window.actionsRef,
-                    window.statusRef,
-                    window.cursorRef,
-                    window.speedRef,
-                    window.isTypingRef,
-                    window.registerTimeout,
+                    actionsRef,
+                    statusRef,
+                    cursorRef,
+                    speedRef,
+                    isTypingRef,
+                    registerTimeout,
                     (index) => {
-                      window.currentActionIndexRef.current = index;
+                      currentActionIndexRef.current = index;
                     },
                     (status) => {
-                      window.statusRef.current = status;
+                      statusRef.current = status;
                     },
-                    window.timeoutRef,
+                    timeoutRef,
                   );
-                }, INITIAL_DELAY));
+                }, INITIAL_DELAY / speedRef.current));
               break;
             case "staktrak-replay-pause":
-              window.pauseReplay();
+              pauseReplay();
               break;
             case "staktrak-replay-resume":
-              window.resumeReplay();
+              resumeReplay();
               break;
             case "staktrak-replay-stop":
-              window.stopReplay();
+              stopReplay();
               break;
             case "staktrak-replay-speed":
-              window.speedRef.current = data.speed || DEFAULT_SPEED;
+              speedRef.current = data.speed || DEFAULT_SPEED;
               break;
             case "staktrak-replay-ping":
               window.parent.postMessage({ type: "staktrak-replay-ready" }, "*");
@@ -1023,7 +792,12 @@ var stakReplay = (() => {
       window.parent.postMessage({ type: "staktrak-replay-ready" }, "*"));
   }
   document.addEventListener("DOMContentLoaded", () => {
-    initReplay();
+    ((window.convertToReplayActions = convertToReplayActions),
+      (window.findElement = findElement),
+      (window.pauseReplay = pauseReplay),
+      (window.resumeReplay = resumeReplay),
+      (window.stopReplay = stopReplay),
+      initReplay());
   });
   return __toCommonJS(replay_exports);
 })();
