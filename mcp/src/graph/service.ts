@@ -1,6 +1,7 @@
 import * as path from "path";
 import * as yaml from "js-yaml";
 import { Neo4jNode, Service, ServiceParser } from "./types.js";
+import { Language } from "./types.js";
 
 class TsParser implements ServiceParser {
   pkgFileName = "package.json";
@@ -140,6 +141,39 @@ const serviceParsers: ServiceParser[] = [
   new RustParser(),
   new RubyParser(),
 ];
+
+export function parseServiceFile(
+  pkgFile: string,
+  body: string,
+  language: Language
+): Service {
+  const parser = serviceParsers.find((p) => pkgFile.endsWith(p.pkgFileName));
+
+  if (parser) {
+    const neo4jNode: Neo4jNode = {
+      properties: {
+        body,
+        file: pkgFile,
+        name: path.basename(pkgFile),
+        start: 0,
+        end: body.length,
+      },
+      labels: ["File"],
+    };
+    return parser.build(neo4jNode);
+  }
+
+  //Fallback: return bare minimum
+  return {
+    name: path.basename(path.dirname(pkgFile)),
+    language,
+    pkgFile,
+    scripts: {},
+    env: {},
+    dev: false,
+  };
+}
+
 function extractEnvVarNames(body: string, regexes: RegExp[]): string[] {
   if (!body) return [];
   let allMatches: string[] = [];
