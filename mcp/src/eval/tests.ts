@@ -379,36 +379,35 @@ export function test_routes(app: Express) {
   app.get("/test/delete", deleteTestByName);
   app.post("/test/save", saveTest);
 
-  app.get("/tests", (req, res) => {
-    res.sendFile(path.join(__dirname, "../../tests/tests.html"));
+  let base_path = path.join(__dirname, "../../tests");
+  if (process.env.TESTS_BASE_PATH) {
+    base_path = process.env.TESTS_BASE_PATH;
+  }
+
+  app.get("/tests", (_req, res) => {
+    res.sendFile(path.join(base_path, "tests.html"));
+  });
+  app.get("/tests/frame/frame.html", (_req, res) => {
+    res.sendFile(path.join(base_path, "frame/frame.html"));
   });
 
   const static_files = [
     "app.js",
     "style.css",
     "hooks.js",
-    "playwright-generator.js",
     "frame/app.js",
     "frame/style.css",
     "staktrak/dist/staktrak.js",
     "staktrak/dist/playwright-generator.js",
   ];
 
-  serveStaticFiles(app, static_files);
-
-  app.get("/tests/frame/frame.html", (req, res) => {
-    res.sendFile(path.join(__dirname, "../../tests/frame/frame.html"));
-  });
+  serveStaticFiles(app, static_files, base_path);
 }
 
-function serveStaticFiles(
-  app: Express,
-  files: string[],
-  basePath: string = "../../tests"
-) {
+function serveStaticFiles(app: Express, files: string[], basePath: string) {
   files.forEach((file) => {
     app.get(`/tests/${file}`, (req, res) => {
-      res.sendFile(path.join(__dirname, basePath, file));
+      res.sendFile(path.join(basePath, file));
     });
   });
 }
