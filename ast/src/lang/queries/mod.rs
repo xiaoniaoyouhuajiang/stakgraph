@@ -194,6 +194,9 @@ pub trait Stack {
         }
         (fs, ts)
     }
+    fn filter_by_implements(&self) -> bool {
+        false
+    }
     fn e2e_test_id_finder_string(&self) -> Option<String> {
         None
     }

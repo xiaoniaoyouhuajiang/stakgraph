@@ -523,41 +523,6 @@ impl Graph for ArrayGraph {
         child_type: NodeType,
         child_meta_key: &str,
     ) {
-        // Remove Class nodes that do NOT have "implements" in their meta
-        if parent_type == NodeType::Class
-            && child_type == NodeType::Trait
-            && child_meta_key == "implements"
-        {
-            let nodes_to_remove: Vec<_> = self
-                .nodes
-                .iter()
-                .filter(|node| {
-                    node.node_type == NodeType::Class
-                        && !node.node_data.meta.contains_key("implements")
-                })
-                .map(|node| create_node_key(node))
-                .collect();
-
-            self.nodes.retain(|node| {
-                !(node.node_type == NodeType::Class
-                    && !node.node_data.meta.contains_key("implements"))
-            });
-            self.edges.retain(|edge| {
-                let src_key = create_node_key_from_ref(&edge.source);
-                let dst_key = create_node_key_from_ref(&edge.target);
-                !nodes_to_remove.contains(&src_key) && !nodes_to_remove.contains(&dst_key)
-            });
-            for key in &nodes_to_remove {
-                self.node_keys.remove(key);
-            }
-            self.edge_keys.retain(|key| {
-                !nodes_to_remove
-                    .iter()
-                    .any(|rm| key.starts_with(rm) || key.contains(&format!("-{}-", rm)))
-            });
-            return;
-        }
-
         let mut has_children: BTreeMap<String, bool> = BTreeMap::new();
 
         // Mark all parents as having no children initially

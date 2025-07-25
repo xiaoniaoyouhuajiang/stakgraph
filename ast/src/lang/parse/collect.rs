@@ -49,8 +49,11 @@ impl Lang {
         let mut matches = cursor.matches(q, tree.root_node(), code.as_bytes());
         let mut res = Vec::new();
         while let Some(m) = matches.next() {
-            let (cls, edges) = self.format_class_with_associations(&m, code, file, q, graph)?;
-            res.push((cls, edges));
+            if let Some((cls, edges)) =
+                self.format_class_with_associations(&m, code, file, q, graph)?
+            {
+                res.push((cls, edges));
+            }
         }
         Ok(res)
     }

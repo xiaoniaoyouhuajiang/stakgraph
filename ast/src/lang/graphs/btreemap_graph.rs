@@ -585,30 +585,6 @@ impl Graph for BTreeMapGraph {
         child_type: NodeType,
         child_meta_key: &str,
     ) {
-        // Remove Class nodes that do NOT have "implements" in their meta
-        if parent_type == NodeType::Class
-            && child_type == NodeType::Trait
-            && child_meta_key == "implements"
-        {
-            let nodes_to_remove: Vec<_> = self
-                .nodes
-                .iter()
-                .filter(|(_, node)| {
-                    node.node_type == NodeType::Class
-                        && !node.node_data.meta.contains_key("implements")
-                })
-                .map(|(k, _)| k.clone())
-                .collect();
-
-            for key in nodes_to_remove {
-                self.nodes.remove(&key);
-                self.edges
-                    .retain(|(src, dst, _)| src != &key && dst != &key);
-            }
-            return;
-        }
-
-        // Remove parent nodes that do NOT have children of the specified child type mostly "operand"
         let mut has_children: BTreeMap<String, bool> = BTreeMap::new();
 
         let parent_prefix = format!("{:?}-", parent_type).to_lowercase();

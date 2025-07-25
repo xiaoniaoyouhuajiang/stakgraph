@@ -94,11 +94,11 @@ use std::net::SocketAddr;"#
 
     let imported_edges = graph.count_edges_of_type(EdgeType::Imports);
     edges_count += imported_edges;
-    assert_eq!(imported_edges, 7, "Expected 7 import edges");
+    assert_eq!(imported_edges, 10, "Expected 10 import edges");
 
-    let calls_edges = graph.count_edges_of_type(EdgeType::Contains);
-    edges_count += calls_edges;
-    assert_eq!(calls_edges, 78, "Expected 78 contains edges");
+    let contains_edges = graph.count_edges_of_type(EdgeType::Contains);
+    edges_count += contains_edges;
+    assert_eq!(contains_edges, 78, "Expected 78 contains edges");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
