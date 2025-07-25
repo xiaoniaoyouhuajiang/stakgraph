@@ -16,6 +16,14 @@ enum PORT {
     Rocket = 5006,
 }
 
+//should be DM and NOT Class 'cause there is no implementation
+enum CRATES {
+    STANDALONE = "standalone",
+    AST = "ast",
+    LSP = "lsp",
+    SKILL = "skill",
+}
+
 impl PORT {
     fn as_u16(&self) -> u16 {
         *self as u16
@@ -95,4 +103,21 @@ async fn start_rocket_server() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Rocket server error: {:?}", e))?;
 
     Ok(())
+}
+
+//should be DM and Class Because of implementation of Display
+enum LANGUAGE {
+    Rust = "rust",
+    Python = "python",
+    JavaScript = "javascript",
+}
+
+impl Display for LANGUAGE {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LANGUAGE::Rust => write!(f, "Rust"),
+            LANGUAGE::Python => write!(f, "Python"),
+            LANGUAGE::JavaScript => write!(f, "JavaScript"),
+        }
+    }
 }
