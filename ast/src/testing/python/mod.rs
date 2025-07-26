@@ -57,7 +57,7 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
     assert_eq!(implements, 1, "Expected 1 implements edges");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
-    assert_eq!(contains, 101, "Expected 101 contains edges");
+    assert_eq!(contains, 102, "Expected 102 contains edges");
     edges_count += contains;
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
@@ -75,7 +75,7 @@ pub async fn test_python_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let parent_of = graph.count_edges_of_type(EdgeType::ParentOf);
     edges_count += parent_of;
-    assert_eq!(parent_of, 0, "Expected 0 parent_of edges");
+    assert_eq!(parent_of, 1, "Expected 1 parent_of edges");
 
     let renders = graph.count_edges_of_type(EdgeType::Renders);
     edges_count += renders;
@@ -123,7 +123,7 @@ from flask_app.routes import flask_bp"#
     );
     let classes = graph.find_nodes_by_type(NodeType::Class);
     nodes_count += classes.len();
-    assert_eq!(classes.len(), 2, "Expected 2 classes");
+    assert_eq!(classes.len(), 3, "Expected 3 classes");
 
     let vars = graph.find_nodes_by_type(NodeType::Var);
     nodes_count += vars.len();
@@ -141,7 +141,7 @@ from flask_app.routes import flask_bp"#
 
     let class_function_edges =
         graph.find_nodes_with_edge_type(NodeType::Class, NodeType::Function, EdgeType::Operand);
-    assert_eq!(class_function_edges.len(), 4, "Expected 4 methods");
+    assert_eq!(class_function_edges.len(), 6, "Expected 6 methods");
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     nodes_count += data_models.len();

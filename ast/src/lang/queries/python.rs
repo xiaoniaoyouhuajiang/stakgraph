@@ -78,10 +78,13 @@ impl Stack for Python {
             (class_definition
                 name: (identifier) @{CLASS_NAME}
                 superclasses: (argument_list
-                    (identifier)@{CLASS_PARENT}
+                    (identifier)? @{CLASS_PARENT}
                 )
                 body: (block
-                    (function_definition)+
+                    [
+                        (function_definition)+
+                        (decorated_definition)+
+                    ]
                 )
             )@{CLASS_DEFINITION}
             "
