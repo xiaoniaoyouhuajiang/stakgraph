@@ -78,15 +78,15 @@ use std::net::SocketAddr;"#
 
     let vars = graph.find_nodes_by_type(NodeType::Var);
     nodes_count += vars.len();
-    assert_eq!(vars.len(), 5, "Expected 5 variables");
+    assert_eq!(vars.len(), 2, "Expected 2 variables");
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     nodes_count += data_models.len();
-    assert_eq!(data_models.len(), 3, "Expected 3 data models");
+    assert_eq!(data_models.len(), 6, "Expected 6 data models");
 
     let classes = graph.find_nodes_by_type(NodeType::Class);
     nodes_count += classes.len();
-    assert_eq!(classes.len(), 2, "Expected 2 class node");
+    assert_eq!(classes.len(), 4, "Expected 4 class node");
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
     nodes_count += endpoints.len();
@@ -98,11 +98,11 @@ use std::net::SocketAddr;"#
 
     let contains_edges = graph.count_edges_of_type(EdgeType::Contains);
     edges_count += contains_edges;
-    assert_eq!(contains_edges, 78, "Expected 78 contains edges");
+    assert_eq!(contains_edges, 76, "Expected 76 contains edges");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
-    assert_eq!(functions.len(), 21, "Expected 21 functions");
+    assert_eq!(functions.len(), 23, "Expected 23 functions");
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
     edges_count += handlers;

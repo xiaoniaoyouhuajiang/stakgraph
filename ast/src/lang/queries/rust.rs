@@ -129,9 +129,14 @@ impl Stack for Rust {
     fn class_definition_query(&self) -> String {
         format!(
             r#"
-           (struct_item
-                name: (type_identifier) @class-name
-            ) @class-definition
+           [
+                (struct_item
+                    name: (type_identifier) @class-name
+                )
+                (enum_item
+                    name: (type_identifier) @class-name
+                )
+            ]@class-definition
             "#
         )
     }
@@ -266,9 +271,14 @@ impl Stack for Rust {
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"
-                (struct_item
-                    name: (type_identifier) @struct-name
-                ) @struct
+                [
+                    (struct_item
+                        name: (type_identifier) @struct-name
+                    )
+                    (enum_item
+                        name: (type_identifier) @struct-name
+                    )
+                ]@struct
             "#
         ))
     }
