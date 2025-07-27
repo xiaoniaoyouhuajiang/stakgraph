@@ -62,10 +62,18 @@ export const GET = async (url) => {
     method: "GET",
     headers: getFetchHeaders(),
   });
-  if (!r.ok) {
-    throw new Error(`GET ${url} failed: ${r.statusText}`);
+
+  let data;
+  try {
+    data = await r.json();
+  } catch (e) {
+    data = {};
   }
-  const data = await r.json();
+  if (!r.ok) {
+    const msg =
+      data.message || r.statusText || "Something went wrong, Please try again.";
+    throw new Error(`POST ${url} failed: ${msg}`);
+  }
   return data;
 };
 
@@ -76,7 +84,8 @@ export const POST = async (url, body) => {
     headers: getFetchHeaders(),
   });
   if (!r.ok) {
-    throw new Error(`POST ${url} failed: ${r.statusText}`);
+    throw new Error(`New Error for the POST endpoint`);
+    //throw new Error(`POST ${url} failed: ${r.statusText}`);
   }
   const data = await r.json();
   return data;

@@ -94,7 +94,14 @@ const App = () => {
     setIsLoading(true);
     setStatus({ message: "Cloning repo to /tmp/..." });
     setStats({});
-    await utils.POST("/ingest", { repo_url: repoUrl, username, pat });
+    try {
+      await utils.POST("/ingest", { repo_url: repoUrl, username, pat });
+    } catch (e) {
+      console.log("====>>>> Error", e);
+      setStatus({ status: "Error", message: e.message });
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(false);
   };
 
@@ -105,7 +112,13 @@ const App = () => {
     setIsLoading(true);
     setStatus(null);
     setStats({});
-    await utils.POST("/process", { repo_url: repoUrl, username, pat });
+    try {
+      await utils.POST("/process", { repo_url: repoUrl, username, pat });
+    } catch (e) {
+      setStatus({ status: "Error", message: e.message });
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(false);
   };
 
