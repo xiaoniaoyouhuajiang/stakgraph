@@ -82,15 +82,16 @@ impl IntoResponse for WebError {
                 } else {
                     StatusCode::BAD_REQUEST
                 }
+
+                tracing::error!("Handler error: {:?}", self.0);
+                let resp = ErrorResponse {
+                    message: self.0.to_string(),
+                };
+
+                (status, Json(resp)).into_response()
             }
         };
-
-        tracing::error!("Handler error: {:?}", self.0);
-        let resp = ErrorResponse {
-            message: self.0.to_string(),
-        };
-
-        (status, Json(resp)).into_response()
+        (status, self.0.to_string()).into_response()
     }
 }
 

@@ -4,13 +4,17 @@ use std::process::Stdio;
 
 use crate::Language;
 
-pub async fn run(cmd: &str, args: &[&str]) -> Result<()> {
-    async_process::Command::new(cmd)
+pub async fn run(cmd: &str, args: &[&str]) -> Result<String> {
+    let output = async_process::Command::new(cmd)
         .args(args)
         .kill_on_drop(true)
-        .status() // or "output"
+        .output() // or "output"
         .await?;
-    Ok(())
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(anyhow::anyhow!("{} failed: {}", cmd, stderr));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 pub async fn run_res_in_dir(cmd: &str, args: &[&str], dir: &str) -> Result<String> {
