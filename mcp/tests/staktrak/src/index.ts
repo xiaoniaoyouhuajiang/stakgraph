@@ -70,6 +70,7 @@ class UserBehaviorTracker {
   listen() {
     this.setupMessageHandling();
     this.setupPageNavigation();
+    window.parent.postMessage({ type: "staktrak-setup" }, "*");
   }
 
   start() {
@@ -80,7 +81,6 @@ class UserBehaviorTracker {
     this.setupEventListeners();
     this.isRunning = true;
 
-    window.parent.postMessage({ type: "staktrak-setup" }, "*");
     return this;
   }
 

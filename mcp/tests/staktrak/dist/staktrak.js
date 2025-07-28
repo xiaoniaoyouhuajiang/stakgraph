@@ -181,13 +181,13 @@ var userBehaviour = (() => {
     listen() {
       this.setupMessageHandling();
       this.setupPageNavigation();
+      window.parent.postMessage({ type: "staktrak-setup" }, "*");
     }
     start() {
       this.cleanup();
       this.resetResults();
       this.setupEventListeners();
       this.isRunning = true;
-      window.parent.postMessage({ type: "staktrak-setup" }, "*");
       return this;
     }
     resetResults() {
