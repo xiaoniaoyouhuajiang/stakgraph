@@ -144,9 +144,9 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let items_page_func = functions
         .iter()
-        .find(|f| f.name == "ItemsPage")
+        .find(|f| f.name == "Items")
         .map(|n| Node::new(NodeType::Function, n.clone()))
-        .expect("Function 'ItemsPage' not found");
+        .expect("Function 'Items' not found");
 
     let get_items_endpoint = endpoints
         .iter()
@@ -193,9 +193,9 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
         .expect("POST request to /api/items not found");
     let person_page_func = functions
         .iter()
-        .find(|f| f.name == "PersonPage")
+        .find(|f| f.name == "Person")
         .map(|n| Node::new(NodeType::Function, n.clone()))
-        .expect("Function 'PersonPage' not found");
+        .expect("Function 'Person' not found");
     let expected_endpoint_path = normalize_backend_path("/api/person/[id]").unwrap();
 
     let get_person_endpoint = endpoints
@@ -273,7 +273,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     assert!(
         graph.has_edge(&items_page_func, &get_items_request, EdgeType::Calls),
-        "Expected ItemsPage to call the GET /api/items request"
+        "Expected Items to call the GET /api/items request"
     );
     assert!(
         graph.has_edge(&items_page_func, &post_items_request, EdgeType::Calls),
@@ -307,11 +307,11 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     assert!(
         graph.has_edge(&person_page_func, &get_person_request, EdgeType::Calls),
-        "Expected PersonPage to call the dynamic GET person request"
+        "Expected Person to call the dynamic GET person request"
     );
     assert!(
         graph.has_edge(&person_page_func, &delete_person_request, EdgeType::Calls),
-        "Expected PersonPage to call the dynamic DELETE person request"
+        "Expected Person to call the dynamic DELETE person request"
     );
 
     assert!(

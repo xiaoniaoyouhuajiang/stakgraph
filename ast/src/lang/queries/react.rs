@@ -614,6 +614,53 @@ impl Stack for ReactTs {
             "#,
         )]
     }
+
+    fn use_extra_page_finder(&self) -> bool {
+        true
+    }
+    fn is_extra_page(&self, file_name: &str) -> bool {
+        // file_name.ends_with("/page.tsx") || file_name.ends_with("/page.jsx")
+        let is_page = file_name.ends_with("/page.tsx") || file_name.ends_with("/page.jsx");
+        if is_page {
+            tracing::debug!("Detected Next.js page: {}", file_name);
+        }
+        is_page
+    }
+
+    fn extra_page_finder(
+        &self,
+        file_path: &str,
+        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+    ) -> Option<Edge> {
+        let path = std::path::Path::new(file_path);
+
+        let name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("page")
+            .to_string();
+
+        let mut body = file_path.to_string();
+
+        if let Some(idx) = body.find("/page.tsx") {
+            body = body[..idx].to_string();
+        } else if let Some(idx) = body.find("/page.jsx") {
+            body = body[..idx].to_string();
+        }
+
+        let mut page = NodeData::name_file(&name, file_path);
+        page.body = body;
+
+        let component = find_fn(&name, file_path).or_else(|| find_fn("Page", file_path));
+
+        component
+            .map(|comp| Edge::renders(&page, &comp))
+            .or_else(|| {
+                tracing::debug!("No component found for extra page: {}", file_path);
+                None
+            })
+    }
 }
 
 pub fn endpoint_name_from_file(file: &str) -> String {
