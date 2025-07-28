@@ -43,10 +43,10 @@ var stakReplay = (() => {
     stopReplay: () => stopReplay,
     typeText: () => typeText,
   });
-  var DEFAULT_SPEED = 10,
-    MIN_DELAY = 50,
-    MAX_DELAY = 300,
-    INITIAL_DELAY = 200,
+  var DEFAULT_SPEED = 1,
+    MIN_DELAY = 0,
+    MAX_DELAY = 1e4,
+    INITIAL_DELAY = 500,
     cursorRef = { current: null },
     statusRef = { current: "idle" },
     speedRef = { current: DEFAULT_SPEED },
@@ -425,8 +425,8 @@ var stakReplay = (() => {
           (cursorRef2.current &&
             ((cursorRef2.current.style.left = `${targetX}px`),
             (cursorRef2.current.style.top = `${targetY}px`)),
-            setTimeout(resolve, 100));
-        }, 50));
+            setTimeout(resolve, 300));
+        }, 150));
     });
   }
   function typeText(
@@ -453,7 +453,7 @@ var stakReplay = (() => {
             ? ((element.value += value[index]),
               element.dispatchEvent(new Event("input", { bubbles: !0 })),
               index++,
-              registerTimeout2(setTimeout(typeChar, 5 / speedRef2.current)))
+              registerTimeout2(setTimeout(typeChar, 70)))
             : (element.dispatchEvent(new Event("change", { bubbles: !0 })),
               (isTypingRef2.current = !1),
               resolve());
@@ -632,11 +632,10 @@ var stakReplay = (() => {
       }
       if (statusRef2.current !== "playing") return;
       let nextAction = actionsRef2.current[index + 1],
-        delay = MIN_DELAY / speedRef2.current;
+        delay = 500;
       if (nextAction && action.timestamp && nextAction.timestamp) {
         let timeDiff = nextAction.timestamp - action.timestamp;
-        ((delay = Math.min(MAX_DELAY, timeDiff) / speedRef2.current),
-          (delay = Math.max(MIN_DELAY / speedRef2.current, delay)));
+        delay = Math.min(MAX_DELAY, timeDiff);
       }
       timeoutRef2.current = registerTimeout2(
         setTimeout(() => {

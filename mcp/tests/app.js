@@ -57,7 +57,7 @@ const Staktrak = () => {
 
   const [filenameInput, setFilenameInput] = useState("");
   const [showSpeedControls, setShowSpeedControls] = useState(false);
-  const speedOptions = [0.5, 1, 1.5, 2, 3, 5, 8, 10];
+  const speedOptions = [];
 
   const handleRecord = () => {
     if (!isRecording) {
@@ -266,29 +266,6 @@ const Staktrak = () => {
               <button class="stop-replay" onClick=${handleStopReplay}>
                 <span class="btn-icon">⏹</span> Stop Replay
               </button>
-              <div class="speed-control">
-                <button
-                  class="speed-button"
-                  onClick=${() => setShowSpeedControls(!showSpeedControls)}
-                >
-                  <span class="btn-icon">⚡</span> ${replaySpeed}x
-                </button>
-                ${showSpeedControls &&
-                html`
-                  <div class="speed-dropdown">
-                    ${speedOptions.map(
-                      (speed) => html`
-                        <button
-                          class=${replaySpeed === speed ? "active" : ""}
-                          onClick=${() => handleSpeedChange(speed)}
-                        >
-                          ${speed}x
-                        </button>
-                      `
-                    )}
-                  </div>
-                `}
-              </div>
             `}
           </div>
         </div>

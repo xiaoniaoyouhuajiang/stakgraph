@@ -6,10 +6,10 @@ import {
   ReplayState,
 } from "./types";
 
-const DEFAULT_SPEED = 10;
-const MIN_DELAY = 50;
-const MAX_DELAY = 300;
-const INITIAL_DELAY = 200;
+const DEFAULT_SPEED = 1;
+const MIN_DELAY = 0;
+const MAX_DELAY = 10000;
+const INITIAL_DELAY = 500;
 
 interface TimeoutRef {
   current: NodeJS.Timeout | null;
@@ -475,8 +475,8 @@ export function moveCursorToElement(
         cursorRef.current.style.top = `${targetY}px`;
       }
 
-      setTimeout(resolve, 100);
-    }, 50);
+      setTimeout(resolve, 300);
+    }, 150);
   });
 }
 
@@ -510,7 +510,7 @@ export function typeText(
         element.value += value[index];
         element.dispatchEvent(new Event("input", { bubbles: true }));
         index++;
-        registerTimeout(setTimeout(typeChar, 5 / speedRef.current));
+        registerTimeout(setTimeout(typeChar, 70));
       } else {
         element.dispatchEvent(new Event("change", { bubbles: true }));
         isTypingRef.current = false;
@@ -724,12 +724,11 @@ export async function executeAction(
     if (statusRef.current !== ReplayStatus.PLAYING) return;
 
     const nextAction = actionsRef.current[index + 1];
-    let delay = MIN_DELAY / speedRef.current;
+    let delay = 500;
 
     if (nextAction && action.timestamp && nextAction.timestamp) {
       const timeDiff = nextAction.timestamp - action.timestamp;
-      delay = Math.min(MAX_DELAY, timeDiff) / speedRef.current;
-      delay = Math.max(MIN_DELAY / speedRef.current, delay);
+      delay = Math.min(MAX_DELAY, timeDiff);
     }
 
     timeoutRef.current = registerTimeout(

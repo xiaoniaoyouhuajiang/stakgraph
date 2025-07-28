@@ -412,7 +412,7 @@ export function useIframeReplay(iframeRef) {
   const [isReplaying, setIsReplaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [replaySpeed, setReplaySpeed] = useState(10);
+  const [replaySpeed, setReplaySpeed] = useState(1);
   const [replayStatus, setReplayStatus] = useState("idle");
   const replayInitializedRef = useRef(false);
 
