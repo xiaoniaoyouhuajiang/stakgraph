@@ -57,7 +57,7 @@ const Staktrak = () => {
 
   const [filenameInput, setFilenameInput] = useState("");
   const [showSpeedControls, setShowSpeedControls] = useState(false);
-  const speedOptions = [0.5, 1, 1.5, 2, 3, 5];
+  const speedOptions = [0.5, 1, 1.5, 2, 3, 5, 8, 10];
 
   const handleRecord = () => {
     if (!isRecording) {

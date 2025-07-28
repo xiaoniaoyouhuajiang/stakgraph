@@ -6,10 +6,10 @@ import {
   ReplayState,
 } from "./types";
 
-const DEFAULT_SPEED = 1;
-const MIN_DELAY = 1000;
-const MAX_DELAY = 5000;
-const INITIAL_DELAY = 2000;
+const DEFAULT_SPEED = 10;
+const MIN_DELAY = 50;
+const MAX_DELAY = 300;
+const INITIAL_DELAY = 200;
 
 interface TimeoutRef {
   current: NodeJS.Timeout | null;
@@ -357,7 +357,7 @@ export function createCursor(): HTMLElement {
   cursor.style.display = "none";
   cursor.style.transform = "translate(-50%, -50%)";
   cursor.style.transition =
-    "transform 0.5s ease-in-out, left 0.5s ease-in-out, top 0.5s ease-in-out";
+    "transform 0.1s ease-in-out, left 0.1s ease-in-out, top 0.1s ease-in-out";
   document.body.appendChild(cursor);
   return cursor;
 }
@@ -443,7 +443,7 @@ export function highlightElement(element: Element, speedRef: SpeedRef): void {
       (element as HTMLElement).style.transition = originalTransition;
       element.classList.remove("replay-pulse");
     }
-  }, 2000 / speedRef.current);
+  }, 200 / speedRef.current);
 }
 
 export function moveCursorToElement(
@@ -475,8 +475,8 @@ export function moveCursorToElement(
         cursorRef.current.style.top = `${targetY}px`;
       }
 
-      setTimeout(resolve, 800);
-    }, 400);
+      setTimeout(resolve, 100);
+    }, 50);
   });
 }
 
@@ -510,7 +510,7 @@ export function typeText(
         element.value += value[index];
         element.dispatchEvent(new Event("input", { bubbles: true }));
         index++;
-        registerTimeout(setTimeout(typeChar, 100 / speedRef.current));
+        registerTimeout(setTimeout(typeChar, 5 / speedRef.current));
       } else {
         element.dispatchEvent(new Event("change", { bubbles: true }));
         isTypingRef.current = false;
@@ -544,7 +544,7 @@ export function selectOption(
           element.dispatchEvent(new Event("change", { bubbles: true }));
         }
         resolve();
-      }, 500 / speedRef.current)
+      }, 50 / speedRef.current)
     );
   });
 }
@@ -577,7 +577,7 @@ export async function executeAction(
 
     setTimeout(() => {
       window.parent.postMessage({ type: "staktrak-replay-fadeout" }, "*");
-    }, 1000);
+    }, 100);
 
     if (cursorRef.current) {
       cursorRef.current.style.display = "none";
@@ -645,7 +645,7 @@ export async function executeAction(
         showClickEffect(cursorRef);
 
         element.scrollIntoView({ behavior: "smooth", block: "center" });
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 50));
 
         try {
           (element as HTMLElement).focus();
@@ -662,7 +662,7 @@ export async function executeAction(
             })
           );
 
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           element.dispatchEvent(
             new MouseEvent("mouseup", {
@@ -672,7 +672,7 @@ export async function executeAction(
             })
           );
 
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           (element as HTMLElement).click();
           element.dispatchEvent(
@@ -686,7 +686,7 @@ export async function executeAction(
           console.error("Error during click operation:", clickError);
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 50));
         break;
 
       case ActionType.INPUT:
@@ -728,8 +728,8 @@ export async function executeAction(
 
     if (nextAction && action.timestamp && nextAction.timestamp) {
       const timeDiff = nextAction.timestamp - action.timestamp;
-      delay =
-        Math.max(MIN_DELAY, Math.min(MAX_DELAY, timeDiff)) / speedRef.current;
+      delay = Math.min(MAX_DELAY, timeDiff) / speedRef.current;
+      delay = Math.max(MIN_DELAY / speedRef.current, delay);
     }
 
     timeoutRef.current = registerTimeout(

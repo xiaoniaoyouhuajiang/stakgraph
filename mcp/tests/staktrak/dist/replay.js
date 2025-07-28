@@ -43,10 +43,10 @@ var stakReplay = (() => {
     stopReplay: () => stopReplay,
     typeText: () => typeText,
   });
-  var DEFAULT_SPEED = 1,
-    MIN_DELAY = 1e3,
-    MAX_DELAY = 5e3,
-    INITIAL_DELAY = 2e3,
+  var DEFAULT_SPEED = 10,
+    MIN_DELAY = 50,
+    MAX_DELAY = 300,
+    INITIAL_DELAY = 200,
     cursorRef = { current: null },
     statusRef = { current: "idle" },
     speedRef = { current: DEFAULT_SPEED },
@@ -331,7 +331,7 @@ var stakReplay = (() => {
       (cursor.style.display = "none"),
       (cursor.style.transform = "translate(-50%, -50%)"),
       (cursor.style.transition =
-        "transform 0.5s ease-in-out, left 0.5s ease-in-out, top 0.5s ease-in-out"),
+        "transform 0.1s ease-in-out, left 0.1s ease-in-out, top 0.1s ease-in-out"),
       document.body.appendChild(cursor),
       cursor
     );
@@ -408,7 +408,7 @@ var stakReplay = (() => {
           (element.style.zIndex = originalZIndex),
           (element.style.transition = originalTransition),
           element.classList.remove("replay-pulse"));
-      }, 2e3 / speedRef2.current));
+      }, 200 / speedRef2.current));
   }
   function moveCursorToElement(element, cursorRef2, statusRef2) {
     return new Promise((resolve) => {
@@ -425,8 +425,8 @@ var stakReplay = (() => {
           (cursorRef2.current &&
             ((cursorRef2.current.style.left = `${targetX}px`),
             (cursorRef2.current.style.top = `${targetY}px`)),
-            setTimeout(resolve, 800));
-        }, 400));
+            setTimeout(resolve, 100));
+        }, 50));
     });
   }
   function typeText(
@@ -453,7 +453,7 @@ var stakReplay = (() => {
             ? ((element.value += value[index]),
               element.dispatchEvent(new Event("input", { bubbles: !0 })),
               index++,
-              registerTimeout2(setTimeout(typeChar, 100 / speedRef2.current)))
+              registerTimeout2(setTimeout(typeChar, 5 / speedRef2.current)))
             : (element.dispatchEvent(new Event("change", { bubbles: !0 })),
               (isTypingRef2.current = !1),
               resolve());
@@ -480,7 +480,7 @@ var stakReplay = (() => {
               ((element.value = value),
               element.dispatchEvent(new Event("change", { bubbles: !0 }))),
               resolve());
-          }, 500 / speedRef2.current),
+          }, 50 / speedRef2.current),
         ));
     });
   }
@@ -509,7 +509,7 @@ var stakReplay = (() => {
         ),
         setTimeout(() => {
           window.parent.postMessage({ type: "staktrak-replay-fadeout" }, "*");
-        }, 1e3),
+        }, 100),
         cursorRef2.current && (cursorRef2.current.style.display = "none"));
       return;
     }
@@ -566,7 +566,7 @@ var stakReplay = (() => {
         case "click":
           (showClickEffect(cursorRef2),
             element.scrollIntoView({ behavior: "smooth", block: "center" }),
-            await new Promise((resolve) => setTimeout(resolve, 300)));
+            await new Promise((resolve) => setTimeout(resolve, 50)));
           try {
             element.focus();
           } catch (e) {
@@ -580,7 +580,7 @@ var stakReplay = (() => {
                 view: window,
               }),
             ),
-              await new Promise((resolve) => setTimeout(resolve, 50)),
+              await new Promise((resolve) => setTimeout(resolve, 10)),
               element.dispatchEvent(
                 new MouseEvent("mouseup", {
                   bubbles: !0,
@@ -588,7 +588,7 @@ var stakReplay = (() => {
                   view: window,
                 }),
               ),
-              await new Promise((resolve) => setTimeout(resolve, 50)),
+              await new Promise((resolve) => setTimeout(resolve, 10)),
               element.click(),
               element.dispatchEvent(
                 new MouseEvent("click", {
@@ -600,7 +600,7 @@ var stakReplay = (() => {
           } catch (clickError) {
             console.error("Error during click operation:", clickError);
           }
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          await new Promise((resolve) => setTimeout(resolve, 50));
           break;
         case "input":
           await typeText(
@@ -635,9 +635,8 @@ var stakReplay = (() => {
         delay = MIN_DELAY / speedRef2.current;
       if (nextAction && action.timestamp && nextAction.timestamp) {
         let timeDiff = nextAction.timestamp - action.timestamp;
-        delay =
-          Math.max(MIN_DELAY, Math.min(MAX_DELAY, timeDiff)) /
-          speedRef2.current;
+        ((delay = Math.min(MAX_DELAY, timeDiff) / speedRef2.current),
+          (delay = Math.max(MIN_DELAY / speedRef2.current, delay)));
       }
       timeoutRef2.current = registerTimeout2(
         setTimeout(() => {
