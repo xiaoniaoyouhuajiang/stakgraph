@@ -148,8 +148,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let renders = graph.count_edges_of_type(EdgeType::Renders);
     edges += renders;
-    // Gota have at least 3 renders
-    //assert_eq!(renders, 3, "Expected 3 Renders edges");
+    assert_eq!(renders, 3, "Expected 3 Renders edges");
 
     let items_page_func = functions
         .iter()

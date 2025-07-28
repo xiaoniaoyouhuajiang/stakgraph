@@ -251,7 +251,8 @@ impl Stack for Angular {
         &self,
         file_path: &str,
         find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
-    ) -> Option<Edge> {
+        _find_all_in_file: &dyn Fn(&str) -> Vec<NodeData>,
+    ) -> Option<(NodeData, Vec<Edge>)> {
         let path = std::path::Path::new(file_path);
         let file_stem = path.file_stem()?.to_str()?;
 
@@ -274,10 +275,13 @@ impl Stack for Angular {
 
         if let Some(component) = find_fn(&component_name, &component_file) {
             let page = NodeData::name_file(file_stem, file_path);
-            return Some(Edge::new(
-                EdgeType::Renders,
-                NodeRef::from((&component).into(), NodeType::Class),
-                NodeRef::from((&page).into(), NodeType::Page),
+            return Some((
+                page.clone(),
+                vec![Edge::new(
+                    EdgeType::Renders,
+                    NodeRef::from((&component).into(), NodeType::Class),
+                    NodeRef::from((&page).into(), NodeType::Page),
+                )],
             ));
         }
 

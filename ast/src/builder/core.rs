@@ -618,25 +618,30 @@ impl Repo {
             page_count += extra_page_count;
 
             for pagepath in extra_pages {
-                if let Some(pagename) = get_page_name(&pagepath) {
+                if let Some((page_node, edges)) = self.lang.lang().extra_page_finder(
+                    &pagepath,
+                    &|name, filename| {
+                        graph.find_node_by_name_and_file_end_with(
+                            NodeType::Function,
+                            name,
+                            filename,
+                        )
+                    },
+                    &|filename| graph.find_nodes_by_file_ends_with(NodeType::Function, filename),
+                ) {
                     let code = filez
                         .iter()
                         .find(|(f, _)| f.ends_with(&pagepath) || pagepath.ends_with(f))
                         .map(|(_, c)| c.as_str())
                         .unwrap_or("");
-                    let mut nd = NodeData::name_file(&pagename, &pagepath);
-                    nd.body = code.to_string();
-                    let edge = self
-                        .lang
-                        .lang()
-                        .extra_page_finder(&pagepath, &|name, filename| {
-                            graph.find_node_by_name_and_file_end_with(
-                                NodeType::Function,
-                                name,
-                                filename,
-                            )
-                        });
-                    graph.add_page((nd, edge));
+                    let mut page_node = page_node;
+                    if page_node.body.is_empty() {
+                        page_node.body = code.to_string();
+                    }
+                    graph.add_node(NodeType::Page, page_node);
+                    for edge in edges {
+                        graph.add_edge(edge);
+                    }
                 }
             }
         }

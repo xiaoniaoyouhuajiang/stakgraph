@@ -630,8 +630,9 @@ impl Stack for ReactTs {
     fn extra_page_finder(
         &self,
         file_path: &str,
-        find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
-    ) -> Option<Edge> {
+        _find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
+    ) -> Option<(NodeData, Vec<Edge>)> {
         let path = std::path::Path::new(file_path);
 
         let name = path
@@ -642,7 +643,6 @@ impl Stack for ReactTs {
             .to_string();
 
         let mut body = file_path.to_string();
-
         if let Some(idx) = body.find("/page.tsx") {
             body = body[..idx].to_string();
         } else if let Some(idx) = body.find("/page.jsx") {
@@ -652,14 +652,18 @@ impl Stack for ReactTs {
         let mut page = NodeData::name_file(&name, file_path);
         page.body = body;
 
-        let component = find_fn(&name, file_path).or_else(|| find_fn("Page", file_path));
+        let all_functions = find_fns_in(file_path);
+        let components = all_functions
+            .into_iter()
+            .filter(|f| !f.name.is_empty() && f.name.chars().next().unwrap().is_uppercase())
+            .collect::<Vec<_>>();
 
-        component
+        let edges = components
+            .into_iter()
             .map(|comp| Edge::renders(&page, &comp))
-            .or_else(|| {
-                tracing::debug!("No component found for extra page: {}", file_path);
-                None
-            })
+            .collect();
+
+        Some((page, edges))
     }
 }
 

@@ -269,8 +269,9 @@ pub trait Stack {
     fn extra_page_finder(
         &self,
         _file_name: &str,
-        _callback: &dyn Fn(&str, &str) -> Option<NodeData>,
-    ) -> Option<Edge> {
+        _find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        _find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
+    ) -> Option<(NodeData, Vec<Edge>)> {
         None
     }
     fn clean_graph(&self, _callback: &mut dyn FnMut(NodeType, NodeType, &str)) {}
