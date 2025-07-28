@@ -18,7 +18,6 @@ const defaultConfig: Config = {
   windowResize: true,
   visibilitychange: true,
   keyboardActivity: true,
-  pageNavigation: true,
   formInteractions: true,
   touchEvents: true,
   audioVideoInteraction: true,
@@ -41,7 +40,7 @@ class UserBehaviorTracker {
     mutationObserver: null,
     mouseInterval: null,
     listeners: [],
-    postMessageListeners: [],
+    alwaysListeners: [],
   };
   private isRunning = false;
 
@@ -70,6 +69,7 @@ class UserBehaviorTracker {
 
   listen() {
     this.setupMessageHandling();
+    this.setupPageNavigation();
   }
 
   start() {
@@ -268,10 +268,6 @@ class UserBehaviorTracker {
         document.removeEventListener("touchstart", touchHandler)
       );
     }
-
-    if (this.config.pageNavigation) {
-      this.setupPageNavigation();
-    }
   }
 
   private setupFormInteractions() {
@@ -402,33 +398,33 @@ class UserBehaviorTracker {
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
 
-    history.pushState = (...args) => {
-      originalPushState.apply(history, args);
+    const recordStateChange = (type: string) => {
       this.results.pageNavigation.push({
-        type: "pushState",
+        type,
         url: document.URL,
         timestamp: getTimeStamp(),
       });
+      window.parent.postMessage(
+        { type: "staktrak-page-navigation", data: document.URL },
+        "*"
+      );
+    };
+
+    history.pushState = (...args) => {
+      originalPushState.apply(history, args);
+      recordStateChange("pushState");
     };
 
     history.replaceState = (...args) => {
       originalReplaceState.apply(history, args);
-      this.results.pageNavigation.push({
-        type: "replaceState",
-        url: document.URL,
-        timestamp: getTimeStamp(),
-      });
+      recordStateChange("replaceState");
     };
 
     const popstateHandler = () => {
-      this.results.pageNavigation.push({
-        type: "popstate",
-        url: document.URL,
-        timestamp: getTimeStamp(),
-      });
+      recordStateChange("popstate");
     };
     window.addEventListener("popstate", popstateHandler);
-    this.memory.listeners.push(() =>
+    this.memory.alwaysListeners.push(() =>
       window.removeEventListener("popstate", popstateHandler)
     );
 
@@ -438,7 +434,7 @@ class UserBehaviorTracker {
 
   private setupMessageHandling() {
     // this listener only needs to be setup once
-    if (this.memory.postMessageListeners.length > 0) return;
+    if (this.memory.alwaysListeners.length > 0) return;
 
     const messageHandler = (event: MessageEvent) => {
       if (!event.data?.type) return;
@@ -470,7 +466,7 @@ class UserBehaviorTracker {
       }
     };
     window.addEventListener("message", messageHandler);
-    this.memory.postMessageListeners.push(() =>
+    this.memory.alwaysListeners.push(() =>
       window.removeEventListener("message", messageHandler)
     );
   }
