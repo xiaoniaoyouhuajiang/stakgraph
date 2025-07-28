@@ -582,8 +582,10 @@ var userBehaviour = (() => {
       }
     }
     stop() {
-      if (!this.isRunning)
+      if (!this.isRunning) {
+        console.log("StakTrak is not running");
         return this;
+      }
       this.cleanup();
       this.processResults();
       this.isRunning = false;

@@ -557,7 +557,10 @@ class UserBehaviorTracker {
   }
 
   stop() {
-    if (!this.isRunning) return this;
+    if (!this.isRunning) {
+      console.log("StakTrak is not running");
+      return this;
+    }
 
     this.cleanup();
     this.processResults();
