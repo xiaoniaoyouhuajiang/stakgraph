@@ -40,6 +40,24 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     nodes += file_nodes.len();
     assert_eq!(file_nodes.len(), 20, "Expected 20 File nodes");
 
+    let card_file = file_nodes
+        .iter()
+        .find(|f| f.name == "card.tsx" && f.file.ends_with("nextjs/components/ui/card.tsx"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'Card.tsx' not found");
+
+    let items_page_file = file_nodes
+        .iter()
+        .find(|f| f.name == "page.tsx" && f.file.ends_with("nextjs/app/items/page.tsx"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'ItemsPage.tsx' not found");
+
+    let person_file = file_nodes
+        .iter()
+        .find(|f| f.name == "page.tsx" && f.file.ends_with("nextjs/app/person/page.tsx"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'Person.ts' not found");
+
     let directory_nodes = graph.find_nodes_by_type(NodeType::Directory);
     nodes += directory_nodes.len();
     assert_eq!(directory_nodes.len(), 10, "Expected 10 Directory nodes");
@@ -63,10 +81,22 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     } else {
         assert_eq!(
             functions.len(),
-            25,
-            "Expected 25 Function nodes without LSP"
+            26,
+            "Expected 26 Function nodes without LSP"
         );
     }
+
+    let cn = functions
+        .iter()
+        .find(|f| f.name == "cn" && f.file.ends_with("nextjs/lib/utils.ts"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'Card' not found");
+
+    let card_func = functions
+        .iter()
+        .find(|f| f.name == "Card" && f.file.ends_with("nextjs/components/ui/card.tsx"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'Card' not found");
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
     nodes += variables.len();
@@ -295,6 +325,45 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
             EdgeType::Calls
         ),
         "Expected dynamic DELETE request to call the dynamic DELETE endpoint"
+    );
+
+    assert!(
+        graph.has_edge(&card_file, &card_func, EdgeType::Contains),
+        "Expected Card file to call the Card function"
+    );
+
+    assert!(
+        graph.has_edge(&card_func, &cn, EdgeType::Calls),
+        "Expected Card function to call the cn function"
+    );
+
+    assert!(
+        graph.has_edge(&items_page_file, &items_page_func, EdgeType::Contains),
+        "Expected ItemsPage file to contain the ItemsPage function"
+    );
+
+    assert!(
+        graph.has_edge(&person_file, &person_page_func, EdgeType::Contains),
+        "Expected Person file to contain the PersonPage function"
+    );
+
+    if use_lsp {
+        assert!(
+            graph.has_edge(&person_file, &card_func, EdgeType::Imports),
+            "Expected Person file to import Card function"
+        );
+        assert!(
+            graph.has_edge(&items_page_file, &card_func, EdgeType::Imports),
+            "Expected ItemsPage file to import Card function"
+        );
+    }
+    assert!(
+        graph.has_edge(&person_page_func, &card_func, EdgeType::Calls),
+        "Expected PersonPage function to call Card function"
+    );
+    assert!(
+        graph.has_edge(&items_page_func, &card_func, EdgeType::Calls),
+        "Expected ItemsPage function to call Card function"
     );
 
     let (num_nodes, num_edges) = graph.get_graph_size();
