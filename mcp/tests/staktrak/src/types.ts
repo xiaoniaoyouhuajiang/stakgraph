@@ -9,7 +9,6 @@ export interface Config {
   windowResize: boolean;
   visibilitychange: boolean;
   keyboardActivity: boolean;
-  pageNavigation: boolean;
   formInteractions: boolean;
   touchEvents: boolean;
   audioVideoInteraction: boolean;
@@ -87,7 +86,7 @@ export interface Memory {
   mutationObserver: MutationObserver | null;
   mouseInterval: NodeJS.Timeout | null;
   listeners: Array<() => void>;
-  postMessageListeners: Array<() => void>;
+  alwaysListeners: Array<() => void>;
 }
 
 export enum ActionType {
