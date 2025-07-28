@@ -606,11 +606,13 @@ var userBehaviour = (() => {
     }
   };
   var userBehaviour = new UserBehaviorTracker();
-  document.addEventListener("DOMContentLoaded", () => {
+  var initializeStakTrak = () => {
+    console.log("StakTrak initializing");
     userBehaviour.makeConfig({
       processData: (results) => console.log("StakTrak recording processed:", results)
     }).listen();
-  });
+  };
+  document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
   var src_default = userBehaviour;
   return __toCommonJS(src_exports);
 })();
