@@ -44,6 +44,36 @@ pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
     nodes_count += files.len();
     assert_eq!(files.len(), 9, "Expected 9 files");
 
+    let rocket_file = files
+        .iter()
+        .find(|f| {
+            f.name == "rocket_routes.rs"
+                && f.file
+                    .ends_with("src/testing/rust/src/routes/rocket_routes.rs")
+        })
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'rocket.rs' not found in routes/rocket_routes.rs");
+
+    let axum_file = files
+        .iter()
+        .find(|f| {
+            f.name == "axum_routes.rs"
+                && f.file
+                    .ends_with("src/testing/rust/src/routes/axum_routes.rs")
+        })
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'axum.rs' not found in routes/axum_routes.rs");
+
+    let actix_file = files
+        .iter()
+        .find(|f| {
+            f.name == "actix_routes.rs"
+                && f.file
+                    .ends_with("src/testing/rust/src/routes/actix_routes.rs")
+        })
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'actix.rs' not found in routes/actix_routes.rs");
+
     let imports = graph.find_nodes_by_type(NodeType::Import);
     nodes_count += imports.len();
     assert_eq!(imports.len(), 5, "Expected 5 imports");
@@ -52,9 +82,15 @@ pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
     nodes_count += traits.len();
     assert_eq!(traits.len(), 1, "Expected 1 trait nodes");
 
+    let trait_node = traits
+        .iter()
+        .find(|t| t.name == "Greet" && t.file.ends_with("src/testing/rust/src/traits.rs"))
+        .map(|n| Node::new(NodeType::Trait, n.clone()))
+        .expect("Trait 'Greet' not found in traits.rs");
+
     let libraries = graph.find_nodes_by_type(NodeType::Library);
     nodes_count += libraries.len();
-    //should be ~9
+
     assert_eq!(libraries.len(), 9, "Expected 9 library nodes");
 
     let main_import_body = format!(
@@ -84,9 +120,65 @@ use std::net::SocketAddr;"#
     nodes_count += data_models.len();
     assert_eq!(data_models.len(), 6, "Expected 6 data models");
 
+    let person_dm = data_models
+        .iter()
+        .find(|dm| dm.name == "Person" && dm.file.ends_with("src/testing/rust/src/db.rs"))
+        .map(|n| Node::new(NodeType::DataModel, n.clone()))
+        .expect("Data model 'Person' not found in models.rs");
+
     let classes = graph.find_nodes_by_type(NodeType::Class);
     nodes_count += classes.len();
     assert_eq!(classes.len(), 4, "Expected 4 class node");
+
+    let database_class = classes
+        .iter()
+        .find(|c| c.name == "Database" && c.file.ends_with("src/testing/rust/src/db.rs"))
+        .map(|n| Node::new(NodeType::Class, n.clone()))
+        .expect("Class 'Database' not found in db.rs");
+
+    let dm_imports = graph.has_edge(&rocket_file, &person_dm, EdgeType::Imports);
+    assert!(
+        dm_imports,
+        "Expected 'Person' data model to be imported in 'rocket_routes.rs'"
+    );
+    let db_imports = graph.has_edge(&rocket_file, &database_class, EdgeType::Imports);
+    assert!(
+        db_imports,
+        "Expected 'Database' class to be imported in 'rocket_routes.rs'"
+    );
+
+    let dm_imports = graph.has_edge(&axum_file, &person_dm, EdgeType::Imports);
+    assert!(
+        dm_imports,
+        "Expected 'Person' data model to be imported in 'axum_routes.rs'"
+    );
+    let db_imports = graph.has_edge(&axum_file, &database_class, EdgeType::Imports);
+    assert!(
+        db_imports,
+        "Expected 'Database' class to be imported in 'axum_routes.rs'"
+    );
+    let dm_imports = graph.has_edge(&actix_file, &person_dm, EdgeType::Imports);
+    assert!(
+        dm_imports,
+        "Expected 'Person' data model to be imported in 'actix_routes.rs'"
+    );
+    let db_imports = graph.has_edge(&actix_file, &database_class, EdgeType::Imports);
+    assert!(
+        db_imports,
+        "Expected 'Database' class to be imported in 'actix_routes.rs'"
+    );
+
+    let greeter_class = classes
+        .iter()
+        .find(|c| c.name == "Greeter" && c.file.ends_with("src/testing/rust/src/traits.rs"))
+        .map(|n| Node::new(NodeType::Class, n.clone()))
+        .expect("Class 'Greet' not found in traits.rs");
+
+    let implements_edge_exist = graph.has_edge(&greeter_class, &trait_node, EdgeType::Implements);
+    assert!(
+        implements_edge_exist,
+        "Expected 'Greet' class to implement 'Greet' trait"
+    );
 
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
     nodes_count += endpoints.len();
@@ -146,6 +238,99 @@ use std::net::SocketAddr;"#
     assert!(
         graph.has_edge(&post_person_endpoint, &create_person_fn, EdgeType::Handler),
         "Expected '/person' endpoint to be handled by create_person"
+    );
+
+    let get_person_fn = functions
+        .iter()
+        .find(|f| f.name == "get_person" && f.file.ends_with("src/routes/axum_routes.rs"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("get_person function not found in axum_routes.rs");
+
+    let create_person_fn = functions
+        .iter()
+        .find(|f| f.name == "create_person" && f.file.ends_with("src/routes/axum_routes.rs"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("create_person function not found in axum_routes.rs");
+
+    let get_person_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/person/:id" && e.file.ends_with("src/routes/axum_routes.rs"))
+        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
+        .expect("GET /person/:id endpoint not found in axum_routes.rs");
+
+    let post_person_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/person" && e.file.ends_with("src/routes/axum_routes.rs"))
+        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
+        .expect("POST /person endpoint not found in axum_routes.rs");
+
+    assert!(
+        graph.has_edge(&get_person_endpoint, &get_person_fn, EdgeType::Handler),
+        "Expected '/person/id' endpoint to be handled by get_person"
+    );
+    assert!(
+        graph.has_edge(&post_person_endpoint, &create_person_fn, EdgeType::Handler),
+        "Expected '/person' endpoint to be handled by create_person"
+    );
+
+    let get_person_fn = functions
+        .iter()
+        .find(|f| f.name == "get_person" && f.file.ends_with("src/routes/rocket_routes.rs"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("get_person function not found in rocket_routes.rs");
+
+    let create_person_fn = functions
+        .iter()
+        .find(|f| f.name == "create_person" && f.file.ends_with("src/routes/rocket_routes.rs"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("create_person function not found in rocket_routes.rs");
+
+    let get_person_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/person/<id>" && e.file.ends_with("src/routes/rocket_routes.rs"))
+        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
+        .expect("GET /person/<id> endpoint not found in rocket_routes.rs");
+
+    let post_person_endpoint = endpoints
+        .iter()
+        .find(|e| e.name == "/person" && e.file.ends_with("src/routes/rocket_routes.rs"))
+        .map(|n| Node::new(NodeType::Endpoint, n.clone()))
+        .expect("POST /person endpoint not found in rocket_routes.rs");
+
+    assert!(
+        graph.has_edge(&get_person_endpoint, &get_person_fn, EdgeType::Handler),
+        "Expected '/person/id' endpoint to be handled by get_person"
+    );
+    assert!(
+        graph.has_edge(&post_person_endpoint, &create_person_fn, EdgeType::Handler),
+        "Expected '/person' endpoint to be handled by create_person"
+    );
+
+    let init_db_fn = functions
+        .iter()
+        .find(|f| f.name == "init_db" && f.file.ends_with("src/testing/rust/src/db.rs"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("init_db function not found in db.rs");
+
+    let database_dm = data_models
+        .iter()
+        .find(|dm| dm.name == "Database" && dm.file.ends_with("src/testing/rust/src/db.rs"))
+        .map(|n| Node::new(NodeType::DataModel, n.clone()))
+        .expect("Data model 'Database' not found in db.rs");
+
+    let db_instance_var = vars
+        .iter()
+        .find(|v| v.name == "DB_INSTANCE" && v.file.ends_with("src/testing/rust/src/db.rs"))
+        .map(|n| Node::new(NodeType::Var, n.clone()))
+        .expect("Variable 'db' not found in main.rs");
+
+    assert!(
+        graph.has_edge(&init_db_fn, &database_dm, EdgeType::Contains),
+        "Expected 'init_db' function to use 'Database' data model"
+    );
+    assert!(
+        graph.has_edge(&init_db_fn, &db_instance_var, EdgeType::Contains),
+        "Expected 'init_db' function to use 'DB_INSTANCE' variable"
     );
 
     let (nodes, edges) = graph.get_graph_size();
