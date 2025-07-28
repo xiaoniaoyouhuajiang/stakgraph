@@ -589,13 +589,18 @@ class UserBehaviorTracker {
 const userBehaviour = new UserBehaviorTracker();
 
 // Auto-start when DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
+const initializeStakTrak = () => {
+  console.log("StakTrak initializing");
   userBehaviour
     .makeConfig({
-      processData: (results: Results) =>
+      processData: (results) =>
         console.log("StakTrak recording processed:", results),
     })
     .listen();
-});
+};
+
+document.readyState === "loading"
+  ? document.addEventListener("DOMContentLoaded", initializeStakTrak)
+  : initializeStakTrak();
 
 export default userBehaviour;
