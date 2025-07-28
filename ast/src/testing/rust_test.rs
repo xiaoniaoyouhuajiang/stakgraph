@@ -1,5 +1,6 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::{Graph, Node};
+use crate::utils::sanitize_string;
 use crate::{lang::Lang, repo::Repo};
 use std::str::FromStr;
 
@@ -293,7 +294,9 @@ use std::net::SocketAddr;"#
 
     let post_person_endpoint = endpoints
         .iter()
-        .find(|e| e.name == "/person" && e.file.ends_with("src/routes/rocket_routes.rs"))
+        .find(|e| {
+            &sanitize_string(&e.name) == "person" && e.file.ends_with("src/routes/rocket_routes.rs")
+        })
         .map(|n| Node::new(NodeType::Endpoint, n.clone()))
         .expect("POST /person endpoint not found in rocket_routes.rs");
 
