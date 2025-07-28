@@ -227,7 +227,6 @@ class UserBehaviorTracker {
           document.visibilityState,
           getTimeStamp(),
         ]);
-        this.processResults();
       };
       document.addEventListener("visibilitychange", visibilityHandler);
       this.memory.listeners.push(() =>
