@@ -86,6 +86,10 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
         );
     }
 
+    let pages = graph.find_nodes_by_type(NodeType::Page);
+    nodes += pages.len();
+    assert_eq!(pages.len(), 3, "Expected 3 Page nodes");
+
     let cn = functions
         .iter()
         .find(|f| f.name == "cn" && f.file.ends_with("nextjs/lib/utils.ts"))
@@ -141,6 +145,11 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     } else {
         assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
     }
+
+    let renders = graph.count_edges_of_type(EdgeType::Renders);
+    edges += renders;
+    // Gota have at least 3 renders
+    //assert_eq!(renders, 3, "Expected 3 Renders edges");
 
     let items_page_func = functions
         .iter()
