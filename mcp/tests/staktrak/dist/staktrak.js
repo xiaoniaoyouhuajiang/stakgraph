@@ -607,7 +607,6 @@ var userBehaviour = (() => {
   };
   var userBehaviour = new UserBehaviorTracker();
   var initializeStakTrak = () => {
-    console.log("StakTrak initializing");
     userBehaviour.makeConfig({
       processData: (results) => console.log("StakTrak recording processed:", results)
     }).listen();

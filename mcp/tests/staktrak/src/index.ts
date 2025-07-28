@@ -590,7 +590,6 @@ const userBehaviour = new UserBehaviorTracker();
 
 // Auto-start when DOM is ready
 const initializeStakTrak = () => {
-  console.log("StakTrak initializing");
   userBehaviour
     .makeConfig({
       processData: (results) =>
