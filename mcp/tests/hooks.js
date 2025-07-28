@@ -60,6 +60,9 @@ export function useIframeMessaging(iframeRef) {
               showPopup(event.data.message, event.data.type || "info");
             }
             break;
+          case "staktrak-page-navigation":
+            console.log("Staktrak page navigation:", event.data.data);
+            break;
         }
       }
     };

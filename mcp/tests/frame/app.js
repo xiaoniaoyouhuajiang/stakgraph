@@ -60,6 +60,9 @@ const Frame = () => {
 
   const handleIdClick = () => {
     showPopup("Button 3 clicked", "popup-id");
+    const url = new URL(location);
+    url.searchParams.set("foo", "bar");
+    history.pushState({}, "", url);
   };
 
   // Input change handler
