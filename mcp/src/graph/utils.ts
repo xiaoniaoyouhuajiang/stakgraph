@@ -3,7 +3,14 @@ import { Data_Bank } from "./neo4j.js";
 import { simpleGit } from "simple-git";
 import path from "path";
 import fg from "fast-glob";
-import { LANGUAGE_PACKAGE_FILES, Language } from "./types.js";
+import fs from "fs/promises";
+import {
+  LANGUAGE_PACKAGE_FILES,
+  Language,
+  LANGUAGE_ENV_REGEX,
+  EXTENSIONS,
+  IGNORE_DIRECTORIES,
+} from "./types.js";
 
 export function isTrue(value: string): boolean {
   return value === "true" || value === "1" || value === "True";
@@ -199,4 +206,68 @@ export async function detectLanguagesAndPkgFiles(
     }
   }
   return detected;
+}
+
+export async function isBinaryFile(filePath: string): Promise<boolean> {
+  try {
+    const buf = await fs.readFile(filePath, { encoding: null });
+    for (let i = 0; i < Math.min(buf.length, 8000); i++) {
+      if (buf[i] == 0) return true;
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+export function getLanguageByExtension(ext: string): Language | undefined {
+  ext = ext.replace(/^\./, "").toLowerCase();
+  for (const [lang, exts] of Object.entries(EXTENSIONS)) {
+    if (exts.map((e) => e.replace(/^\./, "")).includes(ext)) {
+      return lang as Language;
+    }
+  }
+  return undefined;
+}
+
+export async function extractEnvVarsFromRepo(
+  repoDir: string
+): Promise<Record<string, Set<string>>> {
+  const envVarsByFile: Record<string, Set<string>> = {};
+
+  const files = await fg("**/*.*", {
+    cwd: repoDir,
+    absolute: true,
+    dot: true,
+    ignore: IGNORE_DIRECTORIES,
+  });
+
+  for (const file of files) {
+    if (await isBinaryFile(file)) continue;
+
+    let body: string;
+
+    try {
+      body = await fs.readFile(file, "utf8");
+    } catch (error) {
+      console.error(`Error reading file ${file}:`, error);
+      continue;
+    }
+
+    const ext = file.split(".").pop()?.toLowerCase() || "";
+    const language = getLanguageByExtension(ext);
+
+    if (!language) continue;
+
+    const regex = LANGUAGE_ENV_REGEX[language];
+    if (!regex) continue;
+
+    const matches = [...body.matchAll(regex)].map((m) => m[1]);
+    if (matches.length > 0) {
+      if (!envVarsByFile[file]) envVarsByFile[file] = new Set();
+      matches.forEach((v) => envVarsByFile[file].add(v));
+    }
+  }
+
+  return envVarsByFile;
 }

@@ -197,3 +197,39 @@ export const LANGUAGE_PACKAGE_FILES: Record<Language, string[]> = {
   [Language.Java]: ["pom.xml"],
   [Language.Cpp]: ["CMakeLists.txt"],
 };
+
+export const EXTENSIONS: Record<Language, string[]> = {
+  [Language.Rust]: ["rs"],
+  [Language.Go]: ["go"],
+  [Language.Typescript]: ["ts", "tsx", "js", "jsx"],
+  [Language.Python]: ["py", "ipynb"],
+  [Language.Ruby]: ["rb"],
+  [Language.Kotlin]: ["kt", "kts", "java"],
+  [Language.Swift]: ["swift", "plist"],
+  [Language.Java]: ["java", "gradle", "gradlew"],
+  [Language.Cpp]: ["cpp", "h"],
+};
+
+export const LANGUAGE_ENV_REGEX: Record<Language, RegExp> = {
+  [Language.Rust]: /std::env::var\("([^"]+)"\)/g,
+  [Language.Go]: /os\.(?:Getenv|LookupEnv)\("([^"]+)"\)/g,
+  [Language.Typescript]: /process\.env\.(\w+)/g,
+  [Language.Python]: /os\.environ\[['"]([^'"]+)['"]\]/g,
+  [Language.Ruby]: /ENV\[['"]([^'"]+)['"]\]/g,
+  [Language.Kotlin]: /System.getenv\("([^"]+)"\)/g,
+  [Language.Swift]: /ProcessInfo\.processInfo\.environment\["([^"]+)"\]/g,
+  [Language.Java]: /System\.getProperty\("([^"]+)"\)/g,
+  [Language.Cpp]: /getenv\("([^"]+)"\)/g,
+};
+
+export const IGNORE_DIRECTORIES = [
+  "**/node_modules",
+  "**/vendor",
+  "**/.git",
+  "**/.idea",
+  "**/.vscode",
+  "**/dist",
+  "**/build",
+  "**/out",
+  "**/target",
+];
