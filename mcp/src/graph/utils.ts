@@ -10,6 +10,7 @@ import {
   LANGUAGE_ENV_REGEX,
   EXTENSIONS,
   IGNORE_DIRECTORIES,
+  IGNORE_FILES,
 } from "./types.js";
 
 export function isTrue(value: string): boolean {
@@ -239,7 +240,7 @@ export async function extractEnvVarsFromRepo(
     cwd: repoDir,
     absolute: true,
     dot: true,
-    ignore: IGNORE_DIRECTORIES,
+    ignore: [...IGNORE_DIRECTORIES, ...IGNORE_FILES],
   });
 
   for (const file of files) {
