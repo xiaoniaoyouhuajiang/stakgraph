@@ -598,9 +598,6 @@ impl Repo {
                 self.send_status_progress(i, total, 12);
             }
 
-            if !self.lang.kind.is_source_file(&filename) {
-                continue;
-            }
             if self.lang.lang().is_router_file(&filename, &code) {
                 let pages = self.lang.get_pages(&code, &filename, &self.lsp_tx, graph)?;
                 page_count += pages.len();
@@ -616,6 +613,7 @@ impl Repo {
             let extra_page_count = extra_pages.len();
             info!("=> got {} extra pages", extra_page_count);
             page_count += extra_page_count;
+            let mut pages_and_edges = Vec::new();
 
             for pagepath in extra_pages {
                 if let Some((page_node, edges)) = self.lang.lang().extra_page_finder(
@@ -638,12 +636,10 @@ impl Repo {
                     if page_node.body.is_empty() {
                         page_node.body = code.to_string();
                     }
-                    graph.add_node(NodeType::Page, page_node);
-                    for edge in edges {
-                        graph.add_edge(edge);
-                    }
+                    pages_and_edges.push((page_node, edges));
                 }
             }
+            graph.add_pages(pages_and_edges);
         }
 
         let mut _i = 0;

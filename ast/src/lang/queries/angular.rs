@@ -254,38 +254,40 @@ impl Stack for Angular {
         _find_all_in_file: &dyn Fn(&str) -> Vec<NodeData>,
     ) -> Option<(NodeData, Vec<Edge>)> {
         let path = std::path::Path::new(file_path);
-        let file_stem = path.file_stem()?.to_str()?;
 
-        let component_name = format!(
-            "{}Component",
-            file_stem
-                .replace("-", " ")
-                .split_whitespace()
-                .map(|s| {
-                    let mut c = s.chars();
-                    match c.next() {
-                        None => String::new(),
-                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                    }
-                })
-                .collect::<String>()
-        );
+        let file_name = path.file_name()?.to_str()?; // e.g. "add-person.component.html"
+        let base = file_name
+            .strip_suffix(".component.html")
+            .or_else(|| file_name.strip_suffix(".component.css"))
+            .or_else(|| file_name.strip_suffix(".component.scss"))
+            .or_else(|| file_name.strip_suffix(".component.sass"))
+            .unwrap_or(file_name);
 
-        let component_file = format!("{}.component.ts", file_stem);
+        let page = NodeData::name_file(file_name, file_path);
+        let mut edges = Vec::new();
 
-        if let Some(component) = find_fn(&component_name, &component_file) {
-            let page = NodeData::name_file(file_stem, file_path);
-            return Some((
-                page.clone(),
-                vec![Edge::new(
-                    EdgeType::Renders,
-                    NodeRef::from((&component).into(), NodeType::Class),
-                    NodeRef::from((&page).into(), NodeType::Page),
-                )],
+        let component_class = base
+            .split('-')
+            .map(|s| {
+                let mut c = s.chars();
+                match c.next() {
+                    None => String::new(),
+                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                }
+            })
+            .collect::<String>()
+            + "Component";
+        let component_file = format!("{}.component.ts", base);
+
+        if let Some(component) = find_fn(&component_class, &component_file) {
+            edges.push(Edge::new(
+                EdgeType::Renders,
+                NodeRef::from((&component).into(), NodeType::Class),
+                NodeRef::from((&page).into(), NodeType::Page),
             ));
         }
 
-        None
+        Some((page, edges))
     }
 
     fn component_selector_to_template_map(
