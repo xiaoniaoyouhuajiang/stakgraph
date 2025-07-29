@@ -3,6 +3,7 @@ use std::fs;
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
+use lsp::strip_tmp;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
 pub struct ReactTs(Language);
@@ -637,6 +638,8 @@ impl Stack for ReactTs {
     ) -> Option<(NodeData, Option<Edge>)> {
         let path = std::path::Path::new(file_path);
 
+        let filename = strip_tmp(path).display().to_string();
+
         let name = path
             .parent()
             .and_then(|p| p.file_name())
@@ -658,9 +661,9 @@ impl Stack for ReactTs {
 
         let default_export = find_default_export_name(&code, self.0.clone());
 
-        let all_functions = find_fns_in(file_path);
+        let all_functions = find_fns_in(&filename);
 
-        let target = if let Some(default_name) = default_export {
+        let target = if let Some(default_name) = default_export.clone() {
             all_functions.into_iter().find(|f| f.name == default_name)
         } else {
             None
