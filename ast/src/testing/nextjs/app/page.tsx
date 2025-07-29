@@ -101,3 +101,12 @@ export default function Home() {
     </div>
   );
 }
+
+interface Props {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+//shouldn't render from page.tsx
+export function TestComponent({ params, searchParams }: Props) {
+  return <div>Hello</div>;
+}

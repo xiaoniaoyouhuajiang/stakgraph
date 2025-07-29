@@ -16,7 +16,7 @@ interface Person {
   email: string;
 }
 
-export default function Person() {
+function Person() {
   const [people, setPeople] = useState<Person[]>([]);
   const [form, setForm] = useState<Person>({ name: "", age: 0, email: "" });
   const [loading, setLoading] = useState(false);
@@ -191,3 +191,10 @@ export default function Person() {
     </main>
   );
 }
+
+async function TestComponent() {
+  return <div>Hello</div>;
+}
+
+export { TestComponent };
+export default Person;

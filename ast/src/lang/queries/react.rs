@@ -1,7 +1,9 @@
+use std::fs;
+
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
-use tree_sitter::{Language, Parser, Query, Tree};
+use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
 pub struct ReactTs(Language);
 
@@ -652,13 +654,19 @@ impl Stack for ReactTs {
         let mut page = NodeData::name_file(&name, file_path);
         page.body = body;
 
-        let all_functions = find_fns_in(file_path);
-        let components = all_functions
-            .into_iter()
-            .filter(|f| !f.name.is_empty() && f.name.chars().next().unwrap().is_uppercase())
-            .collect::<Vec<_>>();
+        let code = fs::read_to_string(file_path).ok()?;
 
-        let edges = components
+        let default_export = find_default_export_name(&code, self.0.clone());
+
+        let all_functions = find_fns_in(file_path);
+
+        let target = if let Some(default_name) = default_export {
+            all_functions.into_iter().find(|f| f.name == default_name)
+        } else {
+            None
+        };
+
+        let edges = target
             .into_iter()
             .map(|comp| Edge::renders(&page, &comp))
             .collect();
@@ -680,4 +688,54 @@ pub fn endpoint_name_from_file(file: &str) -> String {
     };
 
     route_path
+}
+
+fn find_default_export_name(code: &str, language: Language) -> Option<String> {
+    let query_str = r#"
+    [
+        (export_statement
+            "default"
+            (identifier) @component_name
+        ) @export
+        (export_statement
+            "default" 
+            (arrow_function) @arrow_func
+        )@export
+        (export_statement
+            "default"
+            (function_declaration
+            name: (identifier) @component_name
+            )
+        ) @export
+        (export_statement
+        (export_clause
+            (export_specifier
+            name: (identifier) @component_name
+            alias: (identifier) @alias (#eq? @alias "default")
+            )
+        )
+        ) @export
+    ]
+    "#;
+
+    let query = Query::new(&language, query_str).ok()?;
+    let mut parser = Parser::new();
+    parser.set_language(&language).ok()?;
+    let tree = parser.parse(code, None)?;
+    let root = tree.root_node();
+
+    let mut cursor = QueryCursor::new();
+    let mut matches = cursor.matches(&query, root, code.as_bytes());
+
+    while let Some(m) = matches.next() {
+        for cap in m.captures.iter() {
+            let name = cap.node.utf8_text(code.as_bytes()).ok()?.to_string();
+            // to handle the case for Arrow Functions
+            if query.capture_names()[cap.index as usize] == "component_name" {
+                return Some(name);
+            }
+        }
+    }
+
+    None
 }
