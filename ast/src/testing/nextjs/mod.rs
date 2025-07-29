@@ -10,7 +10,7 @@ use anyhow::Result;
 use std::str::FromStr;
 
 pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
-    let use_lsp = get_use_lsp() && false; // To activete LSP_SKIP_CLONE = true, helps with tsx issues
+    let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/nextjs",
         Lang::from_str("tsx").unwrap(),
@@ -25,26 +25,122 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     graph.analysis();
 
-    let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 114, "Expected 114 nodes in Next.js");
-    assert_eq!(num_edges, 161, "Expected 161 edges in Next.js");
+    let mut nodes = 0;
+    let mut edges = 0;
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    nodes += language_nodes.len();
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
     assert_eq!(
         language_nodes[0].name, "react",
         "Language node name should be 'tsx'"
     );
 
+    let file_nodes = graph.find_nodes_by_type(NodeType::File);
+    nodes += file_nodes.len();
+    assert_eq!(file_nodes.len(), 20, "Expected 20 File nodes");
+
+    let card_file = file_nodes
+        .iter()
+        .find(|f| f.name == "card.tsx" && f.file.ends_with("nextjs/components/ui/card.tsx"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'Card.tsx' not found");
+
+    let items_page_file = file_nodes
+        .iter()
+        .find(|f| f.name == "page.tsx" && f.file.ends_with("nextjs/app/items/page.tsx"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'ItemsPage.tsx' not found");
+
+    let person_file = file_nodes
+        .iter()
+        .find(|f| f.name == "page.tsx" && f.file.ends_with("nextjs/app/person/page.tsx"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'Person.ts' not found");
+
+    let directory_nodes = graph.find_nodes_by_type(NodeType::Directory);
+    nodes += directory_nodes.len();
+    assert_eq!(directory_nodes.len(), 10, "Expected 10 Directory nodes");
+
+    let repository = graph.find_nodes_by_type(NodeType::Repository);
+    nodes += repository.len();
+    assert_eq!(repository.len(), 1, "Expected 1 Repository node");
+
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
+    nodes += endpoints.len();
     assert_eq!(endpoints.len(), 6, "Expected 6 Endpoint nodes");
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
-    println!("Requests: {:#?}", requests);
+    nodes += requests.len();
     assert_eq!(requests.len(), 9, "Expected 9 Request nodes");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
-    assert_eq!(functions.len(), 26, "Expected 26 Function nodes");
+    nodes += functions.len();
+    if use_lsp {
+        assert_eq!(functions.len(), 34, "Expected 34 Function nodes with LSP");
+    } else {
+        assert_eq!(
+            functions.len(),
+            26,
+            "Expected 26 Function nodes without LSP"
+        );
+    }
+
+    let cn = functions
+        .iter()
+        .find(|f| f.name == "cn" && f.file.ends_with("nextjs/lib/utils.ts"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'Card' not found");
+
+    let card_func = functions
+        .iter()
+        .find(|f| f.name == "Card" && f.file.ends_with("nextjs/components/ui/card.tsx"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'Card' not found");
+
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    nodes += variables.len();
+    assert_eq!(variables.len(), 8, "Expected 8 Variable nodes");
+
+    let libraries = graph.find_nodes_by_type(NodeType::Library);
+    nodes += libraries.len();
+    assert_eq!(libraries.len(), 18, "Expected 18 Library nodes");
+
+    let calls = graph.count_edges_of_type(EdgeType::Calls);
+    edges += calls;
+    assert_eq!(calls, 47, "Expected 47 Calls edges");
+
+    let contains = graph.count_edges_of_type(EdgeType::Contains);
+    edges += contains;
+    assert_eq!(contains, 108, "Expected 108 Contains edges");
+
+    let handlers = graph.count_edges_of_type(EdgeType::Handler);
+    edges += handlers;
+    assert_eq!(handlers, 6, "Expected 6 Handler edges");
+
+    let import = graph.count_edges_of_type(EdgeType::Imports);
+    edges += import;
+    if use_lsp {
+        assert_eq!(import, 15, "Expected 15 Imports edges with LSP");
+    } else {
+        assert_eq!(import, 0, "Expected 0 Imports edge without LSP");
+    }
+
+    let import_nodes = graph.find_nodes_by_type(NodeType::Import);
+    nodes += import_nodes.len();
+    assert_eq!(import_nodes.len(), 13, "Expected 13 Import nodes");
+
+    let datamodels = graph.find_nodes_by_type(NodeType::DataModel);
+    nodes += datamodels.len();
+    assert_eq!(datamodels.len(), 2, "Expected 2 DataModel nodes");
+
+    let uses = graph.count_edges_of_type(EdgeType::Uses);
+    edges += uses;
+    if use_lsp {
+        assert_eq!(uses, 27, "Expected 27 Uses edges with LSP");
+    } else {
+        assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
+    }
 
     let items_page_func = functions
         .iter()
@@ -229,6 +325,55 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
             EdgeType::Calls
         ),
         "Expected dynamic DELETE request to call the dynamic DELETE endpoint"
+    );
+
+    assert!(
+        graph.has_edge(&card_file, &card_func, EdgeType::Contains),
+        "Expected Card file to call the Card function"
+    );
+
+    assert!(
+        graph.has_edge(&card_func, &cn, EdgeType::Calls),
+        "Expected Card function to call the cn function"
+    );
+
+    assert!(
+        graph.has_edge(&items_page_file, &items_page_func, EdgeType::Contains),
+        "Expected ItemsPage file to contain the ItemsPage function"
+    );
+
+    assert!(
+        graph.has_edge(&person_file, &person_page_func, EdgeType::Contains),
+        "Expected Person file to contain the PersonPage function"
+    );
+
+    if use_lsp {
+        assert!(
+            graph.has_edge(&person_file, &card_func, EdgeType::Imports),
+            "Expected Person file to import Card function"
+        );
+        assert!(
+            graph.has_edge(&items_page_file, &card_func, EdgeType::Imports),
+            "Expected ItemsPage file to import Card function"
+        );
+    }
+    assert!(
+        graph.has_edge(&person_page_func, &card_func, EdgeType::Calls),
+        "Expected PersonPage function to call Card function"
+    );
+    assert!(
+        graph.has_edge(&items_page_func, &card_func, EdgeType::Calls),
+        "Expected ItemsPage function to call Card function"
+    );
+
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(
+        num_nodes, nodes as u32,
+        "Nodes mismatch: expected {num_nodes} nodes found {nodes}"
+    );
+    assert_eq!(
+        num_edges, edges as u32,
+        "Edges mismatch: expected {num_edges} edges found {edges}"
     );
     Ok(())
 }
