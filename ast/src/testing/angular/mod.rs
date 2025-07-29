@@ -18,11 +18,11 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     graph.analysis();
 
-    let (num_nodes, num_edges) = graph.get_graph_size();
-    assert_eq!(num_nodes, 114, "Expected 114 nodes");
-    assert_eq!(num_edges, 127, "Expected 127 edges");
+    let mut nodes = 0;
+    let mut edges = 0;
 
     let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    nodes += language_nodes.len();
     assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
     assert_eq!(
         language_nodes[0].name, "angular",
@@ -33,16 +33,32 @@ pub async fn test_angular_generic<G: Graph>() -> Result<(), anyhow::Error> {
         "Language node file path is incorrect"
     );
 
+    let repository = graph.find_nodes_by_type(NodeType::Repository);
+    nodes += repository.len();
+    assert_eq!(repository.len(), 1, "Expected 1 repository node");
+
     let files = graph.find_nodes_by_type(NodeType::File);
+    nodes += files.len();
     assert_eq!(files.len(), 29, "Expected 29 files");
 
+    let directories = graph.find_nodes_by_type(NodeType::Directory);
+    nodes += directories.len();
+    assert_eq!(directories.len(), 7, "Expected 7 directory");
+
+    let libraries = graph.find_nodes_by_type(NodeType::Library);
+    nodes += libraries.len();
+    assert_eq!(libraries.len(), 26, "Expected 26 library node");
+
     let calls = graph.count_edges_of_type(EdgeType::Calls);
+    edges += calls;
     assert_eq!(calls, 8, "Expected 8 call edges");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
+    edges += contains;
     assert_eq!(contains, 100, "Expected 100 contains edges");
 
     let imports = graph.find_nodes_by_type(NodeType::Import);
+    nodes += imports.len();
     assert_eq!(imports.len(), 14, "Expected 14 imports");
 
     let main_import_body = format!(
@@ -61,6 +77,7 @@ import {{ AppComponent }} from './app/app.component';"#
     );
 
     let classes = graph.find_nodes_by_type(NodeType::Class);
+    nodes += classes.len();
     assert_eq!(classes.len(), 5, "Expected 5 classes");
 
     let mut sorted_classes = classes.clone();
@@ -95,6 +112,7 @@ import {{ AppComponent }} from './app/app.component';"#
     assert_eq!(class_function_edges.len(), 0, "Expected 0 methods");
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
+    nodes += data_models.len();
     assert_eq!(data_models.len(), 1, "Expected 1 data model");
     assert_eq!(
         data_models[0].name, "Person",
@@ -102,9 +120,11 @@ import {{ AppComponent }} from './app/app.component';"#
     );
 
     let requests = graph.find_nodes_by_type(NodeType::Request);
+    nodes += requests.len();
     assert_eq!(requests.len(), 7, "Expected 7 requests");
 
     let imported_edges = graph.count_edges_of_type(EdgeType::Imports);
+    edges += imported_edges;
     assert_eq!(imported_edges, 12, "Expected 12 import edges");
 
     let person_data_model = graph
@@ -219,9 +239,11 @@ import {{ AppComponent }} from './app/app.component';"#
     );
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
+    nodes += functions.len();
     assert_eq!(functions.len(), 8, "Expected 8 functions");
 
     let variables = graph.find_nodes_by_type(NodeType::Var);
+    nodes += variables.len();
     assert_eq!(variables.len(), 4, "Expected 4 variables");
 
     let constructor_fn = graph
@@ -298,6 +320,7 @@ import {{ AppComponent }} from './app/app.component';"#
     );
 
     let renders_edges_count = graph.count_edges_of_type(EdgeType::Renders);
+    edges += renders_edges_count;
     assert_eq!(renders_edges_count, 7, "Expected 7 RENDERS edge");
 
     assert!(
@@ -361,6 +384,7 @@ import {{ AppComponent }} from './app/app.component';"#
     );
 
     let pages = graph.find_nodes_by_type(NodeType::Page);
+    nodes += pages.len();
     assert_eq!(pages.len(), 11, "Expected 11 pages");
 
     let index_page_nodes = graph.find_nodes_by_file_ends_with(NodeType::Page, "src/index.html");
@@ -475,6 +499,18 @@ import {{ AppComponent }} from './app/app.component';"#
             EdgeType::Contains
         ),
         "Expected server.ts to contain commonEngine variable"
+    );
+
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(
+        num_nodes, nodes as u32,
+        "Expected {} nodes, found {}",
+        nodes, num_nodes
+    );
+    assert_eq!(
+        num_edges, edges as u32,
+        "Expected {} edges, found {}",
+        edges, num_edges
     );
 
     Ok(())
