@@ -77,14 +77,66 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes += functions.len();
     if use_lsp {
-        assert_eq!(functions.len(), 34, "Expected 34 Function nodes with LSP");
+        assert_eq!(functions.len(), 36, "Expected 36 Function nodes with LSP");
     } else {
         assert_eq!(
             functions.len(),
-            26,
-            "Expected 26 Function nodes without LSP"
+            28,
+            "Expected 28 Function nodes without LSP"
         );
     }
+
+    let pages = graph.find_nodes_by_type(NodeType::Page);
+    nodes += pages.len();
+    assert_eq!(pages.len(), 3, "Expected 3 Page nodes");
+
+    let app_page = pages
+        .iter()
+        .find(|p| p.name == "app" && p.file.ends_with("nextjs/app/page.tsx"))
+        .map(|n| Node::new(NodeType::Page, n.clone()))
+        .expect("Page 'Home' not found");
+
+    let items_page = pages
+        .iter()
+        .find(|p| p.name == "items" && p.file.ends_with("nextjs/app/items/page.tsx"))
+        .map(|n| Node::new(NodeType::Page, n.clone()))
+        .expect("Page 'Items' not found");
+
+    let person_page = pages
+        .iter()
+        .find(|p| p.name == "person" && p.file.ends_with("nextjs/app/person/page.tsx"))
+        .map(|n| Node::new(NodeType::Page, n.clone()))
+        .expect("Page 'Person' not found");
+
+    let home_component = functions
+        .iter()
+        .find(|f| f.name == "Home" && f.file.ends_with("nextjs/app/page.tsx"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'Home' not found");
+
+    let items_component = functions
+        .iter()
+        .find(|f| f.name == "Items" && f.file.ends_with("nextjs/app/items/page.tsx"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'Items' not found");
+    let person_component = functions
+        .iter()
+        .find(|f| f.name == "Person" && f.file.ends_with("nextjs/app/person/page.tsx"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Function 'Person' not found");
+
+    assert!(
+        graph.has_edge(&app_page, &home_component, EdgeType::Renders),
+        "Home page should render Home component"
+    );
+    assert!(
+        graph.has_edge(&items_page, &items_component, EdgeType::Renders),
+        "Items page should render Items component"
+    );
+    assert!(
+        graph.has_edge(&person_page, &person_component, EdgeType::Renders),
+        "Person page should render Person component"
+    );
 
     let cn = functions
         .iter()
@@ -112,7 +164,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges += contains;
-    assert_eq!(contains, 108, "Expected 108 Contains edges");
+    assert_eq!(contains, 112, "Expected 112 Contains edges");
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
     edges += handlers;
@@ -132,7 +184,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let datamodels = graph.find_nodes_by_type(NodeType::DataModel);
     nodes += datamodels.len();
-    assert_eq!(datamodels.len(), 2, "Expected 2 DataModel nodes");
+    assert_eq!(datamodels.len(), 3, "Expected 3 DataModel nodes");
 
     let uses = graph.count_edges_of_type(EdgeType::Uses);
     edges += uses;
@@ -142,11 +194,15 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
         assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
     }
 
+    let renders = graph.count_edges_of_type(EdgeType::Renders);
+    edges += renders;
+    assert_eq!(renders, 3, "Expected 3 Renders edges");
+
     let items_page_func = functions
         .iter()
-        .find(|f| f.name == "ItemsPage")
+        .find(|f| f.name == "Items")
         .map(|n| Node::new(NodeType::Function, n.clone()))
-        .expect("Function 'ItemsPage' not found");
+        .expect("Function 'Items' not found");
 
     let get_items_endpoint = endpoints
         .iter()
@@ -193,9 +249,9 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
         .expect("POST request to /api/items not found");
     let person_page_func = functions
         .iter()
-        .find(|f| f.name == "PersonPage")
+        .find(|f| f.name == "Person")
         .map(|n| Node::new(NodeType::Function, n.clone()))
-        .expect("Function 'PersonPage' not found");
+        .expect("Function 'Person' not found");
     let expected_endpoint_path = normalize_backend_path("/api/person/[id]").unwrap();
 
     let get_person_endpoint = endpoints
@@ -273,7 +329,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     assert!(
         graph.has_edge(&items_page_func, &get_items_request, EdgeType::Calls),
-        "Expected ItemsPage to call the GET /api/items request"
+        "Expected Items to call the GET /api/items request"
     );
     assert!(
         graph.has_edge(&items_page_func, &post_items_request, EdgeType::Calls),
@@ -307,11 +363,11 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     assert!(
         graph.has_edge(&person_page_func, &get_person_request, EdgeType::Calls),
-        "Expected PersonPage to call the dynamic GET person request"
+        "Expected Person to call the dynamic GET person request"
     );
     assert!(
         graph.has_edge(&person_page_func, &delete_person_request, EdgeType::Calls),
-        "Expected PersonPage to call the dynamic DELETE person request"
+        "Expected Person to call the dynamic DELETE person request"
     );
 
     assert!(

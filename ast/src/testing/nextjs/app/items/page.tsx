@@ -16,7 +16,7 @@ interface Item {
   price: number;
 }
 
-export default function ItemsPage() {
+function Items() {
   const [items, setItems] = useState<Item[]>([]);
   const [form, setForm] = useState<Omit<Item, "id">>({
     title: "",
@@ -107,3 +107,5 @@ export default function ItemsPage() {
     </main>
   );
 }
+
+export { Items as default };

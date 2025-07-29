@@ -1,7 +1,10 @@
+use std::fs;
+
 use super::super::*;
 use super::consts::*;
 use anyhow::{Context, Result};
-use tree_sitter::{Language, Parser, Query, Tree};
+use lsp::strip_tmp;
+use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
 pub struct ReactTs(Language);
 
@@ -614,6 +617,66 @@ impl Stack for ReactTs {
             "#,
         )]
     }
+
+    fn use_extra_page_finder(&self) -> bool {
+        true
+    }
+    fn is_extra_page(&self, file_name: &str) -> bool {
+        // file_name.ends_with("/page.tsx") || file_name.ends_with("/page.jsx")
+        let is_page = file_name.ends_with("/page.tsx") || file_name.ends_with("/page.jsx");
+        if is_page {
+            tracing::debug!("Detected Next.js page: {}", file_name);
+        }
+        is_page
+    }
+
+    fn extra_page_finder(
+        &self,
+        file_path: &str,
+        _find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
+        find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
+    ) -> Option<(NodeData, Option<Edge>)> {
+        let path = std::path::Path::new(file_path);
+
+        let filename = strip_tmp(path).display().to_string();
+
+        let name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("page")
+            .to_string();
+
+        let mut body = file_path.to_string();
+        if let Some(idx) = body.find("/page.tsx") {
+            body = body[..idx].to_string();
+        } else if let Some(idx) = body.find("/page.jsx") {
+            body = body[..idx].to_string();
+        }
+
+        let mut page = NodeData::name_file(&name, file_path);
+        page.body = body;
+
+        let code = fs::read_to_string(file_path).ok()?;
+
+        let default_export = find_default_export_name(&code, self.0.clone());
+
+        let all_functions = find_fns_in(&filename);
+
+        let target = if let Some(default_name) = default_export {
+            all_functions.into_iter().find(|f| f.name == default_name)
+        } else {
+            None
+        };
+
+        let edge = if let Some(target) = target {
+            Edge::renders(&page, &target)
+        } else {
+            return Some((page, None));
+        };
+
+        Some((page, Some(edge)))
+    }
 }
 
 pub fn endpoint_name_from_file(file: &str) -> String {
@@ -629,4 +692,54 @@ pub fn endpoint_name_from_file(file: &str) -> String {
     };
 
     route_path
+}
+
+fn find_default_export_name(code: &str, language: Language) -> Option<String> {
+    let query_str = r#"
+    [
+        (export_statement
+            "default"
+            (identifier) @component_name
+        ) @export
+        (export_statement
+            "default" 
+            (arrow_function) @arrow_func
+        )@export
+        (export_statement
+            "default"
+            (function_declaration
+            name: (identifier) @component_name
+            )
+        ) @export
+        (export_statement
+        (export_clause
+            (export_specifier
+            name: (identifier) @component_name
+            alias: (identifier) @alias (#eq? @alias "default")
+            )
+        )
+        ) @export
+    ]
+    "#;
+
+    let query = Query::new(&language, query_str).ok()?;
+    let mut parser = Parser::new();
+    parser.set_language(&language).ok()?;
+    let tree = parser.parse(code, None)?;
+    let root = tree.root_node();
+
+    let mut cursor = QueryCursor::new();
+    let mut matches = cursor.matches(&query, root, code.as_bytes());
+
+    while let Some(m) = matches.next() {
+        for cap in m.captures.iter() {
+            let name = cap.node.utf8_text(code.as_bytes()).ok()?.to_string();
+            // to handle the case for Arrow Functions
+            if query.capture_names()[cap.index as usize] == "component_name" {
+                return Some(name);
+            }
+        }
+    }
+
+    None
 }
