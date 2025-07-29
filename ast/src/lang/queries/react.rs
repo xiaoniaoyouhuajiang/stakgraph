@@ -663,7 +663,7 @@ impl Stack for ReactTs {
 
         let all_functions = find_fns_in(&filename);
 
-        let target = if let Some(default_name) = default_export.clone() {
+        let target = if let Some(default_name) = default_export {
             all_functions.into_iter().find(|f| f.name == default_name)
         } else {
             None
