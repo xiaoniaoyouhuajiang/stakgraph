@@ -466,7 +466,7 @@ impl Stack for Ruby {
         file_path: &str,
         find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
         _find_all_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
-    ) -> Option<(NodeData, Vec<Edge>)> {
+    ) -> Option<(NodeData, Option<Edge>)> {
         let pagename = get_page_name(file_path);
         if pagename.is_none() {
             return None;
@@ -483,7 +483,7 @@ impl Stack for Ruby {
             &format!("{}{}", parent_name, CONTROLLER_FILE_SUFFIX),
         );
         if let Some(h) = controller_handler {
-            return Some((page.clone(), vec![Edge::renders(&page, &h)]));
+            return Some((page.clone(), Some(Edge::renders(&page, &h))));
         }
         let parent_name_no_mailer = parent_name.strip_suffix("_mailer").unwrap_or(parent_name);
         let mailer_handler = find_fn(
@@ -491,7 +491,7 @@ impl Stack for Ruby {
             &format!("{}{}", parent_name_no_mailer, MAILER_FILE_SUFFIX),
         );
         if let Some(h) = mailer_handler {
-            return Some((page.clone(), vec![Edge::renders(&page, &h)]));
+            return Some((page.clone(), Some(Edge::renders(&page, &h))));
         }
         println!("no handler found for {} {}", func_name, file_path);
         None

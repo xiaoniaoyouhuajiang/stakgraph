@@ -634,7 +634,7 @@ impl Stack for ReactTs {
         file_path: &str,
         _find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
         find_fns_in: &dyn Fn(&str) -> Vec<NodeData>,
-    ) -> Option<(NodeData, Vec<Edge>)> {
+    ) -> Option<(NodeData, Option<Edge>)> {
         let path = std::path::Path::new(file_path);
 
         let name = path
@@ -666,12 +666,13 @@ impl Stack for ReactTs {
             None
         };
 
-        let edges = target
-            .into_iter()
-            .map(|comp| Edge::renders(&page, &comp))
-            .collect();
+        let edge = if let Some(target) = target {
+            Edge::renders(&page, &target)
+        } else {
+            return Some((page, None));
+        };
 
-        Some((page, edges))
+        Some((page, Some(edge)))
     }
 }
 

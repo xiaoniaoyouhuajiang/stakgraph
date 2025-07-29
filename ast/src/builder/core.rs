@@ -613,10 +613,9 @@ impl Repo {
             let extra_page_count = extra_pages.len();
             info!("=> got {} extra pages", extra_page_count);
             page_count += extra_page_count;
-            let mut pages_and_edges = Vec::new();
 
             for pagepath in extra_pages {
-                if let Some((page_node, edges)) = self.lang.lang().extra_page_finder(
+                if let Some((page_node, edge)) = self.lang.lang().extra_page_finder(
                     &pagepath,
                     &|name, filename| {
                         graph.find_node_by_name_and_file_end_with(
@@ -636,10 +635,9 @@ impl Repo {
                     if page_node.body.is_empty() {
                         page_node.body = code.to_string();
                     }
-                    pages_and_edges.push((page_node, edges));
+                    graph.add_page((page_node, edge));
                 }
             }
-            graph.add_pages(pages_and_edges);
         }
 
         let mut _i = 0;

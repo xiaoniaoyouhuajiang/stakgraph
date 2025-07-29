@@ -252,10 +252,10 @@ impl Stack for Angular {
         file_path: &str,
         find_fn: &dyn Fn(&str, &str) -> Option<NodeData>,
         _find_all_in_file: &dyn Fn(&str) -> Vec<NodeData>,
-    ) -> Option<(NodeData, Vec<Edge>)> {
+    ) -> Option<(NodeData, Option<Edge>)> {
         let path = std::path::Path::new(file_path);
 
-        let file_name = path.file_name()?.to_str()?; // e.g. "add-person.component.html"
+        let file_name = path.file_name()?.to_str()?;
         let base = file_name
             .strip_suffix(".component.html")
             .or_else(|| file_name.strip_suffix(".component.css"))
@@ -264,7 +264,7 @@ impl Stack for Angular {
             .unwrap_or(file_name);
 
         let page = NodeData::name_file(file_name, file_path);
-        let mut edges = Vec::new();
+        let mut edge = None;
 
         let component_class = base
             .split('-')
@@ -280,14 +280,14 @@ impl Stack for Angular {
         let component_file = format!("{}.component.ts", base);
 
         if let Some(component) = find_fn(&component_class, &component_file) {
-            edges.push(Edge::new(
+            edge = Some(Edge::new(
                 EdgeType::Renders,
                 NodeRef::from((&component).into(), NodeType::Class),
                 NodeRef::from((&page).into(), NodeType::Page),
             ));
         }
 
-        Some((page, edges))
+        Some((page, edge))
     }
 
     fn component_selector_to_template_map(
