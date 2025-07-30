@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import { Neo4jNode, node_type_descriptions, NodeType } from "./types.js";
+import {
+  ContainerConfig,
+  Neo4jNode,
+  node_type_descriptions,
+  NodeType,
+} from "./types.js";
 import {
   nameFileOnly,
   toReturnNode,
@@ -7,10 +12,11 @@ import {
   detectLanguagesAndPkgFiles,
   cloneRepoToTmp,
   extractEnvVarsFromRepo,
+  findDockerComposeFiles,
 } from "./utils.js";
 import fs from "fs/promises";
 import * as G from "./graph.js";
-import { parseServiceFile } from "./service.js";
+import { parseServiceFile, extractContainersFromCompose } from "./service.js";
 import * as path from "path";
 
 export function schema(_req: Request, res: Response) {
@@ -162,7 +168,13 @@ export async function get_services(req: Request, res: Response) {
 
         services.push(service);
       }
-      res.json(services);
+      const composeFiles = await findDockerComposeFiles(repoDir);
+      let containers: ContainerConfig[] = [];
+      for (const composeFile of composeFiles) {
+        const found = await extractContainersFromCompose(composeFile);
+        containers = containers.concat(found);
+      }
+      res.json({ services, containers });
       return;
     } else {
       const services = await G.get_services();

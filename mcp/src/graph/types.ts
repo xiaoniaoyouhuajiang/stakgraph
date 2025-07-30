@@ -174,6 +174,11 @@ export interface ServiceParser {
   build(pkgFile: Neo4jNode): Service;
 }
 
+export interface ContainerConfig {
+  name: string;
+  config: string; //YAML string for container
+}
+
 export enum Language {
   Rust = "rust",
   Go = " go",

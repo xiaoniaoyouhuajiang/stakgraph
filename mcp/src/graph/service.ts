@@ -317,3 +317,26 @@ export function generate_services_config(
 
   return finalServices;
 }
+
+export async function extractContainersFromCompose(
+  composeFilePath: string
+): Promise<{ name: string; config: string }[]> {
+  const fs = await import("fs/promises");
+  let containers: { name: string; config: string }[] = [];
+  try {
+    const body = await fs.readFile(composeFilePath, "utf8");
+    const doc = yaml.load(body) as any;
+    if (doc && doc.services) {
+      for (const [name, svc] of Object.entries<any>(doc.services)) {
+        if (!svc.build) {
+          const singleService = { services: { [name]: svc } };
+          const config = yaml.dump(singleService, { noRefs: true });
+          containers.push({ name, config });
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`Failed to parse docker-compose file: ${composeFilePath}`, e);
+  }
+  return containers;
+}

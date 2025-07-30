@@ -272,3 +272,11 @@ export async function extractEnvVarsFromRepo(
 
   return envVarsByFile;
 }
+
+export async function findDockerComposeFiles(
+  repoDir: string
+): Promise<string[]> {
+  const patterns = ["**/docker-compose.yml", "**/docker-compose.yaml"];
+  const found = await fg(patterns, { cwd: repoDir, absolute: true });
+  return found;
+}
