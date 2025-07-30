@@ -84,8 +84,9 @@ export const POST = async (url, body) => {
     headers: getFetchHeaders(),
   });
   if (!r.ok) {
-    throw new Error(`New Error for the POST endpoint`);
-    //throw new Error(`POST ${url} failed: ${r.statusText}`);
+    const data = await r.json();
+    const msg = data.message || "Something went wrong, Please try again.";
+    throw new Error(msg);
   }
   const data = await r.json();
   return data;

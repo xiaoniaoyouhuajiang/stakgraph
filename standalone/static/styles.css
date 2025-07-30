@@ -62,7 +62,7 @@ body {
   color: var(--text-color);
 }
 
-.app-header-title{
+.app-header-title {
   margin: 10px auto;
   padding: 0;
   font-weight: 500;
@@ -154,7 +154,8 @@ button:disabled {
 
 .progress-info {
   display: flex;
-  margin-bottom: 10px;
+  flex-direction: column;
+  margin: 10px auto;
   font-size: 14px;
   width: 100%;
   align-items: center;
@@ -170,8 +171,8 @@ button:disabled {
 
 .clone-label {
   font-weight: 600;
+  font-size: 16px;
   color: var(--accent-color);
-  margin-right: 10px;
 }
 
 .stats-container {
@@ -221,9 +222,12 @@ button:disabled {
 }
 
 .progress-message {
-  margin-left: 5px;
+  margin: 10px auto;
   font-weight: 400;
-  flex: 1;
+}
+
+.progress-message p {
+  margin: 6px 0;
 }
 
 .steps-fill {

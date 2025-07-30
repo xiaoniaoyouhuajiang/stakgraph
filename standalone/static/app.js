@@ -97,8 +97,11 @@ const App = () => {
     try {
       await utils.POST("/ingest", { repo_url: repoUrl, username, pat });
     } catch (e) {
-      console.log("====>>>> Error", e);
-      setStatus({ status: "Error", message: e.message });
+      let message = e.message
+        .split("\n")
+        .map((line) => `<p>${line}</p>`)
+        .join("");
+      setStatus({ status: "Error", message });
       setIsLoading(false);
       return;
     }
@@ -139,8 +142,11 @@ const App = () => {
       <div class="progress-container">
         <div class="progress-info">
           ${isCloning
-            ? html`<div class="clone-label">Clone Repository:</div>
-                <div class="progress-message">${status.message}</div>`
+            ? html`<div class="clone-label">Clone Repository</div>
+                <div
+                  class="progress-message"
+                  dangerouslySetInnerHTML=${{ __html: status.message }}
+                ></div>`
             : html`
                 ${showText &&
                 html`<div>Step ${status.step}/${status.total_steps}</div>`}

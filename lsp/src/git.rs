@@ -32,7 +32,7 @@ pub async fn git_clone(
             }
             Err(e) => {
                 tracing::error!("git clone failed for {}: {}", repo_url, e);
-                return Err(anyhow::anyhow!("git clone failed for {}: {}", repo_url, e));
+                return Err(anyhow::anyhow!(e));
             }
         }
     }
