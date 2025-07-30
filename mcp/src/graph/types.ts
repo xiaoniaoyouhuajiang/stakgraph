@@ -176,7 +176,7 @@ export interface ServiceParser {
 
 export interface ContainerConfig {
   name: string;
-  config: any;
+  config: string; //YAML string for container
 }
 
 export enum Language {
