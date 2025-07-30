@@ -92,19 +92,25 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
     let app_page = pages
         .iter()
-        .find(|p| p.name == "app" && p.file.ends_with("nextjs/app/page.tsx"))
+        .find(|p| p.name == "app" && p.file.ends_with("nextjs/app/page.tsx") && p.body == "/")
         .map(|n| Node::new(NodeType::Page, n.clone()))
         .expect("Page 'Home' not found");
 
     let items_page = pages
         .iter()
-        .find(|p| p.name == "items" && p.file.ends_with("nextjs/app/items/page.tsx"))
+        .find(|p| {
+            p.name == "items" && p.file.ends_with("nextjs/app/items/page.tsx") && p.body == "/items"
+        })
         .map(|n| Node::new(NodeType::Page, n.clone()))
         .expect("Page 'Items' not found");
 
     let person_page = pages
         .iter()
-        .find(|p| p.name == "person" && p.file.ends_with("nextjs/app/person/page.tsx"))
+        .find(|p| {
+            p.name == "person"
+                && p.file.ends_with("nextjs/app/person/page.tsx")
+                && p.body == "/person"
+        })
         .map(|n| Node::new(NodeType::Page, n.clone()))
         .expect("Page 'Person' not found");
 
