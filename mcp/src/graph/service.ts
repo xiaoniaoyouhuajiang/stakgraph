@@ -329,8 +329,7 @@ export async function extractContainersFromCompose(
     if (doc && doc.services) {
       for (const [name, svc] of Object.entries<any>(doc.services)) {
         if (!svc.build) {
-          const singleService = { services: { [name]: svc } };
-          const config = yaml.dump(singleService, { noRefs: true });
+          const config = yaml.dump(svc, { noRefs: true });
           containers.push({ name, config });
         }
       }
