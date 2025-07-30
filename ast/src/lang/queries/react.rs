@@ -647,15 +647,8 @@ impl Stack for ReactTs {
             .unwrap_or("page")
             .to_string();
 
-        let mut body = file_path.to_string();
-        if let Some(idx) = body.find("/page.tsx") {
-            body = body[..idx].to_string();
-        } else if let Some(idx) = body.find("/page.jsx") {
-            body = body[..idx].to_string();
-        }
-
-        let mut page = NodeData::name_file(&name, file_path);
-        page.body = body;
+        let mut page = NodeData::name_file(&name, &filename);
+        page.body = route_from_path(&filename);
 
         let code = fs::read_to_string(file_path).ok()?;
 
@@ -742,4 +735,33 @@ fn find_default_export_name(code: &str, language: Language) -> Option<String> {
     }
 
     None
+}
+
+pub fn route_from_path(path: &str) -> String {
+    if let Some(app_idx) = path.find("/app/") {
+        let after_app = &path[app_idx + 4..];
+
+        let after_app = after_app.strip_prefix('/').unwrap_or(after_app);
+
+        let page_suffixes = ["/page.tsx", "/page.jsx"];
+
+        let mut route = after_app;
+        for suffix in &page_suffixes {
+            if route == suffix.strip_prefix('/').unwrap_or(suffix) {
+                // If the route is exactly "page.tsx" or "page.jsx", it's root
+                return "/".to_string();
+            }
+            if route.ends_with(suffix) {
+                route = &route[..route.len() - suffix.len()];
+                break;
+            }
+        }
+        if route.is_empty() {
+            "/".to_string()
+        } else {
+            format!("/{}", route)
+        }
+    } else {
+        "/".to_string()
+    }
 }
