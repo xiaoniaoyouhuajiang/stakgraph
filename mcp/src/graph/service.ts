@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as yaml from "js-yaml";
-import { Neo4jNode, Service, ServiceParser } from "./types.js";
+import { ContainerConfig, Neo4jNode, Service, ServiceParser } from "./types.js";
 import { Language } from "./types.js";
 
 class TsParser implements ServiceParser {
@@ -316,4 +316,26 @@ export function generate_services_config(
   }
 
   return finalServices;
+}
+
+export async function extractContainersFromCompose(
+  composeFilePath: string
+): Promise<ContainerConfig[]> {
+  const fs = await import("fs/promises");
+  let containers: ContainerConfig[] = [];
+  try {
+    const body = await fs.readFile(composeFilePath, "utf8");
+    const doc = yaml.load(body) as any;
+    if (doc && doc.services) {
+      for (const [name, svc] of Object.entries<any>(doc.services)) {
+        if (!svc.build) {
+          const config = yaml.dump(svc, { noRefs: true });
+          containers.push({ name, config });
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`Failed to parse docker-compose file: ${composeFilePath}`, e);
+  }
+  return containers;
 }
