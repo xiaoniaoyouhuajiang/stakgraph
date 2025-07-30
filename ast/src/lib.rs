@@ -1,4 +1,5 @@
 mod builder;
+pub mod error;
 mod gat;
 pub mod lang;
 pub mod repo;
