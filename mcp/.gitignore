@@ -42,6 +42,7 @@ tmp/
 
 tests/*.spec.js
 tests/*.spec.ts
+tests/generated_tests/
 !tests/.gitkeep
 !tests/playwright.config.js
 playwright-report/

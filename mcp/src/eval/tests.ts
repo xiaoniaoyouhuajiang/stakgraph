@@ -18,7 +18,18 @@ const getBaseDir = (): string => {
 };
 
 const getTestsDir = (): string => {
-  return path.join(getBaseDir(), "tests");
+  let testsDir: string;
+  if (process.env.TESTS_DIR) {
+    testsDir = process.env.TESTS_DIR;
+  } else {
+    testsDir = path.join(getBaseDir(), "tests");
+  }
+
+  if (!testsDir.endsWith("generated_tests")) {
+    testsDir = path.join(testsDir, "generated_tests");
+  }
+
+  return testsDir;
 };
 
 // Utility function to sanitize filename
@@ -379,16 +390,13 @@ export function test_routes(app: Express) {
   app.get("/test/delete", deleteTestByName);
   app.post("/test/save", saveTest);
 
-  let base_path = path.join(__dirname, "../../tests");
-  if (process.env.TESTS_BASE_PATH) {
-    base_path = process.env.TESTS_BASE_PATH;
-  }
+  let tests_base_path = path.join(getBaseDir(), "tests");
 
   app.get("/tests", (_req, res) => {
-    res.sendFile(path.join(base_path, "tests.html"));
+    res.sendFile(path.join(tests_base_path, "tests.html"));
   });
   app.get("/tests/frame/frame.html", (_req, res) => {
-    res.sendFile(path.join(base_path, "frame/frame.html"));
+    res.sendFile(path.join(tests_base_path, "frame/frame.html"));
   });
 
   const static_files = [
@@ -402,7 +410,7 @@ export function test_routes(app: Express) {
     "staktrak/dist/playwright-generator.js",
   ];
 
-  serveStaticFiles(app, static_files, base_path);
+  serveStaticFiles(app, static_files, tests_base_path);
 }
 
 function serveStaticFiles(app: Express, files: string[], basePath: string) {
