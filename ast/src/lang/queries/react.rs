@@ -622,12 +622,72 @@ impl Stack for ReactTs {
         true
     }
     fn is_extra_page(&self, file_name: &str) -> bool {
-        // file_name.ends_with("/page.tsx") || file_name.ends_with("/page.jsx")
-        let is_page = file_name.ends_with("/page.tsx") || file_name.ends_with("/page.jsx");
-        if is_page {
-            tracing::debug!("Detected Next.js page: {}", file_name);
+        // Ignore false positives
+        let ignore_patterns = [
+            "/node_modules/",
+            "/dist/",
+            "/.next/",
+            "/build/",
+            "/out/",
+            "/vendor/",
+            "/__tests__/",
+            "/test/",
+            "/coverage/",
+        ];
+        for pat in &ignore_patterns {
+            if file_name.contains(pat) {
+                return false;
+            }
         }
-        is_page
+
+        // App Router
+        if file_name.contains("/app/")
+            && (file_name.ends_with("/page.tsx") || file_name.ends_with("/page.jsx"))
+        {
+            return true;
+        }
+        // Pages Router: must be under /pages/ and not _app, _document, _error, or api
+        if let Some(idx) = file_name.find("/pages/") {
+            let after = &file_name[idx + 7..];
+            if after.starts_with("api/")
+                || after.starts_with("_app")
+                || after.starts_with("_document")
+                || after.starts_with("_error")
+            {
+                return false;
+            }
+
+            if !(after.ends_with(".tsx")
+                || after.ends_with(".jsx")
+                || after.ends_with(".js")
+                || after.ends_with(".ts"))
+            {
+                return false;
+            }
+
+            // Only allow all-lowercase or dynamic ([...]) segments
+            for segment in after.split('/') {
+                if segment.is_empty() {
+                    continue;
+                }
+                // skip dynamic routes like [id]
+                if segment.starts_with('[') && segment.ends_with(']') {
+                    continue;
+                }
+                // skip extension for file segment
+                let segment = segment.split('.').next().unwrap_or(segment);
+                if segment
+                    .chars()
+                    .next()
+                    .map(|c| c.is_uppercase())
+                    .unwrap_or(false)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        false
     }
 
     fn extra_page_finder(
@@ -640,12 +700,7 @@ impl Stack for ReactTs {
 
         let filename = strip_tmp(path).display().to_string();
 
-        let name = path
-            .parent()
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str())
-            .unwrap_or("page")
-            .to_string();
+        let name = page_name(&filename);
 
         let mut page = NodeData::name_file(&name, &filename);
         page.body = route_from_path(&filename);
@@ -737,7 +792,7 @@ fn find_default_export_name(code: &str, language: Language) -> Option<String> {
     None
 }
 
-pub fn route_from_path(path: &str) -> String {
+fn route_from_path(path: &str) -> String {
     if let Some(app_idx) = path.find("/app/") {
         let after_app = &path[app_idx + 4..];
 
@@ -757,11 +812,72 @@ pub fn route_from_path(path: &str) -> String {
             }
         }
         if route.is_empty() {
-            "/".to_string()
+            return "/".to_string();
         } else {
-            format!("/{}", route)
+            return format!("/{}", route);
         }
-    } else {
-        "/".to_string()
     }
+
+    if let Some(pages_idx) = path.find("/pages/") {
+        let after_pages = &path[pages_idx + 6..];
+
+        let after_pages = after_pages.strip_prefix('/').unwrap_or(after_pages);
+
+        let file = after_pages;
+
+        let file = file
+            .trim_end_matches(".tsx")
+            .trim_end_matches(".jsx")
+            .trim_end_matches(".js")
+            .trim_end_matches(".ts");
+
+        if file == "index" || file.is_empty() {
+            return "/".to_string();
+        }
+
+        if file.ends_with("/index") {
+            return format!("/{}", &file[..file.len() - "/index".len()]);
+        }
+
+        return format!("/{}", file);
+    }
+
+    "/".to_string()
+}
+
+fn page_name(filename: &str) -> String {
+    // App Router: use directory name
+    if let Some(_) = filename.find("/app/") {
+        let path = std::path::Path::new(filename);
+        return path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("app")
+            .to_string();
+    }
+
+    // Pages Router: use last part of the path || dir name if it's "index" || index if it's root
+    if let Some(pages_idx) = filename.find("/pages/") {
+        let after = &filename[pages_idx + 7..];
+        let after = after.strip_prefix('/').unwrap_or(after);
+        let file = after
+            .trim_end_matches(".tsx")
+            .trim_end_matches(".jsx")
+            .trim_end_matches(".js")
+            .trim_end_matches(".ts");
+
+        if file == "index" || file.is_empty() {
+            //root page
+            return "index".to_string();
+        }
+        if file.ends_with("/index") {
+            // index inside dir
+            return file.rsplit('/').nth(1).unwrap_or("index").to_string();
+        }
+        // normal page
+        return file.rsplit('/').next().unwrap_or(file).to_string();
+    }
+
+    "page".to_string()
 }
