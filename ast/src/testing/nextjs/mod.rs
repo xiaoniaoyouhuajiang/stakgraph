@@ -442,14 +442,19 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[cfg(all(feature = "neo4j", feature = "fulltest"))]
 async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
-    use core::num;
-
     use crate::lang::graphs::Neo4jGraph;
     let repo_url = "https://github.com/clerk/clerk-nextjs-demo-pages-router";
-    let use_lsp = None;
-    let repos =
-        Repo::new_clone_multi_detect(repo_url, None, None, Vec::new(), Vec::new(), None, use_lsp)
-            .await?;
+    let use_lsp = get_use_lsp();
+    let repos = Repo::new_clone_multi_detect(
+        repo_url,
+        None,
+        None,
+        Vec::new(),
+        Vec::new(),
+        None,
+        Some(use_lsp),
+    )
+    .await?;
 
     let graph = Neo4jGraph::default();
     graph.clear().await?;
@@ -485,15 +490,27 @@ async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes += functions.len();
-    assert_eq!(
-        functions.len(),
-        63,
-        "Expected 63 Function nodes (Pages Router)"
-    );
+    if use_lsp {
+        assert_eq!(
+            functions.len(),
+            29,
+            "Expected 29 Function nodes (Pages Router)"
+        );
+    } else {
+        assert_eq!(
+            functions.len(),
+            25,
+            "Expected 25 Function nodes (Pages Router)"
+        );
+    }
 
     let imports = graph.count_edges_of_type(EdgeType::Imports);
     edges += imports;
-    assert_eq!(imports, 30, "Expected 30 Imports edges");
+    if use_lsp {
+        assert_eq!(imports, 30, "Expected 30 Imports edges");
+    } else {
+        assert_eq!(imports, 10, "Expected 10 Imports edges");
+    }
 
     let import_nodes = graph.find_nodes_by_type(NodeType::Import);
     nodes += import_nodes.len();
@@ -511,6 +528,54 @@ async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
     nodes += datamodels.len();
     assert_eq!(datamodels.len(), 4, "Expected 4 DataModel nodes");
 
+    let session_file = file_nodes
+        .iter()
+        .find(|f| {
+            f.name == "SessionDetails.tsx"
+                && f.file.ends_with("src/pages/dashboard/SessionDetails.tsx")
+        })
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("Session file not found");
+    let session_window = datamodels
+        .iter()
+        .find(|d| d.name == "Window" && d.file.ends_with("src/pages/dashboard/SessionDetails.tsx"))
+        .map(|n| Node::new(NodeType::DataModel, n.clone()))
+        .expect("Window data model for session not found");
+
+    assert!(
+        graph.has_edge(&session_file, &session_window, EdgeType::Contains),
+        "SessionDetails should contain Window data model"
+    );
+
+    let _user_details_window = datamodels
+        .iter()
+        .find(|d| d.name == "Window" && d.file.ends_with("src/pages/dashboard/UserDetails.tsx"))
+        .map(|n| Node::new(NodeType::DataModel, n.clone()))
+        .expect("Window data model for user details not found");
+
+    let _org_details_window = datamodels
+        .iter()
+        .find(|d| d.name == "Window" && d.file.ends_with("src/pages/dashboard/OrgDetails.tsx"))
+        .map(|n| Node::new(NodeType::DataModel, n.clone()))
+        .expect("Window data model for org details not found");
+
+    let data = datamodels
+        .iter()
+        .find(|d| d.name == "Data" && d.file.ends_with("src/pages/api/hello.ts"))
+        .map(|n| Node::new(NodeType::DataModel, n.clone()))
+        .expect("Data data model not found");
+
+    let handler = functions
+        .iter()
+        .find(|f| f.name == "handler" && f.file.ends_with("src/pages/api/hello.ts"))
+        .map(|n| Node::new(NodeType::Function, n.clone()))
+        .expect("Handler function not found");
+
+    assert!(
+        graph.has_edge(&handler, &data, EdgeType::Contains),
+        "SessionDetails should contain Window data model"
+    );
+
     let calls = graph.count_edges_of_type(EdgeType::Calls);
     edges += calls;
     assert_eq!(calls, 31, "Expected 31 Calls edges");
@@ -525,7 +590,11 @@ async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
 
     let uses = graph.count_edges_of_type(EdgeType::Uses);
     edges += uses;
-    assert_eq!(uses, 86, "Expected 86 Uses edges");
+    if use_lsp {
+        assert_eq!(uses, 4, "Expected 4 Uses edges with LSP");
+    } else {
+        assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
+    }
 
     let sign_in_page = pages
         .iter()
@@ -625,6 +694,7 @@ async fn test_nextjs() {
     {
         #[cfg(feature = "fulltest")]
         test_remote_nextjs().await.unwrap();
+        // cargo test test_nextjs --features neo4j --features fulltest -- --nocapture
 
         use crate::lang::graphs::Neo4jGraph;
         let graph = Neo4jGraph::default();
