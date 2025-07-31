@@ -1,6 +1,6 @@
 use super::super::*;
 use super::consts::*;
-use anyhow::{Context, Result};
+use shared::error::{Context, Result};
 use tree_sitter::{Language, Node as TreeNode, Parser, Query, Tree};
 
 pub struct Swift(Language);

@@ -1,9 +1,9 @@
 use crate::lang::Node;
 use crate::utils::create_node_key;
 use crate::utils::create_node_key_from_ref;
-use anyhow::Result;
 use lazy_static::lazy_static;
 use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
+use shared::{Error, Result};
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tracing::{debug, error, info};
 
@@ -39,7 +39,7 @@ impl Neo4jConnectionManager {
                 // *conn_guard = Some(Arc::new(connection));
                 Ok(connection)
             }
-            Err(e) => Err(anyhow::anyhow!("Failed to connect to Neo4j: {}", e)),
+            Err(_) => Err(Error::Custom("Failed to connect to Neo4j : {e}".into())),
         }
     }
 }
@@ -231,10 +231,7 @@ impl<'a> TransactionManager<'a> {
     }
 }
 
-pub async fn execute_batch(
-    conn: &Neo4jConnection,
-    queries: Vec<(String, BoltMap)>,
-) -> Result<(), anyhow::Error> {
+pub async fn execute_batch(conn: &Neo4jConnection, queries: Vec<(String, BoltMap)>) -> Result<()> {
     use itertools::Itertools;
 
     let total_chunks = (queries.len() as f64 / BATCH_SIZE as f64).ceil() as usize;
@@ -284,7 +281,7 @@ pub async fn execute_batch(
 pub async fn execute_queries_simple(
     conn: &Neo4jConnection,
     queries: Vec<(String, BoltMap)>,
-) -> Result<(), anyhow::Error> {
+) -> Result<()> {
     let total_queries = queries.len();
     for (i, (query_str, params)) in queries.into_iter().enumerate() {
         info!("Processing query {}/{}", i + 1, total_queries);

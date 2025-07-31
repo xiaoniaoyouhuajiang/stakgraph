@@ -5,12 +5,12 @@ pub mod linker;
 pub mod parse;
 pub mod queries;
 
-use anyhow::{Context, Result};
 use asg::*;
 use consts::*;
 pub use graphs::*;
 use lsp::{CmdSender, Language};
 use queries::*;
+use shared::{Context, Result};
 use std::fmt;
 use std::str::FromStr;
 use streaming_iterator::{IntoStreamingIterator, StreamingIterator};
@@ -463,8 +463,8 @@ impl Lang {
     }
 }
 impl FromStr for Lang {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    type Err = shared::Error;
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "tsx" | "jsx" => Ok(Lang::new_react()),
             _ => {

@@ -1,6 +1,5 @@
 use crate::{Cmd, Language, Position, Res};
 
-use anyhow::{anyhow, Result};
 use async_lsp::concurrency::{Concurrency, ConcurrencyLayer};
 use async_lsp::panic::{CatchUnwind, CatchUnwindLayer};
 use async_lsp::router::Router;
@@ -15,6 +14,7 @@ use lsp_types::request::{
 };
 use lsp_types::Position as LspPosition;
 use lsp_types::*;
+use shared::{Error, Result};
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use tokio::sync::oneshot;
@@ -60,7 +60,7 @@ impl LspClient {
             f = f.strip_prefix(&self.relative_root).unwrap();
         }
         let file = root_dir.join(&f);
-        let file = Url::from_file_path(file).map_err(|_| anyhow!("bad file"))?;
+        let file = Url::from_file_path(file).map_err(|_| Error::Custom(format!("bad file")))?;
         Ok(file)
     }
     pub async fn handle(&mut self, cmd: Cmd) -> Result<Res> {
@@ -230,7 +230,7 @@ fn start(
             .notification::<LogMessage>(|this, params| {
                 debug!("LogMessage::: {:?}: {}", params.typ, params.message);
                 if let Some(tx) = this.indexed_tx.take() {
-                    let _: Result<_, _> = tx.send(());
+                    let _ = tx.send(());
                 }
                 ControlFlow::Continue(())
             })
@@ -260,7 +260,7 @@ fn start(
                             }
                             if per == 100 {
                                 if let Some(tx) = this.indexed_tx.take() {
-                                    let _: Result<_, _> = tx.send(());
+                                    let _ = tx.send(());
                                 }
                             }
                         }

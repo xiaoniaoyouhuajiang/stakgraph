@@ -1,7 +1,7 @@
-use anyhow::{Context, Result};
 use ast::lang::Graph;
 use ast::repo::Repo;
 use ast::utils::{logger, print_json};
+use shared::{Context, Error, Result};
 use std::env;
 
 /*
@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     let repo_urls = env::var("REPO_URL").ok();
     let use_lsp = env::var("USE_LSP").ok().map(|v| v == "true");
     if repo_path.is_none() && repo_urls.is_none() {
-        return Err(anyhow::anyhow!("no REPO_PATH or REPO_URL"));
+        return Err(Error::Custom("no REPO_PATH or REPO_URL".into()));
     }
     let rev = env_not_empty("REV");
     let revs: Vec<String> = rev

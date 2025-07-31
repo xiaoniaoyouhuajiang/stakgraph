@@ -1,7 +1,7 @@
 use super::utils::trim_quotes;
 use crate::lang::{graphs::Graph, *};
-use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
+use shared::error::{Error, Result};
 use streaming_iterator::StreamingIterator;
 use tree_sitter::Node as TreeNode;
 impl Lang {
@@ -30,7 +30,7 @@ impl Lang {
                     .collect(),
                 NodeType::DataModel => vec![self.format_data_model(&m, code, file, q)?],
                 NodeType::Var => self.format_variables(&m, code, file, q)?,
-                _ => return Err(anyhow::anyhow!("collect: {nt:?} not implemented")),
+                _ => return Err(Error::Custom(format!("collect: {nt:?} not implemented"))),
             };
             res.extend(another);
         }

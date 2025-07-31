@@ -1,9 +1,9 @@
 use super::{graph::Graph, *};
 use crate::lang::{Function, FunctionCall, Lang};
 use crate::utils::{create_node_key, create_node_key_from_ref, sanitize_string};
-use anyhow::Result;
 use lsp::Language;
 use serde::Serialize;
+use shared::error::Result;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

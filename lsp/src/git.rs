@@ -1,5 +1,5 @@
 use crate::utils::{run, run_res_in_dir};
-use anyhow::{Context, Result};
+use shared::error::{Context, Result};
 use std::path::Path;
 use tracing::info;
 
@@ -52,7 +52,7 @@ pub async fn push(msg: &str, branch: &str) -> Result<()> {
     run("git", &["push", "origin", branch]).await?;
     Ok(())
 }
-pub async fn checkout_commit(repo_path: &str, commit: &str) -> anyhow::Result<()> {
+pub async fn checkout_commit(repo_path: &str, commit: &str) -> Result<()> {
     crate::utils::run_res_in_dir("git", &["checkout", commit], repo_path).await?;
     Ok(())
 }
