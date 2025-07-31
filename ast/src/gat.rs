@@ -1,5 +1,5 @@
-use anyhow::Result;
 use git2::{DiffOptions, Repository};
+use shared::error::Result;
 
 pub fn get_changed_files(repo_path: &str, old_rev: &str, new_rev: &str) -> Result<Vec<String>> {
     // Open the repository

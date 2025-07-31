@@ -3,7 +3,7 @@ use crate::lang::BTreeMapGraph;
 use crate::lang::{Graph, Node};
 use crate::repo::{Repo, Repos};
 use crate::utils::get_use_lsp;
-use anyhow::Result;
+use shared::error::Result;
 use test_log::test;
 
 async fn test_demorepo_generic<G: Graph>(repos: &Repos) -> Result<()> {

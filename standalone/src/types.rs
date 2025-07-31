@@ -1,13 +1,23 @@
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+#[derive(Debug)]
+pub struct WebError(pub shared::Error);
+
+pub type AppError = WebError;
 pub type Result<T> = std::result::Result<T, AppError>;
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    message: String,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ProcessBody {
@@ -50,27 +60,42 @@ pub struct AsyncRequestStatus {
 
 pub type AsyncStatusMap = Arc<Mutex<HashMap<String, AsyncRequestStatus>>>;
 
-#[derive(Debug)]
-pub enum AppError {
-    Anyhow(anyhow::Error),
-}
-
-impl IntoResponse for AppError {
+impl IntoResponse for WebError {
     fn into_response(self) -> Response {
-        match self {
-            AppError::Anyhow(err) => {
-                tracing::error!("Handler error: {:?}", err);
-                (StatusCode::BAD_REQUEST, err.to_string()).into_response()
+        let status = match &self.0 {
+            shared::Error::Io(_)
+            | shared::Error::SerdeJson(_)
+            | shared::Error::Env(_)
+            | shared::Error::Neo4j(_)
+            | shared::Error::Recv(_)
+            | shared::Error::Lsp(_)
+            | shared::Error::Utf8(_)
+            | shared::Error::GitUrlParse(_)
+            | shared::Error::Git2(_)
+            | shared::Error::Walkdir(_)
+            | shared::Error::TreeSitterLanguage(_) => StatusCode::INTERNAL_SERVER_ERROR,
+
+            shared::Error::Regex(_) => StatusCode::BAD_REQUEST,
+            shared::Error::Custom(msg) => {
+                if msg.contains("not found") {
+                    StatusCode::NOT_FOUND
+                } else {
+                    StatusCode::BAD_REQUEST
+                }
             }
-        }
+        };
+
+        tracing::error!("Handler error: {:?}", self.0);
+        let resp = ErrorResponse {
+            message: self.0.to_string(),
+        };
+
+        (status, Json(resp)).into_response()
     }
 }
 
-impl<E> From<E> for AppError
-where
-    E: Into<anyhow::Error>,
-{
-    fn from(err: E) -> Self {
-        Self::Anyhow(err.into())
+impl From<shared::Error> for WebError {
+    fn from(e: shared::Error) -> Self {
+        WebError(e)
     }
 }

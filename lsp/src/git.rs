@@ -61,7 +61,7 @@ pub async fn get_changed_files_between(
     repo_path: &str,
     old_commit: &str,
     new_commit: &str,
-) -> anyhow::Result<Vec<String>> {
+) -> Result<Vec<String>> {
     let output = crate::utils::run_res_in_dir(
         "git",
         &["diff", "--name-only", old_commit, new_commit],

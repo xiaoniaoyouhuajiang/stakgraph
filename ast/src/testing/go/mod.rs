@@ -2,10 +2,11 @@ use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::{Graph, Node};
 use crate::utils::get_use_lsp;
 use crate::{lang::Lang, repo::Repo};
+use shared::error::Result;
 use std::str::FromStr;
 use test_log::test;
 
-pub async fn test_go_generic<G: Graph>() -> Result<(), anyhow::Error> {
+pub async fn test_go_generic<G: Graph>() -> Result<()> {
     let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/go",

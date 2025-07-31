@@ -2,9 +2,10 @@ use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::{Graph, Node};
 use crate::utils::sanitize_string;
 use crate::{lang::Lang, repo::Repo};
+use shared::Result;
 use std::str::FromStr;
 
-pub async fn test_rust_generic<G: Graph>() -> Result<(), anyhow::Error> {
+pub async fn test_rust_generic<G: Graph>() -> Result<()> {
     let repo = Repo::new(
         "src/testing/rust",
         Lang::from_str("rust").unwrap(),

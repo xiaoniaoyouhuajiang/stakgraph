@@ -2,11 +2,9 @@ use crate::lang::{asg::NodeData, graphs::NodeType};
 use crate::lang::{Graph, Node};
 use crate::repo::{check_revs_files, Repo};
 use crate::utils::create_node_key;
-use anyhow::Result;
 use lsp::{strip_tmp, Language};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use tracing::debug;
 
 pub const MAX_FILE_SIZE: u64 = 500_000;
 

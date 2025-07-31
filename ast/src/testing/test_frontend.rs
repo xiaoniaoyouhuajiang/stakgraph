@@ -1,10 +1,9 @@
 use crate::lang::graphs::NodeType;
 use crate::lang::{Graph, Lang};
 use crate::repo::Repo;
-use anyhow::Context;
 use lsp::Language as LspLanguage;
+use shared::error::Result;
 use std::collections::HashMap;
-use std::result::Result;
 use tracing::info;
 
 pub struct FrontendTester<G: Graph> {
@@ -33,7 +32,7 @@ impl FrontendArtefact<'_> {
     }
 }
 impl<G: Graph> FrontendTester<G> {
-    pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self, anyhow::Error>
+    pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self>
     where
         G: Default,
     {
@@ -48,10 +47,7 @@ impl<G: Graph> FrontendTester<G> {
             Vec::new(),
         )?;
 
-        let graph = repository
-            .build_graph_inner()
-            .await
-            .with_context(|| format!("Failed to build graph for {}", repo_path))?;
+        let graph = repository.build_graph_inner().await?;
         Ok(Self {
             graph,
             lang,
@@ -59,7 +55,7 @@ impl<G: Graph> FrontendTester<G> {
         })
     }
 
-    pub fn test_frontend(&self) -> Result<(), anyhow::Error> {
+    pub fn test_frontend(&self) -> Result<()> {
         let artefact = FrontendArtefact::default();
 
         info!(
@@ -83,7 +79,7 @@ impl<G: Graph> FrontendTester<G> {
         Ok(())
     }
 
-    fn test_language(&self) -> Result<(), anyhow::Error> {
+    fn test_language(&self) -> Result<()> {
         let language_nodes = self
             .graph
             .find_nodes_by_type(NodeType::Language)
@@ -100,7 +96,7 @@ impl<G: Graph> FrontendTester<G> {
         Ok(())
     }
 
-    fn test_package_file(&self) -> Result<(), anyhow::Error> {
+    fn test_package_file(&self) -> Result<()> {
         let package_file_names = self.lang.kind.pkg_files();
         let package_file_name = package_file_names.first().unwrap();
 
@@ -119,7 +115,7 @@ impl<G: Graph> FrontendTester<G> {
         Ok(())
     }
 
-    fn test_data_model(&self, data_model: &str) -> Result<(), anyhow::Error> {
+    fn test_data_model(&self, data_model: &str) -> Result<()> {
         let data_model_nodes = self
             .graph
             .find_nodes_by_name_contains(NodeType::DataModel, data_model);
@@ -135,7 +131,7 @@ impl<G: Graph> FrontendTester<G> {
         Ok(())
     }
 
-    fn test_components(&self, expected_components: Vec<&str>) -> Result<(), anyhow::Error> {
+    fn test_components(&self, expected_components: Vec<&str>) -> Result<()> {
         let mut found_components: HashMap<&str, bool> = expected_components
             .clone()
             .into_iter()
@@ -162,7 +158,7 @@ impl<G: Graph> FrontendTester<G> {
         Ok(())
     }
 
-    fn test_pages(&self, expected_pages: Vec<&str>) -> Result<(), anyhow::Error> {
+    fn test_pages(&self, expected_pages: Vec<&str>) -> Result<()> {
         let mut found_pages: HashMap<&str, bool> = expected_pages
             .clone()
             .into_iter()
@@ -184,7 +180,7 @@ impl<G: Graph> FrontendTester<G> {
         Ok(())
     }
 
-    fn test_requests(&self, expected_requests: Vec<(&str, &str)>) -> Result<(), anyhow::Error> {
+    fn test_requests(&self, expected_requests: Vec<(&str, &str)>) -> Result<()> {
         let mut found_requests = HashMap::new();
         for (verb, path) in expected_requests.iter() {
             found_requests.insert((verb.to_string(), path.to_string()), false);

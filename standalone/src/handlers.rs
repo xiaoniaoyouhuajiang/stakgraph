@@ -1,6 +1,6 @@
 use crate::types::{
-    AppError, AsyncRequestStatus, AsyncStatus, FetchRepoBody, FetchRepoResponse, ProcessBody,
-    ProcessResponse, Result,
+    AsyncRequestStatus, AsyncStatus, FetchRepoBody, FetchRepoResponse, ProcessBody,
+    ProcessResponse, Result, WebError,
 };
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
@@ -69,8 +69,8 @@ pub async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoRes
 #[axum::debug_handler]
 pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     if body.repo_url.clone().unwrap_or_default().contains(",") {
-        return Err(AppError::Anyhow(anyhow::anyhow!(
-            "Multiple repositories are not supported in a single request"
+        return Err(WebError(shared::Error::Custom(
+            "Multiple repositories are not supported in a single request".into(),
         )));
     }
     let (final_repo_path, final_repo_url, username, pat, _) = resolve_repo(&body)?;
@@ -86,10 +86,9 @@ pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
     let current_hash = match get_commit_hash(&repo_path).await {
         Ok(hash) => hash,
         Err(e) => {
-            return Err(AppError::Anyhow(anyhow::anyhow!(
-                "Could not get current hash: {}",
-                e
-            )))
+            return Err(WebError(shared::Error::Custom(format!(
+                "Could not get current hash: {e}"
+            ))));
         }
     };
 
@@ -214,15 +213,13 @@ pub async fn ingest(
         commit.as_deref(),
         use_lsp,
     )
-    .await
-    .map_err(|e| anyhow::anyhow!("Repo detection failed: {}", e))?;
+    .await?;
 
     repos.set_status_tx(state.tx.clone()).await;
 
     let btree_graph = repos
         .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
-        .await
-        .map_err(|e| anyhow::anyhow!("Graph build failed: {}", e))?;
+        .await?;
     info!(
         "\n\n ==>>Building BTreeMapGraph took {:.2?} \n\n",
         start_build.elapsed()
@@ -430,8 +427,8 @@ fn resolve_repo(
     let commit = body.commit.clone();
 
     if repo_path.is_none() && repo_url.is_none() {
-        return Err(AppError::Anyhow(anyhow::anyhow!(
-            "Neither REPO_PATH nor REPO_URL is set in the body or environment"
+        return Err(WebError(shared::Error::Custom(
+            "Neither REPO_PATH nor REPO_URL is set in the body or environment".into(),
         )));
     }
 

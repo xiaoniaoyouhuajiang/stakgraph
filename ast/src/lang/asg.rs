@@ -1,6 +1,7 @@
 use crate::lang::NodeType;
 use serde::ser::{SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
+use shared::error::{Error, Result};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
@@ -80,7 +81,7 @@ pub struct NodeData {
 }
 
 impl Serialize for NodeData {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -195,8 +196,8 @@ pub struct Calls {
 }
 
 impl FromStr for NodeType {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "Class" => Ok(NodeType::Class),
             "Trait" => Ok(NodeType::Trait),
@@ -212,7 +213,7 @@ impl FromStr for NodeType {
             "Feature" => Ok(NodeType::Feature),
             "Page" => Ok(NodeType::Page),
             "Var" => Ok(NodeType::Var),
-            _ => Err(anyhow::anyhow!("Invalid NodeType string: {}", s)),
+            _ => Err(Error::Custom(format!("Invalid NodeType string: {}", s))),
         }
     }
 }
@@ -244,11 +245,11 @@ impl ToString for NodeType {
 const SEP: &str = "|:|";
 
 impl FromStr for UniqueKey {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
         let arr = s.split(SEP).collect::<Vec<&str>>();
         if arr.len() != 3 && arr.len() != 4 {
-            return Err(anyhow::anyhow!("Invalid UniqueKey string: {}", s));
+            return Err(Error::Custom(format!("Invalid UniqueKey string: {}", s)));
         }
         let kind = NodeType::from_str(arr[0])?;
         Ok(UniqueKey {
@@ -310,8 +311,8 @@ impl From<&NodeData> for BoltMap {
 
 #[cfg(feature = "neo4j")]
 impl TryFrom<&BoltNode> for NodeData {
-    type Error = anyhow::Error;
-    fn try_from(node: &BoltNode) -> Result<Self, Self::Error> {
+    type Error = Error;
+    fn try_from(node: &BoltNode) -> Result<Self> {
         let mut meta = BTreeMap::new();
         let known_fields = [
             "name",

@@ -1,5 +1,5 @@
-use anyhow::Result;
 use ast::lang::Lang;
+use shared::Result;
 use std::env;
 use std::str::FromStr;
 

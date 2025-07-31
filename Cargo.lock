@@ -2235,7 +2235,6 @@ dependencies = [
 name = "lsp"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-lsp",
  "async-process",
  "flate2",
@@ -3351,7 +3350,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "shared",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -3361,7 +3359,6 @@ dependencies = [
 name = "standalone"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ast",
  "axum",
  "base64 0.21.7",
