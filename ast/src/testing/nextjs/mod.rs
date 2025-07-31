@@ -1,6 +1,6 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::linker::{normalize_backend_path, normalize_frontend_path};
-use crate::lang::{Graph, Neo4jGraph, Node};
+use crate::lang::{Graph, Node};
 use crate::utils::get_use_lsp;
 use crate::{
     lang::Lang,
@@ -440,7 +440,9 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+#[cfg(all(feature = "neo4j", feature = "fulltest"))]
 async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
+    use crate::lang::graphs::Neo4jGraph;
     let repo_url = "https://github.com/clerk/clerk-nextjs-demo-pages-router";
     let use_lsp = None;
     let repos =
