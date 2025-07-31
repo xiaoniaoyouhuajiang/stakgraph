@@ -442,6 +442,8 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
 
 #[cfg(all(feature = "neo4j", feature = "fulltest"))]
 async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
+    use core::num;
+
     use crate::lang::graphs::Neo4jGraph;
     let repo_url = "https://github.com/clerk/clerk-nextjs-demo-pages-router";
     let use_lsp = None;
@@ -454,15 +456,76 @@ async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
     let graph = repos.build_graphs_inner::<Neo4jGraph>().await?;
     graph.analysis();
 
+    let mut nodes = 0;
+    let mut edges = 0;
+
+    let language_nodes = graph.find_nodes_by_type(NodeType::Language);
+    nodes += language_nodes.len();
+    assert_eq!(language_nodes.len(), 1, "Expected 1 language node");
+    assert_eq!(
+        language_nodes[0].name, "react",
+        "Language node name should be 'react'"
+    );
+
+    let repository = graph.find_nodes_by_type(NodeType::Repository);
+    nodes += repository.len();
+    assert_eq!(repository.len(), 1, "Expected 1 Repository node");
+
+    let directories = graph.find_nodes_by_type(NodeType::Directory);
+    nodes += directories.len();
+    assert_eq!(directories.len(), 9, "Expected 9 Directory nodes");
+
+    let file_nodes = graph.find_nodes_by_type(NodeType::File);
+    nodes += file_nodes.len();
+    assert_eq!(file_nodes.len(), 28, "Expected 28 File nodes");
+
     let pages = graph.find_nodes_by_type(NodeType::Page);
+    nodes += pages.len();
     assert_eq!(pages.len(), 4, "Expected 4 Page nodes (Pages Router)");
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
+    nodes += functions.len();
     assert_eq!(
         functions.len(),
         63,
         "Expected 63 Function nodes (Pages Router)"
     );
+
+    let imports = graph.count_edges_of_type(EdgeType::Imports);
+    edges += imports;
+    assert_eq!(imports, 30, "Expected 30 Imports edges");
+
+    let import_nodes = graph.find_nodes_by_type(NodeType::Import);
+    nodes += import_nodes.len();
+    assert_eq!(import_nodes.len(), 18, "Expected 18 Import nodes");
+
+    let library = graph.find_nodes_by_type(NodeType::Library);
+    nodes += library.len();
+    assert_eq!(library.len(), 12, "Expected 12 Library nodes");
+
+    let variables = graph.find_nodes_by_type(NodeType::Var);
+    nodes += variables.len();
+    assert_eq!(variables.len(), 4, "Expected 4 Variable nodes");
+
+    let datamodels = graph.find_nodes_by_type(NodeType::DataModel);
+    nodes += datamodels.len();
+    assert_eq!(datamodels.len(), 4, "Expected 4 DataModel nodes");
+
+    let calls = graph.count_edges_of_type(EdgeType::Calls);
+    edges += calls;
+    assert_eq!(calls, 31, "Expected 31 Calls edges");
+
+    let contains = graph.count_edges_of_type(EdgeType::Contains);
+    edges += contains;
+    assert_eq!(contains, 102, "Expected 102 Contains edges");
+
+    let renders = graph.count_edges_of_type(EdgeType::Renders);
+    edges += renders;
+    assert_eq!(renders, 4, "Expected 4 Renders edges");
+
+    let uses = graph.count_edges_of_type(EdgeType::Uses);
+    edges += uses;
+    assert_eq!(uses, 86, "Expected 86 Uses edges");
 
     let sign_in_page = pages
         .iter()
@@ -537,6 +600,16 @@ async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
             EdgeType::Renders
         ),
         "index page should render Home"
+    );
+
+    let (num_nodes, num_edges) = graph.get_graph_size();
+    assert_eq!(
+        num_nodes, nodes as u32,
+        "Nodes mismatch: expected {num_nodes} nodes found {nodes}"
+    );
+    assert_eq!(
+        num_edges, edges as u32,
+        "Edges mismatch: expected {num_edges} edges found {edges}"
     );
 
     Ok(())
