@@ -3361,7 +3361,6 @@ dependencies = [
 name = "standalone"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ast",
  "axum",
  "base64 0.21.7",
