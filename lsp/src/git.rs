@@ -25,11 +25,21 @@ pub async fn git_clone(
         run_res_in_dir("git", &["pull"], path).await?;
     } else {
         info!("Repository doesn't exist at {}, cloning it", path);
-        run("git", &["clone", &repo_url, "--single-branch", path]).await?;
-        info!("Cloned repo to {}", path);
+        let output = run("git", &["clone", &repo_url, "--single-branch", path]).await;
+        match output {
+            Ok(_) => {
+                tracing::info!("Cloned repo to {}", path);
+            }
+            Err(e) => {
+                tracing::error!("git clone failed for {}: {}", repo_url, e);
+                return Err(e);
+            }
+        }
     }
     if let Some(commit) = commit {
-        checkout_commit(path, commit).await?;
+        checkout_commit(path, commit)
+            .await
+            .context("git checkout failed")?;
     }
     Ok(())
 }

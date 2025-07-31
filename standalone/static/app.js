@@ -94,7 +94,17 @@ const App = () => {
     setIsLoading(true);
     setStatus({ message: "Cloning repo to /tmp/..." });
     setStats({});
-    await utils.POST("/ingest", { repo_url: repoUrl, username, pat });
+    try {
+      await utils.POST("/ingest", { repo_url: repoUrl, username, pat });
+    } catch (e) {
+      let message = e.message
+        .split("\n")
+        .map((line) => `<p>${line}</p>`)
+        .join("");
+      setStatus({ status: "Error", message });
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(false);
   };
 
@@ -105,7 +115,13 @@ const App = () => {
     setIsLoading(true);
     setStatus(null);
     setStats({});
-    await utils.POST("/process", { repo_url: repoUrl, username, pat });
+    try {
+      await utils.POST("/process", { repo_url: repoUrl, username, pat });
+    } catch (e) {
+      setStatus({ status: "Error", message: e.message });
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(false);
   };
 
@@ -126,8 +142,11 @@ const App = () => {
       <div class="progress-container">
         <div class="progress-info">
           ${isCloning
-            ? html`<div class="clone-label">Clone Repository:</div>
-                <div class="progress-message">${status.message}</div>`
+            ? html`<div class="clone-label">Clone Repository</div>
+                <div
+                  class="progress-message"
+                  dangerouslySetInnerHTML=${{ __html: status.message }}
+                ></div>`
             : html`
                 ${showText &&
                 html`<div>Step ${status.step}/${status.total_steps}</div>`}
