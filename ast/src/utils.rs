@@ -3,8 +3,8 @@ use std::env;
 
 use crate::lang::graphs::{ArrayGraph, Node};
 use crate::lang::{BTreeMapGraph, Graph, NodeRef};
-use anyhow::Result;
 use serde::Serialize;
+use shared::Result;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use tracing_subscriber::filter::LevelFilter;
@@ -149,7 +149,7 @@ pub fn sanitize_string(input: &str) -> String {
 }
 
 // To print Neo4jGraph nodes and edges for testing purposes
-pub fn print_json_vec<T: Serialize>(data: &Vec<T>, name: &str) -> anyhow::Result<()> {
+pub fn print_json_vec<T: Serialize>(data: &Vec<T>, name: &str) -> Result<()> {
     let file = File::create(format!("ast/examples/{}.jsonl", name))?;
     let mut writer = BufWriter::new(file);
     for item in data {

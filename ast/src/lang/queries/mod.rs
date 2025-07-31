@@ -20,9 +20,9 @@ pub mod typescript;
 use crate::lang::asg::Operand;
 use crate::lang::graphs::Edge;
 use crate::lang::{Function, NodeData, NodeType};
-use anyhow::Result;
 use lsp::Language as LspLanguage;
 use lsp::{CmdSender, Position};
+use shared::Result;
 use std::collections::HashMap;
 use tree_sitter::{Node as TreeNode, Query, Tree};
 

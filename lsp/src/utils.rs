@@ -1,5 +1,5 @@
-use anyhow::{Context, Result};
 use futures_util::io::AsyncReadExt;
+use shared::error::{Context, Error, Result};
 use std::process::Stdio;
 
 use crate::Language;
@@ -22,7 +22,7 @@ pub async fn run_res_in_dir(cmd: &str, args: &[&str], dir: &str) -> Result<Strin
         .await?;
     if !res.status.success() {
         let err = String::from_utf8_lossy(&res.stderr).to_string();
-        return Err(anyhow::anyhow!("err: {}", err));
+        return Err(Error::Custom(format!("err : {}", err)));
     }
     Ok(String::from_utf8_lossy(&res.stdout).to_string())
 }
@@ -30,7 +30,7 @@ pub async fn run_res_in_dir(cmd: &str, args: &[&str], dir: &str) -> Result<Strin
 use flate2::read::GzDecoder;
 use std::fs::File;
 use tar::Archive;
-pub fn untar(path: &str, dest: &str) -> Result<(), std::io::Error> {
+pub fn untar(path: &str, dest: &str) -> Result<()> {
     let tar_gz = File::open(path)?;
     let tar = GzDecoder::new(tar_gz);
     let mut archive = Archive::new(tar);
@@ -44,7 +44,7 @@ pub async fn get_lsp_version(l: Language) -> Result<String> {
         .stdout(Stdio::piped())
         .kill_on_drop(true)
         .spawn()?;
-    let mut stdout = child.stdout.context("no stdout")?;
+    let mut stdout = child.stdout.context("Failed to capture stdout")?;
     let mut buf = Vec::new();
     stdout.read_to_end(&mut buf).await?;
     Ok(String::from_utf8_lossy(&buf).to_string())

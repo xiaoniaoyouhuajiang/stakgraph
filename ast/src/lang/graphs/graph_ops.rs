@@ -6,8 +6,8 @@ use crate::lang::graphs::BTreeMapGraph;
 use crate::lang::neo4j_utils::{add_node_query, build_batch_edge_queries};
 use crate::lang::{NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
-use anyhow::Result;
 use neo4rs::BoltMap;
+use shared::error::{Error, Result};
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ impl GraphOps {
                     check_timeout.as_secs()
                 );
                 error!("{}", err_msg);
-                Err(anyhow::anyhow!(err_msg))
+                Err(Error::Custom(err_msg))
             }
         }
     }
@@ -67,7 +67,7 @@ impl GraphOps {
             .find_nodes_by_name_async(NodeType::Repository, repo_name)
             .await;
         if repo.is_empty() {
-            return Err(anyhow::anyhow!("Repo not found"));
+            return Err(Error::Custom("Repo not found".into()));
         }
         Ok(repo[0].clone())
     }
@@ -175,7 +175,7 @@ impl GraphOps {
         &mut self,
         btree_graph: &BTreeMapGraph,
         status_tx: Option<tokio::sync::broadcast::Sender<crate::repo::StatusUpdate>>,
-    ) -> anyhow::Result<(u32, u32)> {
+    ) -> Result<(u32, u32)> {
         self.graph.ensure_connected().await?;
         self.graph.create_indexes().await?;
 

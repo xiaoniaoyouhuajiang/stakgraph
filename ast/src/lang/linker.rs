@@ -1,8 +1,8 @@
 use crate::lang::graphs::{Graph, NodeType};
 use crate::lang::{Edge, Language, NodeData};
-use anyhow::{Context, Result};
 use lsp::language::PROGRAMMING_LANGUAGES;
 use regex::Regex;
+use shared::{Context, Error, Result};
 use std::path::PathBuf;
 use tracing::info;
 pub fn link_e2e_tests<G: Graph>(graph: &mut G) -> Result<()> {
@@ -58,7 +58,10 @@ fn infer_lang(nd: &NodeData) -> Result<Language> {
             return Ok(lang);
         }
     }
-    Err(anyhow::anyhow!("Could not infer language"))
+    Err(Error::Custom(format!(
+        "could not infer language for file {}",
+        nd.file
+    )))
 }
 
 fn extract_test_ids(content: &str, lang: &Language) -> Result<Vec<String>> {

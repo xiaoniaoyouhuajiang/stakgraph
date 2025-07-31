@@ -1,7 +1,7 @@
 use crate::lang::{Edge, Lang, Node, NodeType};
 use crate::lang::{Function, FunctionCall};
-use anyhow::Result;
 use lsp::Language;
+use shared::Result;
 use std::collections::HashSet;
 use std::fmt::Debug;
 

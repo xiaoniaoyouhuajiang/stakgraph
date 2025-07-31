@@ -2,8 +2,8 @@ use std::fs;
 
 use super::super::*;
 use super::consts::*;
-use anyhow::{Context, Result};
 use lsp::strip_tmp;
+use shared::error::{Context, Result};
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
 pub struct ReactTs(Language);

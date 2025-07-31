@@ -1,6 +1,6 @@
 use crate::lang::{graphs::Graph, *};
-use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
+use shared::Result;
 use tracing::debug;
 use tree_sitter::{Node as TreeNode, QueryMatch};
 

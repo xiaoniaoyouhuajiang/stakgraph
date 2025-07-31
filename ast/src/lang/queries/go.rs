@@ -1,7 +1,7 @@
 use super::super::*;
 use super::consts::*;
-use anyhow::{Context, Result};
 use lsp::{Cmd as LspCmd, CmdSender, Position, Res as LspRes};
+use shared::error::{Context, Result};
 use tree_sitter::{Language, Parser, Query, Tree};
 
 pub struct Go(Language);

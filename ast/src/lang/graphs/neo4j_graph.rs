@@ -1,9 +1,9 @@
 use super::{neo4j_utils::*, *};
 use crate::utils::sync_fn;
 use crate::{lang::Function, lang::Node, Lang};
-use anyhow::{Context, Result};
 use lsp::Language;
 use neo4rs::{query, BoltMap, Graph as Neo4jConnection};
+use shared::{Context, Error, Result};
 use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
@@ -101,7 +101,7 @@ impl Neo4jGraph {
             .context("Neo4j Connection is not established")
     }
 
-    pub async fn create_indexes(&self) -> anyhow::Result<()> {
+    pub async fn create_indexes(&self) -> Result<()> {
         let connection = self.ensure_connected().await?;
         let queries = vec![
             "CREATE INDEX data_bank_node_key_index IF NOT EXISTS FOR (n:Data_Bank) ON (n.node_key)",
@@ -129,28 +129,19 @@ impl Neo4jGraph {
         if let Err(e) = txn.run(query_obj).await {
             debug!("Error clearing stakgraph nodes: {:?}", e);
             txn.rollback().await?;
-            return Err(anyhow::anyhow!(
-                "Neo4j stakgraph node deletion error: {}",
-                e
-            ));
+            return Err(Error::Custom(format!("Neo4j clear graph error: {}", e)));
         }
 
         txn.commit().await?;
         Ok(())
     }
 
-    pub async fn execute_batch(
-        &self,
-        queries: Vec<(String, BoltMap)>,
-    ) -> Result<(), anyhow::Error> {
+    pub async fn execute_batch(&self, queries: Vec<(String, BoltMap)>) -> Result<()> {
         let connection = self.ensure_connected().await?;
         execute_batch(&connection, queries).await
     }
 
-    pub async fn execute_simple(
-        &self,
-        queries: Vec<(String, BoltMap)>,
-    ) -> Result<(), anyhow::Error> {
+    pub async fn execute_simple(&self, queries: Vec<(String, BoltMap)>) -> Result<()> {
         let connection = self.ensure_connected().await?;
         execute_queries_simple(&connection, queries).await
     }
@@ -166,7 +157,10 @@ impl Neo4jGraph {
         if let Some(row) = result.next().await? {
             Ok(row.get::<String>("hash").unwrap_or_default())
         } else {
-            Err(anyhow::anyhow!("No hash found for repo"))
+            Err(Error::Custom(format!(
+                "No hash found for REPO {}",
+                repo_url
+            )))
         }
     }
 
@@ -247,10 +241,10 @@ impl Neo4jGraph {
         }
         if let Err(e) = txn.run(query_obj).await {
             txn.rollback().await?;
-            return Err(anyhow::anyhow!(
-                "Neo4j selective node deletion error: {}",
+            return Err(Error::Custom(format!(
+                "Neo4j clear existing graph error: {}",
                 e
-            ));
+            )));
         }
         txn.commit().await?;
         Ok(())

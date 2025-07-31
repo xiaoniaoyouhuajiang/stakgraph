@@ -1,6 +1,6 @@
 use super::super::*;
 use super::consts::*;
-use anyhow::{Context, Result};
+use shared::error::{Context, Result};
 use tree_sitter::{Language, Parser, Query, Tree};
 
 pub struct Toml(Language);

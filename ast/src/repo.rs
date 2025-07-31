@@ -1,11 +1,11 @@
 pub use crate::builder::progress::StatusUpdate;
 use crate::lang::graphs::Graph;
 use crate::lang::{linker, ArrayGraph, BTreeMapGraph, Lang};
-use anyhow::{anyhow, Context, Result};
 use git_url_parse::GitUrl;
 use ignore::WalkBuilder;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
 use lsp::{git::git_clone, spawn_analyzer, strip_tmp, CmdSender};
+use shared::{Context, Error, Result};
 use std::str::FromStr;
 use std::{fs, path::PathBuf};
 use tokio::sync::broadcast::Sender;
@@ -147,11 +147,11 @@ impl Repo {
             .collect::<Vec<String>>();
         // Validate revs count - it should be empty or a multiple of urls count
         if !revs.is_empty() && revs.len() % urls.len() != 0 {
-            return Err(anyhow::anyhow!(
+            return Err(Error::Custom(format!(
                 "Number of revisions ({}) must be a multiple of the number of repositories ({})",
                 revs.len(),
                 urls.len()
-            ));
+            )));
         }
         // Calculate how many revs per repo
         let revs_per_repo = if revs.is_empty() {
@@ -161,13 +161,10 @@ impl Repo {
         };
         let mut repos: Vec<Repo> = Vec::new();
         for (i, url) in urls.iter().enumerate() {
-            let gurl = GitUrl::parse(url)
-                .map_err(|e| anyhow!("Failed to parse Git URL for {}: {}", url, e))?;
+            let gurl = GitUrl::parse(url)?;
             let root = format!("/tmp/{}", gurl.fullname);
             println!("Cloning repo to {:?}...", &root);
-            clone_repo(url, &root, username.clone(), pat.clone(), commit)
-                .await
-                .map_err(|e| anyhow!("Failed to clone repo {} at root {}: {}", url, root, e))?;
+            clone_repo(url, &root, username.clone(), pat.clone(), commit).await?;
             // Extract the revs for this specific repository
             let repo_revs = if revs_per_repo > 0 {
                 revs[i * revs_per_repo..(i + 1) * revs_per_repo].to_vec()
@@ -206,8 +203,7 @@ impl Repo {
                 skip_dirs: stringy(l.skip_dirs()),
                 ..Default::default()
             };
-            let source_files = walk_files(&root.into(), &conf)
-                .map_err(|e| anyhow!("Failed to walk files at {}: {}", root, e))?;
+            let source_files = walk_files(&root.into(), &conf)?;
             let has_pkg_file = source_files.iter().any(|f| {
                 let fname = f.display().to_string();
                 if l.pkg_files().is_empty() {
@@ -243,13 +239,11 @@ impl Repo {
             let thelang = Lang::from_language(l);
             // Run post-clone commands
             for cmd in thelang.kind.post_clone_cmd() {
-                Self::run_cmd(&cmd, &root)
-                    .map_err(|e| anyhow!("Failed to cmd {} in {}: {}", cmd, root, e))?;
+                Self::run_cmd(&cmd, &root)?;
             }
             // Start LSP server
             let lsp_enabled = use_lsp.unwrap_or_else(|| thelang.kind.default_do_lsp());
-            let lsp_tx = Self::start_lsp(&root, &thelang, lsp_enabled)
-                .map_err(|e| anyhow!("Failed to start LSP: {}", e))?;
+            let lsp_tx = Self::start_lsp(&root, &thelang, lsp_enabled)?;
             // Add to repositories
             repos.push(Repo {
                 url: url.clone().map(|u| u.into()).unwrap_or_default(),
@@ -300,7 +294,7 @@ impl Repo {
         info!("Running cmd: {:?}", cmd);
         let mut arr = cmd.split(" ").collect::<Vec<&str>>();
         if arr.len() == 0 {
-            return Err(anyhow!("empty cmd"));
+            return Err(Error::Custom("empty cmd".into()));
         }
         let first = arr.remove(0);
         let mut proc = std::process::Command::new(first);
@@ -401,7 +395,7 @@ impl Repo {
         commits.reverse();
 
         if commits.is_empty() {
-            return Err(anyhow::anyhow!("No commits found in repository"));
+            return Err(Error::Custom("No commits found in repository".into()));
         }
 
         Ok(commits)

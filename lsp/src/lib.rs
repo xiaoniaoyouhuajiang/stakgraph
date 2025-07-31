@@ -8,8 +8,8 @@ pub use client::strip_tmp;
 pub use language::Language;
 pub use utils::*;
 
-use anyhow::{anyhow, Context, Result};
 use lsp_types::{GotoDefinitionResponse, Hover, Location};
+use shared::{Context, Error, Result};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::sync::mpsc;
@@ -39,7 +39,9 @@ impl Cmd {
     pub fn send(self, tx: &mpsc::Sender<CmdAndRes>) -> Result<Res> {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
         let result = sync_fn(|| async {
-            tx.send((self, res_tx)).await?;
+            tx.send((self, res_tx))
+                .await
+                .map_err(|e| Error::Custom(e.to_string()))?;
             Ok(res_rx.await?)
         });
         result
@@ -150,8 +152,8 @@ fn non_mock_location(loc: &Location) -> bool {
 }
 
 impl TryFrom<Hover> for Res {
-    type Error = anyhow::Error;
-    fn try_from(h: Hover) -> Result<Self, Self::Error> {
+    type Error = shared::Error;
+    fn try_from(h: Hover) -> Result<Self> {
         Ok(Res::Hover(Some(match h.contents {
             lsp_types::HoverContents::Scalar(s) => match s {
                 lsp_types::MarkedString::String(s) => s,
@@ -161,7 +163,7 @@ impl TryFrom<Hover> for Res {
                 if a.is_empty() {
                     return Ok(Res::Hover(None));
                 }
-                match a.first().context(anyhow!("Hover empty array"))? {
+                match a.first().context("Hover empty array")? {
                     lsp_types::MarkedString::String(s) => s.clone(),
                     lsp_types::MarkedString::LanguageString(ls) => ls.value.clone(),
                 }
@@ -210,9 +212,7 @@ async fn spawn_inner(
     for a in lang.lsp_args() {
         child_config.arg(a);
     }
-    let child = child_config
-        .spawn()
-        .map_err(|e| anyhow!("spawn error: {:?}, {:#?}", e, child_config))?;
+    let child = child_config.spawn()?;
     info!("child process started");
     let stdout = child.stdout.context("no stdout")?;
     let stdin = child.stdin.context("no stdin")?;
@@ -233,9 +233,7 @@ async fn spawn_inner(
 
     info!("waiting.... {:?}", lang);
     sleep(500).await;
-    indexed_rx
-        .await
-        .map_err(|e| anyhow!("bad indexed rx {:?}", e))?;
+    indexed_rx.await?;
     info!("indexed!!! {:?}", lang);
 
     while let Some((cmd, res_tx)) = cmd_rx.recv().await {

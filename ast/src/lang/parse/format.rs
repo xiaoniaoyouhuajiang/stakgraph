@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use crate::lang::call_finder::node_data_finder;
 use crate::lang::{graphs::Graph, *};
-use anyhow::Result;
 use lsp::{Cmd as LspCmd, Position, Res as LspRes};
+use shared::Result;
 use streaming_iterator::StreamingIterator;
 use tracing::debug;
 use tree_sitter::QueryMatch;

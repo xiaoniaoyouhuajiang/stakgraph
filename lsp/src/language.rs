@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use shared::error::{Error, Result};
 use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -316,8 +317,8 @@ impl Language {
 }
 
 impl FromStr for Language {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    type Err = shared::Error;
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "python" => Ok(Language::Python),
             "Python" => Ok(Language::Python),
@@ -359,7 +360,7 @@ impl FromStr for Language {
             "c++" => Ok(Language::Cpp),
             "C++" => Ok(Language::Cpp),
 
-            _ => Err(anyhow::anyhow!("unsupported language")),
+            _ => Err(Error::Custom(format!("unsupported language"))),
         }
     }
 }
