@@ -585,15 +585,19 @@ async fn test_remote_nextjs() -> Result<()> {
         .iter()
         .find(|l| {
             l.name == "next"
-                && l.file.ends_with("src/testing/nextjs/package.json")
-                && l.body == "\"next\": \"15.3.4\""
+                && l.file
+                    .ends_with("clerk/clerk-nextjs-demo-pages-router/package.json")
         })
         .map(|n| Node::new(NodeType::Library, n.clone()))
         .expect("Next.js library not found");
 
     let pkg_file = file_nodes
         .iter()
-        .find(|f| f.name == "package.json" && f.file.ends_with("src/testing/nextjs/package.json"))
+        .find(|f| {
+            f.name == "package.json"
+                && f.file
+                    .ends_with("clerk/clerk-nextjs-demo-pages-router/package.json")
+        })
         .map(|n| Node::new(NodeType::File, n.clone()))
         .expect("package.json file not found");
 
