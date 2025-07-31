@@ -1,10 +1,10 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::{Graph, Node};
 use crate::{lang::Lang, repo::Repo};
-use anyhow::Result;
+use shared::Result;
 use std::str::FromStr;
 
-pub async fn test_java_generic<G: Graph>() -> Result<(), anyhow::Error> {
+pub async fn test_java_generic<G: Graph>() -> Result<()> {
     let repo = Repo::new(
         "src/testing/java",
         Lang::from_str("java").unwrap(),

@@ -1,3 +1,4 @@
+use anyhow::{Context, Error, Result};
 use ast::Repo;
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::presigning::PresigningConfigBuilder;
@@ -5,7 +6,6 @@ use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::Client;
 use lsp::Language;
 use serde::Serialize;
-use shared::{Context, Error, Result};
 use std::env;
 use std::time::Duration;
 use tracing_subscriber::filter::LevelFilter;
@@ -15,7 +15,7 @@ const DEFAULT_S3_BUCKET: &str = "stak-request-large-responses";
 const DEFAULT_S3_REGION: &str = "us-east-1";
 
 #[tokio::main(flavor = "multi_thread")]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Error> {
     let filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
         .from_env_lossy();
@@ -50,7 +50,7 @@ impl Response {
     }
 }
 
-async fn start() -> std::result::Result<()> {
+async fn start() -> std::result::Result<(), Error> {
     let webhook_url = env::var("WEBHOOK_URL").context("no WEBHOOK_URL")?;
     let langs = vec![
         Language::Rust,

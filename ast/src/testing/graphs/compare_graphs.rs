@@ -2,7 +2,7 @@ use crate::lang::graphs::BTreeMapGraph;
 use crate::lang::{ArrayGraph, Graph, Lang};
 use crate::repo::Repo;
 use crate::utils::get_use_lsp;
-use anyhow::{Ok, Result};
+use shared::error::Result;
 use std::collections::HashSet;
 use std::str::FromStr;
 use test_log::test;

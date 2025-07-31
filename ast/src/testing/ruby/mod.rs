@@ -1,10 +1,11 @@
 use crate::lang::graphs::{EdgeType, NodeType};
 use crate::lang::{Graph, Node};
 use crate::{lang::Lang, repo::Repo};
+use shared::error::Result;
 use std::str::FromStr;
 use test_log::test;
 
-pub async fn test_ruby_generic<G: Graph>() -> Result<(), anyhow::Error> {
+pub async fn test_ruby_generic<G: Graph>() -> Result<()> {
     let repo = Repo::new(
         "src/testing/ruby",
         Lang::from_str("ruby").unwrap(),

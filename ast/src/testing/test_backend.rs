@@ -2,7 +2,7 @@ use crate::lang::graphs::NodeType;
 use crate::lang::Graph;
 use crate::lang::{linker::normalize_backend_path, Lang};
 use crate::repo::Repo;
-use anyhow::Context;
+use shared::error::{Error, Result};
 use tracing::{error, info};
 
 pub struct BackendTester<G: Graph> {
@@ -12,7 +12,7 @@ pub struct BackendTester<G: Graph> {
 }
 
 impl<G: Graph> BackendTester<G> {
-    pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self, anyhow::Error>
+    pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self>
     where
         G: Default,
     {
@@ -28,10 +28,7 @@ impl<G: Graph> BackendTester<G> {
             Vec::new(),
         )?;
 
-        let graph = repository
-            .build_graph_inner()
-            .await
-            .with_context(|| format!("Failed to build graph for {}", repo_path))?;
+        let graph = repository.build_graph_inner().await?;
 
         Ok(Self {
             graph,
@@ -40,7 +37,7 @@ impl<G: Graph> BackendTester<G> {
         })
     }
 
-    pub fn test_backend(&self) -> Result<(), anyhow::Error> {
+    pub fn test_backend(&self) -> Result<()> {
         info!(
             "\n\nTesting backend for {} at src/testing/{}\n\n",
             self.lang.kind.to_string().to_uppercase(),
@@ -63,7 +60,7 @@ impl<G: Graph> BackendTester<G> {
         Ok(())
     }
 
-    fn test_language(&self) -> Result<(), anyhow::Error> {
+    fn test_language(&self) -> Result<()> {
         let language_nodes = self.graph.find_nodes_by_type(NodeType::Language);
 
         assert!(!language_nodes.is_empty(), "Language node not found");
@@ -78,7 +75,7 @@ impl<G: Graph> BackendTester<G> {
         Ok(())
     }
 
-    fn test_package_file(&self) -> Result<(), anyhow::Error> {
+    fn test_package_file(&self) -> Result<()> {
         let package_file_names = self.lang.kind.pkg_files();
         let package_file_name = package_file_names.first().unwrap();
 
@@ -97,7 +94,7 @@ impl<G: Graph> BackendTester<G> {
         Ok(())
     }
 
-    fn test_data_model(&self, name: &str) -> Result<(), anyhow::Error> {
+    fn test_data_model(&self, name: &str) -> Result<()> {
         let data_model_nodes = self
             .graph
             .find_nodes_by_name_contains(NodeType::DataModel, name);
@@ -106,11 +103,12 @@ impl<G: Graph> BackendTester<G> {
             info!("✓ Found data model {}", name);
             Ok(())
         } else {
-            anyhow::bail!("Data model {} not found", name)
+            error!("Data model {} not found", name);
+            Err(Error::Custom(format!("Data model {} not found", name)))
         }
     }
 
-    fn test_endpoints(&self, endpoints: Vec<(&str, &str)>) -> Result<(), anyhow::Error> {
+    fn test_endpoints(&self, endpoints: Vec<(&str, &str)>) -> Result<()> {
         for (method, path) in endpoints {
             let normalized_expected_path = normalize_backend_path(path).unwrap();
 
@@ -124,7 +122,11 @@ impl<G: Graph> BackendTester<G> {
             if !matching_endpoints.is_empty() {
                 info!("✓ Found endpoint {} {}", method, path);
             } else {
-                anyhow::bail!("Endpoint {} {} not found", method, path);
+                error!("Endpoint {} {} not found", method, path);
+                return Err(Error::Custom(format!(
+                    "Endpoint {} {} not found",
+                    method, path
+                )));
             }
         }
 
@@ -135,7 +137,7 @@ impl<G: Graph> BackendTester<G> {
         &self,
         expected_enpoints: Vec<(&str, &str)>,
         data_model: &str,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<()> {
         for (verb, path) in expected_enpoints {
             let normalized_path = normalize_path(path);
 
@@ -143,7 +145,11 @@ impl<G: Graph> BackendTester<G> {
                 self.graph
                     .find_resource_nodes(NodeType::Endpoint, verb, &normalized_path);
             if matching_endpoints.is_empty() {
-                anyhow::bail!("Endpoint {} {} not found", verb, path);
+                error!("No endpoint found for {} {}", verb, path);
+                return Err(Error::Custom(format!(
+                    "No endpoint found for {} {}",
+                    verb, path
+                )));
             }
 
             let mut found_handler = false;

@@ -19,6 +19,7 @@ pub use graph::*;
 
 #[cfg(feature = "neo4j")]
 pub use neo4j_graph::*;
+use shared::Error;
 
 use crate::lang::asg::*;
 use serde::{Deserialize, Serialize};
@@ -270,7 +271,7 @@ impl ToString for EdgeType {
 }
 
 impl FromStr for EdgeType {
-    type Err = anyhow::Error;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
@@ -285,7 +286,7 @@ impl FromStr for EdgeType {
             "RENDERS" => Ok(EdgeType::Renders),
             "PARENT_OF" => Ok(EdgeType::ParentOf),
             "IMPLEMENTS" => Ok(EdgeType::Implements),
-            _ => Err(anyhow::anyhow!("Invalid EdgeType: {}", s)),
+            _ => Err(Error::Custom(format!("Invalid EdgeType: {}", s))),
         }
     }
 }
