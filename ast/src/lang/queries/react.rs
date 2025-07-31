@@ -722,7 +722,6 @@ impl Stack for ReactTs {
         } else {
             return Some((page, None));
         };
-
         Some((page, Some(edge)))
     }
 }
