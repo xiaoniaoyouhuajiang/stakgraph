@@ -14,5 +14,10 @@ pub enum Error {
     #[error("Custom error: {0}")]
     Custom(String),
 }
+impl Error {
+    pub fn custom<S: Into<String>>(msg: S) -> Self {
+        Error::Custom(msg.into())
+    }
+}
 
 pub type Result<T> = std::result::Result<T, Error>;

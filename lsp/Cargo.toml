@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+shared = { path = "../shared" }
+
 lsp-types = "0.95.0"
 async-lsp = { version = "0.2.1", features = ["tracing"] }
 tracing = { version = "0.1.37" }
