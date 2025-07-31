@@ -440,6 +440,108 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+#[cfg(all(feature = "neo4j", feature = "fulltest"))]
+async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
+    use crate::lang::graphs::Neo4jGraph;
+    let repo_url = "https://github.com/clerk/clerk-nextjs-demo-pages-router";
+    let use_lsp = None;
+    let repos =
+        Repo::new_clone_multi_detect(repo_url, None, None, Vec::new(), Vec::new(), None, use_lsp)
+            .await?;
+
+    let graph = Neo4jGraph::default();
+    graph.clear().await?;
+    let graph = repos.build_graphs_inner::<Neo4jGraph>().await?;
+    graph.analysis();
+
+    let pages = graph.find_nodes_by_type(NodeType::Page);
+    assert_eq!(pages.len(), 4, "Expected 4 Page nodes (Pages Router)");
+
+    let functions = graph.find_nodes_by_type(NodeType::Function);
+    assert_eq!(
+        functions.len(),
+        63,
+        "Expected 63 Function nodes (Pages Router)"
+    );
+
+    let sign_in_page = pages
+        .iter()
+        .find(|p| {
+            p.name == "sign-in" && p.file.ends_with("src/pages/sign-in.tsx") && p.body == "/sign-in"
+        })
+        .expect("sign-in page not found");
+    let sign_up_page = pages
+        .iter()
+        .find(|p| {
+            p.name == "sign-up" && p.file.ends_with("src/pages/sign-up.tsx") && p.body == "/sign-up"
+        })
+        .expect("sign-up page not found");
+    let dashboard_page = pages
+        .iter()
+        .find(|p| {
+            p.name == "dashboard"
+                && p.file.ends_with("src/pages/dashboard/index.tsx")
+                && p.body == "/dashboard"
+        })
+        .expect("dashboard page not found");
+    let index_page = pages
+        .iter()
+        .find(|p| p.name == "index" && p.file.ends_with("src/pages/index.tsx") && p.body == "/")
+        .expect("index page not found");
+
+    let sign_in_component = functions
+        .iter()
+        .find(|f| f.name == "SignInPage" && f.file.ends_with("src/pages/sign-in.tsx"))
+        .expect("SignInPage component not found");
+    let sign_up_component = functions
+        .iter()
+        .find(|f| f.name == "SignUpPage" && f.file.ends_with("src/pages/sign-up.tsx"))
+        .expect("SignUpPage component not found");
+    let dashboard_component = functions
+        .iter()
+        .find(|f| f.name == "DashboardPage" && f.file.ends_with("src/pages/dashboard/index.tsx"))
+        .expect("DashboardPage component not found");
+    let home_component = functions
+        .iter()
+        .find(|f| f.name == "Home" && f.file.ends_with("src/pages/index.tsx"))
+        .expect("Home component not found");
+
+    assert!(
+        graph.has_edge(
+            &Node::new(NodeType::Page, sign_in_page.clone()),
+            &Node::new(NodeType::Function, sign_in_component.clone()),
+            EdgeType::Renders
+        ),
+        "sign-in page should render SignInPage"
+    );
+    assert!(
+        graph.has_edge(
+            &Node::new(NodeType::Page, sign_up_page.clone()),
+            &Node::new(NodeType::Function, sign_up_component.clone()),
+            EdgeType::Renders
+        ),
+        "sign-up page should render SignUpPage"
+    );
+    assert!(
+        graph.has_edge(
+            &Node::new(NodeType::Page, dashboard_page.clone()),
+            &Node::new(NodeType::Function, dashboard_component.clone()),
+            EdgeType::Renders
+        ),
+        "dashboard page should render DashboardPage"
+    );
+    assert!(
+        graph.has_edge(
+            &Node::new(NodeType::Page, index_page.clone()),
+            &Node::new(NodeType::Function, home_component.clone()),
+            EdgeType::Renders
+        ),
+        "index page should render Home"
+    );
+
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_nextjs() {
     use crate::lang::graphs::{ArrayGraph, BTreeMapGraph};
@@ -448,6 +550,9 @@ async fn test_nextjs() {
 
     #[cfg(feature = "neo4j")]
     {
+        #[cfg(feature = "fulltest")]
+        test_remote_nextjs().await.unwrap();
+
         use crate::lang::graphs::Neo4jGraph;
         let graph = Neo4jGraph::default();
         graph.clear().await.unwrap();
