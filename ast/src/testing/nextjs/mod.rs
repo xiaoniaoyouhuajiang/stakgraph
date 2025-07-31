@@ -441,7 +441,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 }
 
 #[cfg(all(feature = "neo4j", feature = "fulltest"))]
-async fn test_remote_nextjs() -> Result<(), anyhow::Error> {
+async fn test_remote_nextjs() -> Result<()> {
     use crate::lang::graphs::Neo4jGraph;
     let repo_url = "https://github.com/clerk/clerk-nextjs-demo-pages-router";
     let use_lsp = get_use_lsp();

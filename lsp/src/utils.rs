@@ -12,7 +12,7 @@ pub async fn run(cmd: &str, args: &[&str]) -> Result<String> {
         .await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        return Err(anyhow::anyhow!("{} failed: {}", cmd, stderr));
+        return Err(Error::Custom(format!("{} failed: {}", cmd, stderr)));
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }

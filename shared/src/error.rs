@@ -38,7 +38,7 @@ pub enum Error {
     #[error("Tree-sitter language error: {0}")]
     TreeSitterLanguage(#[from] tree_sitter::LanguageError),
 
-    #[error("Custom error: {0}")]
+    #[error("Error : {0}")]
     Custom(String),
 }
 impl Error {
