@@ -66,6 +66,37 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     nodes += repository.len();
     assert_eq!(repository.len(), 1, "Expected 1 Repository node");
 
+    let repo = Node::new(
+        NodeType::Repository,
+        repository
+            .first()
+            .expect("Repository node not found")
+            .clone(),
+    );
+
+    let app_dir = directory_nodes
+        .iter()
+        .find(|d| d.name == "app" && d.file.ends_with("nextjs/app"))
+        .map(|n| Node::new(NodeType::Directory, n.clone()))
+        .expect("Directory 'app' not found");
+
+    let items_dir = directory_nodes
+        .iter()
+        .find(|d| d.name == "items" && d.file.ends_with("nextjs/app/items"))
+        .map(|n| Node::new(NodeType::Directory, n.clone()))
+        .expect("Directory 'items' not found");
+
+    let items_page = file_nodes
+        .iter()
+        .find(|f| f.name == "page.tsx" && f.file.ends_with("nextjs/app/items/page.tsx"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("File 'ItemsPage.tsx' not found");
+
+    // / -> /app -> /app/items -> /app/items/page.tsx
+    assert!(graph.has_edge(&repo, &app_dir, EdgeType::Contains));
+    assert!(graph.has_edge(&app_dir, &items_dir, EdgeType::Contains));
+    assert!(graph.has_edge(&items_dir, &items_page, EdgeType::Contains));
+
     let endpoints = graph.find_nodes_by_type(NodeType::Endpoint);
     nodes += endpoints.len();
     assert_eq!(endpoints.len(), 6, "Expected 6 Endpoint nodes");
@@ -200,6 +231,36 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
         assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
     }
 
+    if use_lsp {
+        let get_fn = functions
+            .iter()
+            .find(|f| {
+                f.name == "GET"
+                    && f.file
+                        .ends_with("src/testing/nextjs/app/api/person/[id]/route.ts")
+            })
+            .map(|n| Node::new(NodeType::Function, n.clone()))
+            .expect("GET handler function for items not found");
+
+        let person_fn = functions
+            .iter()
+            .find(|f| {
+                f.name == "person"
+                    && f.file
+                        .ends_with("src/testing/nextjs/app/api/person/[id]/route.ts")
+            })
+            .map(|n| Node::new(NodeType::Function, n.clone()))
+            .expect("Person function not found");
+
+        let find_fn = functions
+            .iter()
+            .find(|f| (f.name == "find" && f.body == ""))
+            .map(|n| Node::new(NodeType::Function, n.clone()))
+            .expect("Find function not found");
+
+        graph.has_edge(&get_fn, &find_fn, EdgeType::Uses);
+        graph.has_edge(&person_fn, &find_fn, EdgeType::Uses);
+    }
     let renders = graph.count_edges_of_type(EdgeType::Renders);
     edges += renders;
     assert_eq!(renders, 3, "Expected 3 Renders edges");
@@ -520,6 +581,27 @@ async fn test_remote_nextjs() -> Result<()> {
     nodes += library.len();
     assert_eq!(library.len(), 12, "Expected 12 Library nodes");
 
+    let next_lib = library
+        .iter()
+        .find(|l| {
+            l.name == "next"
+                && l.file.ends_with("src/testing/nextjs/package.json")
+                && l.body == "\"next\": \"15.3.4\""
+        })
+        .map(|n| Node::new(NodeType::Library, n.clone()))
+        .expect("Next.js library not found");
+
+    let pkg_file = file_nodes
+        .iter()
+        .find(|f| f.name == "package.json" && f.file.ends_with("src/testing/nextjs/package.json"))
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("package.json file not found");
+
+    assert!(
+        graph.has_edge(&pkg_file, &next_lib, EdgeType::Contains),
+        "package.json should contain Next.js library"
+    );
+
     let variables = graph.find_nodes_by_type(NodeType::Var);
     nodes += variables.len();
     assert_eq!(variables.len(), 4, "Expected 4 Variable nodes");
@@ -547,17 +629,43 @@ async fn test_remote_nextjs() -> Result<()> {
         "SessionDetails should contain Window data model"
     );
 
-    let _user_details_window = datamodels
+    let user_details_window = datamodels
         .iter()
         .find(|d| d.name == "Window" && d.file.ends_with("src/pages/dashboard/UserDetails.tsx"))
         .map(|n| Node::new(NodeType::DataModel, n.clone()))
         .expect("Window data model for user details not found");
 
-    let _org_details_window = datamodels
+    let user_details_file = file_nodes
+        .iter()
+        .find(|f| {
+            f.name == "UserDetails.tsx" && f.file.ends_with("src/pages/dashboard/UserDetails.tsx")
+        })
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("UserDetails file not found");
+
+    assert!(
+        graph.has_edge(&user_details_file, &user_details_window, EdgeType::Contains),
+        "UserDetails should contain Window data model"
+    );
+
+    let org_details_window = datamodels
         .iter()
         .find(|d| d.name == "Window" && d.file.ends_with("src/pages/dashboard/OrgDetails.tsx"))
         .map(|n| Node::new(NodeType::DataModel, n.clone()))
         .expect("Window data model for org details not found");
+
+    let org_details_file = file_nodes
+        .iter()
+        .find(|f| {
+            f.name == "OrgDetails.tsx" && f.file.ends_with("src/pages/dashboard/OrgDetails.tsx")
+        })
+        .map(|n| Node::new(NodeType::File, n.clone()))
+        .expect("OrgDetails file not found");
+
+    assert!(
+        graph.has_edge(&org_details_file, &org_details_window, EdgeType::Contains),
+        "OrgDetails should contain Window data model"
+    );
 
     let data = datamodels
         .iter()
