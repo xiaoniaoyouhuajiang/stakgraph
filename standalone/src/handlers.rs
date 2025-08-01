@@ -213,13 +213,25 @@ pub async fn ingest(
         commit.as_deref(),
         use_lsp,
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        WebError(shared::Error::Custom(format!(
+            "Repo detection Failed: {}",
+            e
+        )))
+    })?;
 
     repos.set_status_tx(state.tx.clone()).await;
 
     let btree_graph = repos
         .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
-        .await?;
+        .await
+        .map_err(|e| {
+            WebError(shared::Error::Custom(format!(
+                "Failed to build graphs: {}",
+                e
+            )))
+        })?;
     info!(
         "\n\n ==>>Building BTreeMapGraph took {:.2?} \n\n",
         start_build.elapsed()
