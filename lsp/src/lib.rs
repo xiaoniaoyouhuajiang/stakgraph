@@ -212,7 +212,9 @@ async fn spawn_inner(
     for a in lang.lsp_args() {
         child_config.arg(a);
     }
-    let child = child_config.spawn()?;
+    let child = child_config
+        .spawn()
+        .map_err(|e| Error::Custom(format!("spawn error: {:?}, {:#?}", e, child_config)))?;
     info!("child process started");
     let stdout = child.stdout.context("no stdout")?;
     let stdin = child.stdin.context("no stdin")?;
@@ -233,7 +235,9 @@ async fn spawn_inner(
 
     info!("waiting.... {:?}", lang);
     sleep(500).await;
-    indexed_rx.await?;
+    indexed_rx
+        .await
+        .map_err(|e| Error::Custom(format!("bad indexed rx {:?}", e)))?;
     info!("indexed!!! {:?}", lang);
 
     while let Some((cmd, res_tx)) = cmd_rx.recv().await {
