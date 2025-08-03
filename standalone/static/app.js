@@ -197,7 +197,9 @@ const App = () => {
       (status.status === "Complete" || progress === 100)
     ) {
       return html`
-        <div style="margin-top: 24px; display: flex; gap: 12px;">
+        <div
+          style="margin-top: 24px; display: flex; gap: 12px; justify-content: space-around;"
+        >
           <button onClick=${handleSync}>Sync Repo to Latest</button>
           <button onClick=${handleReset}>Ingest Another Repo</button>
         </div>
