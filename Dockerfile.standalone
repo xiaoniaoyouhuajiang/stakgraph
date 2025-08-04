@@ -11,6 +11,9 @@ RUN echo '[workspace]' > Cargo.toml && \
 COPY ast/Cargo.toml ast/Cargo.toml
 COPY lsp/Cargo.toml lsp/Cargo.toml
 COPY standalone/Cargo.toml standalone/Cargo.toml
+COPY shared/Cargo.toml shared/Cargo.toml
+# Copy the shared crate's source code (it's a dependency for ast/lsp/standalone)
+COPY shared/src shared/src
 
 # Create dummy src files for all 3 crates
 RUN mkdir -p ast/src lsp/src standalone/src && \
