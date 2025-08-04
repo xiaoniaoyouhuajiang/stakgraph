@@ -54,6 +54,126 @@ interface Event {
   assertionType?: string;
 }
 
+function convertToPlaywrightSelector(cssSelector: string): string {
+  if (!cssSelector) return "";
+
+  let selector = cssSelector;
+
+  // Handle data-testid attributes first (highest priority)
+  if (selector.includes("[data-testid=")) {
+    const match = selector.match(/\[data-testid="([^"]+)"\]/);
+    if (match) return `[data-testid="${match[1]}"]`;
+  }
+
+  // Handle ID selectors (high priority)
+  const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
+  if (idMatch) return `#${idMatch[1]}`;
+
+  // If it's a very long complex selector from html>body, extract the target element
+  if (selector.includes('html') && selector.includes('body') && selector.length > 100) {
+    const parts = selector.split('>').map(part => part.trim());
+    
+    // Find the last interactive element
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i];
+      if (part.includes('button') || 
+          (part.includes('a') && part.includes('.')) || 
+          part.includes('input') || 
+          part.includes('select') || 
+          part.includes('textarea')) {
+        selector = part;
+        break;
+      }
+    }
+  }
+
+  // Now clean up the selector more aggressively
+  // Split by classes and clean each one
+  const parts = selector.split('.');
+  const tagName = parts[0]; // button, a, div, etc.
+  const classes = parts.slice(1);
+
+  // Clean each class name
+  const cleanClasses = classes
+    .map(className => {
+      if (!className) return '';
+      
+      // Remove problematic Tailwind patterns
+      className = className.replace(/disabled:[\w-]+/g, ''); // disabled:pointer-events-none
+      className = className.replace(/hover:[\w-\/]+/g, ''); // hover:bg-primary/90
+      className = className.replace(/focus-visible:[\w-\[\]\/]+/g, ''); // focus-visible:ring-[3px]
+      className = className.replace(/aria-invalid:[\w-\/]+/g, ''); // aria-invalid:ring-destructive/20
+      className = className.replace(/dark:[\w-\/]+/g, ''); // dark:aria-invalid
+      className = className.replace(/\[&[^\]]*\]/g, ''); // [&_svg] patterns
+      className = className.replace(/has-\[[^\]]*\]/g, ''); // has-[>svg]
+      
+      // Clean up any remaining brackets, colons, and special characters
+      className = className.replace(/[\[\]:&]/g, '');
+      className = className.replace(/\([^)]*\)/g, ''); // Remove parentheses content
+      className = className.replace(/[^\w-]/g, ''); // Keep only word chars and hyphens
+      
+      return className;
+    })
+    .filter(className => className && className.length > 0); // Remove empty classes
+
+  // Rebuild selector with cleaned classes
+  let cleanSelector = tagName;
+  if (cleanClasses.length > 0) {
+    // Limit to most important classes to avoid overly long selectors
+    const importantClasses = cleanClasses.slice(0, 8);
+    cleanSelector += '.' + importantClasses.join('.');
+  }
+
+  // Remove any trailing dots or cleanup artifacts
+  cleanSelector = cleanSelector.replace(/\.+$/, '');
+  cleanSelector = cleanSelector.replace(/\.{2,}/g, '.');
+
+  // Validate and use CSS.escape as fallback for individual problematic classes
+  if (!isValidCSSSelector(cleanSelector)) {
+    console.warn(`Selector still invalid: ${cleanSelector}, trying CSS.escape approach`);
+    
+    // Try escaping individual class names that might have special characters
+    const escapedParts = cleanSelector.split('.');
+    const escapedTagName = escapedParts[0];
+    const escapedClasses = escapedParts.slice(1).map(className => {
+      try {
+        // Test if this class name needs escaping
+        document.querySelector(`.${className}`);
+        return className;
+      } catch (e) {
+        // If it fails, try to escape it
+        if (typeof CSS !== 'undefined' && CSS.escape) {
+          return CSS.escape(className);
+        } else {
+          console.warn(`CSS.escape not supported, falling back to manual escaping for: ${className}`);
+        }
+        // Fallback: remove problematic characters
+        return className.replace(/[^\w-]/g, '');
+      }
+    }).filter(Boolean);
+
+    cleanSelector = escapedTagName;
+    if (escapedClasses.length > 0) {
+      cleanSelector += '.' + escapedClasses.join('.');
+    }
+  }
+
+  return cleanSelector || tagName || 'body *';
+}
+
+function isValidCSSSelector(selector: string): boolean {
+  if (!selector || selector.trim() === '') return false;
+  
+  try {
+    if (typeof document !== 'undefined') {
+      document.querySelector(selector);
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function generatePlaywrightTest(
   url: string,
   trackingData?: TrackingData
@@ -175,15 +295,26 @@ function generateUserInteractions(
 
   if (clicks?.clickDetails?.length) {
     clicks.clickDetails.forEach((clickDetail) => {
-      const [x, y, selector, timestamp] = clickDetail;
+      const [x, y, originalSelector, timestamp] = clickDetail;
+      
+      // Convert selector early to catch issues
+      const convertedSelector = convertToPlaywrightSelector(originalSelector);
+      
+      // Skip if conversion failed or resulted in empty selector
+      if (!convertedSelector || convertedSelector.trim() === '') {
+        console.warn(`Skipping click with invalid selector: ${originalSelector}`);
+        return;
+      }
 
       const shouldSkip =
-        processedSelectors.has(selector) ||
+        processedSelectors.has(originalSelector) ||
+        processedSelectors.has(convertedSelector) ||
         Object.entries(formElementTimestamps).some(
           ([formSelector, formTimestamp]) => {
             return (
-              (selector.includes(formSelector) ||
-                formSelector.includes(selector)) &&
+              (originalSelector.includes(formSelector) ||
+                formSelector.includes(originalSelector) ||
+                convertedSelector.includes(formSelector)) &&
               Math.abs(timestamp - formTimestamp) < 500
             );
           }
@@ -194,7 +325,7 @@ function generateUserInteractions(
           type: "click",
           x,
           y,
-          selector,
+          selector: convertedSelector, // Use converted selector
           timestamp,
           isUserAction: true,
         });
@@ -392,31 +523,6 @@ function escapeTextForAssertion(text: string): string {
 function cleanTextForGetByText(text: string): string {
   if (!text) return "";
   return text.replace(/\s+/g, " ").replace(/\n+/g, " ").trim();
-}
-
-function convertToPlaywrightSelector(cssSelector: string): string {
-  if (!cssSelector) return "";
-
-  let selector = cssSelector;
-
-  if (selector.includes("[data-testid=")) {
-    const match = selector.match(/\[data-testid="([^"]+)"\]/);
-    if (match) return `[data-testid="${match[1]}"]`;
-  }
-
-  if (selector.includes("html>body>")) {
-    selector = selector.replace("html>body>", "");
-  }
-
-  const parts = selector.split(">");
-  if (parts.length > 2) {
-    selector = parts.slice(-2).join(" ");
-  }
-
-  const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
-  if (idMatch) return `#${idMatch[1]}`;
-
-  return selector;
 }
 
 function isTextAmbiguous(text: string): boolean {

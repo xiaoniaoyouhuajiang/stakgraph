@@ -1,4 +1,87 @@
 // src/playwright-generator.ts
+function convertToPlaywrightSelector(cssSelector) {
+  if (!cssSelector)
+    return "";
+  let selector = cssSelector;
+  if (selector.includes("[data-testid=")) {
+    const match = selector.match(/\[data-testid="([^"]+)"\]/);
+    if (match)
+      return `[data-testid="${match[1]}"]`;
+  }
+  const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
+  if (idMatch)
+    return `#${idMatch[1]}`;
+  if (selector.includes("html") && selector.includes("body") && selector.length > 100) {
+    const parts2 = selector.split(">").map((part) => part.trim());
+    for (let i = parts2.length - 1; i >= 0; i--) {
+      const part = parts2[i];
+      if (part.includes("button") || part.includes("a") && part.includes(".") || part.includes("input") || part.includes("select") || part.includes("textarea")) {
+        selector = part;
+        break;
+      }
+    }
+  }
+  const parts = selector.split(".");
+  const tagName = parts[0];
+  const classes = parts.slice(1);
+  const cleanClasses = classes.map((className) => {
+    if (!className)
+      return "";
+    className = className.replace(/disabled:[\w-]+/g, "");
+    className = className.replace(/hover:[\w-\/]+/g, "");
+    className = className.replace(/focus-visible:[\w-\[\]\/]+/g, "");
+    className = className.replace(/aria-invalid:[\w-\/]+/g, "");
+    className = className.replace(/dark:[\w-\/]+/g, "");
+    className = className.replace(/\[&[^\]]*\]/g, "");
+    className = className.replace(/has-\[[^\]]*\]/g, "");
+    className = className.replace(/[\[\]:&]/g, "");
+    className = className.replace(/\([^)]*\)/g, "");
+    className = className.replace(/[^\w-]/g, "");
+    return className;
+  }).filter((className) => className && className.length > 0);
+  let cleanSelector = tagName;
+  if (cleanClasses.length > 0) {
+    const importantClasses = cleanClasses.slice(0, 8);
+    cleanSelector += "." + importantClasses.join(".");
+  }
+  cleanSelector = cleanSelector.replace(/\.+$/, "");
+  cleanSelector = cleanSelector.replace(/\.{2,}/g, ".");
+  if (!isValidCSSSelector(cleanSelector)) {
+    console.warn(`Selector still invalid: ${cleanSelector}, trying CSS.escape approach`);
+    const escapedParts = cleanSelector.split(".");
+    const escapedTagName = escapedParts[0];
+    const escapedClasses = escapedParts.slice(1).map((className) => {
+      try {
+        document.querySelector(`.${className}`);
+        return className;
+      } catch (e) {
+        if (typeof CSS !== "undefined" && CSS.escape) {
+          return CSS.escape(className);
+        } else {
+          console.warn(`CSS.escape not supported, falling back to manual escaping for: ${className}`);
+        }
+        return className.replace(/[^\w-]/g, "");
+      }
+    }).filter(Boolean);
+    cleanSelector = escapedTagName;
+    if (escapedClasses.length > 0) {
+      cleanSelector += "." + escapedClasses.join(".");
+    }
+  }
+  return cleanSelector || tagName || "body *";
+}
+function isValidCSSSelector(selector) {
+  if (!selector || selector.trim() === "")
+    return false;
+  try {
+    if (typeof document !== "undefined") {
+      document.querySelector(selector);
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 function generatePlaywrightTest(url, trackingData) {
   var _a;
   if (!trackingData)
@@ -97,10 +180,15 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
   }
   if ((_a = clicks == null ? void 0 : clicks.clickDetails) == null ? void 0 : _a.length) {
     clicks.clickDetails.forEach((clickDetail) => {
-      const [x, y, selector, timestamp] = clickDetail;
-      const shouldSkip = processedSelectors.has(selector) || Object.entries(formElementTimestamps).some(
+      const [x, y, originalSelector, timestamp] = clickDetail;
+      const convertedSelector = convertToPlaywrightSelector(originalSelector);
+      if (!convertedSelector || convertedSelector.trim() === "") {
+        console.warn(`Skipping click with invalid selector: ${originalSelector}`);
+        return;
+      }
+      const shouldSkip = processedSelectors.has(originalSelector) || processedSelectors.has(convertedSelector) || Object.entries(formElementTimestamps).some(
         ([formSelector, formTimestamp]) => {
-          return (selector.includes(formSelector) || formSelector.includes(selector)) && Math.abs(timestamp - formTimestamp) < 500;
+          return (originalSelector.includes(formSelector) || formSelector.includes(originalSelector) || convertedSelector.includes(formSelector)) && Math.abs(timestamp - formTimestamp) < 500;
         }
       );
       if (!shouldSkip) {
@@ -108,7 +196,8 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
           type: "click",
           x,
           y,
-          selector,
+          selector: convertedSelector,
+          // Use converted selector
           timestamp,
           isUserAction: true
         });
@@ -304,27 +393,6 @@ function cleanTextForGetByText(text) {
   if (!text)
     return "";
   return text.replace(/\s+/g, " ").replace(/\n+/g, " ").trim();
-}
-function convertToPlaywrightSelector(cssSelector) {
-  if (!cssSelector)
-    return "";
-  let selector = cssSelector;
-  if (selector.includes("[data-testid=")) {
-    const match = selector.match(/\[data-testid="([^"]+)"\]/);
-    if (match)
-      return `[data-testid="${match[1]}"]`;
-  }
-  if (selector.includes("html>body>")) {
-    selector = selector.replace("html>body>", "");
-  }
-  const parts = selector.split(">");
-  if (parts.length > 2) {
-    selector = parts.slice(-2).join(" ");
-  }
-  const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
-  if (idMatch)
-    return `#${idMatch[1]}`;
-  return selector;
 }
 function isTextAmbiguous(text) {
   if (!text)

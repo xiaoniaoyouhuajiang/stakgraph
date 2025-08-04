@@ -500,16 +500,6 @@ class UserBehaviorTracker {
               { type: "staktrak-selection", text, selector },
               "*"
             );
-            // window.parent.postMessage(
-            //   {
-            //     type: "staktrak-popup",
-            //     message: `Assertion added: hasText "${text.slice(0, 30)}${
-            //       text.length > 30 ? "..." : ""
-            //     }"`,
-            //     // type: "success",
-            //   },
-            //   "*"
-            // );
           }, 300);
         }
       };
