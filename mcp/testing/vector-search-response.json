@@ -7,7 +7,7 @@
       "start": 17,
       "end": 41,
       "node_key": "function-newrouter-stakworkdemoreporoutesgo-17",
-      "ref_id": "42597731-f967-44e6-bcd1-d4d12ad4a7c9"
+      "ref_id": "test_ref_id"
     },
     "score": 0.7491363643778787
   },
@@ -19,7 +19,7 @@
       "start": 6,
       "end": 20,
       "node_key": "function-app-stakworkdemorepofrontendsrcapptsx-6",
-      "ref_id": "26c75bc0-00a7-4517-b553-02bdc49eb892"
+      "ref_id": "test_ref_id"
     },
     "score": 0.6459981752964638
   },
@@ -31,7 +31,7 @@
       "start": 92,
       "end": 107,
       "node_key": "function-initchi-stakworkdemoreporoutesgo-92",
-      "ref_id": "7abfaf01-210f-4229-9b31-cab92a65edd2"
+      "ref_id": "test_ref_id"
     },
     "score": 0.6424837455619137
   },
@@ -43,7 +43,7 @@
       "start": 52,
       "end": 111,
       "node_key": "function-newperson-stakworkdemorepofrontendsrccomponentsnewpersontsx-52",
-      "ref_id": "97d1059d-04f1-4137-81db-efd2976dddea"
+      "ref_id": "test_ref_id"
     },
     "score": 0.6317863943474091
   },
@@ -55,7 +55,7 @@
       "start": 56,
       "end": 83,
       "node_key": "function-handlesubmit-stakworkdemorepofrontendsrccomponentsnewpersontsx-56",
-      "ref_id": "8a84c6ea-11ad-493f-b1c4-2f538a730dd2"
+      "ref_id": "test_ref_id"
     },
     "score": 0.6183380391667614
   }

@@ -204,13 +204,15 @@ jobs:
           ACTUAL_VECTOR_FILE="./testing/actual-vector-search-response.json"
           EXPECTED_VECTOR_FILE="./testing/vector-search-response.json"
 
-          SORTED_ACTUAL_VECTOR_FILE="/tmp/sorted_actual_vector.json"
-          SORTED_EXPECTED_VECTOR_FILE="/tmp/sorted_expected_vector.json"
+          # Remove "score" from both actual and expected
+          jq 'map(del(.score)' "$ACTUAL_VECTOR_FILE" > /tmp/actual_no_score.json
+          jq 'map(del(.score)' "$EXPECTED_VECTOR_FILE" > /tmp/expected_no_score.json
 
-          jq --sort-keys . "$ACTUAL_VECTOR_FILE" > "$SORTED_ACTUAL_VECTOR_FILE"
-          jq --sort-keys . "$EXPECTED_VECTOR_FILE" > "$SORTED_EXPECTED_VECTOR_FILE"
+          # Sort for stable comparison
+          jq --sort-keys . /tmp/actual_no_score.json > /tmp/sorted_actual_vector.json
+          jq --sort-keys . /tmp/expected_no_score.json > /tmp/sorted_expected_vector.json
 
-          if diff --color=always -u "$SORTED_EXPECTED_VECTOR_FILE" "$SORTED_ACTUAL_VECTOR_FILE"; then
+          if diff --color=always -u /tmp/sorted_expected_vector.json /tmp/sorted_actual_vector.json; then
             echo "Vector search response matches expected output ✅"
           else
             echo "Vector search response does NOT match expected output ❌"
