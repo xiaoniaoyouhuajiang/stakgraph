@@ -1,5 +1,28 @@
 import { useState, useEffect, useRef } from "https://esm.sh/preact/hooks";
 
+// Add type definitions for the new structure
+const ClickDetailType = {
+  x: "number",
+  y: "number",
+  timestamp: "number",
+  selectors: {
+    primary: "string",
+    fallbacks: "array",
+    text: "string|undefined",
+    ariaLabel: "string|undefined",
+    title: "string|undefined",
+    role: "string|undefined",
+    tagName: "string",
+    xpath: "string|undefined",
+  },
+  elementInfo: {
+    tagName: "string",
+    id: "string|undefined",
+    className: "string|undefined",
+    attributes: "object",
+  },
+};
+
 export function useIframeMessaging(iframeRef) {
   const popupHook = usePopup();
   const [isRecording, setIsRecording] = useState(false);
@@ -419,6 +442,7 @@ export function useIframeReplay(iframeRef) {
   const [replayStatus, setReplayStatus] = useState("idle");
   const replayInitializedRef = useRef(false);
 
+  // Updated to handle new ClickDetail structure
   const prepareReplayActions = (trackingData) => {
     if (!trackingData) {
       console.error("No tracking data provided for replay");
@@ -430,62 +454,142 @@ export function useIframeReplay(iframeRef) {
       return null;
     }
 
+    // If actions are already prepared, use them
     if (trackingData.directActions) {
       return trackingData.directActions;
     }
 
     try {
+      // Handle new ClickDetail structure
       if (
-        !trackingData.clicks?.clickDetails ||
-        !Array.isArray(trackingData.clicks.clickDetails)
+        trackingData.clicks?.clickDetails &&
+        Array.isArray(trackingData.clicks.clickDetails)
       ) {
-        if (Array.isArray(trackingData.clickDetails)) {
-          trackingData = {
-            ...trackingData,
-            clicks: { clickDetails: trackingData.clickDetails },
-          };
-        } else if (trackingData.clicks) {
-          const extractedClicks = [];
-          if (Array.isArray(trackingData.clicks)) {
-            trackingData.clicks.forEach((click) => {
-              if (click.x && click.y && click.selector) {
-                extractedClicks.push([
-                  click.x,
-                  click.y,
-                  click.selector,
-                  click.timestamp || Date.now(),
-                ]);
-              }
+        const actions = [];
+
+        // Check if it's the new ClickDetail format or old array format
+        trackingData.clicks.clickDetails.forEach((clickDetail) => {
+          if (Array.isArray(clickDetail)) {
+            // Old format: [x, y, selector, timestamp]
+            const [x, y, selector, timestamp] = clickDetail;
+            actions.push({
+              type: "click",
+              selector: selector,
+              timestamp: timestamp,
+              x: x,
+              y: y,
             });
-            trackingData = {
-              ...trackingData,
-              clicks: { clickDetails: extractedClicks },
-            };
+          } else if (
+            clickDetail &&
+            typeof clickDetail === "object" &&
+            clickDetail.selectors
+          ) {
+            // New ClickDetail format
+            const selector =
+              clickDetail.selectors.primary ||
+              (clickDetail.selectors.fallbacks &&
+                clickDetail.selectors.fallbacks[0]) ||
+              clickDetail.selectors.tagName;
+
+            actions.push({
+              type: "click",
+              selector: selector,
+              timestamp: clickDetail.timestamp,
+              x: clickDetail.x,
+              y: clickDetail.y,
+              text: clickDetail.selectors.text, // Include text for better debugging
+              tagName: clickDetail.selectors.tagName,
+            });
           }
+        });
+
+        // Add input actions if they exist
+        if (
+          trackingData.inputChanges &&
+          Array.isArray(trackingData.inputChanges)
+        ) {
+          trackingData.inputChanges
+            .filter((change) => change.action === "complete" || !change.action)
+            .forEach((inputChange) => {
+              actions.push({
+                type: "input",
+                selector: inputChange.elementSelector,
+                timestamp: inputChange.timestamp,
+                value: inputChange.value,
+              });
+            });
+        }
+
+        // Add form element changes
+        if (
+          trackingData.formElementChanges &&
+          Array.isArray(trackingData.formElementChanges)
+        ) {
+          trackingData.formElementChanges.forEach((formChange) => {
+            if (formChange.type === "checkbox" || formChange.type === "radio") {
+              actions.push({
+                type: formChange.checked ? "check" : "uncheck",
+                selector: formChange.elementSelector,
+                timestamp: formChange.timestamp,
+                value: formChange.value,
+              });
+            } else if (formChange.type === "select") {
+              actions.push({
+                type: "select",
+                selector: formChange.elementSelector,
+                timestamp: formChange.timestamp,
+                value: formChange.value,
+                text: formChange.text,
+              });
+            }
+          });
+        }
+
+        // Sort actions by timestamp
+        actions.sort((a, b) => a.timestamp - b.timestamp);
+
+        if (actions.length > 0) {
+          console.log("Generated replay actions:", actions);
+          return actions;
         }
       }
 
-      if (!trackingData.clicks && trackingData.rawClicks) {
-        const clickDetails = [];
-        trackingData.rawClicks.forEach((click) => {
-          const selector = click.selector || `[data-testid]`;
-          clickDetails.push([
-            click.x,
-            click.y,
-            selector,
-            click.timestamp || Date.now(),
-          ]);
+      // Legacy handling for backward compatibility
+      if (Array.isArray(trackingData.clickDetails)) {
+        const actions = trackingData.clickDetails.map((click) => {
+          if (Array.isArray(click)) {
+            const [x, y, selector, timestamp] = click;
+            return {
+              type: "click",
+              selector: selector,
+              timestamp: timestamp,
+              x: x,
+              y: y,
+            };
+          }
+          return click;
         });
-        trackingData = {
-          ...trackingData,
-          clicks: { clickDetails },
-        };
+
+        if (actions.length > 0) {
+          return actions;
+        }
       }
 
+      // Try iframe conversion function
+      if (iframeRef.current.contentWindow.convertToReplayActions) {
+        const actions =
+          iframeRef.current.contentWindow.convertToReplayActions(trackingData);
+        if (actions && actions.length > 0) {
+          return actions;
+        }
+      }
+
+      // Fallback actions for demo purposes
       if (
         !trackingData.clicks?.clickDetails ||
         trackingData.clicks.clickDetails.length === 0
       ) {
+        console.warn("No click data found, using fallback actions");
         const fallbackActions = [
           {
             type: "click",
@@ -502,47 +606,11 @@ export function useIframeReplay(iframeRef) {
             y: 100,
           },
         ];
-
         return fallbackActions;
       }
 
-      if (!iframeRef.current.contentWindow.convertToReplayActions) {
-        console.error("convertToReplayActions function not found in iframe");
-        return null;
-      }
-
-      const actions =
-        iframeRef.current.contentWindow.convertToReplayActions(trackingData);
-
-      if (!actions || actions.length === 0) {
-        console.error("No replay actions generated from tracking data");
-
-        const directActions = [];
-
-        if (trackingData.clicks?.clickDetails) {
-          trackingData.clicks.clickDetails.forEach(
-            ([x, y, selector, timestamp]) => {
-              if (selector) {
-                directActions.push({
-                  type: "click",
-                  selector: selector,
-                  timestamp: timestamp,
-                  x: x,
-                  y: y,
-                });
-              }
-            }
-          );
-        }
-
-        if (directActions.length > 0) {
-          return directActions;
-        }
-
-        return null;
-      }
-
-      return actions;
+      console.error("No valid actions could be generated from tracking data");
+      return null;
     } catch (error) {
       console.error("Error preparing replay actions:", error);
       return null;
@@ -567,6 +635,7 @@ export function useIframeReplay(iframeRef) {
     setProgress({ current: 0, total: actions.length });
 
     try {
+      // Clean and validate actions
       const cleanedActions = actions.map((action) => {
         return {
           type: action.type || "click",
@@ -575,6 +644,8 @@ export function useIframeReplay(iframeRef) {
           x: action.x || 100,
           y: action.y || 100,
           value: action.value || "",
+          text: action.text || "", // Include text for better debugging
+          tagName: action.tagName || "",
         };
       });
 
@@ -583,6 +654,7 @@ export function useIframeReplay(iframeRef) {
         container.classList.add("replaying");
       }
 
+      // Send actions to iframe
       iframeRef.current.contentWindow.postMessage(
         {
           type: "staktrak-replay-actions",
@@ -591,6 +663,7 @@ export function useIframeReplay(iframeRef) {
         "*"
       );
 
+      // Start replay with delay
       setTimeout(() => {
         if (iframeRef.current && iframeRef.current.contentWindow) {
           iframeRef.current.contentWindow.postMessage(
@@ -600,7 +673,10 @@ export function useIframeReplay(iframeRef) {
             },
             "*"
           );
-          showPopup("Test replay started", "info");
+          showPopup(
+            `Test replay started with ${cleanedActions.length} actions`,
+            "info"
+          );
         } else {
           showPopup("Iframe not available for replay", "error");
           setIsReplaying(false);

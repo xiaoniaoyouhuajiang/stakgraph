@@ -106,35 +106,10 @@ const Staktrak = () => {
         const success = startReplay(trackingData);
 
         if (!success) {
-          if (
-            trackingData.clicks?.clickDetails &&
-            trackingData.clicks.clickDetails.length > 0
-          ) {
-            const simplifiedTrackingData = {
-              clicks: { clickDetails: trackingData.clicks.clickDetails },
-            };
-            startReplay(simplifiedTrackingData);
-          } else {
-            const directActions = [
-              {
-                type: "click",
-                selector: '[data-testid="staktrak-div"]',
-                timestamp: Date.now(),
-                x: 100,
-                y: 100,
-              },
-              {
-                type: "click",
-                selector: "button.staktrak-div",
-                timestamp: Date.now() + 1000,
-                x: 200,
-                y: 100,
-              },
-            ];
-
-            showPopup("Using direct actions for replay", "warning");
-            startReplay({ directActions });
-          }
+          const simplifiedTrackingData = {
+            clicks: { clickDetails: trackingData.clicks.clickDetails },
+          };
+          startReplay(simplifiedTrackingData);
         }
       } else {
         showPopup("No tracking data available for replay", "error");

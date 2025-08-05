@@ -43,6 +43,29 @@ interface AllTimeoutsRef {
   current: NodeJS.Timeout[];
 }
 
+// Add interface for new ClickDetail structure
+interface ClickDetail {
+  x: number;
+  y: number;
+  timestamp: number;
+  selectors: {
+    primary: string;
+    fallbacks: string[];
+    text?: string;
+    ariaLabel?: string;
+    title?: string;
+    role?: string;
+    tagName: string;
+    xpath?: string;
+  };
+  elementInfo: {
+    tagName: string;
+    id?: string;
+    className?: string;
+    attributes: Record<string, string>;
+  };
+}
+
 let cursorRef: ElementRef = { current: null };
 let statusRef: StatusRef = { current: ReplayStatus.IDLE };
 let speedRef: SpeedRef = { current: DEFAULT_SPEED };
@@ -62,6 +85,429 @@ function clearAllTimeouts(): void {
   timeoutIdsRef.current = [];
 }
 
+/**
+ * Convert Playwright-specific selectors to browser-compatible ones
+ */
+function convertToBrowserSelector(selector: string): string {
+  if (!selector) return selector;
+
+  // Remove :has-text() patterns and replace with data attributes or fallbacks
+  if (selector.includes(":has-text(")) {
+    const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
+    if (textMatch) {
+      const text = textMatch[1];
+      const tagMatch = selector.match(/^([a-zA-Z]+)/);
+      const tagName = tagMatch ? tagMatch[1] : "*";
+
+      // Try to find a better selector for this element
+      const elements = Array.from(document.querySelectorAll(tagName));
+      for (const element of elements) {
+        if (element.textContent?.trim() === text) {
+          // Try to create a unique selector for this element
+          const uniqueSelector = createUniqueSelector(element);
+          if (uniqueSelector && isValidSelector(uniqueSelector)) {
+            return uniqueSelector;
+          }
+        }
+      }
+
+      // Fallback to just the tag name
+      return tagName;
+    }
+  }
+
+  // Remove other Playwright-specific patterns
+  selector = selector.replace(/:visible/g, "");
+  selector = selector.replace(/:enabled/g, "");
+  selector = selector.replace(/>>.*$/g, ""); // Remove >> selectors
+
+  return selector.trim();
+}
+
+/**
+ * Find the best selector from ClickDetail structure (FIXED - browser compatible)
+ */
+function findBestSelector(clickDetail: ClickDetail): string | null {
+  const { selectors } = clickDetail;
+
+  // Try primary selector first (but convert it to browser-compatible)
+  if (selectors.primary) {
+    const convertedPrimary = convertToBrowserSelector(selectors.primary);
+    if (convertedPrimary && isValidSelector(convertedPrimary)) {
+      return convertedPrimary;
+    }
+  }
+
+  // Try text-based selection for interactive elements
+  if (
+    selectors.text &&
+    (selectors.tagName === "button" ||
+      selectors.tagName === "a" ||
+      selectors.role === "button" ||
+      selectors.role === "link")
+  ) {
+    const textBasedSelector = findElementByText(
+      selectors.tagName,
+      selectors.text
+    );
+    if (textBasedSelector) {
+      return textBasedSelector;
+    }
+  }
+
+  // Try aria-label
+  if (selectors.ariaLabel) {
+    const ariaSelector = `[aria-label="${selectors.ariaLabel}"]`;
+    if (isValidSelector(ariaSelector)) {
+      return ariaSelector;
+    }
+  }
+
+  // Try fallback selectors (convert each one)
+  for (const fallback of selectors.fallbacks) {
+    const convertedFallback = convertToBrowserSelector(fallback);
+    if (convertedFallback && isValidSelector(convertedFallback)) {
+      return convertedFallback;
+    }
+  }
+
+  // Try role-based selector
+  if (selectors.role) {
+    const roleSelector = `[role="${selectors.role}"]`;
+    if (isValidSelector(roleSelector)) {
+      return roleSelector;
+    }
+  }
+
+  // Try to create selector from element info
+  if (clickDetail.elementInfo) {
+    const fromElementInfo = createSelectorFromElementInfo(
+      clickDetail.elementInfo
+    );
+    if (fromElementInfo && isValidSelector(fromElementInfo)) {
+      return fromElementInfo;
+    }
+  }
+
+  // Use tag name as last resort
+  if (selectors.tagName && isValidSelector(selectors.tagName)) {
+    return selectors.tagName;
+  }
+
+  return null;
+}
+
+/**
+ * Create selector from element info
+ */
+function createSelectorFromElementInfo(elementInfo: any): string | null {
+  const { tagName, id, className, attributes } = elementInfo;
+
+  // Try ID first
+  if (id) {
+    const idSelector = `#${id}`;
+    if (isValidSelector(idSelector)) {
+      return idSelector;
+    }
+  }
+
+  // Try data-testid from attributes
+  if (attributes && attributes["data-testid"]) {
+    const testIdSelector = `[data-testid="${attributes["data-testid"]}"]`;
+    if (isValidSelector(testIdSelector)) {
+      return testIdSelector;
+    }
+  }
+
+  // Try class names
+  if (className) {
+    const classes = className
+      .split(" ")
+      .filter((cls: string) => cls && cls.length > 0);
+    if (classes.length > 0) {
+      // Try with the first stable-looking class
+      for (const cls of classes) {
+        if (!cls.match(/^[a-zA-Z0-9_-]*[0-9a-f]{6,}/) && cls.length < 30) {
+          const classSelector = `${tagName}.${cls}`;
+          if (isValidSelector(classSelector)) {
+            const matches = document.querySelectorAll(classSelector);
+            if (matches.length === 1) {
+              return classSelector;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Try other attributes
+  if (attributes) {
+    const priorityAttrs = ["name", "type", "role", "aria-label"];
+    for (const attr of priorityAttrs) {
+      if (attributes[attr]) {
+        const attrSelector = `${tagName}[${attr}="${attributes[attr]}"]`;
+        if (isValidSelector(attrSelector)) {
+          const matches = document.querySelectorAll(attrSelector);
+          if (matches.length <= 3) {
+            // Allow some duplicates but not too many
+            return attrSelector;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find element by text content and return a selector for it
+ */
+function findElementByText(tagName: string, text: string): string | null {
+  if (!text || text.length === 0) return null;
+
+  const elements = Array.from(document.querySelectorAll(tagName));
+  let matchingElement: Element | null = null;
+
+  // Find exact text match first
+  for (const element of elements) {
+    const elementText = element.textContent?.trim();
+    if (elementText === text) {
+      matchingElement = element;
+      break;
+    }
+  }
+
+  // If no exact match, try partial match
+  if (!matchingElement) {
+    for (const element of elements) {
+      const elementText = element.textContent?.trim();
+      if (elementText && elementText.includes(text)) {
+        matchingElement = element;
+        break;
+      }
+    }
+  }
+
+  if (!matchingElement) return null;
+
+  // Try to create a unique selector for this element
+  const uniqueSelector = createUniqueSelector(matchingElement);
+  if (uniqueSelector && isValidSelector(uniqueSelector)) {
+    // Verify it's still the right element
+    const foundElement = document.querySelector(uniqueSelector);
+    if (foundElement && foundElement.textContent?.trim().includes(text)) {
+      return uniqueSelector;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Enhanced findElement function (FIXED - no Playwright selectors)
+ */
+export function findElement(selector: string): Element | null {
+  if (!selector || selector.trim() === "") return null;
+
+  // Convert selector to browser-compatible first
+  const browserSelector = convertToBrowserSelector(selector);
+
+  // Try the converted selector first
+  if (browserSelector && isValidSelector(browserSelector)) {
+    const element = document.querySelector(browserSelector);
+    if (element) return element;
+  }
+
+  // Enhanced element finding with multiple strategies
+  const strategies = [
+    () => findByDataTestId(selector),
+    () => findByClass(selector),
+    () => findById(selector),
+    () => findByAriaLabel(selector),
+    () => findByRole(selector),
+    () => findByTextContent(selector),
+    () => findByCoordinates(selector), // New strategy for coordinate-based finding
+  ];
+
+  for (const strategy of strategies) {
+    try {
+      const element = strategy();
+      if (element) {
+        console.log(
+          `Found element using fallback strategy for selector: ${selector}`
+        );
+        return element;
+      }
+    } catch (error) {
+      console.warn(`Strategy failed for selector ${selector}:`, error);
+    }
+  }
+
+  console.warn(`Could not find element for selector: ${selector}`);
+  return null;
+}
+
+/**
+ * Find element by coordinates (fallback method)
+ */
+function findByCoordinates(selector: string): Element | null {
+  // This is a very rough fallback - try to find clickable elements at common positions
+  const clickableElements = document.querySelectorAll(
+    'button, a, input, select, [role="button"], [onclick]'
+  );
+
+  // Return the first clickable element as a last resort
+  if (clickableElements.length > 0) {
+    return clickableElements[0];
+  }
+
+  return null;
+}
+
+/**
+ * Find element by text content (browser-compatible)
+ */
+function findByTextContent(selector: string): Element | null {
+  // Handle text patterns that might be in selectors
+  let text: string | null = null;
+  let tagName = "*";
+
+  // Extract text from various patterns
+  if (selector.includes('text="')) {
+    const textMatch = selector.match(/text="([^"]+)"/);
+    text = textMatch ? textMatch[1] : null;
+  } else if (selector.includes('textContent="')) {
+    const textMatch = selector.match(/textContent="([^"]+)"/);
+    text = textMatch ? textMatch[1] : null;
+  } else if (selector.includes(":has-text(")) {
+    const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
+    text = textMatch ? textMatch[1] : null;
+  }
+
+  // Extract tag name
+  const tagMatch = selector.match(/^([a-zA-Z]+)/);
+  if (tagMatch) {
+    tagName = tagMatch[1];
+  }
+
+  if (!text) return null;
+
+  // Find elements by text content
+  const elements = Array.from(document.querySelectorAll(tagName));
+  for (const element of elements) {
+    const elementText = element.textContent?.trim();
+    if (elementText === text || elementText?.includes(text)) {
+      return element;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Create a unique selector for an element (ENHANCED)
+ */
+function createUniqueSelector(element: Element): string | null {
+  // Try ID first
+  if (element.id && /^[a-zA-Z][\w-]*$/.test(element.id)) {
+    const idSelector = `#${element.id}`;
+    if (document.querySelectorAll(idSelector).length === 1) {
+      return idSelector;
+    }
+  }
+
+  // Try data-testid
+  const testId = (element as HTMLElement).dataset?.testid;
+  if (testId) {
+    const testIdSelector = `[data-testid="${testId}"]`;
+    if (document.querySelectorAll(testIdSelector).length === 1) {
+      return testIdSelector;
+    }
+  }
+
+  // Try aria-label
+  const ariaLabel = element.getAttribute("aria-label");
+  if (ariaLabel) {
+    const ariaSelector = `[aria-label="${ariaLabel}"]`;
+    if (document.querySelectorAll(ariaSelector).length === 1) {
+      return ariaSelector;
+    }
+  }
+
+  // Try combining tag with classes
+  const tagName = element.tagName.toLowerCase();
+  const classes = Array.from(element.classList).filter((cls) => {
+    // Filter out dynamic/generated classes
+    return (
+      !cls.match(/^[a-zA-Z0-9_-]*[0-9a-f]{6,}/) && // hash-like patterns
+      !cls.includes("emotion-") &&
+      !cls.includes("css-") &&
+      !cls.includes("module__") &&
+      cls.length < 30
+    ); // avoid very long class names
+  });
+
+  if (classes.length > 0) {
+    // Try with different numbers of classes
+    for (let i = 1; i <= Math.min(classes.length, 3); i++) {
+      const classSelector = `${tagName}.${classes.slice(0, i).join(".")}`;
+      if (isValidSelector(classSelector)) {
+        const matches = document.querySelectorAll(classSelector);
+        if (matches.length === 1) {
+          return classSelector;
+        }
+      }
+    }
+  }
+
+  // Try combining tag with attributes
+  const attributes = ["type", "name", "role", "title"];
+  for (const attr of attributes) {
+    const value = element.getAttribute(attr);
+    if (value) {
+      const attrSelector = `${tagName}[${attr}="${value}"]`;
+      if (isValidSelector(attrSelector)) {
+        const matches = document.querySelectorAll(attrSelector);
+        if (matches.length === 1) {
+          return attrSelector;
+        }
+      }
+    }
+  }
+
+  // Try nth-child approach
+  const parent = element.parentElement;
+  if (parent) {
+    const siblings = Array.from(parent.children);
+    const index = siblings.indexOf(element);
+    if (index >= 0) {
+      const nthSelector = `${tagName}:nth-child(${index + 1})`;
+      if (isValidSelector(nthSelector)) {
+        return nthSelector;
+      }
+    }
+
+    // Try nth-of-type
+    const typeSiblings = Array.from(parent.children).filter(
+      (child) => child.tagName === element.tagName
+    );
+    const typeIndex = typeSiblings.indexOf(element);
+    if (typeIndex >= 0) {
+      const nthTypeSelector = `${tagName}:nth-of-type(${typeIndex + 1})`;
+      if (isValidSelector(nthTypeSelector)) {
+        return nthTypeSelector;
+      }
+    }
+  }
+
+  // Last resort: just the tag name
+  return tagName;
+}
+
+/**
+ * Enhanced convertToReplayActions with better selector handling
+ */
 export function convertToReplayActions(trackingData: any): ReplayAction[] {
   if (!trackingData) {
     console.error("No tracking data provided to convertToReplayActions");
@@ -74,129 +520,77 @@ export function convertToReplayActions(trackingData: any): ReplayAction[] {
   try {
     const { clicks, inputChanges, formElementChanges } = trackingData;
 
+    // Handle clicks with new ClickDetail structure
     if (clicks?.clickDetails?.length) {
       clicks.clickDetails.forEach(
-        ([x, y, selector, timestamp]: [number, number, string, number]) => {
-          if (!selector || selector === "undefined" || selector === "null") {
-            console.warn("Skipping click with invalid selector:", selector);
-            return;
-          }
+        (
+          clickDetail: ClickDetail | [number, number, string, number],
+          index: number
+        ) => {
+          // Check if it's the new ClickDetail format or old array format
+          if (Array.isArray(clickDetail)) {
+            // Old format: [x, y, selector, timestamp]
+            const [x, y, selector, timestamp] = clickDetail;
 
-          let cleanSelector = selector.trim();
+            if (!selector || selector === "undefined" || selector === "null") {
+              console.warn("Skipping click with invalid selector:", selector);
+              return;
+            }
 
-          try {
-            document.querySelector(cleanSelector);
+            const validSelector = validateAndFixSelector(selector);
+            if (validSelector) {
+              actions.push({
+                type: ActionType.CLICK,
+                selector: validSelector,
+                timestamp,
+                x,
+                y,
+              });
+            }
+          } else {
+            // New ClickDetail format
+            const detail = clickDetail as ClickDetail;
+            let bestSelector = findBestSelector(detail);
 
-            actions.push({
-              type: ActionType.CLICK,
-              selector: cleanSelector,
-              timestamp,
-              x,
-              y,
-            });
-          } catch (e) {
-            console.warn(
-              `Invalid selector in click event: ${cleanSelector}. Attempting to fix.`
-            );
+            // If we couldn't find a good selector, create a fallback
+            if (!bestSelector) {
+              console.warn(
+                "Could not find valid selector for click detail:",
+                detail
+              );
 
-            if (cleanSelector.includes("data-testid=")) {
-              try {
-                const testIdMatch = cleanSelector.match(
-                  /data-testid="([^"]+)"/
+              // Try to find element by text if available
+              if (detail.selectors.text) {
+                const textElement = findElementByText(
+                  detail.selectors.tagName,
+                  detail.selectors.text
                 );
-                if (testIdMatch && testIdMatch[1]) {
-                  const simpleSelector = `[data-testid="${testIdMatch[1]}"]`;
-                  try {
-                    document.querySelector(simpleSelector);
-                    actions.push({
-                      type: ActionType.CLICK,
-                      selector: simpleSelector,
-                      timestamp,
-                      x,
-                      y,
-                    });
-                  } catch (err) {
-                    actions.push({
-                      type: ActionType.CLICK,
-                      selector: "[data-testid]",
-                      timestamp,
-                      x,
-                      y,
-                    });
-                  }
-                }
-              } catch (err) {
-                console.error(
-                  "Failed to create valid selector from data-testid",
-                  err
-                );
-              }
-            } else if (cleanSelector.includes("class=")) {
-              try {
-                const classMatch = cleanSelector.match(/class="([^"]+)"/);
-                if (classMatch && classMatch[1]) {
-                  const classNames = classMatch[1].split(" ");
-                  if (classNames.length > 0) {
-                    const simpleSelector = `.${classNames[0]}`;
-                    document.querySelector(simpleSelector);
-                    actions.push({
-                      type: ActionType.CLICK,
-                      selector: simpleSelector,
-                      timestamp,
-                      x,
-                      y,
-                    });
-                  }
-                }
-              } catch (err) {
-                console.error(
-                  "Failed to create valid selector from class",
-                  err
-                );
-              }
-            } else if (cleanSelector.includes("id=")) {
-              try {
-                const idMatch = cleanSelector.match(/id="([^"]+)"/);
-                if (idMatch && idMatch[1]) {
-                  const simpleSelector = `#${idMatch[1]}`;
-                  document.querySelector(simpleSelector);
-                  actions.push({
-                    type: ActionType.CLICK,
-                    selector: simpleSelector,
-                    timestamp,
-                    x,
-                    y,
-                  });
-                }
-              } catch (err) {
-                console.error("Failed to create valid selector from id", err);
-              }
-            } else {
-              const tagMatch = cleanSelector.match(/^([a-zA-Z]+)/);
-              if (tagMatch && tagMatch[1]) {
-                try {
-                  const simpleSelector = tagMatch[1];
-                  document.querySelector(simpleSelector);
-                  actions.push({
-                    type: ActionType.CLICK,
-                    selector: simpleSelector,
-                    timestamp,
-                    x,
-                    y,
-                  });
-                } catch (err) {
-                  console.error(
-                    "Failed to create valid selector from tag name",
-                    err
-                  );
+                if (textElement) {
+                  bestSelector = textElement;
                 }
               }
+
+              // Last resort: use tag name with coordinates for manual targeting
+              if (!bestSelector) {
+                bestSelector = detail.selectors.tagName || "div";
+              }
+            }
+
+            if (bestSelector) {
+              actions.push({
+                type: ActionType.CLICK,
+                selector: bestSelector,
+                timestamp: detail.timestamp,
+                x: detail.x,
+                y: detail.y,
+              });
             }
           }
         }
       );
     }
 
+    // Handle input changes (unchanged logic)
     if (inputChanges?.length) {
       const completedInputs = inputChanges.filter(
         (change: any) => change.action === "complete" || !change.action
@@ -207,87 +601,41 @@ export function convertToReplayActions(trackingData: any): ReplayAction[] {
           !change.elementSelector.includes('type="checkbox"') &&
           !change.elementSelector.includes('type="radio"')
         ) {
-          try {
-            document.querySelector(change.elementSelector);
+          const validSelector = validateAndFixSelector(change.elementSelector);
+          if (validSelector) {
             actions.push({
               type: ActionType.INPUT,
-              selector: change.elementSelector,
+              selector: validSelector,
               value: change.value,
               timestamp: change.timestamp,
             });
-          } catch (e) {
-            console.warn(
-              `Invalid selector in input: ${change.elementSelector}, attempting to fix`
-            );
-
-            if (change.elementSelector.includes("data-testid=")) {
-              const testIdMatch = change.elementSelector.match(
-                /data-testid="([^"]+)"/
-              );
-              if (testIdMatch && testIdMatch[1]) {
-                actions.push({
-                  type: ActionType.INPUT,
-                  selector: `[data-testid="${testIdMatch[1]}"]`,
-                  value: change.value,
-                  timestamp: change.timestamp,
-                });
-              }
-            }
           }
         }
       });
     }
 
+    // Handle form element changes (unchanged logic)
     if (formElementChanges?.length) {
       formElementChanges.forEach((change: any) => {
         if (!change.elementSelector) return;
 
-        try {
-          document.querySelector(change.elementSelector);
+        const validSelector = validateAndFixSelector(change.elementSelector);
+        if (!validSelector) return;
 
-          if (change.type === "checkbox" || change.type === "radio") {
-            actions.push({
-              type: change.checked ? ActionType.CHECK : ActionType.UNCHECK,
-              selector: change.elementSelector,
-              value: change.value,
-              timestamp: change.timestamp,
-            });
-          } else if (change.type === "select") {
-            actions.push({
-              type: ActionType.SELECT,
-              selector: change.elementSelector,
-              value: change.value,
-              timestamp: change.timestamp,
-            });
-          }
-        } catch (e) {
-          console.warn(
-            `Invalid selector in form element: ${change.elementSelector}, attempting to fix`
-          );
-
-          if (change.elementSelector.includes("data-testid=")) {
-            const testIdMatch = change.elementSelector.match(
-              /data-testid="([^"]+)"/
-            );
-            if (testIdMatch && testIdMatch[1]) {
-              const selector = `[data-testid="${testIdMatch[1]}"]`;
-              if (change.type === "checkbox" || change.type === "radio") {
-                actions.push({
-                  type: change.checked ? ActionType.CHECK : ActionType.UNCHECK,
-                  selector,
-                  value: change.value,
-                  timestamp: change.timestamp,
-                });
-              } else if (change.type === "select") {
-                actions.push({
-                  type: ActionType.SELECT,
-                  selector,
-                  value: change.value,
-                  timestamp: change.timestamp,
-                });
-              }
-            }
-          }
+        if (change.type === "checkbox" || change.type === "radio") {
+          actions.push({
+            type: change.checked ? ActionType.CHECK : ActionType.UNCHECK,
+            selector: validSelector,
+            value: change.value,
+            timestamp: change.timestamp,
+          });
+        } else if (change.type === "select") {
+          actions.push({
+            type: ActionType.SELECT,
+            selector: validSelector,
+            value: change.value,
+            timestamp: change.timestamp,
+          });
         }
       });
     }
@@ -299,6 +647,7 @@ export function convertToReplayActions(trackingData: any): ReplayAction[] {
     console.warn("No actions extracted from tracking data");
   }
 
+  // Sort actions and ensure minimum delays
   actions.sort((a, b) => a.timestamp - b.timestamp);
 
   for (let i = 1; i < actions.length; i++) {
@@ -311,37 +660,175 @@ export function convertToReplayActions(trackingData: any): ReplayAction[] {
   return actions;
 }
 
-export function findElement(selector: string): Element | null {
-  let element = document.querySelector(selector);
+/**
+ * Validate and fix selectors (enhanced version)
+ */
+function validateAndFixSelector(selector: string): string | null {
+  if (!selector || selector === "undefined" || selector === "null") {
+    return null;
+  }
 
-  if (!element) {
-    if (selector.includes("data-testid=")) {
-      const testId = selector.match(/data-testid="([^"]+)"/)?.[1];
-      if (testId) {
-        element = document.querySelector(`[data-testid="${testId}"]`);
-      }
-    }
+  const cleanSelector = selector.trim();
 
-    if (!element && selector.includes(".")) {
-      const classes = selector.match(/\.([^\s.#\[\]]+)/g);
-      if (classes && classes.length > 0) {
-        const className = classes[0].substring(1);
-        element = document.querySelector(`.${className}`);
-      }
-    }
+  // Convert to browser-compatible first
+  const browserSelector = convertToBrowserSelector(cleanSelector);
 
-    if (!element && selector.includes("#")) {
-      const ids = selector.match(/#([^\s.#\[\]]+)/g);
-      if (ids && ids.length > 0) {
-        const id = ids[0].substring(1);
-        element = document.querySelector(`#${id}`);
-      }
+  // Test if converted selector is valid
+  if (browserSelector && isValidSelector(browserSelector)) {
+    return browserSelector;
+  }
+
+  console.warn(`Invalid selector: ${cleanSelector}. Attempting to fix.`);
+
+  // Try various fixing strategies
+  const fixStrategies = [
+    () => fixDataTestIdSelector(cleanSelector),
+    () => fixClassSelector(cleanSelector),
+    () => fixIdSelector(cleanSelector),
+    () => fixTagSelector(cleanSelector),
+    () => fixTextSelector(cleanSelector),
+  ];
+
+  for (const strategy of fixStrategies) {
+    const fixedSelector = strategy();
+    if (fixedSelector && isValidSelector(fixedSelector)) {
+      console.log(`Fixed selector: ${cleanSelector} -> ${fixedSelector}`);
+      return fixedSelector;
     }
   }
 
-  return element;
+  console.error(`Could not fix selector: ${cleanSelector}`);
+  return null;
 }
 
+function fixTextSelector(selector: string): string | null {
+  // Handle :has-text() patterns
+  if (selector.includes(":has-text(")) {
+    const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
+    const tagMatch = selector.match(/^([a-zA-Z]+)/);
+
+    if (textMatch && tagMatch) {
+      const text = textMatch[1];
+      const tagName = tagMatch[1];
+
+      // Find element by text and create a selector for it
+      const elements = Array.from(document.querySelectorAll(tagName));
+      for (const element of elements) {
+        if (element.textContent?.trim() === text) {
+          const uniqueSelector = createUniqueSelector(element);
+          if (uniqueSelector && isValidSelector(uniqueSelector)) {
+            return uniqueSelector;
+          }
+        }
+      }
+
+      // Fallback to tag name
+      return tagName;
+    }
+  }
+
+  return null;
+}
+
+function fixDataTestIdSelector(selector: string): string | null {
+  if (!selector.includes("data-testid=")) return null;
+
+  const testIdMatch = selector.match(/data-testid="([^"]+)"/);
+  if (testIdMatch && testIdMatch[1]) {
+    return `[data-testid="${testIdMatch[1]}"]`;
+  }
+  return null;
+}
+
+function fixClassSelector(selector: string): string | null {
+  if (!selector.includes("class=")) return null;
+
+  const classMatch = selector.match(/class="([^"]+)"/);
+  if (classMatch && classMatch[1]) {
+    const classNames = classMatch[1].split(" ").filter((cls) => cls.length > 0);
+    if (classNames.length > 0) {
+      return `.${classNames[0]}`;
+    }
+  }
+  return null;
+}
+
+function fixIdSelector(selector: string): string | null {
+  if (!selector.includes("id=")) return null;
+
+  const idMatch = selector.match(/id="([^"]+)"/);
+  if (idMatch && idMatch[1]) {
+    return `#${idMatch[1]}`;
+  }
+  return null;
+}
+
+function fixTagSelector(selector: string): string | null {
+  const tagMatch = selector.match(/^([a-zA-Z]+)/);
+  if (tagMatch && tagMatch[1]) {
+    return tagMatch[1];
+  }
+  return null;
+}
+
+function isValidSelector(selector: string): boolean {
+  if (!selector || selector.trim() === "") return false;
+
+  try {
+    document.querySelector(selector);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function findByDataTestId(selector: string): Element | null {
+  if (!selector.includes("data-testid")) return null;
+
+  const testId = selector.match(/data-testid="([^"]+)"/)?.[1];
+  if (testId) {
+    return document.querySelector(`[data-testid="${testId}"]`);
+  }
+  return null;
+}
+
+function findByClass(selector: string): Element | null {
+  if (!selector.includes(".")) return null;
+
+  const classes = selector.match(/\.([^\s.#\[\]]+)/g);
+  if (classes && classes.length > 0) {
+    const className = classes[0].substring(1);
+    return document.querySelector(`.${className}`);
+  }
+  return null;
+}
+
+function findById(selector: string): Element | null {
+  if (!selector.includes("#")) return null;
+
+  const ids = selector.match(/#([^\s.#\[\]]+)/g);
+  if (ids && ids.length > 0) {
+    const id = ids[0].substring(1);
+    return document.querySelector(`#${id}`);
+  }
+  return null;
+}
+
+function findByAriaLabel(selector: string): Element | null {
+  const ariaMatch = selector.match(/\[aria-label="([^"]+)"\]/);
+  if (!ariaMatch) return null;
+
+  return document.querySelector(`[aria-label="${ariaMatch[1]}"]`);
+}
+
+function findByRole(selector: string): Element | null {
+  const roleMatch = selector.match(/\[role="([^"]+)"\]/);
+  if (!roleMatch) return null;
+
+  return document.querySelector(`[role="${roleMatch[1]}"]`);
+}
+
+// Rest of the functions remain the same...
 export function createCursor(): HTMLElement {
   const cursor = document.createElement("div");
   cursor.className = "replay-cursor";
@@ -510,7 +997,7 @@ export function typeText(
         element.value += value[index];
         element.dispatchEvent(new Event("input", { bubbles: true }));
         index++;
-        registerTimeout(setTimeout(typeChar, 70));
+        registerTimeout(setTimeout(typeChar, 70 / speedRef.current));
       } else {
         element.dispatchEvent(new Event("change", { bubbles: true }));
         isTypingRef.current = false;
@@ -728,7 +1215,10 @@ export async function executeAction(
 
     if (nextAction && action.timestamp && nextAction.timestamp) {
       const timeDiff = nextAction.timestamp - action.timestamp;
-      delay = Math.min(MAX_DELAY, timeDiff);
+      delay = Math.min(
+        MAX_DELAY,
+        Math.max(MIN_DELAY, timeDiff / speedRef.current)
+      );
     }
 
     timeoutRef.current = registerTimeout(
