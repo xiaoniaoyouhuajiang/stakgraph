@@ -47,7 +47,9 @@ function convertToPlaywrightSelector(cssSelector) {
   cleanSelector = cleanSelector.replace(/\.+$/, "");
   cleanSelector = cleanSelector.replace(/\.{2,}/g, ".");
   if (!isValidCSSSelector(cleanSelector)) {
-    console.warn(`Selector still invalid: ${cleanSelector}, trying CSS.escape approach`);
+    console.warn(
+      `Selector still invalid: ${cleanSelector}, trying CSS.escape approach`
+    );
     const escapedParts = cleanSelector.split(".");
     const escapedTagName = escapedParts[0];
     const escapedClasses = escapedParts.slice(1).map((className) => {
@@ -58,7 +60,9 @@ function convertToPlaywrightSelector(cssSelector) {
         if (typeof CSS !== "undefined" && CSS.escape) {
           return CSS.escape(className);
         } else {
-          console.warn(`CSS.escape not supported, falling back to manual escaping for: ${className}`);
+          console.warn(
+            `CSS.escape not supported, falling back to manual escaping for: ${className}`
+          );
         }
         return className.replace(/[^\w-]/g, "");
       }
@@ -183,7 +187,9 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
       const [x, y, originalSelector, timestamp] = clickDetail;
       const convertedSelector = convertToPlaywrightSelector(originalSelector);
       if (!convertedSelector || convertedSelector.trim() === "") {
-        console.warn(`Skipping click with invalid selector: ${originalSelector}`);
+        console.warn(
+          `Skipping click with invalid selector: ${originalSelector}`
+        );
         return;
       }
       const shouldSkip = processedSelectors.has(originalSelector) || processedSelectors.has(convertedSelector) || Object.entries(formElementTimestamps).some(
@@ -411,7 +417,6 @@ if (typeof window !== "undefined") {
     cleanTextForGetByText,
     isTextAmbiguous
   };
-  console.log("PlaywrightGenerator loaded and attached to window object");
 }
 export {
   cleanTextForGetByText,

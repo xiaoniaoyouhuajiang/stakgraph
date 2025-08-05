@@ -43,6 +43,9 @@ export function useIframeMessaging(iframeRef) {
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data && event.data.type) {
+        if (event.data && event.data.type.startsWith("staktrak-")) {
+          console.log("Staktrak message received:", event.data);
+        }
         switch (event.data.type) {
           case "staktrak-setup":
             console.log("Staktrak setup message received");
@@ -724,7 +727,7 @@ export function useIframeReplay(iframeRef) {
       }
     };
 
-    const interval = setInterval(checkReplayReady, 1000);
+    const interval = setInterval(checkReplayReady, 2000);
     checkReplayReady();
 
     return () => {

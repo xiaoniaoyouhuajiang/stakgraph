@@ -119,6 +119,161 @@ var userBehaviour = (() => {
     return result.sort((a, b) => a[3] - b[3]);
   };
 
+  // src/debug.ts
+  function rectsIntersect(rect1, rect2) {
+    return !(rect1.x + rect1.width < rect2.x || rect2.x + rect2.width < rect1.x || rect1.y + rect1.height < rect2.y || rect2.y + rect2.height < rect1.y);
+  }
+  function isReactDevModeActive() {
+    try {
+      const allElements = Array.from(document.querySelectorAll("*"));
+      for (const element of allElements) {
+        const fiberKey = Object.keys(element).find(
+          (key) => key.startsWith("__reactFiber$") || key.startsWith("__reactInternalInstance$")
+        );
+        if (fiberKey) {
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking React dev mode:", error);
+      return false;
+    }
+  }
+  function extractReactDebugSource(element) {
+    var _a, _b;
+    try {
+      const fiberKey = Object.keys(element).find(
+        (key) => key.startsWith("__reactFiber$") || key.startsWith("__reactInternalInstance$")
+      );
+      if (!fiberKey) {
+        return null;
+      }
+      let fiber = element[fiberKey];
+      let level = 0;
+      const maxTraversalDepth = Number(process.env.NEXT_PUBLIC_REACT_FIBER_TRAVERSAL_DEPTH) || 10;
+      const extractSource = (source) => {
+        if (!source)
+          return null;
+        return {
+          fileName: source.fileName,
+          lineNumber: source.lineNumber,
+          columnNumber: source.columnNumber
+        };
+      };
+      while (fiber && level < maxTraversalDepth) {
+        const source = fiber._debugSource || ((_a = fiber.memoizedProps) == null ? void 0 : _a.__source) || ((_b = fiber.pendingProps) == null ? void 0 : _b.__source);
+        if (source) {
+          return extractSource(source);
+        }
+        fiber = fiber.return;
+        level++;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error extracting React debug source:", error);
+      return null;
+    }
+  }
+  function debugMsg(data) {
+    var _a, _b;
+    const { messageId, coordinates } = data;
+    try {
+      const sourceFiles = [];
+      const processedFiles = /* @__PURE__ */ new Map();
+      let elementsToProcess = [];
+      if (coordinates.width === 0 && coordinates.height === 0) {
+        const element = document.elementFromPoint(coordinates.x, coordinates.y);
+        if (element) {
+          elementsToProcess = [element];
+          let parent = element.parentElement;
+          while (parent && parent !== document.body) {
+            elementsToProcess.push(parent);
+            parent = parent.parentElement;
+          }
+        }
+      } else {
+        const allElements = document.querySelectorAll("*");
+        elementsToProcess = Array.from(allElements).filter((el) => {
+          const rect = el.getBoundingClientRect();
+          return rectsIntersect(
+            {
+              x: rect.left,
+              y: rect.top,
+              width: rect.width,
+              height: rect.height
+            },
+            coordinates
+          );
+        });
+      }
+      for (const element of elementsToProcess) {
+        const dataSource = element.getAttribute("data-source") || element.getAttribute("data-inspector-relative-path");
+        const dataLine = element.getAttribute("data-line") || element.getAttribute("data-inspector-line");
+        if (dataSource && dataLine) {
+          const lineNum = parseInt(dataLine, 10);
+          if (!processedFiles.has(dataSource) || !((_a = processedFiles.get(dataSource)) == null ? void 0 : _a.has(lineNum))) {
+            if (!processedFiles.has(dataSource)) {
+              processedFiles.set(dataSource, /* @__PURE__ */ new Set());
+            }
+            processedFiles.get(dataSource).add(lineNum);
+            let fileEntry = sourceFiles.find((f) => f.file === dataSource);
+            if (!fileEntry) {
+              fileEntry = { file: dataSource, lines: [] };
+              sourceFiles.push(fileEntry);
+            }
+            fileEntry.lines.push(lineNum);
+          }
+        } else {
+          const debugSource = extractReactDebugSource(element);
+          if (debugSource && debugSource.fileName && debugSource.lineNumber) {
+            const fileName = debugSource.fileName;
+            const lineNum = debugSource.lineNumber;
+            if (!processedFiles.has(fileName) || !((_b = processedFiles.get(fileName)) == null ? void 0 : _b.has(lineNum))) {
+              if (!processedFiles.has(fileName)) {
+                processedFiles.set(fileName, /* @__PURE__ */ new Set());
+              }
+              processedFiles.get(fileName).add(lineNum);
+              let fileEntry = sourceFiles.find((f) => f.file === fileName);
+              if (!fileEntry) {
+                fileEntry = { file: fileName, lines: [] };
+                sourceFiles.push(fileEntry);
+              }
+              fileEntry.lines.push(lineNum);
+              const tagName = element.tagName.toLowerCase();
+              const className = element.className ? `.${element.className.split(" ")[0]}` : "";
+              fileEntry.context = `${tagName}${className}`;
+            }
+          }
+        }
+      }
+      sourceFiles.forEach((file) => {
+        file.lines.sort((a, b) => a - b);
+      });
+      window.parent.postMessage(
+        {
+          type: "staktrak-debug-response",
+          messageId,
+          success: true,
+          sourceFiles
+        },
+        "*"
+      );
+    } catch (error) {
+      console.error("Error processing debug request:", error);
+      window.parent.postMessage(
+        {
+          type: "staktrak-debug-response",
+          messageId,
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+          sourceFiles: []
+        },
+        "*"
+      );
+    }
+  }
+
   // src/index.ts
   var defaultConfig = {
     userInfo: true,
@@ -182,6 +337,7 @@ var userBehaviour = (() => {
       this.setupMessageHandling();
       this.setupPageNavigation();
       window.parent.postMessage({ type: "staktrak-setup" }, "*");
+      this.checkDebugInfo();
     }
     start() {
       this.cleanup();
@@ -509,12 +665,25 @@ var userBehaviour = (() => {
               });
             }
             break;
+          case "staktrak-debug-request":
+            debugMsg({
+              messageId: event.data.messageId,
+              coordinates: event.data.coordinates
+            });
         }
       };
       window.addEventListener("message", messageHandler);
       this.memory.alwaysListeners.push(
         () => window.removeEventListener("message", messageHandler)
       );
+    }
+    checkDebugInfo() {
+      setTimeout(() => {
+        console.log("Checking for debug info...");
+        if (isReactDevModeActive()) {
+          window.parent.postMessage({ type: "staktrak-debug-init" }, "*");
+        }
+      }, 1500);
     }
     setSelectionMode(isActive) {
       var _a;

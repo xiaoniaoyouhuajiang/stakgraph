@@ -70,17 +70,23 @@ function convertToPlaywrightSelector(cssSelector: string): string {
   if (idMatch) return `#${idMatch[1]}`;
 
   // If it's a very long complex selector from html>body, extract the target element
-  if (selector.includes('html') && selector.includes('body') && selector.length > 100) {
-    const parts = selector.split('>').map(part => part.trim());
-    
+  if (
+    selector.includes("html") &&
+    selector.includes("body") &&
+    selector.length > 100
+  ) {
+    const parts = selector.split(">").map((part) => part.trim());
+
     // Find the last interactive element
     for (let i = parts.length - 1; i >= 0; i--) {
       const part = parts[i];
-      if (part.includes('button') || 
-          (part.includes('a') && part.includes('.')) || 
-          part.includes('input') || 
-          part.includes('select') || 
-          part.includes('textarea')) {
+      if (
+        part.includes("button") ||
+        (part.includes("a") && part.includes(".")) ||
+        part.includes("input") ||
+        part.includes("select") ||
+        part.includes("textarea")
+      ) {
         selector = part;
         break;
       }
@@ -89,83 +95,90 @@ function convertToPlaywrightSelector(cssSelector: string): string {
 
   // Now clean up the selector more aggressively
   // Split by classes and clean each one
-  const parts = selector.split('.');
+  const parts = selector.split(".");
   const tagName = parts[0]; // button, a, div, etc.
   const classes = parts.slice(1);
 
   // Clean each class name
   const cleanClasses = classes
-    .map(className => {
-      if (!className) return '';
-      
+    .map((className) => {
+      if (!className) return "";
+
       // Remove problematic Tailwind patterns
-      className = className.replace(/disabled:[\w-]+/g, ''); // disabled:pointer-events-none
-      className = className.replace(/hover:[\w-\/]+/g, ''); // hover:bg-primary/90
-      className = className.replace(/focus-visible:[\w-\[\]\/]+/g, ''); // focus-visible:ring-[3px]
-      className = className.replace(/aria-invalid:[\w-\/]+/g, ''); // aria-invalid:ring-destructive/20
-      className = className.replace(/dark:[\w-\/]+/g, ''); // dark:aria-invalid
-      className = className.replace(/\[&[^\]]*\]/g, ''); // [&_svg] patterns
-      className = className.replace(/has-\[[^\]]*\]/g, ''); // has-[>svg]
-      
+      className = className.replace(/disabled:[\w-]+/g, ""); // disabled:pointer-events-none
+      className = className.replace(/hover:[\w-\/]+/g, ""); // hover:bg-primary/90
+      className = className.replace(/focus-visible:[\w-\[\]\/]+/g, ""); // focus-visible:ring-[3px]
+      className = className.replace(/aria-invalid:[\w-\/]+/g, ""); // aria-invalid:ring-destructive/20
+      className = className.replace(/dark:[\w-\/]+/g, ""); // dark:aria-invalid
+      className = className.replace(/\[&[^\]]*\]/g, ""); // [&_svg] patterns
+      className = className.replace(/has-\[[^\]]*\]/g, ""); // has-[>svg]
+
       // Clean up any remaining brackets, colons, and special characters
-      className = className.replace(/[\[\]:&]/g, '');
-      className = className.replace(/\([^)]*\)/g, ''); // Remove parentheses content
-      className = className.replace(/[^\w-]/g, ''); // Keep only word chars and hyphens
-      
+      className = className.replace(/[\[\]:&]/g, "");
+      className = className.replace(/\([^)]*\)/g, ""); // Remove parentheses content
+      className = className.replace(/[^\w-]/g, ""); // Keep only word chars and hyphens
+
       return className;
     })
-    .filter(className => className && className.length > 0); // Remove empty classes
+    .filter((className) => className && className.length > 0); // Remove empty classes
 
   // Rebuild selector with cleaned classes
   let cleanSelector = tagName;
   if (cleanClasses.length > 0) {
     // Limit to most important classes to avoid overly long selectors
     const importantClasses = cleanClasses.slice(0, 8);
-    cleanSelector += '.' + importantClasses.join('.');
+    cleanSelector += "." + importantClasses.join(".");
   }
 
   // Remove any trailing dots or cleanup artifacts
-  cleanSelector = cleanSelector.replace(/\.+$/, '');
-  cleanSelector = cleanSelector.replace(/\.{2,}/g, '.');
+  cleanSelector = cleanSelector.replace(/\.+$/, "");
+  cleanSelector = cleanSelector.replace(/\.{2,}/g, ".");
 
   // Validate and use CSS.escape as fallback for individual problematic classes
   if (!isValidCSSSelector(cleanSelector)) {
-    console.warn(`Selector still invalid: ${cleanSelector}, trying CSS.escape approach`);
-    
+    console.warn(
+      `Selector still invalid: ${cleanSelector}, trying CSS.escape approach`
+    );
+
     // Try escaping individual class names that might have special characters
-    const escapedParts = cleanSelector.split('.');
+    const escapedParts = cleanSelector.split(".");
     const escapedTagName = escapedParts[0];
-    const escapedClasses = escapedParts.slice(1).map(className => {
-      try {
-        // Test if this class name needs escaping
-        document.querySelector(`.${className}`);
-        return className;
-      } catch (e) {
-        // If it fails, try to escape it
-        if (typeof CSS !== 'undefined' && CSS.escape) {
-          return CSS.escape(className);
-        } else {
-          console.warn(`CSS.escape not supported, falling back to manual escaping for: ${className}`);
+    const escapedClasses = escapedParts
+      .slice(1)
+      .map((className) => {
+        try {
+          // Test if this class name needs escaping
+          document.querySelector(`.${className}`);
+          return className;
+        } catch (e) {
+          // If it fails, try to escape it
+          if (typeof CSS !== "undefined" && CSS.escape) {
+            return CSS.escape(className);
+          } else {
+            console.warn(
+              `CSS.escape not supported, falling back to manual escaping for: ${className}`
+            );
+          }
+          // Fallback: remove problematic characters
+          return className.replace(/[^\w-]/g, "");
         }
-        // Fallback: remove problematic characters
-        return className.replace(/[^\w-]/g, '');
-      }
-    }).filter(Boolean);
+      })
+      .filter(Boolean);
 
     cleanSelector = escapedTagName;
     if (escapedClasses.length > 0) {
-      cleanSelector += '.' + escapedClasses.join('.');
+      cleanSelector += "." + escapedClasses.join(".");
     }
   }
 
-  return cleanSelector || tagName || 'body *';
+  return cleanSelector || tagName || "body *";
 }
 
 function isValidCSSSelector(selector: string): boolean {
-  if (!selector || selector.trim() === '') return false;
-  
+  if (!selector || selector.trim() === "") return false;
+
   try {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       document.querySelector(selector);
     }
     return true;
@@ -296,13 +309,15 @@ function generateUserInteractions(
   if (clicks?.clickDetails?.length) {
     clicks.clickDetails.forEach((clickDetail) => {
       const [x, y, originalSelector, timestamp] = clickDetail;
-      
+
       // Convert selector early to catch issues
       const convertedSelector = convertToPlaywrightSelector(originalSelector);
-      
+
       // Skip if conversion failed or resulted in empty selector
-      if (!convertedSelector || convertedSelector.trim() === '') {
-        console.warn(`Skipping click with invalid selector: ${originalSelector}`);
+      if (!convertedSelector || convertedSelector.trim() === "") {
+        console.warn(
+          `Skipping click with invalid selector: ${originalSelector}`
+        );
         return;
       }
 
@@ -540,7 +555,6 @@ if (typeof window !== "undefined") {
     cleanTextForGetByText,
     isTextAmbiguous,
   };
-  console.log("PlaywrightGenerator loaded and attached to window object");
 }
 
 export {
