@@ -1,5 +1,44 @@
+// Update these interfaces in the generator file
 interface Clicks {
-  clickDetails: [number, number, string, number][];
+  clickCount: number;
+  clickDetails: ClickDetail[];
+}
+
+interface ClickDetail {
+  x: number;
+  y: number;
+  timestamp: number;
+  selectors: {
+    primary: string;
+    fallbacks: string[];
+    text?: string;
+    ariaLabel?: string;
+    title?: string;
+    role?: string;
+    tagName: string;
+    xpath?: string;
+  };
+  elementInfo: {
+    tagName: string;
+    id?: string;
+    className?: string;
+    attributes: Record<string, string>;
+  };
+}
+
+interface Event {
+  type: "click" | "input" | "form" | "assertion";
+  selector?: string;
+  timestamp: number;
+  isUserAction: boolean;
+  x?: number;
+  y?: number;
+  value?: string;
+  formType?: string;
+  checked?: boolean;
+  text?: string;
+  assertionType?: string;
+  clickDetail?: ClickDetail; // Add this for better click handling
 }
 
 interface InputChange {
@@ -54,124 +93,78 @@ interface Event {
   assertionType?: string;
 }
 
-function convertToPlaywrightSelector(cssSelector: string): string {
-  if (!cssSelector) return "";
+function convertToPlaywrightSelector(clickDetail: ClickDetail): string {
+  const { selectors } = clickDetail;
 
-  let selector = cssSelector;
-
-  // Handle data-testid attributes first (highest priority)
-  if (selector.includes("[data-testid=")) {
-    const match = selector.match(/\[data-testid="([^"]+)"\]/);
-    if (match) return `[data-testid="${match[1]}"]`;
+  // Strategy 1: data-testid (highest priority)
+  if (selectors.primary.includes("[data-testid=")) {
+    return selectors.primary;
   }
 
-  // Handle ID selectors (high priority)
-  const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
-  if (idMatch) return `#${idMatch[1]}`;
+  // Strategy 2: ID selectors
+  if (selectors.primary.startsWith("#")) {
+    return selectors.primary;
+  }
 
-  // If it's a very long complex selector from html>body, extract the target element
+  // Strategy 3: Text-based selectors for interactive elements
   if (
-    selector.includes("html") &&
-    selector.includes("body") &&
-    selector.length > 100
+    selectors.text &&
+    (selectors.tagName === "button" ||
+      selectors.tagName === "a" ||
+      selectors.role === "button")
   ) {
-    const parts = selector.split(">").map((part) => part.trim());
-
-    // Find the last interactive element
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const part = parts[i];
-      if (
-        part.includes("button") ||
-        (part.includes("a") && part.includes(".")) ||
-        part.includes("input") ||
-        part.includes("select") ||
-        part.includes("textarea")
-      ) {
-        selector = part;
-        break;
+    const cleanText = selectors.text.trim();
+    if (cleanText.length > 0 && cleanText.length <= 50) {
+      // Use Playwright's text locators
+      if (selectors.tagName === "button") {
+        return `button:has-text("${escapeTextForAssertion(cleanText)}")`;
+      }
+      if (selectors.tagName === "a") {
+        return `a:has-text("${escapeTextForAssertion(cleanText)}")`;
+      }
+      if (selectors.role === "button") {
+        return `[role="button"]:has-text("${escapeTextForAssertion(cleanText)}")`;
       }
     }
   }
 
-  // Now clean up the selector more aggressively
-  // Split by classes and clean each one
-  const parts = selector.split(".");
-  const tagName = parts[0]; // button, a, div, etc.
-  const classes = parts.slice(1);
-
-  // Clean each class name
-  const cleanClasses = classes
-    .map((className) => {
-      if (!className) return "";
-
-      // Remove problematic Tailwind patterns
-      className = className.replace(/disabled:[\w-]+/g, ""); // disabled:pointer-events-none
-      className = className.replace(/hover:[\w-\/]+/g, ""); // hover:bg-primary/90
-      className = className.replace(/focus-visible:[\w-\[\]\/]+/g, ""); // focus-visible:ring-[3px]
-      className = className.replace(/aria-invalid:[\w-\/]+/g, ""); // aria-invalid:ring-destructive/20
-      className = className.replace(/dark:[\w-\/]+/g, ""); // dark:aria-invalid
-      className = className.replace(/\[&[^\]]*\]/g, ""); // [&_svg] patterns
-      className = className.replace(/has-\[[^\]]*\]/g, ""); // has-[>svg]
-
-      // Clean up any remaining brackets, colons, and special characters
-      className = className.replace(/[\[\]:&]/g, "");
-      className = className.replace(/\([^)]*\)/g, ""); // Remove parentheses content
-      className = className.replace(/[^\w-]/g, ""); // Keep only word chars and hyphens
-
-      return className;
-    })
-    .filter((className) => className && className.length > 0); // Remove empty classes
-
-  // Rebuild selector with cleaned classes
-  let cleanSelector = tagName;
-  if (cleanClasses.length > 0) {
-    // Limit to most important classes to avoid overly long selectors
-    const importantClasses = cleanClasses.slice(0, 8);
-    cleanSelector += "." + importantClasses.join(".");
+  // Strategy 4: aria-label
+  if (selectors.ariaLabel) {
+    return `[aria-label="${escapeTextForAssertion(selectors.ariaLabel)}"]`;
   }
 
-  // Remove any trailing dots or cleanup artifacts
-  cleanSelector = cleanSelector.replace(/\.+$/, "");
-  cleanSelector = cleanSelector.replace(/\.{2,}/g, ".");
-
-  // Validate and use CSS.escape as fallback for individual problematic classes
-  if (!isValidCSSSelector(cleanSelector)) {
-    console.warn(
-      `Selector still invalid: ${cleanSelector}, trying CSS.escape approach`
-    );
-
-    // Try escaping individual class names that might have special characters
-    const escapedParts = cleanSelector.split(".");
-    const escapedTagName = escapedParts[0];
-    const escapedClasses = escapedParts
-      .slice(1)
-      .map((className) => {
-        try {
-          // Test if this class name needs escaping
-          document.querySelector(`.${className}`);
-          return className;
-        } catch (e) {
-          // If it fails, try to escape it
-          if (typeof CSS !== "undefined" && CSS.escape) {
-            return CSS.escape(className);
-          } else {
-            console.warn(
-              `CSS.escape not supported, falling back to manual escaping for: ${className}`
-            );
-          }
-          // Fallback: remove problematic characters
-          return className.replace(/[^\w-]/g, "");
-        }
-      })
-      .filter(Boolean);
-
-    cleanSelector = escapedTagName;
-    if (escapedClasses.length > 0) {
-      cleanSelector += "." + escapedClasses.join(".");
+  // Strategy 5: Try fallback selectors
+  for (const fallback of selectors.fallbacks) {
+    if (isValidCSSSelector(fallback)) {
+      return fallback;
     }
   }
 
-  return cleanSelector || tagName || "body *";
+  // Strategy 6: Use primary selector if it's valid
+  if (isValidCSSSelector(selectors.primary)) {
+    return selectors.primary;
+  }
+
+  // Strategy 7: Role-based selector
+  if (selectors.role) {
+    return `[role="${selectors.role}"]`;
+  }
+
+  // Strategy 8: Tag name with attributes
+  if (selectors.tagName === "input") {
+    const type = clickDetail.elementInfo.attributes.type;
+    const name = clickDetail.elementInfo.attributes.name;
+    if (type) return `input[type="${type}"]`;
+    if (name) return `input[name="${name}"]`;
+  }
+
+  // Strategy 9: XPath as last resort
+  if (selectors.xpath) {
+    return `xpath=${selectors.xpath}`;
+  }
+
+  // Final fallback
+  return selectors.tagName;
 }
 
 function isValidCSSSelector(selector: string): boolean {
@@ -258,13 +251,15 @@ function generateUserInteractions(
   const processedSelectors = new Set<string>();
   const formElementTimestamps: Record<string, number> = {};
 
+  // Process form element changes first
   if (formElementChanges?.length) {
     const formElementsBySelector: Record<string, FormElementChange[]> = {};
 
     formElementChanges.forEach((change) => {
       const selector = change.elementSelector;
-      if (!formElementsBySelector[selector])
+      if (!formElementsBySelector[selector]) {
         formElementsBySelector[selector] = [];
+      }
       formElementsBySelector[selector].push(change);
     });
 
@@ -306,31 +301,36 @@ function generateUserInteractions(
     });
   }
 
+  // Process clicks with new ClickDetail structure
   if (clicks?.clickDetails?.length) {
     clicks.clickDetails.forEach((clickDetail) => {
-      const [x, y, originalSelector, timestamp] = clickDetail;
+      const selector = convertToPlaywrightSelector(clickDetail);
 
-      // Convert selector early to catch issues
-      const convertedSelector = convertToPlaywrightSelector(originalSelector);
-
-      // Skip if conversion failed or resulted in empty selector
-      if (!convertedSelector || convertedSelector.trim() === "") {
+      // Skip if conversion failed
+      if (!selector || selector.trim() === "") {
         console.warn(
-          `Skipping click with invalid selector: ${originalSelector}`
+          `Skipping click with invalid selector for element: ${clickDetail.selectors.tagName}`
         );
         return;
       }
 
+      // Check if this click should be skipped due to form interactions
       const shouldSkip =
-        processedSelectors.has(originalSelector) ||
-        processedSelectors.has(convertedSelector) ||
+        processedSelectors.has(clickDetail.selectors.primary) ||
+        processedSelectors.has(selector) ||
         Object.entries(formElementTimestamps).some(
           ([formSelector, formTimestamp]) => {
+            const isRelatedToForm =
+              clickDetail.selectors.primary.includes(formSelector) ||
+              formSelector.includes(clickDetail.selectors.primary) ||
+              selector.includes(formSelector) ||
+              clickDetail.selectors.fallbacks.some(
+                (f) => f.includes(formSelector) || formSelector.includes(f)
+              );
+
             return (
-              (originalSelector.includes(formSelector) ||
-                formSelector.includes(originalSelector) ||
-                convertedSelector.includes(formSelector)) &&
-              Math.abs(timestamp - formTimestamp) < 500
+              isRelatedToForm &&
+              Math.abs(clickDetail.timestamp - formTimestamp) < 500
             );
           }
         );
@@ -338,27 +338,30 @@ function generateUserInteractions(
       if (!shouldSkip) {
         allEvents.push({
           type: "click",
-          x,
-          y,
-          selector: convertedSelector, // Use converted selector
-          timestamp,
+          x: clickDetail.x,
+          y: clickDetail.y,
+          selector: selector,
+          timestamp: clickDetail.timestamp,
           isUserAction: true,
+          text: clickDetail.selectors.text,
+          clickDetail: clickDetail, // Store for better debugging
         });
       }
     });
   }
 
+  // Process input changes
   if (inputChanges?.length) {
     const completedInputs = inputChanges.filter(
       (change) => change.action === "complete" || !change.action
     );
 
     completedInputs.forEach((change) => {
-      if (
-        !processedSelectors.has(change.elementSelector) &&
-        !change.elementSelector.includes('type="checkbox"') &&
-        !change.elementSelector.includes('type="radio"')
-      ) {
+      const isFormElement =
+        change.elementSelector.includes('type="checkbox"') ||
+        change.elementSelector.includes('type="radio"');
+
+      if (!processedSelectors.has(change.elementSelector) && !isFormElement) {
         allEvents.push({
           type: "input",
           selector: change.elementSelector,
@@ -370,12 +373,14 @@ function generateUserInteractions(
     });
   }
 
+  // Process assertions
   if (assertions?.length) {
     assertions.forEach((assertion) => {
       const text = assertion.value || "";
       const isShortText = text.length < 4;
+      const hasValidText = text.trim().length > 0;
 
-      if (!isShortText && text.trim().length > 0) {
+      if (!isShortText && hasValidText) {
         allEvents.push({
           type: "assertion",
           assertionType: assertion.type,
@@ -388,8 +393,10 @@ function generateUserInteractions(
     });
   }
 
+  // Sort all events by timestamp
   allEvents.sort((a, b) => a.timestamp - b.timestamp);
 
+  // Remove duplicate form actions
   const uniqueEvents: Event[] = [];
   const processedFormActions = new Set<string>();
 
@@ -407,10 +414,12 @@ function generateUserInteractions(
     }
   });
 
+  // Generate Playwright code
   let code = "";
   let lastUserActionTimestamp: number | null = null;
 
   uniqueEvents.forEach((event, index) => {
+    // Add wait time between user actions
     if (index > 0) {
       const prevEvent = uniqueEvents[index - 1];
 
@@ -431,95 +440,121 @@ function generateUserInteractions(
       }
     }
 
+    // Generate code based on event type
     switch (event.type) {
       case "click":
-        const playwrightSelector = convertToPlaywrightSelector(event.selector!);
-        code += `  // Click on element: ${event.selector}\n`;
-        code += `  await page.click('${playwrightSelector}');\n\n`;
+        code += generateClickCode(event);
         lastUserActionTimestamp = event.timestamp;
         break;
 
       case "input":
-        const inputSelector = convertToPlaywrightSelector(event.selector!);
-        const escapedInputValue = escapeTextForAssertion(event.value!);
-        code += `  // Fill input: ${event.selector}\n`;
-        code += `  await page.fill('${inputSelector}', '${escapedInputValue}');\n\n`;
+        code += generateInputCode(event);
         lastUserActionTimestamp = event.timestamp;
         break;
 
       case "form":
-        const formSelector = convertToPlaywrightSelector(event.selector!);
-
-        if (event.formType === "checkbox" || event.formType === "radio") {
-          if (event.checked) {
-            code += `  // Check ${event.formType}: ${event.selector}\n`;
-            code += `  await page.check('${formSelector}');\n\n`;
-          } else {
-            code += `  // Uncheck ${event.formType}: ${event.selector}\n`;
-            code += `  await page.uncheck('${formSelector}');\n\n`;
-          }
-        } else if (event.formType === "select") {
-          const escapedSelectValue = escapeTextForAssertion(event.value!);
-          code += `  // Select option: ${event.text || event.value} in ${
-            event.selector
-          }\n`;
-          code += `  await page.selectOption('${formSelector}', '${escapedSelectValue}');\n\n`;
-        }
+        code += generateFormCode(event);
         lastUserActionTimestamp = event.timestamp;
         break;
 
       case "assertion":
-        const assertionSelector = convertToPlaywrightSelector(event.selector!);
-        switch (event.assertionType) {
-          case "isVisible":
-            code += `  // Assert element is visible: ${event.selector}\n`;
-            code += `  await expect(page.locator('${assertionSelector}')).toBeVisible();\n\n`;
-            break;
-          case "hasText":
-            const genericSelectors = [
-              "div",
-              "p",
-              "span",
-              "h1",
-              "h2",
-              "h3",
-              "h4",
-              "h5",
-              "h6",
-            ];
-            const isGenericSelector = genericSelectors.includes(
-              event.selector!
-            );
-
-            if (isGenericSelector) {
-              const cleanedText = cleanTextForGetByText(event.value!);
-              const isShortText =
-                cleanedText.length < 10 || cleanedText.split(" ").length <= 2;
-
-              code += `  // Assert element contains text: ${event.selector}\n`;
-              if (isShortText) {
-                code += `  await expect(page.locator('${event.selector}').filter({ hasText: '${cleanedText}' })).toBeVisible();\n\n`;
-              } else {
-                code += `  await expect(page.getByText('${cleanedText}', { exact: false })).toBeVisible();\n\n`;
-              }
-            } else {
-              const escapedText = escapeTextForAssertion(event.value!);
-              code += `  // Assert element contains text: ${event.selector}\n`;
-              code += `  await expect(page.locator('${assertionSelector}')).toContainText('${escapedText}');\n\n`;
-            }
-            break;
-          case "isChecked":
-            code += `  // Assert checkbox/radio is checked: ${event.selector}\n`;
-            code += `  await expect(page.locator('${assertionSelector}')).toBeChecked();\n\n`;
-            break;
-          case "isNotChecked":
-            code += `  // Assert checkbox/radio is not checked: ${event.selector}\n`;
-            code += `  await expect(page.locator('${assertionSelector}')).not.toBeChecked();\n\n`;
-            break;
-        }
+        code += generateAssertionCode(event);
         break;
     }
   });
+
+  return code;
+}
+
+// Helper functions for code generation
+function generateClickCode(event: Event): string {
+  const selectorComment = event.clickDetail
+    ? `${event.clickDetail.selectors.tagName}${event.clickDetail.selectors.text ? ` "${event.clickDetail.selectors.text}"` : ""}`
+    : event.selector;
+
+  let code = `  // Click on ${selectorComment}\n`;
+  code += `  await page.click('${event.selector}');\n\n`;
+  return code;
+}
+
+function generateInputCode(event: Event): string {
+  const escapedValue = escapeTextForAssertion(event.value!);
+  let code = `  // Fill input: ${event.selector}\n`;
+  code += `  await page.fill('${event.selector}', '${escapedValue}');\n\n`;
+  return code;
+}
+
+function generateFormCode(event: Event): string {
+  let code = "";
+
+  if (event.formType === "checkbox" || event.formType === "radio") {
+    if (event.checked) {
+      code += `  // Check ${event.formType}: ${event.selector}\n`;
+      code += `  await page.check('${event.selector}');\n\n`;
+    } else {
+      code += `  // Uncheck ${event.formType}: ${event.selector}\n`;
+      code += `  await page.uncheck('${event.selector}');\n\n`;
+    }
+  } else if (event.formType === "select") {
+    const escapedValue = escapeTextForAssertion(event.value!);
+    code += `  // Select option: ${event.text || event.value} in ${event.selector}\n`;
+    code += `  await page.selectOption('${event.selector}', '${escapedValue}');\n\n`;
+  }
+
+  return code;
+}
+
+function generateAssertionCode(event: Event): string {
+  let code = "";
+
+  switch (event.assertionType) {
+    case "isVisible":
+      code += `  // Assert element is visible: ${event.selector}\n`;
+      code += `  await expect(page.locator('${event.selector}')).toBeVisible();\n\n`;
+      break;
+
+    case "hasText":
+      const genericSelectors = [
+        "div",
+        "p",
+        "span",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+      ];
+      const isGenericSelector = genericSelectors.includes(event.selector!);
+
+      if (isGenericSelector) {
+        const cleanedText = cleanTextForGetByText(event.value!);
+        const isShortText =
+          cleanedText.length < 10 || cleanedText.split(" ").length <= 2;
+
+        code += `  // Assert element contains text: ${event.selector}\n`;
+        if (isShortText) {
+          code += `  await expect(page.locator('${event.selector}').filter({ hasText: '${cleanedText}' })).toBeVisible();\n\n`;
+        } else {
+          code += `  await expect(page.getByText('${cleanedText}', { exact: false })).toBeVisible();\n\n`;
+        }
+      } else {
+        const escapedText = escapeTextForAssertion(event.value!);
+        code += `  // Assert element contains text: ${event.selector}\n`;
+        code += `  await expect(page.locator('${event.selector}')).toContainText('${escapedText}');\n\n`;
+      }
+      break;
+
+    case "isChecked":
+      code += `  // Assert checkbox/radio is checked: ${event.selector}\n`;
+      code += `  await expect(page.locator('${event.selector}')).toBeChecked();\n\n`;
+      break;
+
+    case "isNotChecked":
+      code += `  // Assert checkbox/radio is not checked: ${event.selector}\n`;
+      code += `  await expect(page.locator('${event.selector}')).not.toBeChecked();\n\n`;
+      break;
+  }
 
   return code;
 }

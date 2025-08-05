@@ -41,69 +41,229 @@ var userBehaviour = (() => {
   // src/utils.ts
   var getTimeStamp = () => Date.now();
   var isInputOrTextarea = (element) => element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable;
-  var getElementSelector = (element) => {
-    if (!element || element.nodeType !== 1)
-      return "";
-    const dataset = element.dataset;
-    if (dataset == null ? void 0 : dataset.testid)
-      return `[data-testid="${dataset.testid}"]`;
-    const id = element.id;
-    if (id)
-      return `#${id}`;
-    let selector = element.tagName.toLowerCase();
-    const className = element.className;
-    if (className) {
-      const classes = Array.from(element.classList).filter((cls) => cls !== "staktrak-selection-active").join(".");
-      if (classes)
-        selector += `.${classes}`;
+  var generateSelectorStrategies = (element) => {
+    var _a;
+    const htmlEl = element;
+    const tagName = element.tagName.toLowerCase();
+    const fallbacks = [];
+    const testId = (_a = htmlEl.dataset) == null ? void 0 : _a.testid;
+    if (testId) {
+      return {
+        primary: `[data-testid="${testId}"]`,
+        fallbacks: [],
+        tagName,
+        text: getElementText(element),
+        ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
+        title: htmlEl.getAttribute("title") || void 0,
+        role: htmlEl.getAttribute("role") || void 0
+      };
+    }
+    const id = htmlEl.id;
+    if (id && /^[a-zA-Z][\w-]*$/.test(id)) {
+      return {
+        primary: `#${id}`,
+        fallbacks: [],
+        tagName,
+        text: getElementText(element),
+        ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
+        title: htmlEl.getAttribute("title") || void 0,
+        role: htmlEl.getAttribute("role") || void 0
+      };
+    }
+    const text = getElementText(element);
+    if (text && (tagName === "button" || tagName === "a" || htmlEl.getAttribute("role") === "button")) {
+      const textSelector = generateTextBasedSelector(element, text);
+      if (textSelector) {
+        fallbacks.push(textSelector);
+      }
+    }
+    const ariaLabel = htmlEl.getAttribute("aria-label");
+    if (ariaLabel) {
+      fallbacks.push(`[aria-label="${ariaLabel}"]`);
+    }
+    const role = htmlEl.getAttribute("role");
+    if (role && text) {
+      fallbacks.push(`[role="${role}"]`);
+    }
+    const classSelector = generateClassBasedSelector(element);
+    if (classSelector && classSelector !== tagName) {
+      fallbacks.push(classSelector);
+    }
+    if (tagName === "input") {
+      const type = element.type;
+      const name = element.name;
+      if (type)
+        fallbacks.push(`input[type="${type}"]`);
+      if (name)
+        fallbacks.push(`input[name="${name}"]`);
+    }
+    const contextualSelector = generateContextualSelector(element);
+    if (contextualSelector) {
+      fallbacks.push(contextualSelector);
+    }
+    const xpath = generateXPath(element);
+    const primary = fallbacks.length > 0 ? fallbacks[0] : tagName;
+    return {
+      primary,
+      fallbacks: fallbacks.slice(1),
+      // Remove primary from fallbacks
+      text,
+      ariaLabel: ariaLabel || void 0,
+      title: htmlEl.getAttribute("title") || void 0,
+      role: role || void 0,
+      tagName,
+      xpath
+    };
+  };
+  var getElementText = (element) => {
+    var _a;
+    const htmlEl = element;
+    if (element.tagName === "BUTTON" || element.tagName === "A") {
+      const text = (_a = htmlEl.textContent) == null ? void 0 : _a.trim();
+      if (text && text.length > 0 && text.length < 100) {
+        return text;
+      }
     }
     if (element.tagName === "INPUT") {
-      const type = element.type;
-      if (type)
-        selector += `[type="${type}"]`;
+      const input = element;
+      return input.placeholder || input.value || void 0;
     }
-    return selector;
+    return void 0;
   };
-  var createClickPath = (e) => {
-    const path = [];
-    e.composedPath().forEach((el, i) => {
-      const composedPath = e.composedPath();
-      if (i < composedPath.length - 2) {
-        let node = el.localName;
-        const dataset = el.dataset;
-        if (dataset == null ? void 0 : dataset.testid) {
-          node += `[data-testid="${dataset.testid}"]`;
-        } else {
-          const className = el.className;
-          if (className) {
-            el.classList.forEach((cls) => {
-              if (cls !== "staktrak-selection-active")
-                node += `.${cls}`;
-            });
-          }
-          const id = el.id;
-          if (id)
-            node += `#${id}`;
-        }
-        path.push(node);
-      }
+  var generateTextBasedSelector = (element, text) => {
+    const tagName = element.tagName.toLowerCase();
+    const cleanText = text.replace(/"/g, '\\"').trim();
+    if (cleanText.length === 0 || cleanText.length > 50)
+      return null;
+    if (tagName === "button") {
+      return `button:has-text("${cleanText}")`;
+    }
+    if (tagName === "a") {
+      return `a:has-text("${cleanText}")`;
+    }
+    if (element.getAttribute("role") === "button") {
+      return `[role="button"]:has-text("${cleanText}")`;
+    }
+    return null;
+  };
+  var generateClassBasedSelector = (element) => {
+    const tagName = element.tagName.toLowerCase();
+    const classList = element.classList;
+    if (!classList.length)
+      return tagName;
+    const safeClasses = Array.from(classList).filter((cls) => {
+      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/))
+        return false;
+      if (cls.includes("module__"))
+        return false;
+      if (cls.includes("emotion-"))
+        return false;
+      if (cls.includes("css-"))
+        return false;
+      if (cls.length > 30)
+        return false;
+      return /^[a-zA-Z][a-zA-Z0-9-]*$/.test(cls);
     });
-    return path.reverse().join(">");
+    if (safeClasses.length === 0)
+      return tagName;
+    const limitedClasses = safeClasses.slice(0, 3);
+    return `${tagName}.${limitedClasses.join(".")}`;
+  };
+  var generateContextualSelector = (element) => {
+    const tagName = element.tagName.toLowerCase();
+    const parent = element.parentElement;
+    if (!parent)
+      return null;
+    if (tagName === "button" && parent.tagName === "NAV") {
+      return "nav button";
+    }
+    if (tagName === "button" && (parent.tagName === "HEADER" || parent.closest("header"))) {
+      return "header button";
+    }
+    if ((tagName === "input" || tagName === "button") && parent.closest("form")) {
+      return `form ${tagName}`;
+    }
+    return null;
+  };
+  var generateXPath = (element) => {
+    if (element.id) {
+      return `//*[@id="${element.id}"]`;
+    }
+    const parts = [];
+    let current = element;
+    while (current && current.nodeType === Node.ELEMENT_NODE) {
+      let index = 1;
+      let sibling = current.previousElementSibling;
+      while (sibling) {
+        if (sibling.tagName === current.tagName) {
+          index++;
+        }
+        sibling = sibling.previousElementSibling;
+      }
+      const tagName = current.tagName.toLowerCase();
+      const part = index > 1 ? `${tagName}[${index}]` : tagName;
+      parts.unshift(part);
+      current = current.parentElement;
+      if (parts.length > 10)
+        break;
+    }
+    return "/" + parts.join("/");
+  };
+  var createClickDetail = (e) => {
+    const target = e.target;
+    const selectors = generateSelectorStrategies(target);
+    return {
+      x: e.clientX,
+      y: e.clientY,
+      timestamp: getTimeStamp(),
+      selectors,
+      elementInfo: {
+        tagName: target.tagName.toLowerCase(),
+        id: target.id || void 0,
+        className: target.className || void 0,
+        attributes: getElementAttributes(target)
+      }
+    };
+  };
+  var getElementAttributes = (element) => {
+    const attrs = {};
+    const htmlEl = element;
+    const importantAttrs = [
+      "type",
+      "name",
+      "role",
+      "aria-label",
+      "title",
+      "placeholder",
+      "value"
+    ];
+    importantAttrs.forEach((attr) => {
+      const value = htmlEl.getAttribute(attr);
+      if (value)
+        attrs[attr] = value;
+    });
+    return attrs;
+  };
+  var getElementSelector = (element) => {
+    const strategies = generateSelectorStrategies(element);
+    return strategies.primary;
   };
   var filterClickDetails = (clickDetails, assertions, config) => {
     if (!clickDetails.length)
       return [];
     let filtered = config.filterAssertionClicks ? clickDetails.filter(
       (click) => !assertions.some(
-        (assertion) => Math.abs(click[3] - assertion.timestamp) < 1e3 && (click[2].includes(assertion.selector) || assertion.selector.includes(click[2]))
+        (assertion) => Math.abs(click.timestamp - assertion.timestamp) < 1e3 && (click.selectors.primary.includes(assertion.selector) || assertion.selector.includes(click.selectors.primary) || click.selectors.fallbacks.some(
+          (f) => f.includes(assertion.selector) || assertion.selector.includes(f)
+        ))
       )
     ) : clickDetails;
     const clicksBySelector = {};
     filtered.forEach((click) => {
-      const selector = click[2];
-      if (!clicksBySelector[selector])
-        clicksBySelector[selector] = [];
-      clicksBySelector[selector].push({ detail: click, timestamp: click[3] });
+      const key = click.selectors.primary;
+      if (!clicksBySelector[key])
+        clicksBySelector[key] = [];
+      clicksBySelector[key].push(click);
     });
     const result = [];
     Object.values(clicksBySelector).forEach((clicks) => {
@@ -111,12 +271,12 @@ var userBehaviour = (() => {
       let lastClick = null;
       clicks.forEach((click) => {
         if (!lastClick || click.timestamp - lastClick.timestamp > config.multiClickInterval) {
-          result.push(click.detail);
+          result.push(click);
         }
         lastClick = click;
       });
     });
-    return result.sort((a, b) => a[3] - b[3]);
+    return result.sort((a, b) => a.timestamp - b.timestamp);
   };
 
   // src/debug.ts
@@ -392,17 +552,12 @@ var userBehaviour = (() => {
       if (this.config.clicks) {
         const clickHandler = (e) => {
           this.results.clicks.clickCount++;
-          const path = createClickPath(e);
-          this.results.clicks.clickDetails.push([
-            e.clientX,
-            e.clientY,
-            path,
-            getTimeStamp()
-          ]);
+          const clickDetail = createClickDetail(e);
+          this.results.clicks.clickDetails.push(clickDetail);
           const target = e.target;
           if (target.tagName === "INPUT" && (target.type === "checkbox" || target.type === "radio")) {
             this.results.formElementChanges.push({
-              elementSelector: getElementSelector(target),
+              elementSelector: clickDetail.selectors.primary,
               type: target.type,
               checked: target.checked,
               value: target.value,
@@ -679,7 +834,6 @@ var userBehaviour = (() => {
     }
     checkDebugInfo() {
       setTimeout(() => {
-        console.log("Checking for debug info...");
         if (isReactDevModeActive()) {
           window.parent.postMessage({ type: "staktrak-debug-init" }, "*");
         }
