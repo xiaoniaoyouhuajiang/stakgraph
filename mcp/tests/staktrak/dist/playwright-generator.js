@@ -1,78 +1,52 @@
 // src/playwright-generator.ts
-function convertToPlaywrightSelector(cssSelector) {
-  if (!cssSelector)
-    return "";
-  let selector = cssSelector;
-  if (selector.includes("[data-testid=")) {
-    const match = selector.match(/\[data-testid="([^"]+)"\]/);
-    if (match)
-      return `[data-testid="${match[1]}"]`;
+function convertToPlaywrightSelector(clickDetail) {
+  const { selectors } = clickDetail;
+  if (selectors.primary.includes("[data-testid=")) {
+    return selectors.primary;
   }
-  const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
-  if (idMatch)
-    return `#${idMatch[1]}`;
-  if (selector.includes("html") && selector.includes("body") && selector.length > 100) {
-    const parts2 = selector.split(">").map((part) => part.trim());
-    for (let i = parts2.length - 1; i >= 0; i--) {
-      const part = parts2[i];
-      if (part.includes("button") || part.includes("a") && part.includes(".") || part.includes("input") || part.includes("select") || part.includes("textarea")) {
-        selector = part;
-        break;
+  if (selectors.primary.startsWith("#")) {
+    return selectors.primary;
+  }
+  if (selectors.text && (selectors.tagName === "button" || selectors.tagName === "a" || selectors.role === "button")) {
+    const cleanText = selectors.text.trim();
+    if (cleanText.length > 0 && cleanText.length <= 50) {
+      if (selectors.tagName === "button") {
+        return `button:has-text("${escapeTextForAssertion(cleanText)}")`;
+      }
+      if (selectors.tagName === "a") {
+        return `a:has-text("${escapeTextForAssertion(cleanText)}")`;
+      }
+      if (selectors.role === "button") {
+        return `[role="button"]:has-text("${escapeTextForAssertion(cleanText)}")`;
       }
     }
   }
-  const parts = selector.split(".");
-  const tagName = parts[0];
-  const classes = parts.slice(1);
-  const cleanClasses = classes.map((className) => {
-    if (!className)
-      return "";
-    className = className.replace(/disabled:[\w-]+/g, "");
-    className = className.replace(/hover:[\w-\/]+/g, "");
-    className = className.replace(/focus-visible:[\w-\[\]\/]+/g, "");
-    className = className.replace(/aria-invalid:[\w-\/]+/g, "");
-    className = className.replace(/dark:[\w-\/]+/g, "");
-    className = className.replace(/\[&[^\]]*\]/g, "");
-    className = className.replace(/has-\[[^\]]*\]/g, "");
-    className = className.replace(/[\[\]:&]/g, "");
-    className = className.replace(/\([^)]*\)/g, "");
-    className = className.replace(/[^\w-]/g, "");
-    return className;
-  }).filter((className) => className && className.length > 0);
-  let cleanSelector = tagName;
-  if (cleanClasses.length > 0) {
-    const importantClasses = cleanClasses.slice(0, 8);
-    cleanSelector += "." + importantClasses.join(".");
+  if (selectors.ariaLabel) {
+    return `[aria-label="${escapeTextForAssertion(selectors.ariaLabel)}"]`;
   }
-  cleanSelector = cleanSelector.replace(/\.+$/, "");
-  cleanSelector = cleanSelector.replace(/\.{2,}/g, ".");
-  if (!isValidCSSSelector(cleanSelector)) {
-    console.warn(
-      `Selector still invalid: ${cleanSelector}, trying CSS.escape approach`
-    );
-    const escapedParts = cleanSelector.split(".");
-    const escapedTagName = escapedParts[0];
-    const escapedClasses = escapedParts.slice(1).map((className) => {
-      try {
-        document.querySelector(`.${className}`);
-        return className;
-      } catch (e) {
-        if (typeof CSS !== "undefined" && CSS.escape) {
-          return CSS.escape(className);
-        } else {
-          console.warn(
-            `CSS.escape not supported, falling back to manual escaping for: ${className}`
-          );
-        }
-        return className.replace(/[^\w-]/g, "");
-      }
-    }).filter(Boolean);
-    cleanSelector = escapedTagName;
-    if (escapedClasses.length > 0) {
-      cleanSelector += "." + escapedClasses.join(".");
+  for (const fallback of selectors.fallbacks) {
+    if (isValidCSSSelector(fallback)) {
+      return fallback;
     }
   }
-  return cleanSelector || tagName || "body *";
+  if (isValidCSSSelector(selectors.primary)) {
+    return selectors.primary;
+  }
+  if (selectors.role) {
+    return `[role="${selectors.role}"]`;
+  }
+  if (selectors.tagName === "input") {
+    const type = clickDetail.elementInfo.attributes.type;
+    const name = clickDetail.elementInfo.attributes.name;
+    if (type)
+      return `input[type="${type}"]`;
+    if (name)
+      return `input[name="${name}"]`;
+  }
+  if (selectors.xpath) {
+    return `xpath=${selectors.xpath}`;
+  }
+  return selectors.tagName;
 }
 function isValidCSSSelector(selector) {
   if (!selector || selector.trim() === "")
@@ -143,8 +117,9 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
     const formElementsBySelector = {};
     formElementChanges.forEach((change) => {
       const selector = change.elementSelector;
-      if (!formElementsBySelector[selector])
+      if (!formElementsBySelector[selector]) {
         formElementsBySelector[selector] = [];
+      }
       formElementsBySelector[selector].push(change);
     });
     Object.entries(formElementsBySelector).forEach(([selector, changes]) => {
@@ -184,28 +159,32 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
   }
   if ((_a = clicks == null ? void 0 : clicks.clickDetails) == null ? void 0 : _a.length) {
     clicks.clickDetails.forEach((clickDetail) => {
-      const [x, y, originalSelector, timestamp] = clickDetail;
-      const convertedSelector = convertToPlaywrightSelector(originalSelector);
-      if (!convertedSelector || convertedSelector.trim() === "") {
+      const selector = convertToPlaywrightSelector(clickDetail);
+      if (!selector || selector.trim() === "") {
         console.warn(
-          `Skipping click with invalid selector: ${originalSelector}`
+          `Skipping click with invalid selector for element: ${clickDetail.selectors.tagName}`
         );
         return;
       }
-      const shouldSkip = processedSelectors.has(originalSelector) || processedSelectors.has(convertedSelector) || Object.entries(formElementTimestamps).some(
+      const shouldSkip = processedSelectors.has(clickDetail.selectors.primary) || processedSelectors.has(selector) || Object.entries(formElementTimestamps).some(
         ([formSelector, formTimestamp]) => {
-          return (originalSelector.includes(formSelector) || formSelector.includes(originalSelector) || convertedSelector.includes(formSelector)) && Math.abs(timestamp - formTimestamp) < 500;
+          const isRelatedToForm = clickDetail.selectors.primary.includes(formSelector) || formSelector.includes(clickDetail.selectors.primary) || selector.includes(formSelector) || clickDetail.selectors.fallbacks.some(
+            (f) => f.includes(formSelector) || formSelector.includes(f)
+          );
+          return isRelatedToForm && Math.abs(clickDetail.timestamp - formTimestamp) < 500;
         }
       );
       if (!shouldSkip) {
         allEvents.push({
           type: "click",
-          x,
-          y,
-          selector: convertedSelector,
-          // Use converted selector
-          timestamp,
-          isUserAction: true
+          x: clickDetail.x,
+          y: clickDetail.y,
+          selector,
+          timestamp: clickDetail.timestamp,
+          isUserAction: true,
+          text: clickDetail.selectors.text,
+          clickDetail
+          // Store for better debugging
         });
       }
     });
@@ -215,7 +194,8 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
       (change) => change.action === "complete" || !change.action
     );
     completedInputs.forEach((change) => {
-      if (!processedSelectors.has(change.elementSelector) && !change.elementSelector.includes('type="checkbox"') && !change.elementSelector.includes('type="radio"')) {
+      const isFormElement = change.elementSelector.includes('type="checkbox"') || change.elementSelector.includes('type="radio"');
+      if (!processedSelectors.has(change.elementSelector) && !isFormElement) {
         allEvents.push({
           type: "input",
           selector: change.elementSelector,
@@ -230,7 +210,8 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
     assertions.forEach((assertion) => {
       const text = assertion.value || "";
       const isShortText = text.length < 4;
-      if (!isShortText && text.trim().length > 0) {
+      const hasValidText = text.trim().length > 0;
+      if (!isShortText && hasValidText) {
         allEvents.push({
           type: "assertion",
           assertionType: assertion.type,
@@ -278,116 +259,129 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
     }
     switch (event.type) {
       case "click":
-        const playwrightSelector = convertToPlaywrightSelector(event.selector);
-        code += `  // Click on element: ${event.selector}
-`;
-        code += `  await page.click('${playwrightSelector}');
-
-`;
+        code += generateClickCode(event);
         lastUserActionTimestamp = event.timestamp;
         break;
       case "input":
-        const inputSelector = convertToPlaywrightSelector(event.selector);
-        const escapedInputValue = escapeTextForAssertion(event.value);
-        code += `  // Fill input: ${event.selector}
-`;
-        code += `  await page.fill('${inputSelector}', '${escapedInputValue}');
-
-`;
+        code += generateInputCode(event);
         lastUserActionTimestamp = event.timestamp;
         break;
       case "form":
-        const formSelector = convertToPlaywrightSelector(event.selector);
-        if (event.formType === "checkbox" || event.formType === "radio") {
-          if (event.checked) {
-            code += `  // Check ${event.formType}: ${event.selector}
-`;
-            code += `  await page.check('${formSelector}');
-
-`;
-          } else {
-            code += `  // Uncheck ${event.formType}: ${event.selector}
-`;
-            code += `  await page.uncheck('${formSelector}');
-
-`;
-          }
-        } else if (event.formType === "select") {
-          const escapedSelectValue = escapeTextForAssertion(event.value);
-          code += `  // Select option: ${event.text || event.value} in ${event.selector}
-`;
-          code += `  await page.selectOption('${formSelector}', '${escapedSelectValue}');
-
-`;
-        }
+        code += generateFormCode(event);
         lastUserActionTimestamp = event.timestamp;
         break;
       case "assertion":
-        const assertionSelector = convertToPlaywrightSelector(event.selector);
-        switch (event.assertionType) {
-          case "isVisible":
-            code += `  // Assert element is visible: ${event.selector}
-`;
-            code += `  await expect(page.locator('${assertionSelector}')).toBeVisible();
-
-`;
-            break;
-          case "hasText":
-            const genericSelectors = [
-              "div",
-              "p",
-              "span",
-              "h1",
-              "h2",
-              "h3",
-              "h4",
-              "h5",
-              "h6"
-            ];
-            const isGenericSelector = genericSelectors.includes(
-              event.selector
-            );
-            if (isGenericSelector) {
-              const cleanedText = cleanTextForGetByText(event.value);
-              const isShortText = cleanedText.length < 10 || cleanedText.split(" ").length <= 2;
-              code += `  // Assert element contains text: ${event.selector}
-`;
-              if (isShortText) {
-                code += `  await expect(page.locator('${event.selector}').filter({ hasText: '${cleanedText}' })).toBeVisible();
-
-`;
-              } else {
-                code += `  await expect(page.getByText('${cleanedText}', { exact: false })).toBeVisible();
-
-`;
-              }
-            } else {
-              const escapedText = escapeTextForAssertion(event.value);
-              code += `  // Assert element contains text: ${event.selector}
-`;
-              code += `  await expect(page.locator('${assertionSelector}')).toContainText('${escapedText}');
-
-`;
-            }
-            break;
-          case "isChecked":
-            code += `  // Assert checkbox/radio is checked: ${event.selector}
-`;
-            code += `  await expect(page.locator('${assertionSelector}')).toBeChecked();
-
-`;
-            break;
-          case "isNotChecked":
-            code += `  // Assert checkbox/radio is not checked: ${event.selector}
-`;
-            code += `  await expect(page.locator('${assertionSelector}')).not.toBeChecked();
-
-`;
-            break;
-        }
+        code += generateAssertionCode(event);
         break;
     }
   });
+  return code;
+}
+function generateClickCode(event) {
+  const selectorComment = event.clickDetail ? `${event.clickDetail.selectors.tagName}${event.clickDetail.selectors.text ? ` "${event.clickDetail.selectors.text}"` : ""}` : event.selector;
+  let code = `  // Click on ${selectorComment}
+`;
+  code += `  await page.click('${event.selector}');
+
+`;
+  return code;
+}
+function generateInputCode(event) {
+  const escapedValue = escapeTextForAssertion(event.value);
+  let code = `  // Fill input: ${event.selector}
+`;
+  code += `  await page.fill('${event.selector}', '${escapedValue}');
+
+`;
+  return code;
+}
+function generateFormCode(event) {
+  let code = "";
+  if (event.formType === "checkbox" || event.formType === "radio") {
+    if (event.checked) {
+      code += `  // Check ${event.formType}: ${event.selector}
+`;
+      code += `  await page.check('${event.selector}');
+
+`;
+    } else {
+      code += `  // Uncheck ${event.formType}: ${event.selector}
+`;
+      code += `  await page.uncheck('${event.selector}');
+
+`;
+    }
+  } else if (event.formType === "select") {
+    const escapedValue = escapeTextForAssertion(event.value);
+    code += `  // Select option: ${event.text || event.value} in ${event.selector}
+`;
+    code += `  await page.selectOption('${event.selector}', '${escapedValue}');
+
+`;
+  }
+  return code;
+}
+function generateAssertionCode(event) {
+  let code = "";
+  switch (event.assertionType) {
+    case "isVisible":
+      code += `  // Assert element is visible: ${event.selector}
+`;
+      code += `  await expect(page.locator('${event.selector}')).toBeVisible();
+
+`;
+      break;
+    case "hasText":
+      const genericSelectors = [
+        "div",
+        "p",
+        "span",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6"
+      ];
+      const isGenericSelector = genericSelectors.includes(event.selector);
+      if (isGenericSelector) {
+        const cleanedText = cleanTextForGetByText(event.value);
+        const isShortText = cleanedText.length < 10 || cleanedText.split(" ").length <= 2;
+        code += `  // Assert element contains text: ${event.selector}
+`;
+        if (isShortText) {
+          code += `  await expect(page.locator('${event.selector}').filter({ hasText: '${cleanedText}' })).toBeVisible();
+
+`;
+        } else {
+          code += `  await expect(page.getByText('${cleanedText}', { exact: false })).toBeVisible();
+
+`;
+        }
+      } else {
+        const escapedText = escapeTextForAssertion(event.value);
+        code += `  // Assert element contains text: ${event.selector}
+`;
+        code += `  await expect(page.locator('${event.selector}')).toContainText('${escapedText}');
+
+`;
+      }
+      break;
+    case "isChecked":
+      code += `  // Assert checkbox/radio is checked: ${event.selector}
+`;
+      code += `  await expect(page.locator('${event.selector}')).toBeChecked();
+
+`;
+      break;
+    case "isNotChecked":
+      code += `  // Assert checkbox/radio is not checked: ${event.selector}
+`;
+      code += `  await expect(page.locator('${event.selector}')).not.toBeChecked();
+
+`;
+      break;
+  }
   return code;
 }
 function escapeTextForAssertion(text) {

@@ -3,7 +3,7 @@ import {
   getTimeStamp,
   isInputOrTextarea,
   getElementSelector,
-  createClickPath,
+  createClickDetail,
   filterClickDetails,
 } from "./utils";
 import { debugMsg, isReactDevModeActive } from "./debug";
@@ -147,21 +147,17 @@ class UserBehaviorTracker {
     if (this.config.clicks) {
       const clickHandler = (e: MouseEvent) => {
         this.results.clicks.clickCount++;
-        const path = createClickPath(e);
-        this.results.clicks.clickDetails.push([
-          e.clientX,
-          e.clientY,
-          path,
-          getTimeStamp(),
-        ]);
+        const clickDetail = createClickDetail(e);
+        this.results.clicks.clickDetails.push(clickDetail);
 
+        // Handle form elements
         const target = e.target as HTMLInputElement;
         if (
           target.tagName === "INPUT" &&
           (target.type === "checkbox" || target.type === "radio")
         ) {
           this.results.formElementChanges.push({
-            elementSelector: getElementSelector(target),
+            elementSelector: clickDetail.selectors.primary,
             type: target.type,
             checked: target.checked,
             value: target.value,
@@ -479,7 +475,6 @@ class UserBehaviorTracker {
 
   private checkDebugInfo() {
     setTimeout(() => {
-      console.log("Checking for debug info...");
       if (isReactDevModeActive()) {
         window.parent.postMessage({ type: "staktrak-debug-init" }, "*");
       }

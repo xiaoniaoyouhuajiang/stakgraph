@@ -26,6 +26,29 @@ export interface Assertion {
   timestamp: number;
 }
 
+// Add to types.ts
+export interface ClickDetail {
+  x: number;
+  y: number;
+  timestamp: number;
+  selectors: {
+    primary: string; // Main CSS selector
+    fallbacks: string[]; // Alternative selectors
+    text?: string; // Button/link text content
+    ariaLabel?: string; // aria-label if present
+    title?: string; // title attribute
+    role?: string; // role attribute
+    tagName: string; // Element tag name
+    xpath?: string; // XPath as last resort
+  };
+  elementInfo: {
+    tagName: string;
+    id?: string;
+    className?: string;
+    attributes: Record<string, string>;
+  };
+}
+
 export interface Results {
   userInfo?: {
     url: string;
@@ -41,7 +64,7 @@ export interface Results {
   pageNavigation: Array<{ type: string; url: string; timestamp: number }>;
   clicks: {
     clickCount: number;
-    clickDetails: Array<[number, number, string, number]>;
+    clickDetails: ClickDetail[];
   };
   keyboardActivities: Array<[string, number]>;
   mouseMovement: Array<[number, number, number]>;
