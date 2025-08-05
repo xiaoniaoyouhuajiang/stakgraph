@@ -1,5 +1,5 @@
 use crate::types::{
-    AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result, WebError
+    AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result, VectorSearchParams, VectorSearchResult, WebError
 };
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
@@ -423,6 +423,36 @@ pub async fn embed_code_handler(
     graph_ops.connect().await?;
     graph_ops.embed_data_bank_bodies(do_files).await?;
     Ok(Json(serde_json::json!({ "status": "completed" })))
+}
+
+pub async fn vector_search_handler(
+    Query(params): Query<VectorSearchParams>,
+) -> Result<Json<Vec<VectorSearchResult>>> {
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+
+    let node_types: Vec<String> = params
+        .node_types
+        .as_ref()
+        .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
+        .unwrap_or_default();
+
+    let results = graph_ops
+        .vector_search(
+            &params.query,
+            params.limit.unwrap_or(10),
+            node_types,
+            params.similarity_threshold.unwrap_or(0.5),
+            params.language.as_deref(),
+        )
+        .await?;
+
+    let response: Vec<VectorSearchResult> = results
+        .into_iter()
+        .map(|(node, score)| VectorSearchResult { node, score })
+        .collect();
+
+    Ok(Json(response))
 }
 
 fn env_not_empty(key: &str) -> Option<String> {

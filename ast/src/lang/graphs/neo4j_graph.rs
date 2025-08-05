@@ -1086,6 +1086,44 @@ impl Neo4jGraph {
         txn.commit().await?;
         Ok(())
     }
+
+ 
+pub async fn vector_search(
+    &self,
+    embedding: &[f32],
+    limit: usize,
+    node_types: Vec<String>,
+    similarity_threshold: f32,
+    language: Option<&str>,
+) -> Result<Vec<(NodeData, f64)>> {
+    let connection = self.ensure_connected().await?;
+
+    let (query_str, params) = vector_search_query(
+        embedding,
+        limit,
+        node_types,
+        similarity_threshold,
+        language.map(|s| s.to_string()),
+    );
+
+    let mut query_obj = query(&query_str);
+    for (key, value) in params.value.iter() {
+        query_obj = query_obj.param(key.value.as_str(), value.clone());
+    }
+
+    let mut result = connection.execute(query_obj).await?;
+    let mut nodes = Vec::new();
+    while let Some(row) = result.next().await? {
+        let node: neo4rs::Node = row.get("node").map_err(|e| Error::Custom(format!("Failed to get node {e}")))?;
+        let score: f64 = row.get("score").map_err(|e| Error::Custom(format!("Failed to get score {e}")))?;
+        
+        if let Ok(node_data) = NodeData::try_from(&node) {
+            nodes.push((node_data, score));
+        }
+    }
+    Ok(nodes)
+}
+
 }
 
 impl Graph for Neo4jGraph {

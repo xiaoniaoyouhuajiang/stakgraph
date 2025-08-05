@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::lang::embedding::vectorize_code_document;
+use crate::lang::embedding::{vectorize_code_document, vectorize_query};
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
@@ -249,4 +249,19 @@ impl GraphOps {
         }
         Ok(())
     }
+pub async fn vector_search(
+    &mut self,
+    query: &str,
+    limit: usize,
+    node_types: Vec<String>,
+    similarity_threshold: f32,
+    language: Option<&str>,
+) -> Result<Vec<(NodeData, f64)>> {
+    let embedding = vectorize_query(query).await?;
+    let results = self
+        .graph
+        .vector_search(&embedding, limit, node_types, similarity_threshold, language)
+        .await?;
+    Ok(results)
+}
 }

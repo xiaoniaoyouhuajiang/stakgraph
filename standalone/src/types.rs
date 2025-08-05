@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
+use ast::lang::asg::NodeData;
 #[derive(Debug)]
 pub struct WebError(pub shared::Error);
 
@@ -64,6 +64,23 @@ pub type AsyncStatusMap = Arc<Mutex<HashMap<String, AsyncRequestStatus>>>;
 pub struct EmbedCodeParams {
     pub files: Option<bool>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VectorSearchResult {
+    pub node: NodeData,
+    pub score: f64,
+}
+
+
+#[derive(Deserialize)]
+pub struct VectorSearchParams {
+    pub query: String,
+    pub limit: Option<usize>,
+    pub node_types: Option<String>,
+    pub similarity_threshold: Option<f32>,
+    pub language: Option<String>,
+}
+
 
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {

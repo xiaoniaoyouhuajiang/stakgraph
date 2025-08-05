@@ -6,7 +6,7 @@ use neo4rs::{query, BoltMap, BoltType, ConfigBuilder, Graph as Neo4jConnection};
 use shared::{Error, Result};
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tracing::{debug, error, info};
-
+use lsp::language::Language;
 use super::*;
 
 lazy_static! {
@@ -923,6 +923,10 @@ pub fn boltmap_insert_list_of_maps(map: &mut BoltMap, key: &str, value: Vec<Bolt
     };
     map.value.insert(key.into(), BoltType::List(list));
 }
+pub fn boltmap_insert_float(map: &mut BoltMap, key: &str, value: f64) {
+    map.value
+        .insert(key.into(), BoltType::Float(neo4rs::BoltFloat { value: value as f64 }));
+}
 pub fn boltmap_insert_int(map: &mut BoltMap, key: &str, value: i64) {
     map.value
         .insert(key.into(), BoltType::Integer(value.into()));
@@ -1103,4 +1107,66 @@ pub fn bulk_update_embeddings_query() -> String {
     MATCH (n:Data_Bank {node_key: item.node_key})
     SET n.embeddings = item.embeddings
     "#.to_string()
+}
+
+pub fn vector_search_query(
+    embedding: &[f32],
+    limit: usize,
+    node_types: Vec<String>,
+    similarity_threshold: f32,
+    language: Option<String>,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+
+   
+    let emb_list = embedding
+        .iter()
+        .map(|&v| neo4rs::BoltType::Float(neo4rs::BoltFloat { value: v as f64 }))
+        .collect::<Vec<_>>();
+    params.value.insert("embeddings".into(), neo4rs::BoltType::List(neo4rs::BoltList { value: emb_list }));
+
+   
+    boltmap_insert_int(&mut params, "limit", limit as i64);
+
+    boltmap_insert_float(&mut params, "similarityThreshold", similarity_threshold as f64);
+
+    let node_types_list = node_types
+        .into_iter()
+        .map(|s| neo4rs::BoltType::String(neo4rs::BoltString::from(s)))
+        .collect::<Vec<_>>();
+    params.value.insert("node_types".into(), neo4rs::BoltType::List(neo4rs::BoltList { value: node_types_list }));
+
+   let ext_list = if let Some(lang_str) = language.as_ref() {
+        if let Ok(lang) = Language::from_str(lang_str) {
+            lang.exts().iter().map(|&s| neo4rs::BoltType::String(s.into())).collect()
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+    
+    params.value.insert("extensions".into(), neo4rs::BoltType::List(neo4rs::BoltList { value: ext_list }));
+
+    let query = r#"
+        MATCH (node)
+        WHERE
+          CASE
+            WHEN $node_types IS NULL OR size($node_types) = 0 THEN true
+            ELSE ANY(label IN labels(node) WHERE label IN $node_types)
+          END
+          AND node.embeddings IS NOT NULL
+          AND
+          CASE
+            WHEN $extensions IS NULL OR size($extensions) = 0 THEN true
+            ELSE node.file IS NOT NULL AND ANY(ext IN $extensions WHERE node.file ENDS WITH ext)
+          END
+        WITH node, gds.similarity.cosine(node.embeddings, $embeddings) AS score
+        WHERE score >= $similarityThreshold
+        RETURN node, score
+        ORDER BY score DESC
+        LIMIT toInteger($limit)
+    "#.to_string();
+
+    (query, params)
 }
