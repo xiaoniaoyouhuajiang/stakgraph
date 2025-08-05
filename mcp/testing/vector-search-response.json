@@ -7,56 +7,8 @@
       "start": 17,
       "end": 41,
       "node_key": "function-newrouter-stakworkdemoreporoutesgo-17",
-      "ref_id": "test_ref_id"
+      "ref_id": "42597731-f967-44e6-bcd1-d4d12ad4a7c9"
     },
     "score": 0.7491363643778787
-  },
-  {
-    "node": {
-      "name": "App",
-      "file": "stakwork/demo-repo/frontend/src/App.tsx",
-      "body": "function App() {\n  return (\n    <div className=\"App\">\n      <header className=\"App-header\">\n        <h1>My React App</h1>\n      </header>\n      <Router>\n        <Routes>\n          <Route path=\"/\" element={<People />} />\n          <Route path=\"/new-person\" element={<NewPerson />} />\n        </Routes>\n      </Router>\n    </div>\n  );\n}",
-      "start": 6,
-      "end": 20,
-      "node_key": "function-app-stakworkdemorepofrontendsrcapptsx-6",
-      "ref_id": "test_ref_id"
-    },
-    "score": 0.6459981752964638
-  },
-  {
-    "node": {
-      "name": "initChi",
-      "file": "stakwork/demo-repo/routes.go",
-      "body": "func initChi() *chi.Mux {\n\tr := chi.NewRouter()\n\tr.Use(middleware.RequestID)\n\tr.Use(middleware.Logger)\n\tr.Use(middleware.Recoverer)\n\tcors := cors.New(cors.Options{\n\t\tAllowedOrigins:   []string{\"*\"},\n\t\tAllowedMethods:   []string{\"GET\", \"POST\", \"PUT\", \"DELETE\", \"OPTIONS\"},\n\t\tAllowedHeaders:   []string{\"Accept\", \"Authorization\", \"Content-Type\", \"X-CSRF-Token\", \"X-User\", \"authorization\", \"x-jwt\", \"Referer\", \"User-Agent\", \"x-session-id\"},\n\t\tAllowCredentials: true,\n\t\tMaxAge:           300,\n\t})\n\tr.Use(cors.Handler)\n\tr.Use(middleware.Timeout(60 * time.Second))\n\treturn r\n}",
-      "start": 92,
-      "end": 107,
-      "node_key": "function-initchi-stakworkdemoreporoutesgo-92",
-      "ref_id": "test_ref_id"
-    },
-    "score": 0.6424837455619137
-  },
-  {
-    "node": {
-      "name": "NewPerson",
-      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
-      "body": "function NewPerson() {\n  const [name, setName] = useState('');\n  const [email, setEmail] = useState('');\n\n  const handleSubmit = async (event: React.FormEvent) => {\n    event.preventDefault();\n\n    const newPerson = {\n      name: name,\n      email: email,\n    };\n\n    try {\n      const response = await fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      });\n\n      if (!response.ok) {\n        console.error('Failed to add new person:', response.statusText);\n        return;\n      }\n\n      const data = await response.json();\n      console.log('New person added:', data);\n    } catch (error) {\n      console.error('Error adding new person:', error);\n    }\n  };\n\n  return (\n    <FormContainer>\n      <FormTitle>Add New Person</FormTitle>\n      <form onSubmit={handleSubmit}>\n        <FormGroup>\n          <Label>Name:</Label>\n          <Input\n            type=\"text\"\n            value={name}\n            onChange={(e) => setName(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <FormGroup>\n          <Label>Email:</Label>\n          <Input\n            type=\"email\"\n            value={email}\n            onChange={(e) => setEmail(e.target.value)}\n            required\n          />\n        </FormGroup>\n        <SubmitButton type=\"submit\">Add Person</SubmitButton>\n      </form>\n    </FormContainer>\n  );\n}",
-      "start": 52,
-      "end": 111,
-      "node_key": "function-newperson-stakworkdemorepofrontendsrccomponentsnewpersontsx-52",
-      "ref_id": "test_ref_id"
-    },
-    "score": 0.6317863943474091
-  },
-  {
-    "node": {
-      "name": "handleSubmit",
-      "file": "stakwork/demo-repo/frontend/src/components/NewPerson.tsx",
-      "body": "const handleSubmit = async (event: React.FormEvent) => {\n    event.preventDefault();\n\n    const newPerson = {\n      name: name,\n      email: email,\n    };\n\n    try {\n      const response = await fetch(`${api.host}/person`, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify(newPerson),\n      });\n\n      if (!response.ok) {\n        console.error('Failed to add new person:', response.statusText);\n        return;\n      }\n\n      const data = await response.json();\n      console.log('New person added:', data);\n    } catch (error) {\n      console.error('Error adding new person:', error);\n    }\n  };",
-      "start": 56,
-      "end": 83,
-      "node_key": "function-handlesubmit-stakworkdemorepofrontendsrccomponentsnewpersontsx-56",
-      "ref_id": "test_ref_id"
-    },
-    "score": 0.6183380391667614
   }
 ]
