@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::lang::embedding::{vectorize_code_document, vectorize_query};
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
@@ -230,4 +231,41 @@ impl GraphOps {
         self.graph.clear_existing_graph(root).await?;
         Ok(())
     }
+        pub async fn embed_data_bank_bodies(&mut self, do_files: bool) -> Result<()> {
+        let batch_size = 32;
+        // let mut skip = 0;
+        loop {
+             let nodes = self.graph.fetch_nodes_without_embeddings(do_files, 0, batch_size).await?;
+            if nodes.is_empty() {
+                break;
+            }
+            for (node_key, body) in &nodes {
+                let embedding = vectorize_code_document(body).await?;
+                self.graph.update_embedding(node_key, &embedding).await?;
+            }
+            // let mut batch = Vec::new();
+            // for (node_key, body) in &nodes {
+            //     let embedding = vectorize_code_document(body).await?;
+            //     batch.push((node_key.clone(), embedding));
+            // }
+            // self.graph.bulk_update_embeddings(batch).await?;
+            // skip += batch_size;
+        }
+        Ok(())
+    }
+pub async fn vector_search(
+    &mut self,
+    query: &str,
+    limit: usize,
+    node_types: Vec<String>,
+    similarity_threshold: f32,
+    language: Option<&str>,
+) -> Result<Vec<(NodeData, f64)>> {
+    let embedding = vectorize_query(query).await?;
+    let results = self
+        .graph
+        .vector_search(&embedding, limit, node_types, similarity_threshold, language)
+        .await?;
+    Ok(results)
+}
 }

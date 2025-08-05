@@ -4,6 +4,7 @@ pub mod graphs;
 pub mod linker;
 pub mod parse;
 pub mod queries;
+pub mod embedding;
 
 use asg::*;
 use consts::*;

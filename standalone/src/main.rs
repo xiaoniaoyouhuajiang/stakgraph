@@ -79,7 +79,9 @@ async fn main() -> Result<()> {
         .route("/sync_async", post(handlers::sync_async))
         .route("/status/:request_id", get(handlers::get_status))
         .route("/fetch-repo", post(handlers::fetch_repo))
-        .route("/fetch-repos", get(handlers::fetch_repos));
+        .route("/fetch-repos", get(handlers::fetch_repos))
+        .route("/embed_code", post(handlers::embed_code_handler))
+        .route("/search", post(handlers::vector_search_handler));
 
     // Add bearer auth middleware only if API token is provided
     if app_state.api_token.is_some() {

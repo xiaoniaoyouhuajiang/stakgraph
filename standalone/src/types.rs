@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
+use ast::lang::asg::NodeData;
 #[derive(Debug)]
 pub struct WebError(pub shared::Error);
 
@@ -60,6 +60,28 @@ pub struct AsyncRequestStatus {
 
 pub type AsyncStatusMap = Arc<Mutex<HashMap<String, AsyncRequestStatus>>>;
 
+#[derive(Deserialize)]
+pub struct EmbedCodeParams {
+    pub files: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VectorSearchResult {
+    pub node: NodeData,
+    pub score: f64,
+}
+
+
+#[derive(Deserialize)]
+pub struct VectorSearchParams {
+    pub query: String,
+    pub limit: Option<usize>,
+    pub node_types: Option<String>,
+    pub similarity_threshold: Option<f32>,
+    pub language: Option<String>,
+}
+
+
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {
         let status = match &self.0 {
@@ -73,6 +95,7 @@ impl IntoResponse for WebError {
             | shared::Error::GitUrlParse(_)
             | shared::Error::Git2(_)
             | shared::Error::Walkdir(_)
+            | shared::Error::Other(_)
             | shared::Error::TreeSitterLanguage(_) => StatusCode::INTERNAL_SERVER_ERROR,
 
             shared::Error::Regex(_) => StatusCode::BAD_REQUEST,

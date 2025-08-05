@@ -1,12 +1,11 @@
 use crate::types::{
-    AsyncRequestStatus, AsyncStatus, FetchRepoBody, FetchRepoResponse, ProcessBody,
-    ProcessResponse, Result, WebError,
+    AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result, VectorSearchParams, VectorSearchResult, WebError
 };
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::{clone_repo, Repo};
-use axum::extract::Path;
+use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
@@ -414,6 +413,47 @@ pub async fn get_status(
         )
             .into_response()
     }
+}
+
+pub async fn embed_code_handler(
+    Query(params): Query<EmbedCodeParams>,
+) -> Result<Json<serde_json::Value>> {
+    let do_files = params.files.unwrap_or(false);
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+    graph_ops.embed_data_bank_bodies(do_files).await?;
+    Ok(Json(serde_json::json!({ "status": "completed" })))
+}
+
+pub async fn vector_search_handler(
+    Query(params): Query<VectorSearchParams>,
+) -> Result<Json<Vec<VectorSearchResult>>> {
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+
+    //comma-separated node types
+    let node_types: Vec<String> = params
+        .node_types
+        .as_ref()
+        .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
+        .unwrap_or_default();
+
+    let results = graph_ops
+        .vector_search(
+            &params.query,
+            params.limit.unwrap_or(10),
+            node_types,
+            params.similarity_threshold.unwrap_or(0.7),
+            params.language.as_deref(),
+        )
+        .await?;
+
+    let response: Vec<VectorSearchResult> = results
+        .into_iter()
+        .map(|(node, score)| VectorSearchResult { node, score })
+        .collect();
+
+    Ok(Json(response))
 }
 
 fn env_not_empty(key: &str) -> Option<String> {
