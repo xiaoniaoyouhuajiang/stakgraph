@@ -178,6 +178,44 @@ jobs:
             echo "Response does NOT match expected output ❌"
             exit 1
           fi
+      - name: Embed code with standalone server and wait for completion
+        run: |
+          for i in {1..10}; do
+            resp=$(curl -s -X POST "http://localhost:7799/embed_code")
+            echo "Embed code response: $resp"
+            if echo "$resp" | grep -q '"status":"completed"'; then
+              echo "Embedding completed!"
+              break
+            fi
+            echo "Embedding not done yet, waiting..."
+            sleep 10
+          done
+
+      - name: Check Vector Search (Standalone)
+        working-directory: ./mcp
+        run: |
+          curl -s -X POST "http://localhost:7799/search?query=NewRouter&node_types=Function&limit=5" \
+            -o ./testing/actual-vector-search-response.json
+          echo "$(<./testing/actual-vector-search-response.json)"
+
+      - name: Compare Vector Search Response with Expected Output
+        working-directory: ./mcp
+        run: |
+          ACTUAL_VECTOR_FILE="./testing/actual-vector-search-response.json"
+          EXPECTED_VECTOR_FILE="./testing/vector-search-response.json"
+
+          SORTED_ACTUAL_VECTOR_FILE="/tmp/sorted_actual_vector.json"
+          SORTED_EXPECTED_VECTOR_FILE="/tmp/sorted_expected_vector.json"
+
+          jq --sort-keys . "$ACTUAL_VECTOR_FILE" > "$SORTED_ACTUAL_VECTOR_FILE"
+          jq --sort-keys . "$EXPECTED_VECTOR_FILE" > "$SORTED_EXPECTED_VECTOR_FILE"
+
+          if diff --color=always -u "$SORTED_EXPECTED_VECTOR_FILE" "$SORTED_ACTUAL_VECTOR_FILE"; then
+            echo "Vector search response matches expected output ✅"
+          else
+            echo "Vector search response does NOT match expected output ❌"
+            exit 1
+          fi
 
       - name: Cleanup
         if: always()
