@@ -1,4 +1,4 @@
-import { Config, Results, Memory, Assertion } from "./types";
+import { Config, Results, Memory } from "./types";
 import {
   getTimeStamp,
   isInputOrTextarea,
@@ -6,6 +6,7 @@ import {
   createClickPath,
   filterClickDetails,
 } from "./utils";
+import { debugMsg, isReactDevModeActive } from "./debug";
 
 const defaultConfig: Config = {
   userInfo: true,
@@ -71,6 +72,7 @@ class UserBehaviorTracker {
     this.setupMessageHandling();
     this.setupPageNavigation();
     window.parent.postMessage({ type: "staktrak-setup" }, "*");
+    this.checkDebugInfo();
   }
 
   start() {
@@ -462,12 +464,26 @@ class UserBehaviorTracker {
             });
           }
           break;
+        case "staktrak-debug-request":
+          debugMsg({
+            messageId: event.data.messageId,
+            coordinates: event.data.coordinates,
+          });
       }
     };
     window.addEventListener("message", messageHandler);
     this.memory.alwaysListeners.push(() =>
       window.removeEventListener("message", messageHandler)
     );
+  }
+
+  private checkDebugInfo() {
+    setTimeout(() => {
+      console.log("Checking for debug info...");
+      if (isReactDevModeActive()) {
+        window.parent.postMessage({ type: "staktrak-debug-init" }, "*");
+      }
+    }, 1500);
   }
 
   private setSelectionMode(isActive: boolean) {
