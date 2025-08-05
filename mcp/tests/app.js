@@ -1,13 +1,12 @@
 // app.js
 import htm from "https://esm.sh/htm";
 import { h, render } from "https://esm.sh/preact";
-import { useState } from "https://esm.sh/preact/hooks";
+import { useState, useRef } from "https://esm.sh/preact/hooks";
 import {
   useIframeMessaging,
   useTestGenerator,
   useTestFiles,
   usePopup,
-  useURL,
   useIframeReplay,
 } from "./hooks.js";
 
@@ -16,7 +15,7 @@ export const html = htm.bind(h);
 const Staktrak = () => {
   const { showPopup } = usePopup();
   const initUrl = window.location.href + "/frame/frame.html";
-  const { url, handleUrlChange, navigateToUrl, iframeRef } = useURL(initUrl);
+  const iframeRef = useRef(null);
   const {
     isRecording,
     isAssertionMode,
@@ -27,7 +26,13 @@ const Staktrak = () => {
     stopRecording,
     enableAssertionMode,
     disableAssertionMode,
-  } = useIframeMessaging(iframeRef);
+    url,
+    handleUrlChange,
+    navigateToUrl,
+    displayUrl,
+  } = useIframeMessaging(iframeRef, initUrl);
+
+  console.log("Staktrak URL:", url, displayUrl);
 
   const { generatedTest, generateTest } = useTestGenerator();
 
@@ -192,7 +197,7 @@ const Staktrak = () => {
         <div class="url-bar">
           <input
             type="text"
-            value=${url}
+            value=${displayUrl}
             onChange=${handleUrlChange}
             placeholder="Enter URL to test..."
           />

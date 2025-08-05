@@ -1,38 +1,28 @@
 import { useState, useEffect, useRef } from "https://esm.sh/preact/hooks";
 
-// Add type definitions for the new structure
-const ClickDetailType = {
-  x: "number",
-  y: "number",
-  timestamp: "number",
-  selectors: {
-    primary: "string",
-    fallbacks: "array",
-    text: "string|undefined",
-    ariaLabel: "string|undefined",
-    title: "string|undefined",
-    role: "string|undefined",
-    tagName: "string",
-    xpath: "string|undefined",
-  },
-  elementInfo: {
-    tagName: "string",
-    id: "string|undefined",
-    className: "string|undefined",
-    attributes: "object",
-  },
-};
-
-export function useIframeMessaging(iframeRef) {
+export function useIframeMessaging(iframeRef, initialURL) {
   const popupHook = usePopup();
   const [isRecording, setIsRecording] = useState(false);
   const [isAssertionMode, setIsAssertionMode] = useState(false);
   const [canGenerate, setCanGenerate] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
   const [selectedText, setSelectedText] = useState(null);
+  const [url, setUrl] = useState(initialURL);
+  const [displayUrl, setDisplayUrl] = useState(initialURL);
 
   const { showPopup } = popupHook;
   const selectedDisplayTimeout = useRef(null);
+
+  const handleUrlChange = (e) => {
+    setUrl(e.target.value);
+    setDisplayUrl(e.target.value);
+  };
+
+  const navigateToUrl = () => {
+    if (iframeRef.current) {
+      iframeRef.current.src = url;
+    }
+  };
 
   const displaySelectedText = (text) => {
     setSelectedText(text);
@@ -88,6 +78,7 @@ export function useIframeMessaging(iframeRef) {
             break;
           case "staktrak-page-navigation":
             console.log("Staktrak page navigation:", event.data.data);
+            setDisplayUrl(event.data.data);
             break;
         }
       }
@@ -155,6 +146,12 @@ export function useIframeMessaging(iframeRef) {
     stopRecording,
     enableAssertionMode,
     disableAssertionMode,
+    url,
+    setUrl,
+    handleUrlChange,
+    navigateToUrl,
+    displayUrl,
+    setDisplayUrl,
   };
 }
 
@@ -416,23 +413,6 @@ export function usePopup() {
   return { showPopup };
 }
 
-export function useURL(initialURL) {
-  const [url, setUrl] = useState(initialURL);
-  const iframeRef = useRef(null);
-
-  const handleUrlChange = (e) => {
-    setUrl(e.target.value);
-  };
-
-  const navigateToUrl = () => {
-    if (iframeRef.current) {
-      iframeRef.current.src = url;
-    }
-  };
-
-  return { url, setUrl, handleUrlChange, navigateToUrl, iframeRef };
-}
-
 export function useIframeReplay(iframeRef) {
   const { showPopup } = usePopup();
   const [isReplaying, setIsReplaying] = useState(false);
@@ -469,17 +449,7 @@ export function useIframeReplay(iframeRef) {
 
         // Check if it's the new ClickDetail format or old array format
         trackingData.clicks.clickDetails.forEach((clickDetail) => {
-          if (Array.isArray(clickDetail)) {
-            // Old format: [x, y, selector, timestamp]
-            const [x, y, selector, timestamp] = clickDetail;
-            actions.push({
-              type: "click",
-              selector: selector,
-              timestamp: timestamp,
-              x: x,
-              y: y,
-            });
-          } else if (
+          if (
             clickDetail &&
             typeof clickDetail === "object" &&
             clickDetail.selectors
@@ -500,6 +470,8 @@ export function useIframeReplay(iframeRef) {
               text: clickDetail.selectors.text, // Include text for better debugging
               tagName: clickDetail.selectors.tagName,
             });
+          } else {
+            console.warn("Unexpected click detail format:", clickDetail);
           }
         });
 
@@ -550,27 +522,6 @@ export function useIframeReplay(iframeRef) {
 
         if (actions.length > 0) {
           console.log("Generated replay actions:", actions);
-          return actions;
-        }
-      }
-
-      // Legacy handling for backward compatibility
-      if (Array.isArray(trackingData.clickDetails)) {
-        const actions = trackingData.clickDetails.map((click) => {
-          if (Array.isArray(click)) {
-            const [x, y, selector, timestamp] = click;
-            return {
-              type: "click",
-              selector: selector,
-              timestamp: timestamp,
-              x: x,
-              y: y,
-            };
-          }
-          return click;
-        });
-
-        if (actions.length > 0) {
           return actions;
         }
       }
