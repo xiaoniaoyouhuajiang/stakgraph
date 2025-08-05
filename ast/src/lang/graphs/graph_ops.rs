@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::lang::embedding::vectorize_code_document;
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
@@ -228,6 +229,24 @@ impl GraphOps {
 
     pub async fn clear_existing_graph(&mut self, root: &str) -> Result<()> {
         self.graph.clear_existing_graph(root).await?;
+        Ok(())
+    }
+        pub async fn embed_data_bank_bodies(&mut self, do_files: bool) -> Result<()> {
+        let batch_size = 32;
+        let mut skip = 0;
+        loop {
+            let nodes = self.graph.fetch_nodes_without_embeddings(do_files, skip, batch_size).await?;
+            if nodes.is_empty() {
+                break;
+            }
+            let mut batch = Vec::new();
+            for (node_key, body) in &nodes {
+                let embedding = vectorize_code_document(body).await?;
+                batch.push((node_key.clone(), embedding));
+            }
+            self.graph.bulk_update_embeddings(batch).await?;
+            skip += batch_size;
+        }
         Ok(())
     }
 }

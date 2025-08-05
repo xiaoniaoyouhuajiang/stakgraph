@@ -1031,6 +1031,61 @@ impl Neo4jGraph {
         }
         false
     }
+        pub async fn fetch_nodes_without_embeddings(
+        &self,
+        do_files: bool,
+        skip: usize,
+        limit: usize,
+    ) -> Result<Vec<(String, String)>> {
+        let connection = self.ensure_connected().await?;
+        let (query_str, params) = data_bank_bodies_query_no_embeddings(do_files, skip, limit);
+        let mut query_obj = query(&query_str);
+        for (k, v) in params.value.iter() {
+            query_obj = query_obj.param(k.value.as_str(), v.clone());
+        }
+        let mut result = connection.execute(query_obj).await?;
+        let mut nodes = Vec::new();
+        while let Some(row) = result.next().await? {
+            let node_key = row.get::<String>("node_key").unwrap_or_default();
+            let body = row.get::<String>("body").unwrap_or_default();
+            nodes.push((node_key, body));
+        }
+        Ok(nodes)
+    }
+        pub async fn bulk_update_embeddings(
+        &self,
+        batch: Vec<(String, Vec<f32>)>,
+    ) -> Result<()> {
+        let connection = self.ensure_connected().await?;
+        let mut params = BoltMap::new();
+        let batch_data: Vec<BoltMap> = batch
+            .into_iter()
+            .map(|(node_key, embeddings)| {
+                let mut map = BoltMap::new();
+                boltmap_insert_str(&mut map, "node_key", &node_key);
+                map.value.insert(
+                    "embeddings".into(),
+                    neo4rs::BoltType::List(neo4rs::BoltList {
+                         value: embeddings
+                                .into_iter()
+                                .map(|v| neo4rs::BoltType::Float(neo4rs::BoltFloat { value: v as f64 }))
+                                .collect(),
+                    }),
+                );
+                map
+            })
+            .collect();
+        boltmap_insert_list_of_maps(&mut params, "batch", batch_data);
+        let query_str = bulk_update_embeddings_query();
+        let mut txn = connection.start_txn().await?;
+        let mut query_obj = query(&query_str);
+        for (k, v) in params.value.iter() {
+            query_obj = query_obj.param(k.value.as_str(), v.clone());
+        }
+        txn.run(query_obj).await?;
+        txn.commit().await?;
+        Ok(())
+    }
 }
 
 impl Graph for Neo4jGraph {

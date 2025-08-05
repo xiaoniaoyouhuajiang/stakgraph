@@ -60,6 +60,11 @@ pub struct AsyncRequestStatus {
 
 pub type AsyncStatusMap = Arc<Mutex<HashMap<String, AsyncRequestStatus>>>;
 
+#[derive(Deserialize)]
+pub struct EmbedCodeParams {
+    pub files: Option<bool>,
+}
+
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {
         let status = match &self.0 {
@@ -73,6 +78,7 @@ impl IntoResponse for WebError {
             | shared::Error::GitUrlParse(_)
             | shared::Error::Git2(_)
             | shared::Error::Walkdir(_)
+            | shared::Error::Other(_)
             | shared::Error::TreeSitterLanguage(_) => StatusCode::INTERNAL_SERVER_ERROR,
 
             shared::Error::Regex(_) => StatusCode::BAD_REQUEST,

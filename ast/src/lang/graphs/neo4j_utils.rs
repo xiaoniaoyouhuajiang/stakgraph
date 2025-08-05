@@ -1082,3 +1082,25 @@ pub fn clear_existing_graph_query(root: &str) -> (String, BoltMap) {
                  DETACH DELETE n";
     (query.to_string(), params)
 }
+
+pub fn data_bank_bodies_query_no_embeddings(do_files: bool, skip: usize, limit: usize) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_int(&mut params, "skip", skip as i64);
+    boltmap_insert_int(&mut params, "limit", limit as i64);
+    boltmap_insert_str(&mut params, "do_files", if do_files { "true" } else { "false" });
+    let query = r#"
+        MATCH (n:Data_Bank)
+        WHERE n.embeddings IS NULL
+          AND (($do_files = 'true') OR NOT n:File)
+        RETURN n.node_key as node_key, n.body as body
+        SKIP toInteger($skip) LIMIT toInteger($limit)
+    "#.to_string();
+    (query, params)
+}
+pub fn bulk_update_embeddings_query() -> String {
+    r#"
+    UNWIND $batch as item
+    MATCH (n:Data_Bank {node_key: item.node_key})
+    SET n.embeddings = item.embeddings
+    "#.to_string()
+}

@@ -40,6 +40,10 @@ pub enum Error {
 
     #[error("Error : {0}")]
     Custom(String),
+
+    // catch-all for other errors
+    #[error("Other error: {0}")]
+    Other(#[from] anyhow::Error),
 }
 impl Error {
     pub fn custom<S: Into<String>>(msg: S) -> Self {

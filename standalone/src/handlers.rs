@@ -1,12 +1,11 @@
 use crate::types::{
-    AsyncRequestStatus, AsyncStatus, FetchRepoBody, FetchRepoResponse, ProcessBody,
-    ProcessResponse, Result, WebError,
+    AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result, WebError
 };
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
 use ast::repo::{clone_repo, Repo};
-use axum::extract::Path;
+use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
@@ -414,6 +413,16 @@ pub async fn get_status(
         )
             .into_response()
     }
+}
+
+pub async fn embed_code_handler(
+    Query(params): Query<EmbedCodeParams>,
+) -> Result<Json<serde_json::Value>> {
+    let do_files = params.files.unwrap_or(false);
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+    graph_ops.embed_data_bank_bodies(do_files).await?;
+    Ok(Json(serde_json::json!({ "status": "completed" })))
 }
 
 fn env_not_empty(key: &str) -> Option<String> {
