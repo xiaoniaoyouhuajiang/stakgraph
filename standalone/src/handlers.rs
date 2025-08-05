@@ -431,6 +431,7 @@ pub async fn vector_search_handler(
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
+    //comma-separated node types
     let node_types: Vec<String> = params
         .node_types
         .as_ref()
@@ -442,7 +443,7 @@ pub async fn vector_search_handler(
             &params.query,
             params.limit.unwrap_or(10),
             node_types,
-            params.similarity_threshold.unwrap_or(0.5),
+            params.similarity_threshold.unwrap_or(0.7),
             params.language.as_deref(),
         )
         .await?;

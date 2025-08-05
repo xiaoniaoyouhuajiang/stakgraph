@@ -233,19 +233,23 @@ impl GraphOps {
     }
         pub async fn embed_data_bank_bodies(&mut self, do_files: bool) -> Result<()> {
         let batch_size = 32;
-        let mut skip = 0;
+        // let mut skip = 0;
         loop {
-            let nodes = self.graph.fetch_nodes_without_embeddings(do_files, skip, batch_size).await?;
+             let nodes = self.graph.fetch_nodes_without_embeddings(do_files, 0, batch_size).await?;
             if nodes.is_empty() {
                 break;
             }
-            let mut batch = Vec::new();
             for (node_key, body) in &nodes {
                 let embedding = vectorize_code_document(body).await?;
-                batch.push((node_key.clone(), embedding));
+                self.graph.update_embedding(node_key, &embedding).await?;
             }
-            self.graph.bulk_update_embeddings(batch).await?;
-            skip += batch_size;
+            // let mut batch = Vec::new();
+            // for (node_key, body) in &nodes {
+            //     let embedding = vectorize_code_document(body).await?;
+            //     batch.push((node_key.clone(), embedding));
+            // }
+            // self.graph.bulk_update_embeddings(batch).await?;
+            // skip += batch_size;
         }
         Ok(())
     }

@@ -1052,41 +1052,54 @@ impl Neo4jGraph {
         }
         Ok(nodes)
     }
-        pub async fn bulk_update_embeddings(
-        &self,
-        batch: Vec<(String, Vec<f32>)>,
-    ) -> Result<()> {
-        let connection = self.ensure_connected().await?;
-        let mut params = BoltMap::new();
-        let batch_data: Vec<BoltMap> = batch
-            .into_iter()
-            .map(|(node_key, embeddings)| {
-                let mut map = BoltMap::new();
-                boltmap_insert_str(&mut map, "node_key", &node_key);
-                map.value.insert(
-                    "embeddings".into(),
-                    neo4rs::BoltType::List(neo4rs::BoltList {
-                         value: embeddings
-                                .into_iter()
-                                .map(|v| neo4rs::BoltType::Float(neo4rs::BoltFloat { value: v as f64 }))
-                                .collect(),
-                    }),
-                );
-                map
-            })
-            .collect();
-        boltmap_insert_list_of_maps(&mut params, "batch", batch_data);
-        let query_str = bulk_update_embeddings_query();
-        let mut txn = connection.start_txn().await?;
-        let mut query_obj = query(&query_str);
-        for (k, v) in params.value.iter() {
-            query_obj = query_obj.param(k.value.as_str(), v.clone());
-        }
-        txn.run(query_obj).await?;
-        txn.commit().await?;
-        Ok(())
-    }
+    //     pub async fn bulk_update_embeddings(
+    //     &self,
+    //     batch: Vec<(String, Vec<f32>)>,
+    // ) -> Result<()> {
+    //     let connection = self.ensure_connected().await?;
+    //     let mut params = BoltMap::new();
+    //     let batch_data: Vec<BoltMap> = batch
+    //         .into_iter()
+    //         .map(|(node_key, embeddings)| {
+    //             let mut map = BoltMap::new();
+    //             boltmap_insert_str(&mut map, "node_key", &node_key);
 
+    //             let embeddings: Vec<neo4rs::BoltType> = embeddings
+    //                 .into_iter()
+    //                 .map(|v| neo4rs::BoltType::Float(neo4rs::BoltFloat { value: v as f64 }))
+    //                 .collect();
+    //             boltmap_insert_list(&mut map, "embeddings", embeddings);
+             
+    //             map
+    //         })
+    //         .collect();
+    //     boltmap_insert_list_of_maps(&mut params, "batch", batch_data);
+    //     let query_str = bulk_update_embeddings_query();
+    //     let mut txn = connection.start_txn().await?;
+    //     let mut query_obj = query(&query_str);
+    //     for (k, v) in params.value.iter() {
+    //         query_obj = query_obj.param(k.value.as_str(), v.clone());
+    //     }
+    //     txn.run(query_obj).await?;
+    //     txn.commit().await?;
+    //     Ok(())
+    // }
+pub async fn update_embedding(
+    &self,
+    node_key: &str,
+    embedding: &[f32],
+) -> Result<()> {
+    let connection = self.ensure_connected().await?;
+    let (query_str, params) = update_embedding_query(node_key, embedding);
+    let mut query_obj = query(&query_str);
+    for (k, v) in params.value.iter() {
+        query_obj = query_obj.param(k.value.as_str(), v.clone());
+    }
+    let mut txn = connection.start_txn().await?;
+    txn.run(query_obj).await?;
+    txn.commit().await?;
+    Ok(())
+}
  
 pub async fn vector_search(
     &self,

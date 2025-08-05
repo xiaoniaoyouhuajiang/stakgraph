@@ -923,6 +923,11 @@ pub fn boltmap_insert_list_of_maps(map: &mut BoltMap, key: &str, value: Vec<Bolt
     };
     map.value.insert(key.into(), BoltType::List(list));
 }
+
+pub fn boltmap_insert_list(map: &mut BoltMap, key: &str, value: Vec<BoltType>) {
+    let list = neo4rs::BoltList { value };
+    map.value.insert(key.into(), BoltType::List(list));
+}
 pub fn boltmap_insert_float(map: &mut BoltMap, key: &str, value: f64) {
     map.value
         .insert(key.into(), BoltType::Float(neo4rs::BoltFloat { value: value as f64 }));
@@ -1101,14 +1106,27 @@ pub fn data_bank_bodies_query_no_embeddings(do_files: bool, skip: usize, limit: 
     "#.to_string();
     (query, params)
 }
-pub fn bulk_update_embeddings_query() -> String {
-    r#"
-    UNWIND $batch as item
-    MATCH (n:Data_Bank {node_key: item.node_key})
-    SET n.embeddings = item.embeddings
-    "#.to_string()
+// pub fn bulk_update_embeddings_query() -> String {
+//     r#"
+//     UNWIND $batch as item
+//     MATCH (n:Data_Bank {node_key: item.node_key})
+//     SET n.embeddings = item.embeddings
+//     "#.to_string()
+// }
+pub fn update_embedding_query(node_key: &str, embedding: &[f32]) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "node_key", node_key);
+    let emb_list = embedding
+        .iter()
+        .map(|&v| neo4rs::BoltType::Float(neo4rs::BoltFloat { value: v as f64 }))
+        .collect::<Vec<_>>();
+    boltmap_insert_list(&mut params, "embeddings", emb_list);
+    let query = r#"
+        MATCH (n:Data_Bank {node_key: $node_key})
+        SET n.embeddings = $embeddings
+    "#.to_string();
+    (query, params)
 }
-
 pub fn vector_search_query(
     embedding: &[f32],
     limit: usize,
@@ -1123,8 +1141,8 @@ pub fn vector_search_query(
         .iter()
         .map(|&v| neo4rs::BoltType::Float(neo4rs::BoltFloat { value: v as f64 }))
         .collect::<Vec<_>>();
-    params.value.insert("embeddings".into(), neo4rs::BoltType::List(neo4rs::BoltList { value: emb_list }));
 
+    boltmap_insert_list(&mut params, "embeddings", emb_list.clone());
    
     boltmap_insert_int(&mut params, "limit", limit as i64);
 
@@ -1134,7 +1152,8 @@ pub fn vector_search_query(
         .into_iter()
         .map(|s| neo4rs::BoltType::String(neo4rs::BoltString::from(s)))
         .collect::<Vec<_>>();
-    params.value.insert("node_types".into(), neo4rs::BoltType::List(neo4rs::BoltList { value: node_types_list }));
+
+    boltmap_insert_list(&mut params, "node_types", node_types_list);
 
    let ext_list = if let Some(lang_str) = language.as_ref() {
         if let Ok(lang) = Language::from_str(lang_str) {
@@ -1146,7 +1165,7 @@ pub fn vector_search_query(
         Vec::new()
     };
     
-    params.value.insert("extensions".into(), neo4rs::BoltType::List(neo4rs::BoltList { value: ext_list }));
+    boltmap_insert_list(&mut params, "extensions", ext_list);
 
     let query = r#"
         MATCH (node)
