@@ -205,8 +205,8 @@ jobs:
           EXPECTED_VECTOR_FILE="./testing/vector-search-response.json"
 
           # Remove "score" from both actual and expected
-          jq 'map(del(.score)' "$ACTUAL_VECTOR_FILE" > /tmp/actual_no_score.json
-          jq 'map(del(.score)' "$EXPECTED_VECTOR_FILE" > /tmp/expected_no_score.json
+          jq 'map(del(.score))' "$ACTUAL_VECTOR_FILE" > /tmp/actual_no_score.json
+          jq 'map(del(.score))' "$EXPECTED_VECTOR_FILE" > /tmp/expected_no_score.json
 
           # Sort for stable comparison
           jq --sort-keys . /tmp/actual_no_score.json > /tmp/sorted_actual_vector.json
