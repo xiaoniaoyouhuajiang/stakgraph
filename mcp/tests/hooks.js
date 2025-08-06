@@ -422,25 +422,14 @@ export function useIframeReplay(iframeRef) {
   const [replayStatus, setReplayStatus] = useState("idle");
   const replayInitializedRef = useRef(false);
 
-  // Updated to handle new ClickDetail structure
-  const prepareReplayActions = (trackingData) => {
-    if (!trackingData || !iframeRef?.current?.contentWindow) {
-      return null;
-    }
-    // Use the comprehensive conversion function from replay.ts
-    return iframeRef.current.contentWindow.PlaywrightConvertToReplayActions(
-      trackingData
-    );
-  };
-
   const startReplay = (trackingData) => {
     if (!iframeRef?.current?.contentWindow) {
       showPopup("Iframe not available for replay", "error");
       return false;
     }
 
-    const actions = prepareReplayActions(trackingData);
-    if (!actions || actions.length === 0) {
+    const actions = trackingData;
+    if (!actions) {
       showPopup("No actions to replay", "warning");
       return false;
     }
@@ -448,22 +437,14 @@ export function useIframeReplay(iframeRef) {
     setIsReplaying(true);
     setIsPaused(false);
     setReplayStatus("playing");
-    setProgress({ current: 0, total: actions.length });
+    const lens =
+      actions.clicks.clickDetails.length +
+      actions.inputChanges.length +
+      actions.formElementChanges.length;
+    setProgress({ current: 0, total: lens });
 
     try {
       // Clean and validate actions
-      const cleanedActions = actions.map((action) => {
-        return {
-          type: action.type || "click",
-          selector: action.selector || "[data-testid]",
-          timestamp: action.timestamp || Date.now(),
-          x: action.x || 100,
-          y: action.y || 100,
-          value: action.value || "",
-          text: action.text || "", // Include text for better debugging
-          tagName: action.tagName || "",
-        };
-      });
 
       const container = document.querySelector(".iframe-container");
       if (container) {
@@ -474,7 +455,7 @@ export function useIframeReplay(iframeRef) {
       iframeRef.current.contentWindow.postMessage(
         {
           type: "staktrak-replay-actions",
-          actions: cleanedActions,
+          actions,
         },
         "*"
       );
@@ -489,10 +470,7 @@ export function useIframeReplay(iframeRef) {
             },
             "*"
           );
-          showPopup(
-            `Test replay started with ${cleanedActions.length} actions`,
-            "info"
-          );
+          showPopup(`Test replay started with ${lens}} actions`, "info");
         } else {
           showPopup("Iframe not available for replay", "error");
           setIsReplaying(false);

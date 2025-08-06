@@ -52,17 +52,13 @@ const Staktrak = () => {
     isPaused,
     replayStatus,
     progress,
-    replaySpeed,
     startReplay,
     pauseReplay,
     resumeReplay,
     stopReplay,
-    changeReplaySpeed,
   } = useIframeReplay(iframeRef);
 
   const [filenameInput, setFilenameInput] = useState("");
-  const [showSpeedControls, setShowSpeedControls] = useState(false);
-  const speedOptions = [];
 
   const handleRecord = () => {
     if (!isRecording) {
@@ -124,11 +120,6 @@ const Staktrak = () => {
 
   const handleStopReplay = () => {
     stopReplay();
-  };
-
-  const handleSpeedChange = (speed) => {
-    changeReplaySpeed(speed);
-    setShowSpeedControls(false);
   };
 
   const copyTestToClipboard = () => {

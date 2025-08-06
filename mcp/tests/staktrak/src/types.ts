@@ -149,10 +149,3 @@ export interface ReplayProgress {
   current: number;
   total: number;
 }
-
-export interface ReplayOptions {
-  speed?: number;
-  initialDelay?: number;
-  minDelay?: number;
-  maxDelay?: number;
-}

@@ -1,10 +1,4 @@
-import {
-  ActionType,
-  ReplayStatus,
-  ReplayAction,
-  ReplayOptions,
-  Results,
-} from "./types";
+import { ActionType, ReplayStatus, ReplayAction, Results } from "./types";
 
 const DEFAULT_SPEED = 1;
 const MIN_DELAY = 0;
@@ -29,10 +23,6 @@ interface StatusRef {
 
 interface SpeedRef {
   current: number;
-}
-
-interface AnimationRef {
-  current: number | null;
 }
 
 interface IsTypingRef {
@@ -527,64 +517,42 @@ export function convertToReplayActions(trackingData: Results): ReplayAction[] {
           clickDetail: ClickDetail | [number, number, string, number],
           index: number
         ) => {
-          // Check if it's the new ClickDetail format or old array format
-          if (Array.isArray(clickDetail)) {
-            // Old format: [x, y, selector, timestamp]
-            const [x, y, selector, timestamp] = clickDetail;
+          // New ClickDetail format
+          const detail = clickDetail as ClickDetail;
+          let bestSelector = findBestSelector(detail);
 
-            if (!selector || selector === "undefined" || selector === "null") {
-              console.warn("Skipping click with invalid selector:", selector);
-              return;
-            }
+          // If we couldn't find a good selector, create a fallback
+          if (!bestSelector) {
+            console.warn(
+              "Could not find valid selector for click detail:",
+              detail
+            );
 
-            const validSelector = validateAndFixSelector(selector);
-            if (validSelector) {
-              actions.push({
-                type: ActionType.CLICK,
-                selector: validSelector,
-                timestamp,
-                x,
-                y,
-              });
-            }
-          } else {
-            // New ClickDetail format
-            const detail = clickDetail as ClickDetail;
-            let bestSelector = findBestSelector(detail);
-
-            // If we couldn't find a good selector, create a fallback
-            if (!bestSelector) {
-              console.warn(
-                "Could not find valid selector for click detail:",
-                detail
+            // Try to find element by text if available
+            if (detail.selectors.text) {
+              const textElement = findElementByText(
+                detail.selectors.tagName,
+                detail.selectors.text
               );
-
-              // Try to find element by text if available
-              if (detail.selectors.text) {
-                const textElement = findElementByText(
-                  detail.selectors.tagName,
-                  detail.selectors.text
-                );
-                if (textElement) {
-                  bestSelector = textElement;
-                }
-              }
-
-              // Last resort: use tag name with coordinates for manual targeting
-              if (!bestSelector) {
-                bestSelector = detail.selectors.tagName || "div";
+              if (textElement) {
+                bestSelector = textElement;
               }
             }
 
-            if (bestSelector) {
-              actions.push({
-                type: ActionType.CLICK,
-                selector: bestSelector,
-                timestamp: detail.timestamp,
-                x: detail.x,
-                y: detail.y,
-              });
+            // Last resort: use tag name with coordinates for manual targeting
+            if (!bestSelector) {
+              bestSelector = detail.selectors.tagName || "div";
             }
+          }
+
+          if (bestSelector) {
+            actions.push({
+              type: ActionType.CLICK,
+              selector: bestSelector,
+              timestamp: detail.timestamp,
+              x: detail.x,
+              y: detail.y,
+            });
           }
         }
       );
@@ -657,7 +625,18 @@ export function convertToReplayActions(trackingData: Results): ReplayAction[] {
   }
 
   console.log("Converted replay actions:", actions);
-  return actions;
+  const cleanedActions = actions.map((action) => {
+    return {
+      type: action.type || "click",
+      selector: action.selector || "[data-testid]",
+      timestamp: action.timestamp || Date.now(),
+      x: action.x || 100,
+      y: action.y || 100,
+      value: action.value || "",
+    };
+  });
+
+  return cleanedActions;
 }
 
 /**
@@ -852,7 +831,7 @@ export function createCursor(): HTMLElement {
 export function createReplayStyles(): HTMLStyleElement {
   const style = document.createElement("style");
   style.textContent = `
-    @keyframes click-ripple {
+    @keyframes staktrak-click-ripple {
       0% {
         transform: translate(-50%, -50%) scale(1);
         opacity: 1;
@@ -863,14 +842,14 @@ export function createReplayStyles(): HTMLStyleElement {
       }
     }
     
-    @keyframes pulse {
+    @keyframes staktrak-pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.03); }
       100% { transform: scale(1); }
     }
     
-    .replay-pulse {
-      animation: pulse 0.5s ease-in-out infinite;
+    .staktrak-replay-pulse {
+      animation: staktrak-pulse 0.5s ease-in-out infinite;
     }
   `;
   document.head.appendChild(style);
@@ -881,7 +860,7 @@ export function showClickEffect(cursorRef: ElementRef): void {
   if (!cursorRef.current) return;
 
   const ripple = document.createElement("div");
-  ripple.className = "click-ripple";
+  ripple.className = "staktrak-click-ripple";
   ripple.style.position = "fixed";
   ripple.style.left = cursorRef.current.style.left;
   ripple.style.top = cursorRef.current.style.top;
@@ -892,7 +871,7 @@ export function showClickEffect(cursorRef: ElementRef): void {
   ripple.style.borderRadius = "50%";
   ripple.style.zIndex = "9998";
   ripple.style.pointerEvents = "none";
-  ripple.style.animation = "click-ripple 1s ease-out forwards";
+  ripple.style.animation = "staktrak-click-ripple 1s ease-out forwards";
   document.body.appendChild(ripple);
 
   cursorRef.current.style.transform = "translate(-50%, -50%) scale(0.8)";
@@ -910,25 +889,25 @@ export function showClickEffect(cursorRef: ElementRef): void {
 }
 
 export function highlightElement(element: Element, speedRef: SpeedRef): void {
-  const originalOutline = (element as HTMLElement).style.outline;
-  const originalBoxShadow = (element as HTMLElement).style.boxShadow;
-  const originalZIndex = (element as HTMLElement).style.zIndex;
-  const originalTransition = (element as HTMLElement).style.transition;
+  // const originalOutline = (element as HTMLElement).style.outline;
+  // const originalBoxShadow = (element as HTMLElement).style.boxShadow;
+  // const originalZIndex = (element as HTMLElement).style.zIndex;
+  // const originalTransition = (element as HTMLElement).style.transition;
 
-  (element as HTMLElement).style.transition = "all 0.3s ease-in-out";
-  (element as HTMLElement).style.outline = "3px solid #ff3333";
-  (element as HTMLElement).style.boxShadow = "0 0 15px rgba(255, 51, 51, 0.7)";
-  (element as HTMLElement).style.zIndex = "1000";
+  // (element as HTMLElement).style.transition = "all 0.3s ease-in-out";
+  // (element as HTMLElement).style.outline = "3px solid #ff3333";
+  // (element as HTMLElement).style.boxShadow = "0 0 15px rgba(255, 51, 51, 0.7)";
+  // (element as HTMLElement).style.zIndex = "1000";
 
-  element.classList.add("replay-pulse");
+  element.classList.add("staktrak-replay-pulse");
 
   setTimeout(() => {
     if (element) {
-      (element as HTMLElement).style.outline = originalOutline;
-      (element as HTMLElement).style.boxShadow = originalBoxShadow;
-      (element as HTMLElement).style.zIndex = originalZIndex;
-      (element as HTMLElement).style.transition = originalTransition;
-      element.classList.remove("replay-pulse");
+      // (element as HTMLElement).style.outline = originalOutline;
+      // (element as HTMLElement).style.boxShadow = originalBoxShadow;
+      // (element as HTMLElement).style.zIndex = originalZIndex;
+      // (element as HTMLElement).style.transition = originalTransition;
+      element.classList.remove("staktrak-replay-pulse");
     }
   }, 200 / speedRef.current);
 }
@@ -1317,16 +1296,18 @@ export function stopReplay(): void {
     cursorRef.current.style.display = "none";
   }
 
-  const ripples = document.querySelectorAll(".click-ripple");
+  const ripples = document.querySelectorAll(".staktrak-click-ripple");
   ripples.forEach((ripple) => {
     if (ripple.parentNode) {
       ripple.parentNode.removeChild(ripple);
     }
   });
 
-  const highlightedElements = document.querySelectorAll(".replay-pulse");
+  const highlightedElements = document.querySelectorAll(
+    ".staktrak-replay-pulse"
+  );
   highlightedElements.forEach((element) => {
-    element.classList.remove("replay-pulse");
+    element.classList.remove("staktrak-replay-pulse");
     (element as HTMLElement).style.outline = "";
     (element as HTMLElement).style.boxShadow = "";
     (element as HTMLElement).style.zIndex = "";
@@ -1336,7 +1317,7 @@ export function stopReplay(): void {
   window.parent.postMessage({ type: "staktrak-replay-stopped" }, "*");
 }
 
-export function initReplay(options?: ReplayOptions): void {
+export function initReplay(): void {
   const replayStyles = createReplayStyles();
   const cursor = createCursor();
 
@@ -1356,7 +1337,8 @@ export function initReplay(options?: ReplayOptions): void {
 
     switch (data.type) {
       case "staktrak-replay-actions":
-        actionsRef.current = data.actions || [];
+        const actions = convertToReplayActions(data.actions);
+        actionsRef.current = actions || [];
         break;
 
       case "staktrak-replay-start":
@@ -1417,6 +1399,9 @@ export function initReplay(options?: ReplayOptions): void {
 export { DEFAULT_SPEED, MIN_DELAY, MAX_DELAY, INITIAL_DELAY };
 
 document.addEventListener("DOMContentLoaded", () => {
-  (window as any).PlaywrightConvertToReplayActions = convertToReplayActions;
   initReplay();
 });
+
+document.readyState === "loading"
+  ? document.addEventListener("DOMContentLoaded", initReplay)
+  : initReplay();
