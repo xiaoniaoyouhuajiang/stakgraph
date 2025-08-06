@@ -443,8 +443,8 @@ var stakReplay = (() => {
       console.warn("No actions extracted from tracking data"),
       actions.sort((a, b) => a.timestamp - b.timestamp));
     for (let i = 1; i < actions.length; i++)
-      actions[i].timestamp - actions[i - 1].timestamp < 600 &&
-        (actions[i].timestamp = actions[i - 1].timestamp + 600);
+      actions[i].timestamp - actions[i - 1].timestamp < 250 &&
+        (actions[i].timestamp = actions[i - 1].timestamp + 250);
     return (console.log("Converted replay actions:", actions), actions);
   }
   function validateAndFixSelector(selector) {
@@ -1042,11 +1042,7 @@ var stakReplay = (() => {
       window.parent.postMessage({ type: "staktrak-replay-ready" }, "*"));
   }
   document.addEventListener("DOMContentLoaded", () => {
-    ((window.convertToReplayActions = convertToReplayActions),
-      (window.findElement = findElement),
-      (window.pauseReplay = pauseReplay),
-      (window.resumeReplay = resumeReplay),
-      (window.stopReplay = stopReplay),
+    ((window.PlaywrightConvertToReplayActions = convertToReplayActions),
       initReplay());
   });
   return __toCommonJS(replay_exports);

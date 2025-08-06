@@ -3,7 +3,7 @@ import {
   ReplayStatus,
   ReplayAction,
   ReplayOptions,
-  ReplayState,
+  Results,
 } from "./types";
 
 const DEFAULT_SPEED = 1;
@@ -508,7 +508,7 @@ function createUniqueSelector(element: Element): string | null {
 /**
  * Enhanced convertToReplayActions with better selector handling
  */
-export function convertToReplayActions(trackingData: any): ReplayAction[] {
+export function convertToReplayActions(trackingData: Results): ReplayAction[] {
   if (!trackingData) {
     console.error("No tracking data provided to convertToReplayActions");
     return [];
@@ -651,8 +651,8 @@ export function convertToReplayActions(trackingData: any): ReplayAction[] {
   actions.sort((a, b) => a.timestamp - b.timestamp);
 
   for (let i = 1; i < actions.length; i++) {
-    if (actions[i].timestamp - actions[i - 1].timestamp < 600) {
-      actions[i].timestamp = actions[i - 1].timestamp + 600;
+    if (actions[i].timestamp - actions[i - 1].timestamp < 250) {
+      actions[i].timestamp = actions[i - 1].timestamp + 250;
     }
   }
 
@@ -1417,11 +1417,6 @@ export function initReplay(options?: ReplayOptions): void {
 export { DEFAULT_SPEED, MIN_DELAY, MAX_DELAY, INITIAL_DELAY };
 
 document.addEventListener("DOMContentLoaded", () => {
-  (window as any).convertToReplayActions = convertToReplayActions;
-  (window as any).findElement = findElement;
-  (window as any).pauseReplay = pauseReplay;
-  (window as any).resumeReplay = resumeReplay;
-  (window as any).stopReplay = stopReplay;
-
+  (window as any).PlaywrightConvertToReplayActions = convertToReplayActions;
   initReplay();
 });
