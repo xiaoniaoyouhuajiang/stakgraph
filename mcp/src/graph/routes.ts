@@ -166,7 +166,8 @@ export async function get_services(req: Request, res: Response) {
         service.env = {};
         envVars.forEach((v) => (service.env[v] = process.env[v] || ""));
 
-        services.push(service);
+              const { pkgFile: _, ...cleanService } = service;
+              services.push(cleanService);
       }
       const composeFiles = await findDockerComposeFiles(repoDir);
       let containers: ContainerConfig[] = [];
