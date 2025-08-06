@@ -1,38 +1,28 @@
 import { useState, useEffect, useRef } from "https://esm.sh/preact/hooks";
 
-// Add type definitions for the new structure
-const ClickDetailType = {
-  x: "number",
-  y: "number",
-  timestamp: "number",
-  selectors: {
-    primary: "string",
-    fallbacks: "array",
-    text: "string|undefined",
-    ariaLabel: "string|undefined",
-    title: "string|undefined",
-    role: "string|undefined",
-    tagName: "string",
-    xpath: "string|undefined",
-  },
-  elementInfo: {
-    tagName: "string",
-    id: "string|undefined",
-    className: "string|undefined",
-    attributes: "object",
-  },
-};
-
-export function useIframeMessaging(iframeRef) {
+export function useIframeMessaging(iframeRef, initialURL) {
   const popupHook = usePopup();
   const [isRecording, setIsRecording] = useState(false);
   const [isAssertionMode, setIsAssertionMode] = useState(false);
   const [canGenerate, setCanGenerate] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
   const [selectedText, setSelectedText] = useState(null);
+  const [url, setUrl] = useState(initialURL);
+  const [displayUrl, setDisplayUrl] = useState(initialURL);
 
   const { showPopup } = popupHook;
   const selectedDisplayTimeout = useRef(null);
+
+  const handleUrlChange = (e) => {
+    setUrl(e.target.value);
+    setDisplayUrl(e.target.value);
+  };
+
+  const navigateToUrl = () => {
+    if (iframeRef.current) {
+      iframeRef.current.src = url;
+    }
+  };
 
   const displaySelectedText = (text) => {
     setSelectedText(text);
@@ -88,6 +78,7 @@ export function useIframeMessaging(iframeRef) {
             break;
           case "staktrak-page-navigation":
             console.log("Staktrak page navigation:", event.data.data);
+            setDisplayUrl(event.data.data);
             break;
         }
       }
@@ -155,6 +146,12 @@ export function useIframeMessaging(iframeRef) {
     stopRecording,
     enableAssertionMode,
     disableAssertionMode,
+    url,
+    setUrl,
+    handleUrlChange,
+    navigateToUrl,
+    displayUrl,
+    setDisplayUrl,
   };
 }
 
@@ -416,23 +413,6 @@ export function usePopup() {
   return { showPopup };
 }
 
-export function useURL(initialURL) {
-  const [url, setUrl] = useState(initialURL);
-  const iframeRef = useRef(null);
-
-  const handleUrlChange = (e) => {
-    setUrl(e.target.value);
-  };
-
-  const navigateToUrl = () => {
-    if (iframeRef.current) {
-      iframeRef.current.src = url;
-    }
-  };
-
-  return { url, setUrl, handleUrlChange, navigateToUrl, iframeRef };
-}
-
 export function useIframeReplay(iframeRef) {
   const { showPopup } = usePopup();
   const [isReplaying, setIsReplaying] = useState(false);
@@ -442,189 +422,14 @@ export function useIframeReplay(iframeRef) {
   const [replayStatus, setReplayStatus] = useState("idle");
   const replayInitializedRef = useRef(false);
 
-  // Updated to handle new ClickDetail structure
-  const prepareReplayActions = (trackingData) => {
-    if (!trackingData) {
-      console.error("No tracking data provided for replay");
-      return null;
-    }
-
-    if (!iframeRef?.current?.contentWindow) {
-      console.error("Iframe content window not available");
-      return null;
-    }
-
-    // If actions are already prepared, use them
-    if (trackingData.directActions) {
-      return trackingData.directActions;
-    }
-
-    try {
-      // Handle new ClickDetail structure
-      if (
-        trackingData.clicks?.clickDetails &&
-        Array.isArray(trackingData.clicks.clickDetails)
-      ) {
-        const actions = [];
-
-        // Check if it's the new ClickDetail format or old array format
-        trackingData.clicks.clickDetails.forEach((clickDetail) => {
-          if (Array.isArray(clickDetail)) {
-            // Old format: [x, y, selector, timestamp]
-            const [x, y, selector, timestamp] = clickDetail;
-            actions.push({
-              type: "click",
-              selector: selector,
-              timestamp: timestamp,
-              x: x,
-              y: y,
-            });
-          } else if (
-            clickDetail &&
-            typeof clickDetail === "object" &&
-            clickDetail.selectors
-          ) {
-            // New ClickDetail format
-            const selector =
-              clickDetail.selectors.primary ||
-              (clickDetail.selectors.fallbacks &&
-                clickDetail.selectors.fallbacks[0]) ||
-              clickDetail.selectors.tagName;
-
-            actions.push({
-              type: "click",
-              selector: selector,
-              timestamp: clickDetail.timestamp,
-              x: clickDetail.x,
-              y: clickDetail.y,
-              text: clickDetail.selectors.text, // Include text for better debugging
-              tagName: clickDetail.selectors.tagName,
-            });
-          }
-        });
-
-        // Add input actions if they exist
-        if (
-          trackingData.inputChanges &&
-          Array.isArray(trackingData.inputChanges)
-        ) {
-          trackingData.inputChanges
-            .filter((change) => change.action === "complete" || !change.action)
-            .forEach((inputChange) => {
-              actions.push({
-                type: "input",
-                selector: inputChange.elementSelector,
-                timestamp: inputChange.timestamp,
-                value: inputChange.value,
-              });
-            });
-        }
-
-        // Add form element changes
-        if (
-          trackingData.formElementChanges &&
-          Array.isArray(trackingData.formElementChanges)
-        ) {
-          trackingData.formElementChanges.forEach((formChange) => {
-            if (formChange.type === "checkbox" || formChange.type === "radio") {
-              actions.push({
-                type: formChange.checked ? "check" : "uncheck",
-                selector: formChange.elementSelector,
-                timestamp: formChange.timestamp,
-                value: formChange.value,
-              });
-            } else if (formChange.type === "select") {
-              actions.push({
-                type: "select",
-                selector: formChange.elementSelector,
-                timestamp: formChange.timestamp,
-                value: formChange.value,
-                text: formChange.text,
-              });
-            }
-          });
-        }
-
-        // Sort actions by timestamp
-        actions.sort((a, b) => a.timestamp - b.timestamp);
-
-        if (actions.length > 0) {
-          console.log("Generated replay actions:", actions);
-          return actions;
-        }
-      }
-
-      // Legacy handling for backward compatibility
-      if (Array.isArray(trackingData.clickDetails)) {
-        const actions = trackingData.clickDetails.map((click) => {
-          if (Array.isArray(click)) {
-            const [x, y, selector, timestamp] = click;
-            return {
-              type: "click",
-              selector: selector,
-              timestamp: timestamp,
-              x: x,
-              y: y,
-            };
-          }
-          return click;
-        });
-
-        if (actions.length > 0) {
-          return actions;
-        }
-      }
-
-      // Try iframe conversion function
-      if (iframeRef.current.contentWindow.convertToReplayActions) {
-        const actions =
-          iframeRef.current.contentWindow.convertToReplayActions(trackingData);
-        if (actions && actions.length > 0) {
-          return actions;
-        }
-      }
-
-      // Fallback actions for demo purposes
-      if (
-        !trackingData.clicks?.clickDetails ||
-        trackingData.clicks.clickDetails.length === 0
-      ) {
-        console.warn("No click data found, using fallback actions");
-        const fallbackActions = [
-          {
-            type: "click",
-            selector: '[data-testid="staktrak-div"]',
-            timestamp: Date.now(),
-            x: 100,
-            y: 100,
-          },
-          {
-            type: "click",
-            selector: "button.staktrak-div",
-            timestamp: Date.now() + 1000,
-            x: 200,
-            y: 100,
-          },
-        ];
-        return fallbackActions;
-      }
-
-      console.error("No valid actions could be generated from tracking data");
-      return null;
-    } catch (error) {
-      console.error("Error preparing replay actions:", error);
-      return null;
-    }
-  };
-
   const startReplay = (trackingData) => {
     if (!iframeRef?.current?.contentWindow) {
       showPopup("Iframe not available for replay", "error");
       return false;
     }
 
-    const actions = prepareReplayActions(trackingData);
-    if (!actions || actions.length === 0) {
+    const actions = trackingData;
+    if (!actions) {
       showPopup("No actions to replay", "warning");
       return false;
     }
@@ -632,22 +437,14 @@ export function useIframeReplay(iframeRef) {
     setIsReplaying(true);
     setIsPaused(false);
     setReplayStatus("playing");
-    setProgress({ current: 0, total: actions.length });
+    const lens =
+      actions.clicks.clickDetails.length +
+      actions.inputChanges.length +
+      actions.formElementChanges.length;
+    setProgress({ current: 0, total: lens });
 
     try {
       // Clean and validate actions
-      const cleanedActions = actions.map((action) => {
-        return {
-          type: action.type || "click",
-          selector: action.selector || "[data-testid]",
-          timestamp: action.timestamp || Date.now(),
-          x: action.x || 100,
-          y: action.y || 100,
-          value: action.value || "",
-          text: action.text || "", // Include text for better debugging
-          tagName: action.tagName || "",
-        };
-      });
 
       const container = document.querySelector(".iframe-container");
       if (container) {
@@ -658,7 +455,7 @@ export function useIframeReplay(iframeRef) {
       iframeRef.current.contentWindow.postMessage(
         {
           type: "staktrak-replay-actions",
-          actions: cleanedActions,
+          actions,
         },
         "*"
       );
@@ -673,10 +470,7 @@ export function useIframeReplay(iframeRef) {
             },
             "*"
           );
-          showPopup(
-            `Test replay started with ${cleanedActions.length} actions`,
-            "info"
-          );
+          showPopup(`Test replay started with ${lens}} actions`, "info");
         } else {
           showPopup("Iframe not available for replay", "error");
           setIsReplaying(false);

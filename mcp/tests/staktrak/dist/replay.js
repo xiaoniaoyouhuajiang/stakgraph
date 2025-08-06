@@ -349,50 +349,32 @@ var stakReplay = (() => {
       ((_a = clicks == null ? void 0 : clicks.clickDetails) != null &&
         _a.length &&
         clicks.clickDetails.forEach((clickDetail, index) => {
-          if (Array.isArray(clickDetail)) {
-            let [x, y, selector, timestamp] = clickDetail;
-            if (!selector || selector === "undefined" || selector === "null") {
-              console.warn("Skipping click with invalid selector:", selector);
-              return;
+          let detail = clickDetail,
+            bestSelector = findBestSelector(detail);
+          if (!bestSelector) {
+            if (
+              (console.warn(
+                "Could not find valid selector for click detail:",
+                detail,
+              ),
+              detail.selectors.text)
+            ) {
+              let textElement = findElementByText(
+                detail.selectors.tagName,
+                detail.selectors.text,
+              );
+              textElement && (bestSelector = textElement);
             }
-            let validSelector = validateAndFixSelector(selector);
-            validSelector &&
-              actions.push({
-                type: "click",
-                selector: validSelector,
-                timestamp,
-                x,
-                y,
-              });
-          } else {
-            let detail = clickDetail,
-              bestSelector = findBestSelector(detail);
-            if (!bestSelector) {
-              if (
-                (console.warn(
-                  "Could not find valid selector for click detail:",
-                  detail,
-                ),
-                detail.selectors.text)
-              ) {
-                let textElement = findElementByText(
-                  detail.selectors.tagName,
-                  detail.selectors.text,
-                );
-                textElement && (bestSelector = textElement);
-              }
-              bestSelector ||
-                (bestSelector = detail.selectors.tagName || "div");
-            }
-            bestSelector &&
-              actions.push({
-                type: "click",
-                selector: bestSelector,
-                timestamp: detail.timestamp,
-                x: detail.x,
-                y: detail.y,
-              });
+            bestSelector || (bestSelector = detail.selectors.tagName || "div");
           }
+          bestSelector &&
+            actions.push({
+              type: "click",
+              selector: bestSelector,
+              timestamp: detail.timestamp,
+              x: detail.x,
+              y: detail.y,
+            });
         }),
         inputChanges != null &&
           inputChanges.length &&
@@ -443,9 +425,19 @@ var stakReplay = (() => {
       console.warn("No actions extracted from tracking data"),
       actions.sort((a, b) => a.timestamp - b.timestamp));
     for (let i = 1; i < actions.length; i++)
-      actions[i].timestamp - actions[i - 1].timestamp < 600 &&
-        (actions[i].timestamp = actions[i - 1].timestamp + 600);
-    return (console.log("Converted replay actions:", actions), actions);
+      actions[i].timestamp - actions[i - 1].timestamp < 250 &&
+        (actions[i].timestamp = actions[i - 1].timestamp + 250);
+    return (
+      console.log("Converted replay actions:", actions),
+      actions.map((action) => ({
+        type: action.type || "click",
+        selector: action.selector || "[data-testid]",
+        timestamp: action.timestamp || Date.now(),
+        x: action.x || 100,
+        y: action.y || 100,
+        value: action.value || "",
+      }))
+    );
   }
   function validateAndFixSelector(selector) {
     if (!selector || selector === "undefined" || selector === "null")
@@ -589,7 +581,7 @@ var stakReplay = (() => {
     let style = document.createElement("style");
     return (
       (style.textContent = `
-    @keyframes click-ripple {
+    @keyframes staktrak-click-ripple {
       0% {
         transform: translate(-50%, -50%) scale(1);
         opacity: 1;
@@ -600,14 +592,14 @@ var stakReplay = (() => {
       }
     }
     
-    @keyframes pulse {
+    @keyframes staktrak-pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.03); }
       100% { transform: scale(1); }
     }
     
-    .replay-pulse {
-      animation: pulse 0.5s ease-in-out infinite;
+    .staktrak-replay-pulse {
+      animation: staktrak-pulse 0.5s ease-in-out infinite;
     }
   `),
       document.head.appendChild(style),
@@ -617,7 +609,7 @@ var stakReplay = (() => {
   function showClickEffect(cursorRef2) {
     if (!cursorRef2.current) return;
     let ripple = document.createElement("div");
-    ((ripple.className = "click-ripple"),
+    ((ripple.className = "staktrak-click-ripple"),
       (ripple.style.position = "fixed"),
       (ripple.style.left = cursorRef2.current.style.left),
       (ripple.style.top = cursorRef2.current.style.top),
@@ -628,7 +620,7 @@ var stakReplay = (() => {
       (ripple.style.borderRadius = "50%"),
       (ripple.style.zIndex = "9998"),
       (ripple.style.pointerEvents = "none"),
-      (ripple.style.animation = "click-ripple 1s ease-out forwards"),
+      (ripple.style.animation = "staktrak-click-ripple 1s ease-out forwards"),
       document.body.appendChild(ripple),
       (cursorRef2.current.style.transform = "translate(-50%, -50%) scale(0.8)"),
       setTimeout(() => {
@@ -641,22 +633,9 @@ var stakReplay = (() => {
       }, 1e3));
   }
   function highlightElement(element, speedRef2) {
-    let originalOutline = element.style.outline,
-      originalBoxShadow = element.style.boxShadow,
-      originalZIndex = element.style.zIndex,
-      originalTransition = element.style.transition;
-    ((element.style.transition = "all 0.3s ease-in-out"),
-      (element.style.outline = "3px solid #ff3333"),
-      (element.style.boxShadow = "0 0 15px rgba(255, 51, 51, 0.7)"),
-      (element.style.zIndex = "1000"),
-      element.classList.add("replay-pulse"),
+    (element.classList.add("staktrak-replay-pulse"),
       setTimeout(() => {
-        element &&
-          ((element.style.outline = originalOutline),
-          (element.style.boxShadow = originalBoxShadow),
-          (element.style.zIndex = originalZIndex),
-          (element.style.transition = originalTransition),
-          element.classList.remove("replay-pulse"));
+        element && element.classList.remove("staktrak-replay-pulse");
       }, 200 / speedRef2.current));
   }
   function moveCursorToElement(element, cursorRef2, statusRef2) {
@@ -966,11 +945,11 @@ var stakReplay = (() => {
     (clearAllTimeouts(),
       (statusRef.current = "idle"),
       cursorRef.current && (cursorRef.current.style.display = "none"),
-      document.querySelectorAll(".click-ripple").forEach((ripple) => {
+      document.querySelectorAll(".staktrak-click-ripple").forEach((ripple) => {
         ripple.parentNode && ripple.parentNode.removeChild(ripple);
       }),
-      document.querySelectorAll(".replay-pulse").forEach((element) => {
-        (element.classList.remove("replay-pulse"),
+      document.querySelectorAll(".staktrak-replay-pulse").forEach((element) => {
+        (element.classList.remove("staktrak-replay-pulse"),
           (element.style.outline = ""),
           (element.style.boxShadow = ""),
           (element.style.zIndex = ""),
@@ -978,7 +957,7 @@ var stakReplay = (() => {
       }),
       window.parent.postMessage({ type: "staktrak-replay-stopped" }, "*"));
   }
-  function initReplay(options) {
+  function initReplay() {
     let replayStyles = createReplayStyles(),
       cursor = createCursor();
     ((cursorRef.current = cursor),
@@ -994,7 +973,8 @@ var stakReplay = (() => {
         if (!(!data || !data.type))
           switch (data.type) {
             case "staktrak-replay-actions":
-              actionsRef.current = data.actions || [];
+              let actions = convertToReplayActions(data.actions);
+              actionsRef.current = actions || [];
               break;
             case "staktrak-replay-start":
               (clearAllTimeouts(),
@@ -1042,12 +1022,10 @@ var stakReplay = (() => {
       window.parent.postMessage({ type: "staktrak-replay-ready" }, "*"));
   }
   document.addEventListener("DOMContentLoaded", () => {
-    ((window.convertToReplayActions = convertToReplayActions),
-      (window.findElement = findElement),
-      (window.pauseReplay = pauseReplay),
-      (window.resumeReplay = resumeReplay),
-      (window.stopReplay = stopReplay),
-      initReplay());
+    initReplay();
   });
+  document.readyState === "loading"
+    ? document.addEventListener("DOMContentLoaded", initReplay)
+    : initReplay();
   return __toCommonJS(replay_exports);
 })();
