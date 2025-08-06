@@ -9,6 +9,8 @@ const App = () => {
   const [repoUrl, setRepoUrl] = useState("");
   const [username, setUsername] = useState("");
   const [pat, setPat] = useState("");
+  const [commit, setCommit] = useState("");
+  const [useLsp, setUseLsp] = useState(true);
 
   const [currentRepoName, setCurrentRepoName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -84,6 +86,10 @@ const App = () => {
     setPat(event.target.value);
   };
 
+  const handleCommitChange = (event) => {
+    setCommit(event.target.value);
+  };
+
   const btnDisabled = !repoUrl || isLoading;
 
   const handleSubmit = async () => {
@@ -95,7 +101,13 @@ const App = () => {
     setStatus({ message: "Cloning repo to /tmp/..." });
     setStats({});
     try {
-      await utils.POST("/ingest", { repo_url: repoUrl, username, pat });
+      await utils.POST("/ingest", {
+        repo_url: repoUrl,
+        username,
+        pat,
+        commit: commit || undefined,
+        use_lsp: useLsp,
+      });
     } catch (e) {
       let message = e.message
         .split("\n")
@@ -197,7 +209,9 @@ const App = () => {
       (status.status === "Complete" || progress === 100)
     ) {
       return html`
-        <div style="margin-top: 24px; display: flex; gap: 12px;">
+        <div
+          style="margin-top: 24px; display: flex; gap: 12px; justify-content: space-around;"
+        >
           <button onClick=${handleSync}>Sync Repo to Latest</button>
           <button onClick=${handleReset}>Ingest Another Repo</button>
         </div>
@@ -210,6 +224,8 @@ const App = () => {
     setRepoUrl("");
     setUsername("");
     setPat("");
+    setCommit("");
+    setUseLsp(true);
     setCurrentRepoName("");
     setStatus(null);
     setProgress(0);
@@ -259,6 +275,22 @@ const App = () => {
             placeholder="PAT (optional)"
             value=${pat}
             onInput=${handlePatChange}
+          />
+        </div>
+        <input
+          type="text"
+          placeholder="Commit hash (optional)"
+          value=${commit}
+          onInput=${handleCommitChange}
+        />
+        <div class="checkbox-wrapper-14">
+          <label for="lsp-switch" class="lsp-label"> LSP </label>
+          <input
+            id="lsp-switch"
+            type="checkbox"
+            class="switch"
+            checked=${useLsp}
+            onChange=${(e) => setUseLsp(e.target.checked)}
           />
         </div>
         <button onClick=${handleBtnClick} disabled=${btnDisabled}>

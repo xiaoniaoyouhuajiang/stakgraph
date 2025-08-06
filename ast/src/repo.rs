@@ -6,7 +6,6 @@ use ignore::WalkBuilder;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
 use lsp::{git::git_clone, spawn_analyzer, strip_tmp, CmdSender};
 use shared::{Context, Error, Result};
-use std::fmt::format;
 use std::str::FromStr;
 use std::{fs, path::PathBuf};
 use tokio::sync::broadcast::Sender;

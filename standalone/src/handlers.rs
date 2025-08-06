@@ -252,6 +252,19 @@ pub async fn ingest(
         .await?;
     graph_ops.graph.create_indexes().await?;
 
+    let _ = state.tx.send(ast::repo::StatusUpdate {
+        status: "Complete".to_string(),
+        message: "Graph building completed successfully".to_string(),
+        step: 16,
+        total_steps: 16,
+        progress: 100,
+        stats: Some(std::collections::HashMap::from([
+            ("total_nodes".to_string(), nodes as usize),
+            ("total_edges".to_string(), edges as usize),
+        ])),
+        step_description: Some("Graph building completed".to_string()),
+    });
+
     info!(
         "\n\n ==>> Uploading to Neo4j took {:.2?} \n\n",
         start_upload.elapsed()
