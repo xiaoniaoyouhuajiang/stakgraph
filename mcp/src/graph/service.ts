@@ -188,7 +188,7 @@ export function generate_services_config(
   pkgFiles: Neo4jNode[],
   allFiles: Neo4jNode[],
   envVarNodes: Neo4jNode[]
-): any[] {
+): { services: any[]; containers: ContainerConfig[] } {
   const serviceMap = new Map<string, any>();
 
   // parse package files
@@ -211,99 +211,61 @@ export function generate_services_config(
 
   console.log("===> serviceMap", serviceMap);
 
-  const PARSE_DOCKER_COMPOSE = false;
-  if (PARSE_DOCKER_COMPOSE) {
-    // args in docker-compose files
-    const dcFiles = allFiles.filter(
-      (f) =>
-        f.properties.name.endsWith("docker-compose.yml") ||
-        f.properties.name.endsWith("docker-compose.yaml")
-    );
-    for (const dcFile of dcFiles) {
-      try {
-        const body = dcFile.properties.body;
-        if (
-          !body ||
-          body.trim() === "" ||
-          body === "undefined" ||
-          body === "null"
-        ) {
-          console.warn(
-            `Invalid docker-compose body for ${dcFile.properties.file}: ${body}`
-          );
-          continue;
-        }
-        const dcContent = yaml.load(dcFile.properties.body) as any;
-        if (dcContent && dcContent.services) {
-          for (const serviceName in dcContent.services) {
-            const dcService = dcContent.services[serviceName];
-            const service = serviceMap.get(serviceName) || {
-              name: serviceName,
-              language: "unknown",
-              dev: false,
-              scripts: {},
-              env: {},
-              pkgFile: path.dirname(dcFile.properties.file),
-            };
-
-            if (dcService.environment) {
-              const env = Array.isArray(dcService.environment)
-                ? Object.fromEntries(
-                    dcService.environment.map((e: string) => e.split("="))
-                  )
-                : dcService.environment;
-              service.env = { ...service.env, ...env };
-            }
-            serviceMap.set(serviceName, service);
-          }
-        }
-      } catch (error) {
-        console.error(
-          `Error processing docker-compose file ${dcFile.properties.file}:`,
-          error
-        );
-        continue;
-      }
+  const dcFiles = allFiles.filter(
+    (f) =>
+      f.properties.name.endsWith("docker-compose.yml") ||
+      f.properties.name.endsWith("docker-compose.yaml")
+  );
+  let containers: ContainerConfig[] = [];
+  for (const dcFile of dcFiles) {
+    const body = dcFile.properties.body;
+    if (
+      !body ||
+      body.trim() === "" ||
+      body === "undefined" ||
+      body === "null"
+    ) {
+      console.warn(
+        `Invalid docker-compose body for ${dcFile.properties.file}: ${body}`
+      );
+      continue;
     }
+
+    const found = extractContainersFromComposeBody(body);
+    containers = containers.concat(found);
   }
 
-  const PARSE_ENV_VARS = true;
-  if (PARSE_ENV_VARS) {
-    //env found in code
-    const envRegexes = serviceParsers.map((p) => p.envRegex);
-    for (const envVarNode of envVarNodes) {
-      const nodeFile = envVarNode.properties.file;
-      if (!nodeFile) continue;
+  const envRegexes = serviceParsers.map((p) => p.envRegex);
+  for (const envVarNode of envVarNodes) {
+    const nodeFile = envVarNode.properties.file;
+    if (!nodeFile) continue;
 
-      const body = envVarNode.properties.body;
-      if (!body || body === "undefined" || body === "null") continue;
+    const body = envVarNode.properties.body;
+    if (!body || body === "undefined" || body === "null") continue;
 
-      const varNames = extractEnvVarNames(body, envRegexes);
-      if (varNames.length === 0) continue;
+    const varNames = extractEnvVarNames(body, envRegexes);
+    if (varNames.length === 0) continue;
 
-      // Find the single, most specific service this file belongs to
-      let bestMatchService: any = null;
-      let longestMatchPath = "";
+    let bestMatchService: any = null;
+    let longestMatchPath = "";
 
-      for (const service of serviceMap.values()) {
-        if (service.language !== "unknown" && service.pkgFile) {
-          const serviceDir = path.dirname(service.pkgFile);
-          if (
-            nodeFile.startsWith(serviceDir) &&
-            serviceDir.length > longestMatchPath.length
-          ) {
-            longestMatchPath = serviceDir;
-            bestMatchService = service;
-          }
+    for (const service of serviceMap.values()) {
+      if (service.language !== "unknown" && service.pkgFile) {
+        const serviceDir = path.dirname(service.pkgFile);
+        if (
+          nodeFile.startsWith(serviceDir) &&
+          serviceDir.length > longestMatchPath.length
+        ) {
+          longestMatchPath = serviceDir;
+          bestMatchService = service;
         }
       }
+    }
 
-      // If we found a specific service, add the env vars ONLY to it
-      if (bestMatchService) {
-        for (const varName of varNames) {
-          if (!bestMatchService.env[varName]) {
-            bestMatchService.env[varName] = "";
-          }
+    if (bestMatchService) {
+      for (const varName of varNames) {
+        if (!bestMatchService.env[varName]) {
+          bestMatchService.env[varName] = "";
         }
       }
     }
@@ -315,17 +277,15 @@ export function generate_services_config(
     finalServices.push(finalService);
   }
 
-  return finalServices;
+  return { services: finalServices, containers };
 }
 
-export async function extractContainersFromCompose(
-  composeFilePath: string
-): Promise<ContainerConfig[]> {
-  const fs = await import("fs/promises");
+export function extractContainersFromComposeBody(
+  composeBody: string
+): ContainerConfig[] {
   let containers: ContainerConfig[] = [];
   try {
-    const body = await fs.readFile(composeFilePath, "utf8");
-    const doc = yaml.load(body) as any;
+    const doc = yaml.load(composeBody) as any;
     if (doc && doc.services) {
       for (const [name, svc] of Object.entries<any>(doc.services)) {
         if (!svc.build) {
@@ -335,7 +295,19 @@ export async function extractContainersFromCompose(
       }
     }
   } catch (e) {
-    console.error(`Failed to parse docker-compose file: ${composeFilePath}`, e);
+    console.error(`Failed to parse docker-compose content:`, e);
   }
   return containers;
+}
+export async function extractContainersFromCompose(
+  composeFilePath: string
+): Promise<ContainerConfig[]> {
+  const fs = await import("fs/promises");
+  try {
+    const body = await fs.readFile(composeFilePath, "utf8");
+    return extractContainersFromComposeBody(body);
+  } catch (e) {
+    console.error(`Failed to read docker-compose file: ${composeFilePath}`, e);
+    return [];
+  }
 }
