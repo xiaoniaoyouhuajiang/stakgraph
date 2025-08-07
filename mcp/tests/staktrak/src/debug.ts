@@ -82,9 +82,8 @@ function extractReactDebugSource(
     let fiber = element[fiberKey];
     let level = 0;
 
-    // Get max traversal depth from env variable, default to 10
-    const maxTraversalDepth =
-      Number(process.env.NEXT_PUBLIC_REACT_FIBER_TRAVERSAL_DEPTH) || 10;
+    // Get max traversal depth from config, default to 10
+    const maxTraversalDepth = Number((window as any).STAKTRAK_CONFIG?.maxTraversalDepth) || 10;
 
     // Helper to extract source from an object
     const extractSource = (
