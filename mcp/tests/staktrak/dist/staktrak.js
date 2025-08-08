@@ -33,9 +33,9 @@ var userBehaviour = (() => {
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
   // src/index.ts
-  var index_exports = {};
-  __export(index_exports, {
-    default: () => index_default
+  var src_exports = {};
+  __export(src_exports, {
+    default: () => src_default
   });
 
   // src/utils.ts
@@ -92,8 +92,10 @@ var userBehaviour = (() => {
     if (tagName === "input") {
       const type = element.type;
       const name = element.name;
-      if (type) fallbacks.push(`input[type="${type}"]`);
-      if (name) fallbacks.push(`input[name="${name}"]`);
+      if (type)
+        fallbacks.push(`input[type="${type}"]`);
+      if (name)
+        fallbacks.push(`input[name="${name}"]`);
     }
     const contextualSelector = generateContextualSelector(element);
     if (contextualSelector) {
@@ -131,7 +133,8 @@ var userBehaviour = (() => {
   var generateTextBasedSelector = (element, text) => {
     const tagName = element.tagName.toLowerCase();
     const cleanText = text.replace(/"/g, '\\"').trim();
-    if (cleanText.length === 0 || cleanText.length > 50) return null;
+    if (cleanText.length === 0 || cleanText.length > 50)
+      return null;
     if (tagName === "button") {
       return `button:has-text("${cleanText}")`;
     }
@@ -146,23 +149,31 @@ var userBehaviour = (() => {
   var generateClassBasedSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const classList = element.classList;
-    if (!classList.length) return tagName;
+    if (!classList.length)
+      return tagName;
     const safeClasses = Array.from(classList).filter((cls) => {
-      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/)) return false;
-      if (cls.includes("module__")) return false;
-      if (cls.includes("emotion-")) return false;
-      if (cls.includes("css-")) return false;
-      if (cls.length > 30) return false;
+      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/))
+        return false;
+      if (cls.includes("module__"))
+        return false;
+      if (cls.includes("emotion-"))
+        return false;
+      if (cls.includes("css-"))
+        return false;
+      if (cls.length > 30)
+        return false;
       return /^[a-zA-Z][a-zA-Z0-9-]*$/.test(cls);
     });
-    if (safeClasses.length === 0) return tagName;
+    if (safeClasses.length === 0)
+      return tagName;
     const limitedClasses = safeClasses.slice(0, 3);
     return `${tagName}.${limitedClasses.join(".")}`;
   };
   var generateContextualSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const parent = element.parentElement;
-    if (!parent) return null;
+    if (!parent)
+      return null;
     if (tagName === "button" && parent.tagName === "NAV") {
       return "nav button";
     }
@@ -193,7 +204,8 @@ var userBehaviour = (() => {
       const part = index > 1 ? `${tagName}[${index}]` : tagName;
       parts.unshift(part);
       current = current.parentElement;
-      if (parts.length > 10) break;
+      if (parts.length > 10)
+        break;
     }
     return "/" + parts.join("/");
   };
@@ -227,7 +239,8 @@ var userBehaviour = (() => {
     ];
     importantAttrs.forEach((attr) => {
       const value = htmlEl.getAttribute(attr);
-      if (value) attrs[attr] = value;
+      if (value)
+        attrs[attr] = value;
     });
     return attrs;
   };
@@ -236,7 +249,8 @@ var userBehaviour = (() => {
     return strategies.primary;
   };
   var filterClickDetails = (clickDetails, assertions, config) => {
-    if (!clickDetails.length) return [];
+    if (!clickDetails.length)
+      return [];
     let filtered = config.filterAssertionClicks ? clickDetails.filter(
       (click) => !assertions.some(
         (assertion) => Math.abs(click.timestamp - assertion.timestamp) < 1e3 && (click.selectors.primary.includes(assertion.selector) || assertion.selector.includes(click.selectors.primary) || click.selectors.fallbacks.some(
@@ -247,7 +261,8 @@ var userBehaviour = (() => {
     const clicksBySelector = {};
     filtered.forEach((click) => {
       const key = click.selectors.primary;
-      if (!clicksBySelector[key]) clicksBySelector[key] = [];
+      if (!clicksBySelector[key])
+        clicksBySelector[key] = [];
       clicksBySelector[key].push(click);
     });
     const result = [];
@@ -298,7 +313,8 @@ var userBehaviour = (() => {
       let level = 0;
       const maxTraversalDepth = Number((_a = window.STAKTRAK_CONFIG) == null ? void 0 : _a.maxTraversalDepth) || 10;
       const extractSource = (source) => {
-        if (!source) return null;
+        if (!source)
+          return null;
         return {
           fileName: source.fileName,
           lineNumber: source.lineNumber,
@@ -774,10 +790,12 @@ var userBehaviour = (() => {
       );
     }
     setupMessageHandling() {
-      if (this.memory.alwaysListeners.length > 0) return;
+      if (this.memory.alwaysListeners.length > 0)
+        return;
       const messageHandler = (event) => {
         var _a;
-        if (!((_a = event.data) == null ? void 0 : _a.type)) return;
+        if (!((_a = event.data) == null ? void 0 : _a.type))
+          return;
         switch (event.data.type) {
           case "staktrak-start":
             this.resetResults();
@@ -918,6 +936,6 @@ var userBehaviour = (() => {
     }).listen();
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
-  var index_default = userBehaviour;
-  return __toCommonJS(index_exports);
+  var src_default = userBehaviour;
+  return __toCommonJS(src_exports);
 })();
