@@ -338,51 +338,6 @@ export async function deleteTestByName(
   }
 }
 
-export async function generatePlaywrightTest(
-  req: Request,
-  res: Response
-): Promise<void> {
-  try {
-    const { url, trackingData } = req.body;
-
-    if (!url || !trackingData) {
-      res.status(400).json({
-        success: false,
-        error: "URL and tracking data are required",
-      });
-      return;
-    }
-
-    const playwrightGeneratorPath = path.join(
-      __dirname,
-      "../../tests/playwright-generator.js"
-    );
-
-    try {
-      const module = await import(playwrightGeneratorPath);
-      const testCode = module.generatePlaywrightTest(url, trackingData);
-
-      res.json({
-        success: true,
-        testCode,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        error: error.message || "Error generating test code",
-        timestamp: new Date().toISOString(),
-      });
-    }
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
-  }
-}
-
 export function test_routes(app: Express) {
   app.get("/test", runPlaywrightTest);
   app.get("/test/list", listTests);

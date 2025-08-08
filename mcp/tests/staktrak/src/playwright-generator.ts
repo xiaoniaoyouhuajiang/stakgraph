@@ -26,7 +26,7 @@ interface ClickDetail {
   };
 }
 
-interface Event {
+interface InteractionEvent {
   type: "click" | "input" | "form" | "assertion";
   selector?: string;
   timestamp: number;
@@ -77,20 +77,6 @@ interface TrackingData {
   userInfo: UserInfo;
   time?: any;
   formElementChanges?: FormElementChange[];
-}
-
-interface Event {
-  type: "click" | "input" | "form" | "assertion";
-  selector?: string;
-  timestamp: number;
-  isUserAction: boolean;
-  x?: number;
-  y?: number;
-  value?: string;
-  formType?: string;
-  checked?: boolean;
-  text?: string;
-  assertionType?: string;
 }
 
 function convertToPlaywrightSelector(clickDetail: ClickDetail): string {
@@ -247,7 +233,7 @@ function generateUserInteractions(
   assertions: Assertion[] = [],
   formElementChanges: FormElementChange[] = []
 ): string {
-  const allEvents: Event[] = [];
+  const allEvents: InteractionEvent[] = [];
   const processedSelectors = new Set<string>();
   const formElementTimestamps: Record<string, number> = {};
 
@@ -397,7 +383,7 @@ function generateUserInteractions(
   allEvents.sort((a, b) => a.timestamp - b.timestamp);
 
   // Remove duplicate form actions
-  const uniqueEvents: Event[] = [];
+  const uniqueEvents: InteractionEvent[] = [];
   const processedFormActions = new Set<string>();
 
   allEvents.forEach((event) => {
@@ -467,7 +453,7 @@ function generateUserInteractions(
 }
 
 // Helper functions for code generation
-function generateClickCode(event: Event): string {
+function generateClickCode(event: InteractionEvent): string {
   const selectorComment = event.clickDetail
     ? `${event.clickDetail.selectors.tagName}${event.clickDetail.selectors.text ? ` "${event.clickDetail.selectors.text}"` : ""}`
     : event.selector;
@@ -477,14 +463,14 @@ function generateClickCode(event: Event): string {
   return code;
 }
 
-function generateInputCode(event: Event): string {
+function generateInputCode(event: InteractionEvent): string {
   const escapedValue = escapeTextForAssertion(event.value!);
   let code = `  // Fill input: ${event.selector}\n`;
   code += `  await page.fill('${event.selector}', '${escapedValue}');\n\n`;
   return code;
 }
 
-function generateFormCode(event: Event): string {
+function generateFormCode(event: InteractionEvent): string {
   let code = "";
 
   if (event.formType === "checkbox" || event.formType === "radio") {
@@ -504,7 +490,7 @@ function generateFormCode(event: Event): string {
   return code;
 }
 
-function generateAssertionCode(event: Event): string {
+function generateAssertionCode(event: InteractionEvent): string {
   let code = "";
 
   switch (event.assertionType) {
@@ -591,10 +577,3 @@ if (typeof window !== "undefined") {
     isTextAmbiguous,
   };
 }
-
-export {
-  generatePlaywrightTest,
-  escapeTextForAssertion,
-  cleanTextForGetByText,
-  isTextAmbiguous,
-};
