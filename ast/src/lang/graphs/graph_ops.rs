@@ -82,11 +82,11 @@ impl GraphOps {
     pub async fn update_incremental(
         &mut self,
         repo_url: &str,
-        _username: Option<String>,
-        _pat: Option<String>,
+        username: Option<String>,
+        pat: Option<String>,
         current_hash: &str,
         stored_hash: &str,
-        _commit: Option<&str>,
+        commit: Option<&str>,
         use_lsp: Option<bool>,
     ) -> Result<(u32, u32)> {
         let revs = vec![stored_hash.to_string(), current_hash.to_string()];
@@ -131,10 +131,35 @@ impl GraphOps {
                     nodes_after, edges_after
                 );
             }
-        }
-        self.graph
-            .update_repository_hash(repo_url, current_hash)
+            self.graph
+                .update_repository_hash(repo_url, current_hash)
+                .await?;
+        } else if stored_hash.is_empty() && !current_hash.is_empty() {
+            info!("Processing new repository with hash: {}", current_hash);
+            let repos = Repo::new_clone_multi_detect(
+                repo_url,
+                username.clone(),
+                pat.clone(),
+                Vec::new(),
+                Vec::new(),
+                commit,
+                use_lsp,
+            )
             .await?;
+
+            let graph = repos.build_graphs_inner::<Neo4jGraph>().await?;
+            //TODO: now figure out how to link the existing graph with the new one via API calls.
+            /*
+            - When we use /ingest, we build both graphs and then loop through both of them in memory and link them,
+            that's in Repo::build_graphs_inner.
+            - We need to do the same here, but now figure out how to do so in the db.
+             */
+            let (nodes_after, edges_after) = graph.get_graph_size_async().await?;
+            info!(
+                "Procesed new repository with {} nodes and {} edges",
+                nodes_after, edges_after
+            );
+        }
         self.graph.get_graph_size_async().await
     }
 
@@ -231,11 +256,14 @@ impl GraphOps {
         self.graph.clear_existing_graph(root).await?;
         Ok(())
     }
-        pub async fn embed_data_bank_bodies(&mut self, do_files: bool) -> Result<()> {
+    pub async fn embed_data_bank_bodies(&mut self, do_files: bool) -> Result<()> {
         let batch_size = 32;
         // let mut skip = 0;
         loop {
-             let nodes = self.graph.fetch_nodes_without_embeddings(do_files, 0, batch_size).await?;
+            let nodes = self
+                .graph
+                .fetch_nodes_without_embeddings(do_files, 0, batch_size)
+                .await?;
             if nodes.is_empty() {
                 break;
             }
@@ -253,19 +281,25 @@ impl GraphOps {
         }
         Ok(())
     }
-pub async fn vector_search(
-    &mut self,
-    query: &str,
-    limit: usize,
-    node_types: Vec<String>,
-    similarity_threshold: f32,
-    language: Option<&str>,
-) -> Result<Vec<(NodeData, f64)>> {
-    let embedding = vectorize_query(query).await?;
-    let results = self
-        .graph
-        .vector_search(&embedding, limit, node_types, similarity_threshold, language)
-        .await?;
-    Ok(results)
-}
+    pub async fn vector_search(
+        &mut self,
+        query: &str,
+        limit: usize,
+        node_types: Vec<String>,
+        similarity_threshold: f32,
+        language: Option<&str>,
+    ) -> Result<Vec<(NodeData, f64)>> {
+        let embedding = vectorize_query(query).await?;
+        let results = self
+            .graph
+            .vector_search(
+                &embedding,
+                limit,
+                node_types,
+                similarity_threshold,
+                language,
+            )
+            .await?;
+        Ok(results)
+    }
 }
