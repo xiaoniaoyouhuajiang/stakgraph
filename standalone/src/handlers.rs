@@ -358,8 +358,15 @@ pub async fn ingest_async(
                             duration_ms: (Utc::now() - started_at).num_milliseconds().max(0) as u64,
                         };
                         let client = Client::new();
-                        let _ =
-                            send_with_retries(&client, &request_id_clone, &valid, &payload).await;
+                        let _ = send_with_retries(&client, &request_id_clone, &valid, &payload)
+                            .await
+                            .map_err(|e| {
+                                tracing::error!("Error sending webhook: {:?}", e);
+                                WebError(shared::Error::Custom(format!(
+                                    "Error sending webhook: {:?}",
+                                    e
+                                )))
+                            });
                     }
                 }
             }
@@ -383,8 +390,15 @@ pub async fn ingest_async(
                             duration_ms: (Utc::now() - started_at).num_milliseconds().max(0) as u64,
                         };
                         let client = Client::new();
-                        let _ =
-                            send_with_retries(&client, &request_id_clone, &valid, &payload).await;
+                        let _ = send_with_retries(&client, &request_id_clone, &valid, &payload)
+                            .await
+                            .map_err(|e| {
+                                tracing::error!("Error sending webhook: {:?}", e);
+                                WebError(shared::Error::Custom(format!(
+                                    "Error sending webhook: {:?}",
+                                    e
+                                )))
+                            });
                     }
                 }
             }
