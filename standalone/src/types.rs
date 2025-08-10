@@ -1,3 +1,4 @@
+use ast::lang::asg::NodeData;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -7,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use ast::lang::asg::NodeData;
 #[derive(Debug)]
 pub struct WebError(pub shared::Error);
 
@@ -27,11 +27,23 @@ pub struct ProcessBody {
     pub pat: Option<String>,
     pub use_lsp: Option<bool>,
     pub commit: Option<String>,
+    pub callback_url: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProcessResponse {
     pub nodes: u32,
     pub edges: u32,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WebhookPayload {
+    pub request_id: String,
+    pub status: String,
+    pub progress: u32,
+    pub result: Option<ProcessResponse>,
+    pub error: Option<String>,
+    pub started_at: String,
+    pub completed_at: String,
+    pub duration_ms: u64,
 }
 #[derive(Serialize, Deserialize)]
 pub struct FetchRepoBody {
@@ -71,7 +83,6 @@ pub struct VectorSearchResult {
     pub score: f64,
 }
 
-
 #[derive(Deserialize)]
 pub struct VectorSearchParams {
     pub query: String,
@@ -80,7 +91,6 @@ pub struct VectorSearchParams {
     pub similarity_threshold: Option<f32>,
     pub language: Option<String>,
 }
-
 
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {

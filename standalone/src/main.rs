@@ -2,6 +2,7 @@ mod auth;
 #[cfg(feature = "neo4j")]
 mod handlers;
 mod types;
+mod webhook;
 
 use ast::repo::StatusUpdate;
 use axum::extract::Request;
