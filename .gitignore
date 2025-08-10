@@ -17,6 +17,7 @@ __pycache__
 /.bundle
 
 /.env*
+.env
 
 /log/*
 /tmp/*

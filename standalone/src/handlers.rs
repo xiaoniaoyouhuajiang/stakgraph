@@ -2,6 +2,7 @@ use crate::types::{
     AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse,
     ProcessBody, ProcessResponse, Result, VectorSearchParams, VectorSearchResult, WebError,
 };
+use crate::webhook::{send_with_retries, validate_callback_url_async};
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
 use ast::lang::Graph;
@@ -12,8 +13,10 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::{extract::State, Json};
 use broadcast::error::RecvError;
+use chrono::Utc;
 use futures::stream;
 use lsp::{git::get_commit_hash, strip_tmp};
+use reqwest::Client;
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
@@ -287,6 +290,9 @@ pub async fn ingest_async(
     let status_map = state.async_status.clone();
     let mut rx = state.tx.subscribe();
 
+    let callback_url = body.callback_url.clone();
+    let started_at = Utc::now();
+
     {
         let mut map = status_map.lock().await;
         map.insert(
@@ -328,22 +334,66 @@ pub async fn ingest_async(
         let mut map = status_map.lock().await;
 
         match result {
-            Ok(Json(resp)) => map.insert(
-                request_id_clone,
-                AsyncRequestStatus {
+            Ok(Json(resp)) => {
+                let entry = AsyncRequestStatus {
                     status: AsyncStatus::Complete,
-                    result: Some(resp),
+                    result: Some(resp.clone()),
                     progress: 100,
-                },
-            ),
-            Err(e) => map.insert(
-                request_id_clone,
-                AsyncRequestStatus {
+                };
+                map.insert(request_id_clone.clone(), entry);
+                if let Some(url) = callback_url {
+                    if let Ok(valid) = validate_callback_url_async(&url).await {
+                        let payload = serde_json::json!({
+                            "request_id": request_id_clone,
+                            "status": "Complete",
+                            "progress": 100,
+                            "result": {"nodes": resp.nodes, "edges": resp.edges},
+                            "error": null,
+                            "started_at": started_at.to_rfc3339(),
+                            "completed_at": Utc::now().to_rfc3339(),
+                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
+                        });
+                        let client = Client::new();
+                        let _ = send_with_retries(
+                            &client,
+                            &payload["request_id"].as_str().unwrap_or("").to_string(),
+                            &valid,
+                            &payload,
+                        )
+                        .await;
+                    }
+                }
+            }
+            Err(e) => {
+                let entry = AsyncRequestStatus {
                     status: AsyncStatus::Failed(format!("{:?}", e)),
                     result: None,
                     progress: 0,
-                },
-            ),
+                };
+                map.insert(request_id_clone.clone(), entry);
+                if let Some(url) = callback_url {
+                    if let Ok(valid) = validate_callback_url_async(&url).await {
+                        let payload = serde_json::json!({
+                            "request_id": request_id_clone,
+                            "status": "Failed",
+                            "progress": 0,
+                            "result": null,
+                            "error": format!("{:?}", e),
+                            "started_at": started_at.to_rfc3339(),
+                            "completed_at": Utc::now().to_rfc3339(),
+                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
+                        });
+                        let client = Client::new();
+                        let _ = send_with_retries(
+                            &client,
+                            &payload["request_id"].as_str().unwrap_or("").to_string(),
+                            &valid,
+                            &payload,
+                        )
+                        .await;
+                    }
+                }
+            }
         }
     });
 
@@ -371,6 +421,8 @@ pub async fn sync_async(
     }
     let body_clone = body.clone();
     let request_id_clone = request_id.clone();
+    let callback_url = body.callback_url.clone();
+    let started_at = Utc::now();
 
     //run /sync as a background task
     tokio::spawn(async move {
@@ -378,22 +430,66 @@ pub async fn sync_async(
         let mut map = status_map.lock().await;
 
         match result {
-            Ok(Json(resp)) => map.insert(
-                request_id_clone,
-                AsyncRequestStatus {
+            Ok(Json(resp)) => {
+                let entry = AsyncRequestStatus {
                     status: AsyncStatus::Complete,
-                    result: Some(resp),
+                    result: Some(resp.clone()),
                     progress: 100,
-                },
-            ),
-            Err(e) => map.insert(
-                request_id_clone,
-                AsyncRequestStatus {
+                };
+                map.insert(request_id_clone.clone(), entry);
+                if let Some(url) = callback_url.clone() {
+                    if let Ok(valid) = crate::webhook::validate_callback_url_async(&url).await {
+                        let payload = serde_json::json!({
+                            "request_id": request_id_clone,
+                            "status": "Complete",
+                            "progress": 100,
+                            "result": {"nodes": resp.nodes, "edges": resp.edges},
+                            "error": null,
+                            "started_at": started_at.to_rfc3339(),
+                            "completed_at": Utc::now().to_rfc3339(),
+                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
+                        });
+                        let client = Client::new();
+                        let _ = crate::webhook::send_with_retries(
+                            &client,
+                            &payload["request_id"].as_str().unwrap_or("").to_string(),
+                            &valid,
+                            &payload,
+                        )
+                        .await;
+                    }
+                }
+            }
+            Err(e) => {
+                let entry = AsyncRequestStatus {
                     status: AsyncStatus::Failed(format!("{:?}", e)),
                     result: None,
                     progress: 0,
-                },
-            ),
+                };
+                map.insert(request_id_clone.clone(), entry);
+                if let Some(url) = callback_url.clone() {
+                    if let Ok(valid) = crate::webhook::validate_callback_url_async(&url).await {
+                        let payload = serde_json::json!({
+                            "request_id": request_id_clone,
+                            "status": "Failed",
+                            "progress": 0,
+                            "result": null,
+                            "error": format!("{:?}", e),
+                            "started_at": started_at.to_rfc3339(),
+                            "completed_at": Utc::now().to_rfc3339(),
+                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
+                        });
+                        let client = Client::new();
+                        let _ = crate::webhook::send_with_retries(
+                            &client,
+                            &payload["request_id"].as_str().unwrap_or("").to_string(),
+                            &valid,
+                            &payload,
+                        )
+                        .await;
+                    }
+                }
+            }
         }
     });
 
