@@ -34,6 +34,17 @@ pub struct ProcessResponse {
     pub nodes: u32,
     pub edges: u32,
 }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WebhookPayload {
+    pub request_id: String,
+    pub status: String,
+    pub progress: u32,
+    pub result: Option<ProcessResponse>,
+    pub error: Option<String>,
+    pub started_at: String,
+    pub completed_at: String,
+    pub duration_ms: u64,
+}
 #[derive(Serialize, Deserialize)]
 pub struct FetchRepoBody {
     pub repo_name: String,

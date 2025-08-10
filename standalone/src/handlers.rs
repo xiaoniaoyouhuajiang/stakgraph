@@ -1,6 +1,7 @@
 use crate::types::{
     AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse,
     ProcessBody, ProcessResponse, Result, VectorSearchParams, VectorSearchResult, WebError,
+    WebhookPayload,
 };
 use crate::webhook::{send_with_retries, validate_callback_url_async};
 use crate::AppState;
@@ -343,24 +344,22 @@ pub async fn ingest_async(
                 map.insert(request_id_clone.clone(), entry);
                 if let Some(url) = callback_url {
                     if let Ok(valid) = validate_callback_url_async(&url).await {
-                        let payload = serde_json::json!({
-                            "request_id": request_id_clone,
-                            "status": "Complete",
-                            "progress": 100,
-                            "result": {"nodes": resp.nodes, "edges": resp.edges},
-                            "error": null,
-                            "started_at": started_at.to_rfc3339(),
-                            "completed_at": Utc::now().to_rfc3339(),
-                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
-                        });
+                        let payload = WebhookPayload {
+                            request_id: request_id_clone.clone(),
+                            status: "Complete".to_string(),
+                            progress: 100,
+                            result: Some(ProcessResponse {
+                                nodes: resp.nodes,
+                                edges: resp.edges,
+                            }),
+                            error: None,
+                            started_at: started_at.to_rfc3339(),
+                            completed_at: Utc::now().to_rfc3339(),
+                            duration_ms: (Utc::now() - started_at).num_milliseconds().max(0) as u64,
+                        };
                         let client = Client::new();
-                        let _ = send_with_retries(
-                            &client,
-                            &payload["request_id"].as_str().unwrap_or("").to_string(),
-                            &valid,
-                            &payload,
-                        )
-                        .await;
+                        let _ =
+                            send_with_retries(&client, &request_id_clone, &valid, &payload).await;
                     }
                 }
             }
@@ -373,24 +372,19 @@ pub async fn ingest_async(
                 map.insert(request_id_clone.clone(), entry);
                 if let Some(url) = callback_url {
                     if let Ok(valid) = validate_callback_url_async(&url).await {
-                        let payload = serde_json::json!({
-                            "request_id": request_id_clone,
-                            "status": "Failed",
-                            "progress": 0,
-                            "result": null,
-                            "error": format!("{:?}", e),
-                            "started_at": started_at.to_rfc3339(),
-                            "completed_at": Utc::now().to_rfc3339(),
-                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
-                        });
+                        let payload = WebhookPayload {
+                            request_id: request_id_clone.clone(),
+                            status: "Failed".to_string(),
+                            progress: 0,
+                            result: None,
+                            error: Some(format!("{:?}", e)),
+                            started_at: started_at.to_rfc3339(),
+                            completed_at: Utc::now().to_rfc3339(),
+                            duration_ms: (Utc::now() - started_at).num_milliseconds().max(0) as u64,
+                        };
                         let client = Client::new();
-                        let _ = send_with_retries(
-                            &client,
-                            &payload["request_id"].as_str().unwrap_or("").to_string(),
-                            &valid,
-                            &payload,
-                        )
-                        .await;
+                        let _ =
+                            send_with_retries(&client, &request_id_clone, &valid, &payload).await;
                     }
                 }
             }
@@ -439,20 +433,23 @@ pub async fn sync_async(
                 map.insert(request_id_clone.clone(), entry);
                 if let Some(url) = callback_url.clone() {
                     if let Ok(valid) = crate::webhook::validate_callback_url_async(&url).await {
-                        let payload = serde_json::json!({
-                            "request_id": request_id_clone,
-                            "status": "Complete",
-                            "progress": 100,
-                            "result": {"nodes": resp.nodes, "edges": resp.edges},
-                            "error": null,
-                            "started_at": started_at.to_rfc3339(),
-                            "completed_at": Utc::now().to_rfc3339(),
-                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
-                        });
+                        let payload = WebhookPayload {
+                            request_id: request_id_clone.clone(),
+                            status: "Complete".to_string(),
+                            progress: 100,
+                            result: Some(ProcessResponse {
+                                nodes: resp.nodes,
+                                edges: resp.edges,
+                            }),
+                            error: None,
+                            started_at: started_at.to_rfc3339(),
+                            completed_at: Utc::now().to_rfc3339(),
+                            duration_ms: (Utc::now() - started_at).num_milliseconds().max(0) as u64,
+                        };
                         let client = Client::new();
                         let _ = crate::webhook::send_with_retries(
                             &client,
-                            &payload["request_id"].as_str().unwrap_or("").to_string(),
+                            &request_id_clone,
                             &valid,
                             &payload,
                         )
@@ -469,20 +466,20 @@ pub async fn sync_async(
                 map.insert(request_id_clone.clone(), entry);
                 if let Some(url) = callback_url.clone() {
                     if let Ok(valid) = crate::webhook::validate_callback_url_async(&url).await {
-                        let payload = serde_json::json!({
-                            "request_id": request_id_clone,
-                            "status": "Failed",
-                            "progress": 0,
-                            "result": null,
-                            "error": format!("{:?}", e),
-                            "started_at": started_at.to_rfc3339(),
-                            "completed_at": Utc::now().to_rfc3339(),
-                            "duration_ms": (Utc::now() - started_at).num_milliseconds().max(0) as u64
-                        });
+                        let payload = WebhookPayload {
+                            request_id: request_id_clone.clone(),
+                            status: "Failed".to_string(),
+                            progress: 0,
+                            result: None,
+                            error: Some(format!("{:?}", e)),
+                            started_at: started_at.to_rfc3339(),
+                            completed_at: Utc::now().to_rfc3339(),
+                            duration_ms: (Utc::now() - started_at).num_milliseconds().max(0) as u64,
+                        };
                         let client = Client::new();
                         let _ = crate::webhook::send_with_retries(
                             &client,
-                            &payload["request_id"].as_str().unwrap_or("").to_string(),
+                            &request_id_clone,
                             &valid,
                             &payload,
                         )

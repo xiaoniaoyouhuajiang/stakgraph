@@ -33,11 +33,11 @@ fn hmac_signature_hex(secret: &[u8], body: &[u8]) -> String {
     hex::encode(result)
 }
 
-pub async fn send_with_retries(
+pub async fn send_with_retries<T: serde::Serialize + ?Sized>(
     client: &Client,
     request_id: &str,
     url: &Url,
-    payload: &serde_json::Value,
+    payload: &T,
 ) -> Result<(), shared::Error> {
     let secret = std::env::var("WEBHOOK_SECRET")
         .map_err(|_| shared::Error::Custom("WEBHOOK_SECRET not set".into()))?;
