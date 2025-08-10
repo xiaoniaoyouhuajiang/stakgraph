@@ -1,5 +1,6 @@
 use crate::types::{
-    AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result, VectorSearchParams, VectorSearchResult, WebError
+    AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse,
+    ProcessBody, ProcessResponse, Result, VectorSearchParams, VectorSearchResult, WebError,
 };
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
@@ -115,34 +116,23 @@ pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
         }
     }
 
+    let hash = stored_hash.as_deref().unwrap_or_default();
+
     let (prev_nodes, prev_edges) = graph_ops.graph.get_graph_size();
 
-    let (nodes, edges) = if let Some(hash) = stored_hash {
-        info!("Updating repository hash from {} to {}", hash, current_hash);
-        graph_ops
-            .update_incremental(
-                &repo_url,
-                username.clone(),
-                pat.clone(),
-                &current_hash,
-                &hash,
-                None,
-                use_lsp,
-            )
-            .await?
-    } else {
-        info!("Adding new repository hash: {}", current_hash);
-        graph_ops
-            .update_full(
-                &repo_url,
-                username.clone(),
-                pat.clone(),
-                &current_hash,
-                None,
-                use_lsp,
-            )
-            .await?
-    };
+    info!("Updating repository hash from {} to {}", hash, current_hash);
+    let (nodes, edges) = graph_ops
+        .update_incremental(
+            &repo_url,
+            username.clone(),
+            pat.clone(),
+            &current_hash,
+            hash,
+            None,
+            use_lsp,
+        )
+        .await?;
+
     info!(
         "\n\n ==>> Total processing time: {:.2?} \n\n",
         total_start.elapsed()

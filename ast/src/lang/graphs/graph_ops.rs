@@ -4,8 +4,12 @@ use crate::lang::embedding::{vectorize_code_document, vectorize_query};
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
 use crate::lang::graphs::BTreeMapGraph;
-use crate::lang::neo4j_utils::{add_node_query, build_batch_edge_queries};
-use crate::lang::{NodeData, NodeType};
+use crate::lang::linker::{
+    extract_test_ids, infer_lang, normalize_backend_path, normalize_frontend_path, paths_match,
+    verbs_match,
+};
+use crate::lang::neo4j_utils::{add_edge_query, add_node_query, build_batch_edge_queries};
+use crate::lang::{Edge, NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use neo4rs::BoltMap;
 use shared::error::{Error, Result};
@@ -82,11 +86,11 @@ impl GraphOps {
     pub async fn update_incremental(
         &mut self,
         repo_url: &str,
-        _username: Option<String>,
-        _pat: Option<String>,
+        username: Option<String>,
+        pat: Option<String>,
         current_hash: &str,
         stored_hash: &str,
-        _commit: Option<&str>,
+        commit: Option<&str>,
         use_lsp: Option<bool>,
     ) -> Result<(u32, u32)> {
         let revs = vec![stored_hash.to_string(), current_hash.to_string()];
@@ -125,16 +129,46 @@ impl GraphOps {
                     nodes_after_reassign, edges_after_reassign
                 );
 
+                let (api_links, e2e_links) = self.link_cross_repo_relations().await?;
+                info!(
+                    "Linked cross-repo relations: api_links={}, e2e_links={}",
+                    api_links, e2e_links
+                );
+
                 let (nodes_after, edges_after) = self.graph.get_graph_size_async().await?;
                 info!(
                     "Updated files: total {} nodes and {} edges",
                     nodes_after, edges_after
                 );
             }
-        }
-        self.graph
-            .update_repository_hash(repo_url, current_hash)
+            self.graph
+                .update_repository_hash(repo_url, current_hash)
+                .await?;
+        } else if stored_hash.is_empty() && !current_hash.is_empty() {
+            info!("Processing new repository with hash: {}", current_hash);
+            let repos = Repo::new_clone_multi_detect(
+                repo_url,
+                username.clone(),
+                pat.clone(),
+                Vec::new(),
+                Vec::new(),
+                commit,
+                use_lsp,
+            )
             .await?;
+
+            let graph = repos.build_graphs_inner::<Neo4jGraph>().await?;
+            let (api_links, e2e_links) = self.link_cross_repo_relations().await?;
+            info!(
+                "Linked cross-repo relations: api_links={}, e2e_links={}",
+                api_links, e2e_links
+            );
+            let (nodes_after, edges_after) = graph.get_graph_size_async().await?;
+            info!(
+                "Procesed new repository with {} nodes and {} edges",
+                nodes_after, edges_after
+            );
+        }
         self.graph.get_graph_size_async().await
     }
 
@@ -231,11 +265,14 @@ impl GraphOps {
         self.graph.clear_existing_graph(root).await?;
         Ok(())
     }
-        pub async fn embed_data_bank_bodies(&mut self, do_files: bool) -> Result<()> {
+    pub async fn embed_data_bank_bodies(&mut self, do_files: bool) -> Result<()> {
         let batch_size = 32;
         // let mut skip = 0;
         loop {
-             let nodes = self.graph.fetch_nodes_without_embeddings(do_files, 0, batch_size).await?;
+            let nodes = self
+                .graph
+                .fetch_nodes_without_embeddings(do_files, 0, batch_size)
+                .await?;
             if nodes.is_empty() {
                 break;
             }
@@ -253,19 +290,125 @@ impl GraphOps {
         }
         Ok(())
     }
-pub async fn vector_search(
-    &mut self,
-    query: &str,
-    limit: usize,
-    node_types: Vec<String>,
-    similarity_threshold: f32,
-    language: Option<&str>,
-) -> Result<Vec<(NodeData, f64)>> {
-    let embedding = vectorize_query(query).await?;
-    let results = self
-        .graph
-        .vector_search(&embedding, limit, node_types, similarity_threshold, language)
-        .await?;
-    Ok(results)
-}
+    pub async fn vector_search(
+        &mut self,
+        query: &str,
+        limit: usize,
+        node_types: Vec<String>,
+        similarity_threshold: f32,
+        language: Option<&str>,
+    ) -> Result<Vec<(NodeData, f64)>> {
+        let embedding = vectorize_query(query).await?;
+        let results = self
+            .graph
+            .vector_search(
+                &embedding,
+                limit,
+                node_types,
+                similarity_threshold,
+                language,
+            )
+            .await?;
+        Ok(results)
+    }
+
+    pub async fn link_cross_repo_relations(&mut self) -> Result<(usize, usize)> {
+        let api = self.link_cross_repo_api_nodes().await?;
+        let e2e = self.link_cross_repo_e2e_tests().await?;
+        Ok((api, e2e))
+    }
+
+    pub async fn link_cross_repo_api_nodes(&mut self) -> Result<usize> {
+        self.graph.ensure_connected().await?;
+
+        let requests = self.graph.find_nodes_by_type_async(NodeType::Request).await;
+        let endpoints = self
+            .graph
+            .find_nodes_by_type_async(NodeType::Endpoint)
+            .await;
+
+        if requests.is_empty() || endpoints.is_empty() {
+            return Ok(0);
+        }
+
+        let mut queries: Vec<(String, BoltMap)> = Vec::new();
+        let mut count = 0;
+
+        for req in &requests {
+            let Some(req_path) = normalize_frontend_path(&req.name) else {
+                continue;
+            };
+            for endpoint in &endpoints {
+                let backend_norm =
+                    normalize_backend_path(&endpoint.name).unwrap_or_else(|| endpoint.name.clone());
+                if paths_match(&req_path, &backend_norm) && verbs_match(req, endpoint) {
+                    count += 1;
+                    let edge = Edge::calls(NodeType::Request, req, NodeType::Endpoint, endpoint);
+                    queries.push(add_edge_query(&edge));
+                }
+            }
+        }
+
+        if queries.is_empty() {
+            return Ok(0);
+        }
+        self.graph.execute_simple(queries).await?;
+        Ok(count)
+    }
+
+    pub async fn link_cross_repo_e2e_tests(&mut self) -> Result<usize> {
+        self.graph.ensure_connected().await?;
+
+        let tests = self.graph.find_nodes_by_type_async(NodeType::E2eTest).await;
+        let functions = self
+            .graph
+            .find_nodes_by_type_async(NodeType::Function)
+            .await;
+
+        if tests.is_empty() || functions.is_empty() {
+            return Ok(0);
+        }
+        let mut frontend_funcs: Vec<(NodeData, Vec<String>)> = Vec::new();
+        for f in &functions {
+            if let Ok(lang) = infer_lang(f) {
+                if lang.is_frontend() {
+                    let ids = extract_test_ids(&f.body, &lang).unwrap_or_default();
+                    if !ids.is_empty() {
+                        frontend_funcs.push((f.clone(), ids));
+                    }
+                }
+            }
+        }
+
+        if frontend_funcs.is_empty() {
+            return Ok(0);
+        }
+
+        let mut queries: Vec<(String, BoltMap)> = Vec::new();
+        let mut count = 0;
+
+        for t in &tests {
+            let test_ids = if let Ok(lang) = infer_lang(t) {
+                extract_test_ids(&t.body, &lang).unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+            if test_ids.is_empty() {
+                continue;
+            }
+            for (f, f_ids) in &frontend_funcs {
+                if f_ids.iter().any(|id| test_ids.contains(id)) {
+                    let edge = Edge::linked_e2e_test_call(t, f);
+                    queries.push(add_edge_query(&edge));
+                    count += 1;
+                }
+            }
+        }
+
+        if queries.is_empty() {
+            return Ok(0);
+        }
+        self.graph.execute_simple(queries).await?;
+        Ok(count)
+    }
 }

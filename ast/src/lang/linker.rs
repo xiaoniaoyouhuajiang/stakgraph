@@ -46,7 +46,7 @@ pub fn link_e2e_tests<G: Graph>(graph: &mut G) -> Result<()> {
     Ok(())
 }
 
-fn infer_lang(nd: &NodeData) -> Result<Language> {
+pub fn infer_lang(nd: &NodeData) -> Result<Language> {
     for lang in PROGRAMMING_LANGUAGES {
         let pathy = &PathBuf::from(&nd.file);
         let ext = pathy
@@ -64,7 +64,7 @@ fn infer_lang(nd: &NodeData) -> Result<Language> {
     )))
 }
 
-fn extract_test_ids(content: &str, lang: &Language) -> Result<Vec<String>> {
+pub fn extract_test_ids(content: &str, lang: &Language) -> Result<Vec<String>> {
     if let None = lang.test_id_regex() {
         return Ok(Vec::new());
     }
@@ -181,7 +181,7 @@ pub fn normalize_backend_path(path: &str) -> Option<String> {
     Some(normalized)
 }
 
-fn verbs_match(req: &NodeData, endpoint: &NodeData) -> bool {
+pub fn verbs_match(req: &NodeData, endpoint: &NodeData) -> bool {
     match (req.meta.get("verb"), endpoint.meta.get("verb")) {
         (Some(req_verb), Some(endpoint_verb)) => {
             req_verb.to_uppercase() == endpoint_verb.to_uppercase()
@@ -190,7 +190,7 @@ fn verbs_match(req: &NodeData, endpoint: &NodeData) -> bool {
     }
 }
 
-fn paths_match(frontend_path: &str, backend_path: &str) -> bool {
+pub fn paths_match(frontend_path: &str, backend_path: &str) -> bool {
     let frontend_segments: Vec<&str> = frontend_path.split('/').filter(|s| !s.is_empty()).collect();
     let backend_segments: Vec<&str> = backend_path.split('/').filter(|s| !s.is_empty()).collect();
 
