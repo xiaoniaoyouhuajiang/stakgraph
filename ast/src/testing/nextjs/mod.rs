@@ -108,7 +108,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes += functions.len();
     if use_lsp {
-        assert_eq!(functions.len(), 36, "Expected 36 Function nodes with LSP");
+        assert_eq!(functions.len(), 39, "Expected 39 Function nodes with LSP");
     } else {
         assert_eq!(
             functions.len(),
@@ -205,7 +205,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let calls = graph.count_edges_of_type(EdgeType::Calls);
     edges += calls;
-    assert_eq!(calls, 48, "Expected 48 Calls edges");
+    assert_eq!(calls, 50, "Expected 50 Calls edges");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges += contains;
@@ -238,7 +238,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let uses = graph.count_edges_of_type(EdgeType::Uses);
     edges += uses;
     if use_lsp {
-        assert_eq!(uses, 27, "Expected 27 Uses edges with LSP");
+        assert_eq!(uses, 43, "Expected 43 Uses edges with LSP");
     } else {
         assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
     }
