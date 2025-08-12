@@ -38,7 +38,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let file_nodes = graph.find_nodes_by_type(NodeType::File);
     nodes += file_nodes.len();
-    assert_eq!(file_nodes.len(), 21, "Expected 21 File nodes");
+    assert_eq!(file_nodes.len(), 24, "Expected 24 File nodes");
 
     let card_file = file_nodes
         .iter()
@@ -60,7 +60,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let directory_nodes = graph.find_nodes_by_type(NodeType::Directory);
     nodes += directory_nodes.len();
-    assert_eq!(directory_nodes.len(), 11, "Expected 11 Directory nodes");
+    assert_eq!(directory_nodes.len(), 12, "Expected 12 Directory nodes");
 
     let repository = graph.find_nodes_by_type(NodeType::Repository);
     nodes += repository.len();
@@ -209,11 +209,15 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges += contains;
-    assert_eq!(contains, 114, "Expected 114 Contains edges");
+    assert_eq!(contains, 129, "Expected 129 Contains edges");
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
     edges += handlers;
     assert_eq!(handlers, 6, "Expected 6 Handler edges");
+
+    let tests = graph.find_nodes_by_type(NodeType::Test);
+    nodes += tests.len();
+    assert_eq!(tests.len(), 10, "Expected 10 Test nodes");
 
     let import = graph.count_edges_of_type(EdgeType::Imports);
     edges += import;
@@ -225,7 +229,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let import_nodes = graph.find_nodes_by_type(NodeType::Import);
     nodes += import_nodes.len();
-    assert_eq!(import_nodes.len(), 13, "Expected 13 Import nodes");
+    assert_eq!(import_nodes.len(), 14, "Expected 14 Import nodes");
 
     let datamodels = graph.find_nodes_by_type(NodeType::DataModel);
     nodes += datamodels.len();
