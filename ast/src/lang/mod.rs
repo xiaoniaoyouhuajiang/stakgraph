@@ -1,10 +1,10 @@
 pub mod asg;
 pub mod call_finder;
+pub mod embedding;
 pub mod graphs;
 pub mod linker;
 pub mod parse;
 pub mod queries;
-pub mod embedding;
 
 use asg::*;
 use consts::*;
@@ -425,6 +425,38 @@ impl Lang {
                 }
                 Ok(())
             })?;
+        }
+
+        if let Some(tq) = self.lang.test_query() {
+            let q_tests = self.q(&tq, &NodeType::Test);
+            let tree_tests = self.lang.parse(&code, &NodeType::Test)?;
+            let mut cursor_tests = QueryCursor::new();
+            let mut test_matches =
+                cursor_tests.matches(&q_tests, tree_tests.root_node(), code.as_bytes());
+
+            while let Some(tm) = test_matches.next() {
+                let mut caller_name = String::new();
+                Self::loop_captures(&q_tests, &tm, code, |body, node, o| {
+                    if o == FUNCTION_NAME {
+                        caller_name = body;
+                    } else if o == FUNCTION_DEFINITION {
+                        let caller_start = node.start_position().row as usize;
+                        let q2 = self.q(&self.lang.function_call_query(), &NodeType::Function);
+                        let calls = self.collect_calls_in_function(
+                            &q2,
+                            code,
+                            file,
+                            node,
+                            &caller_name,
+                            caller_start,
+                            graph,
+                            lsp_tx,
+                        )?;
+                        self.add_calls_inside(&mut res, &caller_name, file, calls);
+                    }
+                    Ok(())
+                })?;
+            }
         }
         Ok(res)
     }

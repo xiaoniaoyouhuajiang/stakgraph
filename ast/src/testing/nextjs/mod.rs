@@ -205,7 +205,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let calls = graph.count_edges_of_type(EdgeType::Calls);
     edges += calls;
-    assert_eq!(calls, 47, "Expected 47 Calls edges");
+    assert_eq!(calls, 48, "Expected 48 Calls edges");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges += contains;
@@ -222,7 +222,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let import = graph.count_edges_of_type(EdgeType::Imports);
     edges += import;
     if use_lsp {
-        assert_eq!(import, 15, "Expected 15 Imports edges with LSP");
+        assert_eq!(import, 16, "Expected 16 Imports edges with LSP");
     } else {
         assert_eq!(import, 0, "Expected 0 Imports edge without LSP");
     }
