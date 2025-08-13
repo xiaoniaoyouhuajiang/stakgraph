@@ -322,10 +322,15 @@ impl Stack for ReactTs {
         Some(format!(
             r#"[
                     (call_expression
-                        function: (identifier) @it (#eq? @it "it")
-                        arguments: (arguments
-                            (string) @{FUNCTION_NAME}
+                        function: (identifier) @it (#match? @it "^(it|test)$")
+                        arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
+                    )
+                    (call_expression
+                        function: (member_expression
+                        object: (identifier) @it (#match? @it "^(it|test)$")
+                        property: (property_identifier)?
                         )
+                        arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
                     )
                     (call_expression
                         function: (member_expression
@@ -728,6 +733,23 @@ impl Stack for ReactTs {
             return Some((page, None));
         };
         Some((page, Some(edge)))
+    }
+
+    fn is_test_file(&self, file_name: &str) -> bool {
+        file_name.contains("__tests__")
+            || file_name.ends_with(".test.ts")
+            || file_name.ends_with(".test.tsx")
+            || file_name.ends_with(".test.jsx")
+            || file_name.ends_with(".test.js")
+            || file_name.ends_with(".test.ts")
+    }
+
+    fn is_test(&self, _func_name: &str, func_file: &str) -> bool {
+        if self.is_test_file(func_file) {
+            true
+        } else {
+            false
+        }
     }
 }
 
