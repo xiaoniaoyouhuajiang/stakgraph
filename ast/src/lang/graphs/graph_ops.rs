@@ -431,10 +431,12 @@ impl GraphOps {
         &mut self,
         include_functions: bool,
         include_endpoints: bool,
+        root: Option<&str>,
     ) -> Result<GraphCoverageTotals> {
         self.graph.ensure_connected().await?;
 
-        let mut covered_function_keys = std::collections::HashSet::new();
+        let in_scope = |n: &NodeData| root.map_or(true, |r| n.file.starts_with(r));
+        let mut covered_function_keys = HashSet::new();
 
         if include_functions || include_endpoints {
             let pairs_test = self
@@ -455,8 +457,10 @@ impl GraphOps {
                 .await;
 
             for (_, target) in pairs_test.into_iter().chain(pairs_e2e.into_iter()) {
-                covered_function_keys
-                    .insert(create_node_key(&Node::new(NodeType::Function, target)));
+                if in_scope(&target) {
+                    covered_function_keys
+                        .insert(create_node_key(&Node::new(NodeType::Function, target)));
+                }
             }
         }
 
@@ -466,7 +470,7 @@ impl GraphOps {
                 .graph
                 .find_nodes_by_type_async(NodeType::Function)
                 .await;
-            let functions_total = functions.len();
+            let functions_total = functions.iter().filter(|f| in_scope(f)).count();
             let functions_covered = covered_function_keys.len();
             let percent = if functions_total == 0 {
                 0.0
@@ -488,15 +492,19 @@ impl GraphOps {
                 .graph
                 .find_nodes_by_type_async(NodeType::Endpoint)
                 .await;
-            let total_endpoints = endpoints.len();
+            let total_endpoints = endpoints.iter().filter(|e| in_scope(e)).count();
             let mut covered_endpoints = 0usize;
             if total_endpoints > 0 {
                 for endpoint in &endpoints {
+                    if !in_scope(endpoint) {
+                        continue;
+                    }
                     let handlers = self.graph.find_handlers_for_endpoint_async(endpoint).await;
                     let mut covered = false;
                     for h in handlers {
-                        if covered_function_keys
-                            .contains(&create_node_key(&Node::new(NodeType::Function, h)))
+                        if in_scope(&h)
+                            && covered_function_keys
+                                .contains(&create_node_key(&Node::new(NodeType::Function, h)))
                         {
                             covered = true;
                             break;
@@ -532,8 +540,10 @@ impl GraphOps {
         node_type: NodeType,
         with_usage: bool,
         limit: usize,
+        root: Option<&str>,
     ) -> Result<(Vec<(String, usize)>, Vec<(String, usize)>)> {
         self.graph.ensure_connected().await?;
+        let in_scope = |n: &NodeData| root.map_or(true, |r| n.file.starts_with(r));
 
         let pairs_test = self
             .graph
@@ -546,14 +556,20 @@ impl GraphOps {
 
         let mut covered_function_keys = HashSet::new();
         for (_source, target) in pairs_test.into_iter().chain(pairs_e2e.into_iter()) {
-            covered_function_keys.insert(create_node_key(&Node::new(NodeType::Function, target)));
+            if in_scope(&target) {
+                covered_function_keys
+                    .insert(create_node_key(&Node::new(NodeType::Function, target)));
+            }
         }
 
         if node_type == NodeType::Function {
             let functions = self
                 .graph
                 .find_nodes_by_type_async(NodeType::Function)
-                .await;
+                .await
+                .into_iter()
+                .filter(|f| in_scope(f))
+                .collect::<Vec<_>>();
             let function_calls = self
                 .graph
                 .find_nodes_with_edge_type_async(
@@ -602,7 +618,10 @@ impl GraphOps {
             let endpoints = self
                 .graph
                 .find_nodes_by_type_async(NodeType::Endpoint)
-                .await;
+                .await
+                .into_iter()
+                .filter(|e| in_scope(e))
+                .collect::<Vec<_>>();
             let req_calls = self
                 .graph
                 .find_nodes_with_edge_type_async(
@@ -622,6 +641,9 @@ impl GraphOps {
                 let handlers = self.graph.find_handlers_for_endpoint_async(&e).await;
                 let mut covered = false;
                 for h in handlers {
+                    if !in_scope(&h) {
+                        continue;
+                    }
                     if covered_function_keys
                         .contains(&create_node_key(&Node::new(NodeType::Function, h)))
                     {
@@ -662,8 +684,10 @@ impl GraphOps {
         name: &str,
         file: &str,
         start: Option<usize>,
+        root: Option<&str>,
     ) -> Result<bool> {
         self.graph.ensure_connected().await?;
+        let in_scope = |n: &NodeData| root.map_or(true, |r| n.file.starts_with(r));
 
         if node_type == NodeType::Function {
             let target = if let Some(s) = start {
@@ -680,6 +704,9 @@ impl GraphOps {
                 return Ok(false);
             }
             let t = target.unwrap();
+            if !in_scope(&t) {
+                return Ok(false);
+            }
             let calls_from_tests = self
                 .graph
                 .find_nodes_with_edge_type_async(
@@ -700,7 +727,11 @@ impl GraphOps {
                 .into_iter()
                 .chain(calls_from_e2e.into_iter())
             {
-                if dst.name == t.name && dst.file == t.file && dst.start == t.start {
+                if in_scope(&dst)
+                    && dst.name == t.name
+                    && dst.file == t.file
+                    && dst.start == t.start
+                {
                     return Ok(true);
                 }
             }
@@ -710,11 +741,14 @@ impl GraphOps {
         if node_type == NodeType::Endpoint {
             let ep = self.graph.find_endpoint_async(name, file, "").await;
             if let Some(endpoint) = ep {
+                if !in_scope(&endpoint) {
+                    return Ok(false);
+                }
                 let handlers = self.graph.find_handlers_for_endpoint_async(&endpoint).await;
                 if handlers.is_empty() {
                     return Ok(false);
                 }
-                let covered_funcs: std::collections::HashSet<String> = self
+                let covered_funcs: HashSet<String> = self
                     .graph
                     .find_nodes_with_edge_type_async(
                         NodeType::Test,
@@ -733,10 +767,14 @@ impl GraphOps {
                             .await
                             .into_iter(),
                     )
+                    .filter(|(_, f)| in_scope(f))
                     .map(|(_, f)| create_node_key(&Node::new(NodeType::Function, f)))
                     .collect();
                 for h in handlers {
-                    if covered_funcs.contains(&create_node_key(&Node::new(NodeType::Function, h))) {
+                    if in_scope(&h)
+                        && covered_funcs
+                            .contains(&create_node_key(&Node::new(NodeType::Function, h)))
+                    {
                         return Ok(true);
                     }
                 }

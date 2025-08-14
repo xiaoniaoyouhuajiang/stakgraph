@@ -617,7 +617,7 @@ pub async fn coverage_handler(
     graph_ops.connect().await?;
 
     let totals = graph_ops
-        .get_coverage(include_functions, include_endpoints)
+        .get_coverage(include_functions, include_endpoints, params.root.as_deref())
         .await?;
 
     let map_stat =
@@ -656,7 +656,9 @@ pub async fn uncovered_handler(
     let is_function = matches!(nt, ast::lang::NodeType::Function);
     let is_endpoint = matches!(nt, ast::lang::NodeType::Endpoint);
 
-    let (funcs, endpoints) = graph_ops.list_uncovered(nt, with_usage, limit).await?;
+    let (funcs, endpoints) = graph_ops
+        .list_uncovered(nt, with_usage, limit, params.root.as_deref())
+        .await?;
 
     let functions = if is_function {
         Some(
@@ -701,7 +703,13 @@ pub async fn has_handler(Query(params): Query<HasParams>) -> Result<Json<HasResp
         _ => return Err(WebError(Error::Custom("invalid node_type".into()))),
     };
     let covered = graph_ops
-        .has_coverage(node_type, &params.name, &params.file, params.start)
+        .has_coverage(
+            node_type,
+            &params.name,
+            &params.file,
+            params.start,
+            params.root.as_deref(),
+        )
         .await?;
     Ok(Json(HasResponse { covered }))
 }
