@@ -1,7 +1,7 @@
 use crate::types::{
-    AsyncRequestStatus, AsyncStatus, EmbedCodeParams, FetchRepoBody, FetchRepoResponse,
-    ProcessBody, ProcessResponse, Result, VectorSearchParams, VectorSearchResult, WebError,
-    WebhookPayload,
+    AsyncRequestStatus, AsyncStatus, CoverageParams, CoverageStat, CoverageTotals, EmbedCodeParams,
+    FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result, VectorSearchParams,
+    VectorSearchResult, WebError, WebhookPayload,
 };
 use crate::webhook::{send_with_retries, validate_callback_url_async};
 use crate::AppState;
@@ -601,4 +601,35 @@ fn resolve_repo(
         let tmp_path = Repo::get_path_from_url(&url)?;
         Ok((tmp_path, url, username, pat, commit))
     }
+}
+
+#[axum::debug_handler]
+pub async fn coverage_handler(
+    Query(params): Query<CoverageParams>,
+) -> Result<Json<CoverageTotals>> {
+    let node_type = params.node_type.unwrap_or_else(|| "both".to_string());
+    let precision = params.precision.unwrap_or(2);
+    let include_functions = node_type == "both" || node_type.eq_ignore_ascii_case("function");
+    let include_endpoints = node_type == "both" || node_type.eq_ignore_ascii_case("endpoint");
+
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+
+    let totals = graph_ops
+        .get_coverage(include_functions, include_endpoints, precision)
+        .await?;
+
+    let map_stat =
+        |s: Option<ast::lang::graphs::graph_ops::GraphCoverageStat>| -> Option<CoverageStat> {
+            s.map(|v| CoverageStat {
+                total: v.total,
+                covered: v.covered,
+                percent: v.percent,
+            })
+        };
+
+    Ok(Json(CoverageTotals {
+        functions: map_stat(totals.functions),
+        endpoints: map_stat(totals.endpoints),
+    }))
 }
