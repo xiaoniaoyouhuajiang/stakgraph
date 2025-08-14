@@ -2,6 +2,7 @@
 target
 notes.md
 notes-*.md
+notes
 treesitter/tree-sitter-haml
 treesitter/tree-sitter-typescript
 treesitter/tree-sitter-embedded-template
