@@ -110,6 +110,38 @@ pub struct CoverageTotals {
     pub endpoints: Option<CoverageStat>,
 }
 
+#[derive(Deserialize)]
+pub struct UncoveredParams {
+    pub node_type: String,
+    pub limit: Option<usize>,
+    pub sort: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct KeyScore {
+    pub node_key: String,
+    pub usage_score: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UncoveredResponse {
+    pub functions: Option<Vec<KeyScore>>,
+    pub endpoints: Option<Vec<KeyScore>>,
+}
+
+#[derive(Deserialize)]
+pub struct HasParams {
+    pub node_type: String,
+    pub name: String,
+    pub file: String,
+    pub start: Option<usize>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct HasResponse {
+    pub covered: bool,
+}
+
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {
         let status = match &self.0 {

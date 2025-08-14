@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use crate::lang::embedding::{vectorize_code_document, vectorize_query};
@@ -9,8 +10,9 @@ use crate::lang::linker::{
     verbs_match,
 };
 use crate::lang::neo4j_utils::{add_edge_query, add_node_query, build_batch_edge_queries};
-use crate::lang::{Edge, EdgeType, NodeData, NodeType};
+use crate::lang::{Edge, EdgeType, Node, NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
+use crate::utils::create_node_key;
 use neo4rs::BoltMap;
 use shared::error::{Error, Result};
 use tracing::{debug, error, info};
@@ -454,7 +456,7 @@ impl GraphOps {
 
             for (_, target) in pairs_test.into_iter().chain(pairs_e2e.into_iter()) {
                 covered_function_keys
-                    .insert(format!("{}|{}|{}", target.name, target.file, target.start));
+                    .insert(create_node_key(&Node::new(NodeType::Function, target)));
             }
         }
 
@@ -493,8 +495,9 @@ impl GraphOps {
                     let handlers = self.graph.find_handlers_for_endpoint_async(endpoint).await;
                     let mut covered = false;
                     for h in handlers {
-                        let key = format!("{}|{}|{}", h.name, h.file, h.start);
-                        if covered_function_keys.contains(&key) {
+                        if covered_function_keys
+                            .contains(&create_node_key(&Node::new(NodeType::Function, h)))
+                        {
                             covered = true;
                             break;
                         }
@@ -522,5 +525,225 @@ impl GraphOps {
             functions: functions_stat,
             endpoints: endpoints_stat,
         })
+    }
+
+    pub async fn list_uncovered(
+        &mut self,
+        node_type: NodeType,
+        with_usage: bool,
+        limit: usize,
+    ) -> Result<(Vec<(String, usize)>, Vec<(String, usize)>)> {
+        self.graph.ensure_connected().await?;
+
+        let pairs_test = self
+            .graph
+            .find_nodes_with_edge_type_async(NodeType::Test, NodeType::Function, EdgeType::Calls)
+            .await;
+        let pairs_e2e = self
+            .graph
+            .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Function, EdgeType::Calls)
+            .await;
+
+        let mut covered_function_keys = HashSet::new();
+        for (_source, target) in pairs_test.into_iter().chain(pairs_e2e.into_iter()) {
+            covered_function_keys.insert(create_node_key(&Node::new(NodeType::Function, target)));
+        }
+
+        if node_type == NodeType::Function {
+            let functions = self
+                .graph
+                .find_nodes_by_type_async(NodeType::Function)
+                .await;
+            let function_calls = self
+                .graph
+                .find_nodes_with_edge_type_async(
+                    NodeType::Function,
+                    NodeType::Function,
+                    EdgeType::Calls,
+                )
+                .await;
+            let mut degree: HashMap<String, usize> = HashMap::new();
+            for (_src, dst) in function_calls {
+                *degree
+                    .entry(create_node_key(&Node::new(NodeType::Function, dst)))
+                    .or_insert(0) += 1;
+            }
+            let mut uncovered: Vec<(NodeData, usize)> = functions
+                .into_iter()
+                .filter(|f| {
+                    !covered_function_keys
+                        .contains(&create_node_key(&Node::new(NodeType::Function, f.clone())))
+                })
+                .map(|f| {
+                    let score = if with_usage {
+                        *degree
+                            .get(&create_node_key(&Node::new(NodeType::Function, f.clone())))
+                            .unwrap_or(&0)
+                    } else {
+                        0
+                    };
+                    (f, score)
+                })
+                .collect();
+            if with_usage {
+                uncovered.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.name.cmp(&b.0.name)));
+            } else {
+                uncovered.sort_by(|a, b| a.0.name.cmp(&b.0.name));
+            }
+            uncovered.truncate(limit);
+            let keys: Vec<(String, usize)> = uncovered
+                .into_iter()
+                .map(|(nd, score)| (create_node_key(&Node::new(NodeType::Function, nd)), score))
+                .collect();
+            return Ok((keys, vec![]));
+        }
+
+        if node_type == NodeType::Endpoint {
+            let endpoints = self
+                .graph
+                .find_nodes_by_type_async(NodeType::Endpoint)
+                .await;
+            let req_calls = self
+                .graph
+                .find_nodes_with_edge_type_async(
+                    NodeType::Request,
+                    NodeType::Endpoint,
+                    EdgeType::Calls,
+                )
+                .await;
+            let mut degree: HashMap<String, usize> = HashMap::new();
+            for (_src, dst) in req_calls {
+                *degree
+                    .entry(create_node_key(&Node::new(NodeType::Endpoint, dst)))
+                    .or_insert(0) += 1;
+            }
+            let mut res: Vec<(NodeData, usize)> = Vec::new();
+            for e in endpoints {
+                let handlers = self.graph.find_handlers_for_endpoint_async(&e).await;
+                let mut covered = false;
+                for h in handlers {
+                    if covered_function_keys
+                        .contains(&create_node_key(&Node::new(NodeType::Function, h)))
+                    {
+                        covered = true;
+                        break;
+                    }
+                }
+                if !covered {
+                    let score = if with_usage {
+                        *degree
+                            .get(&create_node_key(&Node::new(NodeType::Endpoint, e.clone())))
+                            .unwrap_or(&0)
+                    } else {
+                        0
+                    };
+                    res.push((e, score));
+                }
+            }
+            if with_usage {
+                res.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.name.cmp(&b.0.name)));
+            } else {
+                res.sort_by(|a, b| a.0.name.cmp(&b.0.name));
+            }
+            res.truncate(limit);
+            let keys: Vec<(String, usize)> = res
+                .into_iter()
+                .map(|(nd, score)| (create_node_key(&Node::new(NodeType::Endpoint, nd)), score))
+                .collect();
+            return Ok((vec![], keys));
+        }
+
+        Ok((vec![], vec![]))
+    }
+
+    pub async fn has_coverage(
+        &mut self,
+        node_type: NodeType,
+        name: &str,
+        file: &str,
+        start: Option<usize>,
+    ) -> Result<bool> {
+        self.graph.ensure_connected().await?;
+
+        if node_type == NodeType::Function {
+            let target = if let Some(s) = start {
+                self.graph
+                    .find_node_by_name_in_file_async(NodeType::Function, name, file)
+                    .await
+                    .filter(|n| n.start == s)
+            } else {
+                self.graph
+                    .find_node_by_name_in_file_async(NodeType::Function, name, file)
+                    .await
+            };
+            if target.is_none() {
+                return Ok(false);
+            }
+            let t = target.unwrap();
+            let calls_from_tests = self
+                .graph
+                .find_nodes_with_edge_type_async(
+                    NodeType::Test,
+                    NodeType::Function,
+                    EdgeType::Calls,
+                )
+                .await;
+            let calls_from_e2e = self
+                .graph
+                .find_nodes_with_edge_type_async(
+                    NodeType::E2eTest,
+                    NodeType::Function,
+                    EdgeType::Calls,
+                )
+                .await;
+            for (_, dst) in calls_from_tests
+                .into_iter()
+                .chain(calls_from_e2e.into_iter())
+            {
+                if dst.name == t.name && dst.file == t.file && dst.start == t.start {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+
+        if node_type == NodeType::Endpoint {
+            let ep = self.graph.find_endpoint_async(name, file, "").await;
+            if let Some(endpoint) = ep {
+                let handlers = self.graph.find_handlers_for_endpoint_async(&endpoint).await;
+                if handlers.is_empty() {
+                    return Ok(false);
+                }
+                let covered_funcs: std::collections::HashSet<String> = self
+                    .graph
+                    .find_nodes_with_edge_type_async(
+                        NodeType::Test,
+                        NodeType::Function,
+                        EdgeType::Calls,
+                    )
+                    .await
+                    .into_iter()
+                    .chain(
+                        self.graph
+                            .find_nodes_with_edge_type_async(
+                                NodeType::E2eTest,
+                                NodeType::Function,
+                                EdgeType::Calls,
+                            )
+                            .await
+                            .into_iter(),
+                    )
+                    .map(|(_, f)| create_node_key(&Node::new(NodeType::Function, f)))
+                    .collect();
+                for h in handlers {
+                    if covered_funcs.contains(&create_node_key(&Node::new(NodeType::Function, h))) {
+                        return Ok(true);
+                    }
+                }
+            }
+            return Ok(false);
+        }
+
+        Ok(false)
     }
 }

@@ -1,12 +1,13 @@
 use crate::types::{
     AsyncRequestStatus, AsyncStatus, CoverageParams, CoverageStat, CoverageTotals, EmbedCodeParams,
-    FetchRepoBody, FetchRepoResponse, ProcessBody, ProcessResponse, Result, VectorSearchParams,
+    FetchRepoBody, FetchRepoResponse, HasParams, HasResponse, KeyScore, ProcessBody,
+    ProcessResponse, Result, UncoveredParams, UncoveredResponse, VectorSearchParams,
     VectorSearchResult, WebError, WebhookPayload,
 };
 use crate::webhook::{send_with_retries, validate_callback_url_async};
 use crate::AppState;
 use ast::lang::graphs::graph_ops::GraphOps;
-use ast::lang::Graph;
+use ast::lang::{Graph, NodeType};
 use ast::repo::{clone_repo, Repo};
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
@@ -18,6 +19,7 @@ use chrono::Utc;
 use futures::stream;
 use lsp::{git::get_commit_hash, strip_tmp};
 use reqwest::Client;
+use shared::Error;
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
@@ -631,4 +633,75 @@ pub async fn coverage_handler(
         functions: map_stat(totals.functions),
         endpoints: map_stat(totals.endpoints),
     }))
+}
+
+#[axum::debug_handler]
+pub async fn uncovered_handler(
+    Query(params): Query<UncoveredParams>,
+) -> Result<Json<UncoveredResponse>> {
+    let with_usage = params
+        .sort
+        .as_deref()
+        .unwrap_or("usage")
+        .eq_ignore_ascii_case("usage");
+    let limit = params.limit.unwrap_or(50);
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+
+    let nt = match params.node_type.to_lowercase().as_str() {
+        "function" => ast::lang::NodeType::Function,
+        "endpoint" => ast::lang::NodeType::Endpoint,
+        _ => return Err(WebError(shared::Error::Custom("invalid node_type".into()))),
+    };
+    let is_function = matches!(nt, ast::lang::NodeType::Function);
+    let is_endpoint = matches!(nt, ast::lang::NodeType::Endpoint);
+
+    let (funcs, endpoints) = graph_ops.list_uncovered(nt, with_usage, limit).await?;
+
+    let functions = if is_function {
+        Some(
+            funcs
+                .into_iter()
+                .map(|(node_key, usage_score)| KeyScore {
+                    node_key,
+                    usage_score,
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
+    let endpoints = if is_endpoint {
+        Some(
+            endpoints
+                .into_iter()
+                .map(|(node_key, usage_score)| KeyScore {
+                    node_key,
+                    usage_score,
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
+
+    Ok(Json(UncoveredResponse {
+        functions,
+        endpoints,
+    }))
+}
+
+#[axum::debug_handler]
+pub async fn has_handler(Query(params): Query<HasParams>) -> Result<Json<HasResponse>> {
+    let mut graph_ops = GraphOps::new();
+    graph_ops.connect().await?;
+    let node_type = match params.node_type.to_lowercase().as_str() {
+        "function" => NodeType::Function,
+        "endpoint" => NodeType::Endpoint,
+        _ => return Err(WebError(Error::Custom("invalid node_type".into()))),
+    };
+    let covered = graph_ops
+        .has_coverage(node_type, &params.name, &params.file, params.start)
+        .await?;
+    Ok(Json(HasResponse { covered }))
 }
