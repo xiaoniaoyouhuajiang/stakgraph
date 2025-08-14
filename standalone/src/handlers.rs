@@ -608,7 +608,6 @@ pub async fn coverage_handler(
     Query(params): Query<CoverageParams>,
 ) -> Result<Json<CoverageTotals>> {
     let node_type = params.node_type.unwrap_or_else(|| "both".to_string());
-    let precision = params.precision.unwrap_or(2);
     let include_functions = node_type == "both" || node_type.eq_ignore_ascii_case("function");
     let include_endpoints = node_type == "both" || node_type.eq_ignore_ascii_case("endpoint");
 
@@ -616,7 +615,7 @@ pub async fn coverage_handler(
     graph_ops.connect().await?;
 
     let totals = graph_ops
-        .get_coverage(include_functions, include_endpoints, precision)
+        .get_coverage(include_functions, include_endpoints)
         .await?;
 
     let map_stat =

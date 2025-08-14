@@ -95,7 +95,6 @@ pub struct VectorSearchParams {
 #[derive(Deserialize)]
 pub struct CoverageParams {
     pub node_type: Option<String>,
-    pub precision: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

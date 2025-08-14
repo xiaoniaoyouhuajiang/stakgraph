@@ -429,7 +429,6 @@ impl GraphOps {
         &mut self,
         include_functions: bool,
         include_endpoints: bool,
-        precision: u32,
     ) -> Result<GraphCoverageTotals> {
         self.graph.ensure_connected().await?;
 
@@ -471,7 +470,7 @@ impl GraphOps {
                 0.0
             } else {
                 let p = (functions_covered as f64 / functions_total as f64) * 100.0;
-                let pow = 10_f64.powi(precision as i32);
+                let pow = 100.0;
                 (p * pow).round() / pow
             };
             functions_stat = Some(GraphCoverageStat {
@@ -509,7 +508,7 @@ impl GraphOps {
                 0.0
             } else {
                 let p = (covered_endpoints as f64 / total_endpoints as f64) * 100.0;
-                let pow = 10_f64.powi(precision as i32);
+                let pow = 100.0;
                 (p * pow).round() / pow
             };
             endpoints_stat = Some(GraphCoverageStat {
