@@ -666,7 +666,7 @@ pub async fn uncovered_handler(
                 .into_iter()
                 .map(|(node_key, usage_score)| KeyScore {
                     node_key,
-                    usage_score,
+                    weight: usage_score,
                 })
                 .collect(),
         )
@@ -679,7 +679,7 @@ pub async fn uncovered_handler(
                 .into_iter()
                 .map(|(node_key, usage_score)| KeyScore {
                     node_key,
-                    usage_score,
+                    weight: usage_score,
                 })
                 .collect(),
         )

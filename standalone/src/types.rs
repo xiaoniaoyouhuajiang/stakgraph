@@ -122,7 +122,7 @@ pub struct UncoveredParams {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyScore {
     pub node_key: String,
-    pub usage_score: usize,
+    pub weight: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
