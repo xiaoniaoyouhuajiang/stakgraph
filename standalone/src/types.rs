@@ -95,6 +95,7 @@ pub struct VectorSearchParams {
 #[derive(Deserialize)]
 pub struct CoverageParams {
     pub node_type: Option<String>,
+    pub root: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -108,6 +109,40 @@ pub struct CoverageStat {
 pub struct CoverageTotals {
     pub functions: Option<CoverageStat>,
     pub endpoints: Option<CoverageStat>,
+}
+
+#[derive(Deserialize)]
+pub struct UncoveredParams {
+    pub node_type: String,
+    pub limit: Option<usize>,
+    pub sort: Option<String>,
+    pub root: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct KeyScore {
+    pub node_key: String,
+    pub weight: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UncoveredResponse {
+    pub functions: Option<Vec<KeyScore>>,
+    pub endpoints: Option<Vec<KeyScore>>,
+}
+
+#[derive(Deserialize)]
+pub struct HasParams {
+    pub node_type: String,
+    pub name: String,
+    pub file: String,
+    pub start: Option<usize>,
+    pub root: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct HasResponse {
+    pub covered: bool,
 }
 
 impl IntoResponse for WebError {
