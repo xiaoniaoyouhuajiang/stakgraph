@@ -9,7 +9,7 @@ use crate::lang::linker::{
     verbs_match,
 };
 use crate::lang::neo4j_utils::{add_edge_query, add_node_query, build_batch_edge_queries};
-use crate::lang::{Edge, NodeData, NodeType};
+use crate::lang::{Edge, EdgeType, NodeData, NodeType};
 use crate::repo::{check_revs_files, Repo};
 use neo4rs::BoltMap;
 use shared::error::{Error, Result};
@@ -18,6 +18,19 @@ use tracing::{debug, error, info};
 #[derive(Debug, Clone)]
 pub struct GraphOps {
     pub graph: Neo4jGraph,
+}
+
+#[derive(Debug, Clone)]
+pub struct GraphCoverageStat {
+    pub total: usize,
+    pub covered: usize,
+    pub percent: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct GraphCoverageTotals {
+    pub functions: Option<GraphCoverageStat>,
+    pub endpoints: Option<GraphCoverageStat>,
 }
 
 impl GraphOps {
@@ -410,5 +423,104 @@ impl GraphOps {
         }
         self.graph.execute_simple(queries).await?;
         Ok(count)
+    }
+
+    pub async fn get_coverage(
+        &mut self,
+        include_functions: bool,
+        include_endpoints: bool,
+    ) -> Result<GraphCoverageTotals> {
+        self.graph.ensure_connected().await?;
+
+        let mut covered_function_keys = std::collections::HashSet::new();
+
+        if include_functions || include_endpoints {
+            let pairs_test = self
+                .graph
+                .find_nodes_with_edge_type_async(
+                    NodeType::Test,
+                    NodeType::Function,
+                    EdgeType::Calls,
+                )
+                .await;
+            let pairs_e2e = self
+                .graph
+                .find_nodes_with_edge_type_async(
+                    NodeType::E2eTest,
+                    NodeType::Function,
+                    EdgeType::Calls,
+                )
+                .await;
+
+            for (_, target) in pairs_test.into_iter().chain(pairs_e2e.into_iter()) {
+                covered_function_keys
+                    .insert(format!("{}|{}|{}", target.name, target.file, target.start));
+            }
+        }
+
+        let mut functions_stat = None;
+        if include_functions {
+            let functions = self
+                .graph
+                .find_nodes_by_type_async(NodeType::Function)
+                .await;
+            let functions_total = functions.len();
+            let functions_covered = covered_function_keys.len();
+            let percent = if functions_total == 0 {
+                0.0
+            } else {
+                let p = (functions_covered as f64 / functions_total as f64) * 100.0;
+                let pow = 100.0;
+                (p * pow).round() / pow
+            };
+            functions_stat = Some(GraphCoverageStat {
+                total: functions_total,
+                covered: functions_covered,
+                percent,
+            });
+        }
+
+        let mut endpoints_stat = None;
+        if include_endpoints {
+            let endpoints = self
+                .graph
+                .find_nodes_by_type_async(NodeType::Endpoint)
+                .await;
+            let total_endpoints = endpoints.len();
+            let mut covered_endpoints = 0usize;
+            if total_endpoints > 0 {
+                for endpoint in &endpoints {
+                    let handlers = self.graph.find_handlers_for_endpoint_async(endpoint).await;
+                    let mut covered = false;
+                    for h in handlers {
+                        let key = format!("{}|{}|{}", h.name, h.file, h.start);
+                        if covered_function_keys.contains(&key) {
+                            covered = true;
+                            break;
+                        }
+                    }
+                    if covered {
+                        covered_endpoints += 1;
+                    }
+                }
+            }
+            let percent = if total_endpoints == 0 {
+                0.0
+            } else {
+                let p = (covered_endpoints as f64 / total_endpoints as f64) * 100.0;
+                let pow = 100.0;
+                (p * pow).round() / pow
+            };
+            endpoints_stat = Some(GraphCoverageStat {
+                total: total_endpoints,
+                covered: covered_endpoints,
+                percent,
+            });
+        }
+
+        Ok(GraphCoverageTotals {
+            functions: functions_stat,
+            endpoints: endpoints_stat,
+        })
     }
 }

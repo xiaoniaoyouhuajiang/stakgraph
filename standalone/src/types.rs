@@ -92,6 +92,24 @@ pub struct VectorSearchParams {
     pub language: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct CoverageParams {
+    pub node_type: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CoverageStat {
+    pub total: usize,
+    pub covered: usize,
+    pub percent: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CoverageTotals {
+    pub functions: Option<CoverageStat>,
+    pub endpoints: Option<CoverageStat>,
+}
+
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {
         let status = match &self.0 {
