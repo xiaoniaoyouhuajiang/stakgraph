@@ -659,7 +659,12 @@ pub async fn coverage_handler(
     graph_ops.connect().await?;
 
     let totals = graph_ops
-        .get_coverage(include_functions, include_endpoints, params.root.as_deref())
+        .get_coverage(
+            include_functions,
+            include_endpoints,
+            params.root.as_deref(),
+            params.tests.as_deref(),
+        )
         .await?;
 
     let map_stat =
@@ -697,7 +702,13 @@ pub async fn uncovered_handler(Query(params): Query<UncoveredParams>) -> Result<
     graph_ops.connect().await?;
 
     let (funcs, endpoints) = graph_ops
-        .list_uncovered(node_type, with_usage, limit, params.root.as_deref())
+        .list_uncovered(
+            node_type,
+            with_usage,
+            limit,
+            params.root.as_deref(),
+            params.tests.as_deref(),
+        )
         .await?;
 
     let functions = if is_function {
@@ -748,6 +759,7 @@ pub async fn has_handler(Query(params): Query<HasParams>) -> Result<Json<HasResp
             &params.file,
             params.start,
             params.root.as_deref(),
+            params.tests.as_deref(),
         )
         .await?;
     Ok(Json(HasResponse { covered }))
