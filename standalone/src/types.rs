@@ -117,18 +117,36 @@ pub struct UncoveredParams {
     pub limit: Option<usize>,
     pub sort: Option<String>,
     pub root: Option<String>,
+    pub output: Option<String>,
+    pub concise: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct KeyScore {
-    pub node_key: String,
+pub struct UncoveredNode {
+    pub node_type: String,
+    pub ref_id: String,
+    pub weight: usize,
+    pub properties: NodeData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UncoveredNodeConcise {
+    pub name: String,
+    pub file: String,
     pub weight: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum UncoveredResponseItem {
+    Full(UncoveredNode),
+    Concise(UncoveredNodeConcise),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UncoveredResponse {
-    pub functions: Option<Vec<KeyScore>>,
-    pub endpoints: Option<Vec<KeyScore>>,
+    pub functions: Option<Vec<UncoveredResponseItem>>,
+    pub endpoints: Option<Vec<UncoveredResponseItem>>,
 }
 
 #[derive(Deserialize)]

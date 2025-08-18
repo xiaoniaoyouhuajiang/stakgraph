@@ -541,7 +541,7 @@ impl GraphOps {
         with_usage: bool,
         limit: usize,
         root: Option<&str>,
-    ) -> Result<(Vec<(String, usize)>, Vec<(String, usize)>)> {
+    ) -> Result<(Vec<(NodeData, usize)>, Vec<(NodeData, usize)>)> {
         self.graph.ensure_connected().await?;
         let in_scope = |n: &NodeData| root.map_or(true, |r| n.file.starts_with(r));
 
@@ -607,11 +607,8 @@ impl GraphOps {
                 uncovered.sort_by(|a, b| a.0.name.cmp(&b.0.name));
             }
             uncovered.truncate(limit);
-            let keys: Vec<(String, usize)> = uncovered
-                .into_iter()
-                .map(|(nd, score)| (create_node_key(&Node::new(NodeType::Function, nd)), score))
-                .collect();
-            return Ok((keys, vec![]));
+            let result: Vec<(NodeData, usize)> = uncovered;
+            return Ok((result, vec![]));
         }
 
         if node_type == NodeType::Endpoint {
@@ -668,11 +665,8 @@ impl GraphOps {
                 res.sort_by(|a, b| a.0.name.cmp(&b.0.name));
             }
             res.truncate(limit);
-            let keys: Vec<(String, usize)> = res
-                .into_iter()
-                .map(|(nd, score)| (create_node_key(&Node::new(NodeType::Endpoint, nd)), score))
-                .collect();
-            return Ok((vec![], keys));
+            let result: Vec<(NodeData, usize)> = res;
+            return Ok((vec![], result));
         }
 
         Ok((vec![], vec![]))
