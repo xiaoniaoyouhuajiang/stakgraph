@@ -15,7 +15,7 @@ cargo run --bin index
 
 [ingest some data](https://github.com/stakwork/stakgraph/wiki/Ingest-some-data)
 
-### language support
+### Language support
 
 - [x] Golang
 - [x] React
