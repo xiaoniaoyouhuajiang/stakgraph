@@ -4,6 +4,7 @@ import {
   Neo4jNode,
   node_type_descriptions,
   NodeType,
+  EdgeType,
 } from "./types.js";
 import {
   nameFileOnly,
@@ -70,6 +71,35 @@ export async function get_nodes(req: Request, res: Response) {
 
     const result = await G.get_nodes(
       node_type,
+      concise,
+      ref_ids,
+      output,
+      language
+    );
+    if (output === "snippet") {
+      res.send(result);
+    } else {
+      res.json(result);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+export async function get_edges(req: Request, res: Response) {
+  try {
+    const edge_type = req.query.edge_type as EdgeType;
+    const concise = isTrue(req.query.concise as string);
+    let ref_ids: string[] = [];
+    if (req.query.ref_ids) {
+      ref_ids = (req.query.ref_ids as string).split(",");
+    }
+    const output = req.query.output as G.OutputFormat;
+    const language = req.query.language as string;
+
+    const result = await G.get_edges(
+      edge_type,
       concise,
       ref_ids,
       output,
@@ -166,8 +196,8 @@ export async function get_services(req: Request, res: Response) {
         service.env = {};
         envVars.forEach((v) => (service.env[v] = process.env[v] || ""));
 
-              const { pkgFile: _, ...cleanService } = service;
-              services.push(cleanService);
+        const { pkgFile: _, ...cleanService } = service;
+        services.push(cleanService);
       }
       const composeFiles = await findDockerComposeFiles(repoDir);
       let containers: ContainerConfig[] = [];
@@ -274,6 +304,33 @@ export async function get_shortest_path(req: Request, res: Response) {
       req.query.end_ref_id as string
     );
     res.send(result);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+export async function get_graph(req: Request, res: Response) {
+  try {
+    const node_type = req.query.node_type as NodeType;
+    const edge_type = req.query.edge_type as EdgeType;
+    const concise = isTrue(req.query.concise as string);
+    let ref_ids: string[] = [];
+    if (req.query.ref_ids) {
+      ref_ids = (req.query.ref_ids as string).split(",");
+    }
+    const include_edges = isTrue(req.query.edges as string);
+    const language = req.query.language as string;
+
+    const result = await G.get_graph(
+      node_type,
+      edge_type,
+      concise,
+      ref_ids,
+      include_edges,
+      language
+    );
+    res.json(result);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");

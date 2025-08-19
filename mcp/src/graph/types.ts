@@ -71,6 +71,18 @@ export interface Edge {
   target: Node;
 }
 
+export interface Neo4jEdge {
+  edge_type: string;
+  ref_id: string;
+  source: string;
+  target: string;
+  properties: Record<string, any>;
+}
+export interface GraphResponse {
+  nodes: any[];
+  edges: any[];
+  status: string;
+}
 export function relevant_node_types(): NodeType[] {
   return [
     "Page",
@@ -110,6 +122,19 @@ export function all_node_types(): NodeType[] {
     "Message",
     "Person",
     "Video",
+  ];
+}
+
+export function all_edge_types(): EdgeType[] {
+  return [
+    "CALLS",
+    "USES",
+    "OPERAND",
+    "CONTAINS",
+    "IMPORTS",
+    "OF",
+    "HANDLER",
+    "RENDERS",
   ];
 }
 

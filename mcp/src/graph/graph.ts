@@ -3,7 +3,13 @@ import type { Direction } from "./neo4j.js";
 import archy from "archy";
 import { buildTree, alphabetizeNodeLabels } from "./codemap.js";
 import { extractNodesFromRecord } from "./codebody_files.js";
-import { Neo4jNode, NodeType } from "./types.js";
+import {
+  Neo4jNode,
+  Neo4jEdge,
+  NodeType,
+  EdgeType,
+  GraphResponse,
+} from "./types.js";
 import {
   nameFileOnly,
   toReturnNode,
@@ -33,6 +39,25 @@ export async function get_nodes(
   }
 
   return toNodes(result, concise, output);
+}
+
+export async function get_edges(
+  edge_type: EdgeType,
+  concise: boolean,
+  ref_ids: string[],
+  output: OutputFormat = "snippet",
+  language?: string
+) {
+  let result: Neo4jEdge[] = [];
+  if (ref_ids.length > 0) {
+    result = await db.edges_by_ref_ids(ref_ids, language);
+  } else if (edge_type) {
+    result = await db.edges_by_type(edge_type, language);
+  } else {
+    result = await db.all_edges(language);
+  }
+
+  return toEdges(result, concise, output);
 }
 
 export type OutputFormat = "snippet" | "json";
@@ -107,6 +132,54 @@ export function toNodes(
 
 export function toNode(node: Neo4jNode, concise: boolean): any {
   return concise ? nameFileOnly(node) : toReturnNode(node);
+}
+
+export function toEdges(
+  result: Neo4jEdge[],
+  concise: boolean,
+  output: OutputFormat = "snippet"
+) {
+  if (output === "snippet") {
+    let r = "";
+    for (const edge of result) {
+      r += formatEdge(edge);
+    }
+    return r;
+  }
+  return result.map((e) => toEdge(e, concise));
+}
+
+export function toEdge(edge: Neo4jEdge, concise: boolean): any {
+  return concise ? edgeNameOnly(edge) : edge;
+}
+
+function edgeNameOnly(edge: Neo4jEdge): {
+  edge_type: string;
+  source: string;
+  target: string;
+} {
+  return {
+    edge_type: edge.edge_type,
+    source: edge.source,
+    target: edge.target,
+  };
+}
+
+function formatEdge(edge: Neo4jEdge): string {
+  return [
+    `<edge>`,
+    `type: ${edge.edge_type}`,
+    `ref_id: ${edge.ref_id}`,
+    `source: ${edge.source}`,
+    `target: ${edge.target}`,
+    edge.properties && Object.keys(edge.properties).length > 0
+      ? `properties: ${JSON.stringify(edge.properties)}`
+      : "",
+    "</edge>",
+    "",
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
 }
 
 export interface MapParams {
@@ -223,4 +296,39 @@ function pathToSnippets(path: ShortestPath) {
   const snip = formatNode(clean_node(path.end));
   r += snip;
   return r;
+}
+
+export async function get_graph(
+  node_type: NodeType,
+  edge_type: EdgeType,
+  concise: boolean,
+  ref_ids: string[],
+  include_edges: boolean = false,
+  language?: string
+): Promise<GraphResponse> {
+  const nodes_result = await get_nodes(
+    node_type,
+    concise,
+    ref_ids,
+    "json",
+    language
+  );
+
+  let edges_result: any[] = [];
+  if (include_edges) {
+    const result = await get_edges(
+      edge_type,
+      concise,
+      ref_ids,
+      "json",
+      language
+    );
+    edges_result = Array.isArray(result) ? result : [];
+  }
+
+  return {
+    nodes: Array.isArray(nodes_result) ? nodes_result : [],
+    edges: Array.isArray(edges_result) ? edges_result : [],
+    status: "Success",
+  };
 }
