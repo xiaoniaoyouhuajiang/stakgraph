@@ -193,16 +193,16 @@ export class SimpleEvaluator {
         );
         console.log(
           "🔍 DEBUG: Generated test criteria:",
-          result.object.testCriteria
+          (result.object as any).testCriteria
         );
         console.log(
           "🔍 DEBUG: Generated steps:",
-          JSON.stringify(result.object.steps, null, 2)
+          JSON.stringify((result.object as any).steps, null, 2)
         );
 
         return {
-          steps: result.object.steps as Step[],
-          testCriteria: result.object.testCriteria,
+          steps: (result.object as any).steps as Step[],
+          testCriteria: (result.object as any).testCriteria,
         };
       } catch (error: any) {
         lastError = error;
@@ -253,16 +253,16 @@ export class SimpleEvaluator {
         );
         console.log(
           "🔍 DEBUG: Generated test criteria:",
-          fallbackResult.object.testCriteria
+          (fallbackResult.object as any).testCriteria
         );
         console.log(
           "🔍 DEBUG: Generated steps:",
-          JSON.stringify(fallbackResult.object.steps, null, 2)
+          JSON.stringify((fallbackResult.object as any).steps, null, 2)
         );
 
         return {
-          steps: fallbackResult.object.steps as Step[],
-          testCriteria: fallbackResult.object.testCriteria,
+          steps: (fallbackResult.object as any).steps as Step[],
+          testCriteria: (fallbackResult.object as any).testCriteria,
         };
       } catch (fallbackError: any) {
         console.error(

@@ -26,7 +26,7 @@ export interface ActStep extends BaseStep {
 export interface ExtractStep extends BaseStep {
   type: "extract";
   instruction: string;
-  schema: z.AnyZodObject;
+  schema: z.ZodObject;
   useTextExtract?: boolean;
 }
 
