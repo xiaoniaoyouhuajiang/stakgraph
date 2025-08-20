@@ -4,6 +4,7 @@ use std::time::Duration;
 use crate::lang::embedding::{vectorize_code_document, vectorize_query};
 use crate::lang::graphs::graph::Graph;
 use crate::lang::graphs::neo4j_graph::Neo4jGraph;
+use crate::lang::graphs::utils::tests_sources;
 use crate::lang::graphs::BTreeMapGraph;
 use crate::lang::linker::{
     extract_test_ids, infer_lang, normalize_backend_path, normalize_frontend_path, paths_match,
@@ -432,6 +433,7 @@ impl GraphOps {
         include_functions: bool,
         include_endpoints: bool,
         root: Option<&str>,
+        tests_filter: Option<&str>,
     ) -> Result<GraphCoverageTotals> {
         self.graph.ensure_connected().await?;
 
@@ -439,27 +441,22 @@ impl GraphOps {
         let mut covered_function_keys = HashSet::new();
 
         if include_functions || include_endpoints {
-            let pairs_test = self
-                .graph
-                .find_nodes_with_edge_type_async(
-                    NodeType::Test,
-                    NodeType::Function,
-                    EdgeType::Calls,
-                )
-                .await;
-            let pairs_e2e = self
-                .graph
-                .find_nodes_with_edge_type_async(
-                    NodeType::E2eTest,
-                    NodeType::Function,
-                    EdgeType::Calls,
-                )
-                .await;
+            let sources = tests_sources(tests_filter);
 
-            for (_, target) in pairs_test.into_iter().chain(pairs_e2e.into_iter()) {
-                if in_scope(&target) {
-                    covered_function_keys
-                        .insert(create_node_key(&Node::new(NodeType::Function, target)));
+            for source_nt in sources {
+                let pairs = self
+                    .graph
+                    .find_nodes_with_edge_type_async(
+                        source_nt.clone(),
+                        NodeType::Function,
+                        EdgeType::Calls,
+                    )
+                    .await;
+                for (_, target) in pairs.into_iter() {
+                    if in_scope(&target) {
+                        covered_function_keys
+                            .insert(create_node_key(&Node::new(NodeType::Function, target)));
+                    }
                 }
             }
         }
@@ -541,24 +538,27 @@ impl GraphOps {
         with_usage: bool,
         limit: usize,
         root: Option<&str>,
+        tests_filter: Option<&str>,
     ) -> Result<(Vec<(NodeData, usize)>, Vec<(NodeData, usize)>)> {
         self.graph.ensure_connected().await?;
         let in_scope = |n: &NodeData| root.map_or(true, |r| n.file.starts_with(r));
 
-        let pairs_test = self
-            .graph
-            .find_nodes_with_edge_type_async(NodeType::Test, NodeType::Function, EdgeType::Calls)
-            .await;
-        let pairs_e2e = self
-            .graph
-            .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Function, EdgeType::Calls)
-            .await;
-
         let mut covered_function_keys = HashSet::new();
-        for (_source, target) in pairs_test.into_iter().chain(pairs_e2e.into_iter()) {
-            if in_scope(&target) {
-                covered_function_keys
-                    .insert(create_node_key(&Node::new(NodeType::Function, target)));
+        let sources = tests_sources(tests_filter);
+        for source_nt in sources {
+            let pairs = self
+                .graph
+                .find_nodes_with_edge_type_async(
+                    source_nt.clone(),
+                    NodeType::Function,
+                    EdgeType::Calls,
+                )
+                .await;
+            for (_src, target) in pairs.into_iter() {
+                if in_scope(&target) {
+                    covered_function_keys
+                        .insert(create_node_key(&Node::new(NodeType::Function, target)));
+                }
             }
         }
 
@@ -679,6 +679,7 @@ impl GraphOps {
         file: &str,
         start: Option<usize>,
         root: Option<&str>,
+        tests_filter: Option<&str>,
     ) -> Result<bool> {
         self.graph.ensure_connected().await?;
         let in_scope = |n: &NodeData| root.map_or(true, |r| n.file.starts_with(r));
@@ -701,26 +702,20 @@ impl GraphOps {
             if !in_scope(&t) {
                 return Ok(false);
             }
-            let calls_from_tests = self
-                .graph
-                .find_nodes_with_edge_type_async(
-                    NodeType::Test,
-                    NodeType::Function,
-                    EdgeType::Calls,
-                )
-                .await;
-            let calls_from_e2e = self
-                .graph
-                .find_nodes_with_edge_type_async(
-                    NodeType::E2eTest,
-                    NodeType::Function,
-                    EdgeType::Calls,
-                )
-                .await;
-            for (_, dst) in calls_from_tests
-                .into_iter()
-                .chain(calls_from_e2e.into_iter())
-            {
+            let sources = tests_sources(tests_filter);
+            let mut all_pairs: Vec<(NodeData, NodeData)> = Vec::new();
+            for source_nt in sources {
+                let pairs = self
+                    .graph
+                    .find_nodes_with_edge_type_async(
+                        source_nt.clone(),
+                        NodeType::Function,
+                        EdgeType::Calls,
+                    )
+                    .await;
+                all_pairs.extend(pairs);
+            }
+            for (_, dst) in all_pairs.into_iter() {
                 if in_scope(&dst)
                     && dst.name == t.name
                     && dst.file == t.file
@@ -742,28 +737,24 @@ impl GraphOps {
                 if handlers.is_empty() {
                     return Ok(false);
                 }
-                let covered_funcs: HashSet<String> = self
-                    .graph
-                    .find_nodes_with_edge_type_async(
-                        NodeType::Test,
-                        NodeType::Function,
-                        EdgeType::Calls,
-                    )
-                    .await
-                    .into_iter()
-                    .chain(
-                        self.graph
-                            .find_nodes_with_edge_type_async(
-                                NodeType::E2eTest,
-                                NodeType::Function,
-                                EdgeType::Calls,
-                            )
-                            .await
-                            .into_iter(),
-                    )
-                    .filter(|(_, f)| in_scope(f))
-                    .map(|(_, f)| create_node_key(&Node::new(NodeType::Function, f)))
-                    .collect();
+                let sources = tests_sources(tests_filter);
+                let mut covered_funcs: HashSet<String> = HashSet::new();
+                for source_nt in sources {
+                    let pairs = self
+                        .graph
+                        .find_nodes_with_edge_type_async(
+                            source_nt.clone(),
+                            NodeType::Function,
+                            EdgeType::Calls,
+                        )
+                        .await;
+                    for (_s, f) in pairs.into_iter() {
+                        if in_scope(&f) {
+                            covered_funcs
+                                .insert(create_node_key(&Node::new(NodeType::Function, f)));
+                        }
+                    }
+                }
                 for h in handlers {
                     if in_scope(&h)
                         && covered_funcs

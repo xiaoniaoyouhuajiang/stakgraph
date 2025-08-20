@@ -347,6 +347,29 @@ impl Stack for ReactTs {
                 ] @{FUNCTION_DEFINITION}"#
         ))
     }
+    fn integration_test_query(&self) -> Option<String> {
+        Some(format!(
+            r#"[
+                (call_expression
+                    function: (identifier) @describe (#eq? @describe "describe")
+                    arguments: (arguments
+                        [ (string) (template_string) ] @{E2E_TEST_NAME} (#match? @{E2E_TEST_NAME} "(?i)e2e")
+                        (_)
+                    )
+                ) @{INTEGRATION_TEST}
+                (call_expression
+                    function: (member_expression
+                        object: (identifier) @test (#eq? @test "test")
+                        property: (property_identifier) @desc (#eq? @desc "describe")
+                    )
+                    arguments: (arguments
+                        [ (string) (template_string) ] @{E2E_TEST_NAME} (#match? @{E2E_TEST_NAME} "(?i)e2e")
+                        (_)
+                    )
+                ) @{INTEGRATION_TEST}
+            ]"#
+        ))
+    }
     fn endpoint_finders(&self) -> Vec<String> {
         vec![format!(
             r#"
@@ -624,6 +647,9 @@ impl Stack for ReactTs {
     }
 
     fn use_extra_page_finder(&self) -> bool {
+        true
+    }
+    fn use_integration_test_finder(&self) -> bool {
         true
     }
     fn is_extra_page(&self, file_name: &str) -> bool {

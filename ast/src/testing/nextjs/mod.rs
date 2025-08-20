@@ -209,7 +209,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges += contains;
-    assert_eq!(contains, 129, "Expected 129 Contains edges");
+    assert_eq!(contains, 130, "Expected 130 Contains edges");
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
     edges += handlers;
@@ -218,6 +218,10 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let tests = graph.find_nodes_by_type(NodeType::Test);
     nodes += tests.len();
     assert_eq!(tests.len(), 10, "Expected 10 Test nodes");
+
+    let e2e_tests = graph.find_nodes_by_type(NodeType::E2eTest);
+    nodes += e2e_tests.len();
+    assert_eq!(e2e_tests.len(), 1, "Expected 1 E2eTest nodes");
 
     let import = graph.count_edges_of_type(EdgeType::Imports);
     edges += import;

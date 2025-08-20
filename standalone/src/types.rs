@@ -96,6 +96,7 @@ pub struct VectorSearchParams {
 pub struct CoverageParams {
     pub node_type: Option<String>,
     pub root: Option<String>,
+    pub tests: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -117,8 +118,9 @@ pub struct UncoveredParams {
     pub limit: Option<usize>,
     pub sort: Option<String>,
     pub root: Option<String>,
-    pub output: Option<String>,
     pub concise: Option<bool>,
+    pub tests: Option<String>,
+    pub output: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -156,6 +158,7 @@ pub struct HasParams {
     pub file: String,
     pub start: Option<usize>,
     pub root: Option<String>,
+    pub tests: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
