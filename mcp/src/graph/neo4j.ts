@@ -1,7 +1,15 @@
 import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
-import { Node, Edge, Neo4jNode, NodeType, all_node_types } from "./types.js";
+import {
+  Node,
+  Edge,
+  Neo4jNode,
+  Neo4jEdge,
+  NodeType,
+  EdgeType,
+  all_node_types,
+} from "./types.js";
 import {
   create_node_key,
   deser_node,
@@ -460,12 +468,78 @@ class Db {
       await session.close();
     }
   }
+
+  async edges_by_type(
+    edge_type?: EdgeType,
+    language?: string,
+    limit: number = 1000
+  ): Promise<Neo4jEdge[]> {
+    const session = this.driver.session();
+    try {
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+      const edge_types = edge_type ? [edge_type] : [];
+      const result = await session.run(Q.EDGES_BY_TYPE_QUERY, {
+        edge_types,
+        extensions,
+        limit,
+      });
+      return result.records.map((record) => deser_edge(record));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async edges_by_ref_ids(
+    ref_ids: string[],
+    language?: string,
+    limit: number = 1000
+  ): Promise<Neo4jEdge[]> {
+    const session = this.driver.session();
+    try {
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+      const result = await session.run(Q.EDGES_BY_REF_IDS_QUERY, {
+        ref_ids,
+        extensions,
+        limit,
+      });
+      return result.records.map((record) => deser_edge(record));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async all_edges(
+    language?: string,
+    limit: number = 1000
+  ): Promise<Neo4jEdge[]> {
+    const session = this.driver.session();
+    try {
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+      const result = await session.run(Q.ALL_EDGES_QUERY, {
+        extensions,
+        limit,
+      });
+      return result.records.map((record) => deser_edge(record));
+    } finally {
+      await session.close();
+    }
+  }
 }
 
 export let db: Db;
 
 if (!no_db) {
   db = new Db();
+}
+
+function deser_edge(record: any): Neo4jEdge {
+  return {
+    edge_type: record.get("edge_type"),
+    ref_id: uuidv4(),
+    source: record.get("source_ref_id"),
+    target: record.get("target_ref_id"),
+    properties: record.get("properties") || {},
+  };
 }
 
 interface MergeQuery {

@@ -53,6 +53,10 @@ server
         const fa = stakgraph.GetNodesSchema.parse(args);
         return await stakgraph.getNodes(fa);
       }
+      case stakgraph.GetEdgesTool.name: {
+        const fa = stakgraph.GetEdgesSchema.parse(args);
+        return await stakgraph.getEdges(fa);
+      }
       case stakgraph.GetMapTool.name: {
         const fa = stakgraph.GetMapSchema.parse(args);
         return await stakgraph.getMap(fa);

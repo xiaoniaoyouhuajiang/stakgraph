@@ -55,6 +55,8 @@ test_routes(app);
 app.use(r.authMiddleware);
 app.use(r.logEndpoint);
 app.get("/nodes", r.get_nodes);
+app.get("/edges", r.get_edges);
+app.get("/graph", r.get_graph);
 app.get("/search", r.search);
 app.get("/map", r.get_map);
 app.get("/repo_map", cacheMiddleware(), r.get_repo_map);

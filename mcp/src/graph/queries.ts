@@ -375,6 +375,58 @@ WHERE (n:Function OR n:Var)
   )
 RETURN n
 `;
+
+export const EDGES_BY_TYPE_QUERY = `
+MATCH (source)-[r]->(target)
+WHERE
+  CASE
+    WHEN $edge_types IS NULL OR size($edge_types) = 0 THEN true
+    ELSE type(r) IN $edge_types
+  END
+  AND source.ref_id IS NOT NULL
+  AND target.ref_id IS NOT NULL
+  AND
+  CASE
+    WHEN $extensions IS NULL OR size($extensions) = 0 THEN true
+    ELSE (source.file IS NOT NULL AND ANY(ext IN $extensions WHERE source.file ENDS WITH ext))
+         OR (target.file IS NOT NULL AND ANY(ext IN $extensions WHERE target.file ENDS WITH ext))
+  END
+RETURN r, source.ref_id AS source_ref_id, target.ref_id AS target_ref_id, type(r) AS edge_type, properties(r) AS properties
+ORDER BY edge_type, source_ref_id
+LIMIT toInteger($limit)
+`;
+
+export const EDGES_BY_REF_IDS_QUERY = `
+UNWIND $ref_ids AS refId
+MATCH (source)-[r]->(target)
+WHERE (source.ref_id = refId OR target.ref_id = refId)
+  AND source.ref_id IS NOT NULL
+  AND target.ref_id IS NOT NULL
+  AND
+  CASE
+    WHEN $extensions IS NULL OR size($extensions) = 0 THEN true
+    ELSE (source.file IS NOT NULL AND ANY(ext IN $extensions WHERE source.file ENDS WITH ext))
+         OR (target.file IS NOT NULL AND ANY(ext IN $extensions WHERE target.file ENDS WITH ext))
+  END
+RETURN r, source.ref_id AS source_ref_id, target.ref_id AS target_ref_id, type(r) AS edge_type, properties(r) AS properties
+ORDER BY edge_type, source_ref_id
+LIMIT toInteger($limit)
+`;
+
+export const ALL_EDGES_QUERY = `
+MATCH (source)-[r]->(target)
+WHERE source.ref_id IS NOT NULL
+  AND target.ref_id IS NOT NULL
+  AND
+  CASE
+    WHEN $extensions IS NULL OR size($extensions) = 0 THEN true
+    ELSE (source.file IS NOT NULL AND ANY(ext IN $extensions WHERE source.file ENDS WITH ext))
+         OR (target.file IS NOT NULL AND ANY(ext IN $extensions WHERE target.file ENDS WITH ext))
+  END
+RETURN r, source.ref_id AS source_ref_id, target.ref_id AS target_ref_id, type(r) AS edge_type, properties(r) AS properties
+ORDER BY edge_type, source_ref_id
+LIMIT toInteger($limit)
+`;
 /*
 
 CALL db.index.fulltext.queryNodes('nameIndex', 'bounty') YIELD node, score
