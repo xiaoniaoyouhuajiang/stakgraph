@@ -1,8 +1,11 @@
 use crate::types::{
     AsyncRequestStatus, AsyncStatus, CoverageParams, CoverageStat, CoverageTotals, EmbedCodeParams,
-    FetchRepoBody, FetchRepoResponse, HasParams, HasResponse, KeyScore, ProcessBody,
-    ProcessResponse, Result, UncoveredParams, UncoveredResponse, VectorSearchParams,
-    VectorSearchResult, WebError, WebhookPayload,
+    FetchRepoBody, FetchRepoResponse, HasParams, HasResponse, ProcessBody, ProcessResponse, Result,
+    UncoveredParams, UncoveredResponse, VectorSearchParams, VectorSearchResult, WebError,
+    WebhookPayload,
+};
+use crate::utils::{
+    create_uncovered_response_items, format_uncovered_response_as_snippet, parse_node_type,
 };
 use crate::webhook::{send_with_retries, validate_callback_url_async};
 use crate::AppState;
@@ -675,61 +678,58 @@ pub async fn coverage_handler(
 }
 
 #[axum::debug_handler]
-pub async fn uncovered_handler(
-    Query(params): Query<UncoveredParams>,
-) -> Result<Json<UncoveredResponse>> {
+pub async fn uncovered_handler(Query(params): Query<UncoveredParams>) -> Result<impl IntoResponse> {
     let with_usage = params
         .sort
         .as_deref()
         .unwrap_or("usage")
         .eq_ignore_ascii_case("usage");
     let limit = params.limit.unwrap_or(50);
+    let output = params.output.as_deref().unwrap_or("json");
+    let concise = params.concise.unwrap_or(false);
+
+    let node_type = parse_node_type(&params.node_type).map_err(|e| WebError(e))?;
+
+    let is_function = matches!(node_type, NodeType::Function);
+    let is_endpoint = matches!(node_type, NodeType::Endpoint);
+
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
-    let nt = match params.node_type.to_lowercase().as_str() {
-        "function" => ast::lang::NodeType::Function,
-        "endpoint" => ast::lang::NodeType::Endpoint,
-        _ => return Err(WebError(shared::Error::Custom("invalid node_type".into()))),
-    };
-    let is_function = matches!(nt, ast::lang::NodeType::Function);
-    let is_endpoint = matches!(nt, ast::lang::NodeType::Endpoint);
-
     let (funcs, endpoints) = graph_ops
-        .list_uncovered(nt, with_usage, limit, params.root.as_deref())
+        .list_uncovered(node_type, with_usage, limit, params.root.as_deref())
         .await?;
 
     let functions = if is_function {
-        Some(
-            funcs
-                .into_iter()
-                .map(|(node_key, usage_score)| KeyScore {
-                    node_key,
-                    weight: usage_score,
-                })
-                .collect(),
-        )
+        Some(create_uncovered_response_items(
+            funcs,
+            &NodeType::Function,
+            concise,
+        ))
     } else {
         None
     };
     let endpoints = if is_endpoint {
-        Some(
-            endpoints
-                .into_iter()
-                .map(|(node_key, usage_score)| KeyScore {
-                    node_key,
-                    weight: usage_score,
-                })
-                .collect(),
-        )
+        Some(create_uncovered_response_items(
+            endpoints,
+            &NodeType::Endpoint,
+            concise,
+        ))
     } else {
         None
     };
 
-    Ok(Json(UncoveredResponse {
+    let response = UncoveredResponse {
         functions,
         endpoints,
-    }))
+    };
+    match output {
+        "snippet" => {
+            let text = format_uncovered_response_as_snippet(&response);
+            Ok(text.into_response())
+        }
+        _ => Ok(Json(response).into_response()),
+    }
 }
 
 #[axum::debug_handler]
