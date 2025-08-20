@@ -1,7 +1,59 @@
 use crate::utils::{run, run_res_in_dir};
-use shared::error::{Context, Result};
+use shared::error::{Context, Error, Result};
 use std::path::Path;
-use tracing::info;
+use tracing::{debug, info};
+
+pub async fn validate_git_credentials(
+    repo: &str,
+    username: Option<String>,
+    pat: Option<String>,
+) -> Result<()> {
+    let repo_url = if username.is_some() && pat.is_some() {
+        let username = username.unwrap();
+        let pat = pat.unwrap();
+        let repo_end = &repo.to_string()[8..];
+        format!("https://{}:{}@{}", username, pat, repo_end)
+    } else {
+        repo.to_string()
+    };
+
+    debug!("Validating git credentials for repository");
+
+    match run("git", &["ls-remote", "--heads", &repo_url]).await {
+        Ok(_) => {
+            debug!("Git credentials validation successful");
+            Ok(())
+        }
+        Err(e) => {
+            let error_msg = e.to_string().to_lowercase();
+
+            // Check for common authentication error patterns
+            if error_msg.contains("authentication failed")
+                || error_msg.contains("invalid username or password")
+                || error_msg.contains("bad credentials")
+                || error_msg.contains("access denied")
+                || error_msg.contains("unauthorized")
+                || error_msg.contains("403")
+                || error_msg.contains("401")
+            {
+                return Err(Error::Custom(format!(
+                    "Git authentication failed. Please check your PAT and username. Error: {}",
+                    e
+                )));
+            } else if error_msg.contains("repository not found") || error_msg.contains("404") {
+                return Err(Error::Custom(format!(
+                    "Repository not found or access denied. Error: {}",
+                    e
+                )));
+            } else {
+                return Err(Error::Custom(format!(
+                    "Failed to validate git credentials: {}",
+                    e
+                )));
+            }
+        }
+    }
+}
 
 pub async fn git_clone(
     repo: &str,
@@ -31,8 +83,31 @@ pub async fn git_clone(
                 tracing::info!("Cloned repo to {}", path);
             }
             Err(e) => {
-                tracing::error!("git clone failed for {}: {}", repo_url, e);
-                return Err(e);
+                let error_msg = e.to_string().to_lowercase();
+
+                if error_msg.contains("authentication failed")
+                    || error_msg.contains("invalid username or password")
+                    || error_msg.contains("bad credentials")
+                    || error_msg.contains("access denied")
+                    || error_msg.contains("unauthorized")
+                    || error_msg.contains("403")
+                    || error_msg.contains("401")
+                {
+                    tracing::error!("git clone authentication failed for {}: {}", repo_url, e);
+                    return Err(Error::Custom(format!(
+                        "Git authentication failed during clone. Please check your PAT (Personal Access Token) and username. Error: {}", 
+                        e
+                    )));
+                } else if error_msg.contains("repository not found") || error_msg.contains("404") {
+                    tracing::error!("git clone repository not found for {}: {}", repo_url, e);
+                    return Err(Error::Custom(format!(
+                        "Repository not found or access denied during clone. Error: {}",
+                        e
+                    )));
+                } else {
+                    tracing::error!("git clone failed for {}: {}", repo_url, e);
+                    return Err(Error::Custom(format!("Git clone failed: {}", e)));
+                }
             }
         }
     }
@@ -45,14 +120,31 @@ pub async fn git_clone(
 }
 
 pub async fn get_commit_hash(dir: &str) -> Result<String> {
-    let log = run_res_in_dir("git", &["log", "-1"], dir).await?;
+    let log = run_res_in_dir("git", &["log", "-1"], dir)
+        .await
+        .map_err(|e| {
+            let error_msg = e.to_string().to_lowercase();
+            if error_msg.contains("no such file or directory") {
+                Error::Custom(format!(
+                    "Repository directory '{}' not found or incomplete. Error: {}",
+                    dir, e
+                ))
+            } else if error_msg.contains("not a git repository") {
+                Error::Custom(format!(
+                    "Directory '{}' is not a valid git repository. Error: {}",
+                    dir, e
+                ))
+            } else {
+                Error::Custom(format!("Failed to get commit hash from '{}': {}", dir, e))
+            }
+        })?;
     let hash = log
         .lines()
         .next()
-        .context("empty res")?
+        .context("empty git log result")?
         .split_whitespace()
         .nth(1)
-        .context("no hash")?;
+        .context("no commit hash found in git log")?;
     Ok(hash.to_string())
 }
 

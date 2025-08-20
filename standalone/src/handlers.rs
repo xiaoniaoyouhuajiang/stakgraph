@@ -17,7 +17,7 @@ use axum::{extract::State, Json};
 use broadcast::error::RecvError;
 use chrono::Utc;
 use futures::stream;
-use lsp::{git::get_commit_hash, strip_tmp};
+use lsp::{git::get_commit_hash, git::validate_git_credentials, strip_tmp};
 use reqwest::Client;
 use shared::Error;
 use std::convert::Infallible;
@@ -80,6 +80,11 @@ pub async fn process(body: Json<ProcessBody>) -> Result<Json<ProcessResponse>> {
         )));
     }
     let (final_repo_path, final_repo_url, username, pat, _) = resolve_repo(&body)?;
+
+    if let Err(e) = validate_git_credentials(&final_repo_url, username.clone(), pat.clone()).await {
+        return Err(WebError(e));
+    }
+
     let use_lsp = body.use_lsp;
 
     let total_start = Instant::now();
@@ -289,6 +294,23 @@ pub async fn ingest_async(
     State(state): State<Arc<AppState>>,
     body: Json<ProcessBody>,
 ) -> impl IntoResponse {
+    let (_, repo_url, username, pat, _) = match resolve_repo(&body) {
+        Ok(config) => config,
+        Err(e) => {
+            return Json(serde_json::json!({
+                "error": format!("Invalid repository configuration: {:?}", e)
+            }))
+            .into_response();
+        }
+    };
+
+    if let Err(e) = validate_git_credentials(&repo_url, username.clone(), pat.clone()).await {
+        return Json(serde_json::json!({
+            "error": format!("Git authentication failed: {:?}", e)
+        }))
+        .into_response();
+    }
+
     let request_id = uuid::Uuid::new_v4().to_string();
     let status_map = state.async_status.clone();
     let mut rx = state.tx.subscribe();
@@ -407,7 +429,7 @@ pub async fn ingest_async(
         }
     });
 
-    Json(serde_json::json!({ "request_id": request_id }))
+    Json(serde_json::json!({ "request_id": request_id })).into_response()
 }
 
 #[axum::debug_handler]
@@ -415,6 +437,23 @@ pub async fn sync_async(
     State(state): State<Arc<AppState>>,
     body: Json<ProcessBody>,
 ) -> impl IntoResponse {
+    let (_, repo_url, username, pat, _) = match resolve_repo(&body) {
+        Ok(config) => config,
+        Err(e) => {
+            return Json(serde_json::json!({
+                "error": format!("Invalid repository configuration: {:?}", e)
+            }))
+            .into_response();
+        }
+    };
+
+    if let Err(e) = validate_git_credentials(&repo_url, username.clone(), pat.clone()).await {
+        return Json(serde_json::json!({
+            "error": format!("Git authentication failed: {:?}", e)
+        }))
+        .into_response();
+    }
+
     let request_id = uuid::Uuid::new_v4().to_string();
     let status_map = state.async_status.clone();
 
@@ -506,7 +545,7 @@ pub async fn sync_async(
         }
     });
 
-    Json(serde_json::json!({ "request_id": request_id }))
+    Json(serde_json::json!({ "request_id": request_id })).into_response()
 }
 
 pub async fn get_status(
