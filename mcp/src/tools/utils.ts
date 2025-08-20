@@ -1,4 +1,3 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { z } from "zod";
 import { Json, Tool } from "./types.js";
 import { Request, Response, NextFunction } from "express";
@@ -42,7 +41,7 @@ export function mcpSession(req: Request, _: Response, next: NextFunction) {
 }
 
 export function parseSchema(schema: z.ZodSchema): Json {
-  const s = zodToJsonSchema(schema);
+  const s = z.toJSONSchema(schema);
   delete s["$schema"];
   return s;
 }

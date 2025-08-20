@@ -2,7 +2,12 @@ import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../types.js";
 import { parseSchema } from "../utils.js";
-import { getOrCreateStagehand, sanitize, getConsoleLogs, getNetworkEntries } from "./core.js";
+import {
+  getOrCreateStagehand,
+  sanitize,
+  getConsoleLogs,
+  getNetworkEntries,
+} from "./core.js";
 import { AgentProviderType } from "@browserbasehq/stagehand";
 import { getProvider } from "./providers.js";
 
@@ -27,7 +32,7 @@ export const ActSchema = z.object({
       "The action to perform. Should be atomic and specific, i.e. 'Click the sign in button'. If unsure, use observe before using act."
     ),
   variables: z
-    .record(z.any())
+    .record(z.string(), z.any())
     .optional()
     .describe(
       "Variables for sensitive data or dynamic content. ONLY use if needed, e.g. passwords."
@@ -69,8 +74,11 @@ export const LogsSchema = z.object({
 });
 
 export const NetworkActivitySchema = z.object({
-  resource_type_filter: z.enum(['all', 'xhr', 'fetch']).optional().default('all'),
-  status_filter: z.enum(['all', 'success', 'failed']).optional().default('all'),
+  resource_type_filter: z
+    .enum(["all", "xhr", "fetch"])
+    .optional()
+    .default("all"),
+  status_filter: z.enum(["all", "success", "failed"]).optional().default("all"),
   verbose: z.boolean().optional().default(false),
 });
 
@@ -266,30 +274,33 @@ export async function call(
 
       case NetworkActivityTool.name: {
         const parsedArgs = NetworkActivitySchema.parse(args);
-        const networkEntries = getNetworkEntries(sessionId || "default-session-id");
+        const networkEntries = getNetworkEntries(
+          sessionId || "default-session-id"
+        );
 
         // Apply resource type filtering - default to showing only xhr and fetch (API calls)
         let filteredEntries = networkEntries;
-        if (parsedArgs.resource_type_filter === 'all') {
+        if (parsedArgs.resource_type_filter === "all") {
           // Show both xhr and fetch requests (API calls only)
-          filteredEntries = networkEntries.filter(entry =>
-            entry.resourceType === 'xhr' || entry.resourceType === 'fetch'
+          filteredEntries = networkEntries.filter(
+            (entry) =>
+              entry.resourceType === "xhr" || entry.resourceType === "fetch"
           );
         } else {
           // Show specific type
-          filteredEntries = networkEntries.filter(entry =>
-            entry.resourceType === parsedArgs.resource_type_filter
+          filteredEntries = networkEntries.filter(
+            (entry) => entry.resourceType === parsedArgs.resource_type_filter
           );
         }
 
         // Apply status filtering
-        if (parsedArgs.status_filter === 'success') {
-          filteredEntries = filteredEntries.filter(entry =>
-            entry.status && entry.status >= 200 && entry.status < 400
+        if (parsedArgs.status_filter === "success") {
+          filteredEntries = filteredEntries.filter(
+            (entry) => entry.status && entry.status >= 200 && entry.status < 400
           );
-        } else if (parsedArgs.status_filter === 'failed') {
-          filteredEntries = filteredEntries.filter(entry =>
-            entry.status && entry.status >= 400
+        } else if (parsedArgs.status_filter === "failed") {
+          filteredEntries = filteredEntries.filter(
+            (entry) => entry.status && entry.status >= 400
           );
         }
         // 'all' status_filter requires no additional filtering
@@ -298,31 +309,43 @@ export async function call(
           return success(JSON.stringify(filteredEntries, null, 2));
         } else {
           // Generate comprehensive summary with all API data regardless of filters
-          const allEntries = getNetworkEntries(sessionId || "default-session-id");
-          const allApiEntries = allEntries.filter(entry =>
-            entry.resourceType === 'xhr' || entry.resourceType === 'fetch'
+          const allEntries = getNetworkEntries(
+            sessionId || "default-session-id"
+          );
+          const allApiEntries = allEntries.filter(
+            (entry) =>
+              entry.resourceType === "xhr" || entry.resourceType === "fetch"
           );
 
           // Simple mode: comprehensive summary first, then filtered entries
           const response = {
             summary: {
               total_entries: allApiEntries.length,
-              requests: allApiEntries.filter(e => e.type === 'request').length,
-              responses: allApiEntries.filter(e => e.type === 'response').length,
-              successful: allApiEntries.filter(e => e.status && e.status >= 200 && e.status < 400).length,
-              failed: allApiEntries.filter(e => e.status && e.status >= 400).length,
-              xhr_requests: allApiEntries.filter(e => e.resourceType === 'xhr').length,
-              fetch_requests: allApiEntries.filter(e => e.resourceType === 'fetch').length,
-              filtered_count: filteredEntries.length
+              requests: allApiEntries.filter((e) => e.type === "request")
+                .length,
+              responses: allApiEntries.filter((e) => e.type === "response")
+                .length,
+              successful: allApiEntries.filter(
+                (e) => e.status && e.status >= 200 && e.status < 400
+              ).length,
+              failed: allApiEntries.filter((e) => e.status && e.status >= 400)
+                .length,
+              xhr_requests: allApiEntries.filter(
+                (e) => e.resourceType === "xhr"
+              ).length,
+              fetch_requests: allApiEntries.filter(
+                (e) => e.resourceType === "fetch"
+              ).length,
+              filtered_count: filteredEntries.length,
             },
-            entries: filteredEntries.map(entry => ({
+            entries: filteredEntries.map((entry) => ({
               method: entry.method,
               url: entry.url,
               type: entry.type,
               status: entry.status,
               duration: entry.duration,
-              resourceType: entry.resourceType
-            }))
+              resourceType: entry.resourceType,
+            })),
           };
           return success(JSON.stringify(response, null, 2));
         }
