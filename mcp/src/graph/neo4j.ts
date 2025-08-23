@@ -106,7 +106,7 @@ class Db {
   ) {
     const disclude: NodeType[] = ["File", "Directory", "Repository"];
     if (include_tests === false) {
-      disclude.push("Test", "E2etest");
+      disclude.push("UnitTest", "IntegrationTest", "E2etest");
     }
     const label_filter = this.skip_string(disclude);
     const session = this.driver.session();
