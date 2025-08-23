@@ -339,7 +339,7 @@ impl Lang {
         let funcs1 = self.collect_functions(&qo, code, file, graph, lsp_tx)?;
         let (funcs, mut tests) = self.lang.filter_tests(funcs1);
         if let Some(tq) = self.lang.test_query() {
-            let qo2 = self.q(&tq, &NodeType::Test);
+            let qo2 = self.q(&tq, &NodeType::UnitTest);
             let more_tests = self.collect_tests(&qo2, code, file)?;
             tests.extend(more_tests);
         }
@@ -429,8 +429,8 @@ impl Lang {
         }
 
         if let Some(tq) = self.lang.test_query() {
-            let q_tests = self.q(&tq, &NodeType::Test);
-            let tree_tests = self.lang.parse(&code, &NodeType::Test)?;
+            let q_tests = self.q(&tq, &NodeType::UnitTest);
+            let tree_tests = self.lang.parse(&code, &NodeType::UnitTest)?;
             let mut cursor_tests = QueryCursor::new();
             let mut test_matches =
                 cursor_tests.matches(&q_tests, tree_tests.root_node(), code.as_bytes());
@@ -515,7 +515,7 @@ impl Lang {
                                                 NodeKeys::new(&caller_name, file, caller_start);
                                             let edge = Edge::new(
                                                 EdgeType::Calls,
-                                                NodeRef::from(source, NodeType::Test),
+                                                NodeRef::from(source, NodeType::UnitTest),
                                                 NodeRef::from(ep.into(), NodeType::Endpoint),
                                             );
                                             res.2.push(edge);

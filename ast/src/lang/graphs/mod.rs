@@ -36,7 +36,8 @@ pub enum NodeType {
     Trait,
     Instance,
     Function,
-    Test,
+    UnitTest,
+    IntegrationTest,
     #[serde(rename = "E2etest")]
     E2eTest,
     Endpoint,
@@ -112,7 +113,7 @@ impl Edge {
     fn new_test_call(m: Calls) -> Edge {
         Edge::new(
             EdgeType::Calls,
-            NodeRef::from(m.source, NodeType::Test),
+            NodeRef::from(m.source, NodeType::UnitTest),
             NodeRef::from(m.target, NodeType::Function),
         )
     }

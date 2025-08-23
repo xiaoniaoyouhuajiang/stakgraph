@@ -563,7 +563,7 @@ impl Repo {
 
             for test in tests {
                 graph.add_node_with_parent(
-                    NodeType::Test,
+                    NodeType::UnitTest,
                     test.0.clone(),
                     NodeType::File,
                     &test.0.file,

@@ -12,11 +12,11 @@ pub fn tests_sources(tests_filter: Option<&str>) -> Vec<NodeType> {
             .map(|s| s.eq_ignore_ascii_case("both"))
             .unwrap_or(false);
     if both || (!unit && !e2e) {
-        return vec![NodeType::Test, NodeType::E2eTest];
+        return vec![NodeType::UnitTest, NodeType::E2eTest];
     }
     let mut sources = Vec::new();
     if unit {
-        sources.push(NodeType::Test);
+        sources.push(NodeType::UnitTest);
     }
     if e2e {
         sources.push(NodeType::E2eTest);

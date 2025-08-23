@@ -895,7 +895,7 @@ impl Lang {
         trace!("format_integration_test");
         let mut nd = NodeData::in_file(file);
         let mut e2e_test_name = None;
-        let mut tt = NodeType::Test;
+    let mut tt = NodeType::UnitTest;
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == HANDLER {
                 nd.name = trim_quotes(&body).to_string();
@@ -994,7 +994,7 @@ impl Lang {
         let source = NodeKeys::new(&caller_name, file, 0);
         let edge = Edge::new(
             EdgeType::Calls,
-            NodeRef::from(source, NodeType::Test),
+            NodeRef::from(source, NodeType::UnitTest),
             NodeRef::from(endpoint, NodeType::Endpoint),
         );
         Ok(Some(edge))

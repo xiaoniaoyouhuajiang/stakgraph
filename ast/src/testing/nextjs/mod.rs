@@ -215,9 +215,9 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     edges += handlers;
     assert_eq!(handlers, 6, "Expected 6 Handler edges");
 
-    let tests = graph.find_nodes_by_type(NodeType::Test);
+    let tests = graph.find_nodes_by_type(NodeType::UnitTest);
     nodes += tests.len();
-    assert_eq!(tests.len(), 10, "Expected 10 Test nodes");
+    assert_eq!(tests.len(), 10, "Expected 10 UnitTest nodes");
 
     let e2e_tests = graph.find_nodes_by_type(NodeType::E2eTest);
     nodes += e2e_tests.len();

@@ -141,7 +141,7 @@ impl Lang {
         Ok(res)
     }
     pub fn collect_tests(&self, q: &Query, code: &str, file: &str) -> Result<Vec<Function>> {
-        let tree = self.lang.parse(&code, &NodeType::Test)?;
+    let tree = self.lang.parse(&code, &NodeType::UnitTest)?;
         let mut cursor = QueryCursor::new();
         let mut matches = cursor.matches(q, tree.root_node(), code.as_bytes());
         let mut res = Vec::new();
@@ -226,7 +226,7 @@ impl Lang {
         }
         let q = self.q(
             &self.lang.integration_test_query().unwrap(),
-            &NodeType::Test,
+            &NodeType::UnitTest,
         );
         let mut cursor = QueryCursor::new();
         let mut matches = cursor.matches(&q, caller_node, code.as_bytes());
@@ -251,9 +251,9 @@ impl Lang {
         }
         let q = self.q(
             &self.lang.integration_test_query().unwrap(),
-            &NodeType::Test,
+            &NodeType::UnitTest,
         );
-        let tree = self.lang.parse(&code, &NodeType::Test)?;
+        let tree = self.lang.parse(&code, &NodeType::UnitTest)?;
         let mut cursor = QueryCursor::new();
         let mut matches = cursor.matches(&q, tree.root_node(), code.as_bytes());
         let mut res = Vec::new();
