@@ -33,15 +33,26 @@ RUN apt-get update && apt-get install -y \
     bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Set JAVA_HOME for Kotlin LSP
+# Detect architecture and set JAVA_HOME accordingly
 RUN echo "Verifying Java installation..." && \
     java -version && \
     mkdir -p /usr/lib/jvm && \
-    ln -sfT /usr/lib/jvm/java-17-openjdk-amd64 /usr/lib/jvm/java-home
+    JAVA_PATH="$(readlink -f /usr/bin/java | sed 's:/bin/java::')" && \
+    echo "Detected Java path: $JAVA_PATH" && \
+    if [ ! -d "$JAVA_PATH" ]; then \
+        echo "Error: Could not detect Java installation directory"; \
+        exit 1; \
+    fi && \
+    ln -sfT "$JAVA_PATH" /usr/lib/jvm/java-home
 
+# Set and persist JAVA_HOME
 ENV JAVA_HOME=/usr/lib/jvm/java-home
-ENV PATH=$JAVA_HOME/bin:$PATH
+ENV PATH="$JAVA_HOME/bin:$PATH"
+
+# Sanity check
+RUN java -version && \
+    echo "JAVA_HOME = $JAVA_HOME" && \
+    test -x "$JAVA_HOME/bin/java"
 
 # rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup.sh \
