@@ -35,8 +35,14 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set JAVA_HOME for Kotlin LSP
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+# Set JAVA_HOME for Kotlin LSP and verify installation
+RUN echo "Verifying Java installation..." && \
+    java -version && \
+    echo "JAVA_HOME will be set to $(readlink -f /usr/lib/jvm/java-17-openjdk-amd64)" && \
+    mkdir -p /usr/lib/jvm && \
+    ln -sfT /usr/lib/jvm/java-17-openjdk-amd64 /usr/lib/jvm/java-home
+
+ENV JAVA_HOME=/usr/lib/jvm/java-home
 ENV PATH=$JAVA_HOME/bin:$PATH
 
 # rust
@@ -96,8 +102,14 @@ RUN curl -LO "https://github.com/rust-lang/rust-analyzer/releases/download/2025-
 # kotlin-language-server (robust)
 
 RUN set -eux; \
-    mkdir -p /opt/kotlin-language-server /tmp/kls; \
-    echo "Downloading kotlin-language-server..."; \
+    # Verify Java is properly set up
+    echo "Verifying Java setup for Kotlin LSP..." && \
+    java -version && \
+    echo "JAVA_HOME = $JAVA_HOME" && \
+    echo "Java binary = $(which java)" && \
+    # Create directories and download server
+    mkdir -p /opt/kotlin-language-server /tmp/kls && \
+    echo "Downloading kotlin-language-server..." && \
     curl -fSL --create-dirs -o /tmp/kls/kls.zip "https://github.com/fwcd/kotlin-language-server/releases/latest/download/server.zip"; \
     unzip /tmp/kls/kls.zip -d /tmp/kls; \
     # Copy the contents
