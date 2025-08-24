@@ -83,7 +83,7 @@ export async function search(
     );
     return toNodes(result, concise, output);
   } else {
-    const skip_node_types = tests ? [] : ["Test", "E2etest"];
+  const skip_node_types = tests ? [] : ["UnitTest", "IntegrationTest", "E2etest"];
     const result = await db.search(
       query,
       limit,
