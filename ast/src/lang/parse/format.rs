@@ -640,6 +640,17 @@ impl Lang {
             return Ok(None);
         }
 
+        if matches!(self.kind, Language::React) {
+            let titled_name = !func.name.is_empty() && func.name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+            let body = func.body.as_str();
+            let has_jsx = body.contains("<>") || body.contains("</") || body.contains("/>") || body.contains("<Fragment") || body.contains("<fragment");
+            //styled components
+            let is_styled = body.contains("styled.");
+            if (titled_name && has_jsx) || is_styled {
+                func.add_component();
+            }
+        }
+
         let mut return_types = Vec::new();
         for t in return_type_data_models {
             return_types.push(Edge::contains(

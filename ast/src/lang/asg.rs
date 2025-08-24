@@ -180,6 +180,9 @@ impl NodeData {
         self.meta
             .insert("implements".to_string(), trait_name.to_string());
     }
+    pub fn add_component(&mut self) {
+        self.meta.insert("component".to_string(), "true".to_string());
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
