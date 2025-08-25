@@ -138,21 +138,28 @@ class Db {
   async get_repo_subtree(
     name: string,
     ref_id: string,
-    node_type: NodeType = "Repository"
+    node_type: NodeType = "Repository",
+    include_functions_and_classes: boolean = false
   ) {
-    const disclude: NodeType[] = all_node_types().filter(
+    // include if functions and classes should be included
+    let disclude: NodeType[] = all_node_types().filter(
       (type: NodeType) =>
         type !== "File" && type !== "Directory" && type !== "Repository"
     );
+    if (include_functions_and_classes) {
+      console.log("including functions and classes");
+      disclude = disclude.filter(
+        (type) => type !== "Function" && type !== "Class"
+      );
+    }
     const session = this.driver.session();
     console.log("get_repo_subtree", name, ref_id, this.skip_string(disclude));
     try {
-      return await session.run(Q.SUBGRAPH_QUERY, {
+      return await session.run(Q.REPO_SUBGRAPH_QUERY, {
         node_label: node_type,
         node_name: name,
         ref_id: ref_id || "",
         depth: 10,
-        direction: "down",
         label_filter: this.skip_string(disclude),
         trim: [],
       });
