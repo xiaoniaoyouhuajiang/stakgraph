@@ -273,10 +273,14 @@ export async function get_repo_map(req: Request, res: Response) {
     const name = req.query.name as string;
     const ref_id = req.query.ref_id as string;
     const node_type = req.query.node_type as NodeType;
+    const include_functions_and_classes =
+      req.query.include_functions_and_classes === "true" ||
+      req.query.include_functions_and_classes === "1";
     const html = await G.get_repo_map(
       name || "",
       ref_id || "",
-      node_type || "Repository"
+      node_type || "Repository",
+      include_functions_and_classes
     );
     res.send(`<pre>\n${html}\n</pre>`);
   } catch (error) {
