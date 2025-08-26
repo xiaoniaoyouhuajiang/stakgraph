@@ -20,7 +20,7 @@ export async function get_context(prompt: string): Promise<string> {
     }),
     file_summary: {
       description:
-        "Get a summary of what a specific file contains and its role in the codebase. Use this when you have identified a potentially relevant file and need to understand: 1) What functions/components it exports, 2) What its main responsibility is, 3) Whether it's worth exploring further for the user's question. Functions and top-level variables will be returned with their name and first 5 lines of code. Call this with a hypothesis like 'This file probably handles user authentication' or 'This looks like the main dashboard component'. Don't call this to browse random files.",
+        "Get a summary of what a specific file contains and its role in the codebase. Use this when you have identified a potentially relevant file and need to understand: 1) What functions/components it exports, 2) What its main responsibility is, 3) Whether it's worth exploring further for the user's question. Functions and top-level variables will be returned with their name and first 10 lines of code. Call this with a hypothesis like 'This file probably handles user authentication' or 'This looks like the main dashboard component'. Don't call this to browse random files.",
       inputSchema: z.object({
         file_path: z.string().describe("Path to the file to summarize"),
         hypothesis: z

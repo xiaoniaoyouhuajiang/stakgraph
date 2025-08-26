@@ -80,7 +80,7 @@ export function getNodeSummaryLabel(node: Neo4jNode) {
         ? `lines ${node.properties.start} - ${node.properties.end}`
         : `line ${node.properties.start}`;
     let lab = `${label}: ${node.properties.name} (${lines})`;
-    const bod = node.properties.body?.split("\n").slice(0, 5).join("\n");
+    const bod = node.properties.body?.split("\n").slice(0, 10).join("\n");
     if (bod) {
       lab += `\n${bod}`;
     }
