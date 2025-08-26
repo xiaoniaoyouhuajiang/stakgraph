@@ -137,6 +137,12 @@ export const REPOSITORIES_QUERY = `
 MATCH (r:Repository) RETURN r
 `;
 
+export const FILE_ENDS_WITH_QUERY = `
+MATCH (f:File)
+WHERE f.file ENDS WITH $file_name
+RETURN f
+`;
+
 export const PAGES_QUERY = `
 MATCH (page:Page)
 RETURN DISTINCT page

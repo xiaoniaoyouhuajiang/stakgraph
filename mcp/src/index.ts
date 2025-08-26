@@ -12,11 +12,8 @@ import dotenv from "dotenv";
 import { cacheMiddleware, cacheInfo, clearCache } from "./graph/cache.js";
 import { evalRoutes } from "./eval/route.js";
 import { test_routes } from "./eval/tests.js";
-import { get_context } from "./tools/context/tool.js";
 
 dotenv.config();
-
-get_context();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,6 +68,7 @@ app.get("/embed_code", uploads.embed_code);
 app.get("/update_token_counts", uploads.update_token_counts);
 app.get("/rules_files", r.get_rules_files);
 app.get("/services", r.get_services);
+app.get("/explore", r.explore);
 
 app.get("/_cache/info", cacheInfo);
 app.post("/_cache/clear", (req: Request, res: Response): void => {
