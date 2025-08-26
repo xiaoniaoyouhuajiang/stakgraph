@@ -696,15 +696,12 @@ impl Lang {
             }
             Ok(())
         })?;
-       
-        let lname = test.name.to_lowercase();
-        let mut kind = "unit";
-        if lname.contains("e2e") {
-            kind = "e2e";
-        } else if lname.contains("integration") {
-            kind = "integration";
+        let tt = self.lang.classify_test(&test.name, file, &test.body);
+        match tt {
+            NodeType::E2eTest => test.add_test_kind("e2e"),
+            NodeType::IntegrationTest => test.add_test_kind("integration"),
+            _ => test.add_test_kind("unit"),
         }
-        test.add_test_kind(kind);
         Ok(test)
     }
     pub fn format_function_call<G: Graph>(

@@ -249,6 +249,11 @@ impl Lang {
         if self.lang.integration_test_query().is_none() {
             return Ok(Vec::new());
         }
+        let f = file.replace('\\', "/");
+        if !(f.contains("/integration/") || f.contains(".int.") || f.contains(".integration.") || f.contains("integration")) {
+            // Skip describe promotion unless path OR filename signals integration intent
+            return Ok(Vec::new());
+        }
         let q = self.q(
             &self.lang.integration_test_query().unwrap(),
             &NodeType::IntegrationTest,
@@ -281,7 +286,17 @@ impl Lang {
         if self.lang.e2e_test_query().is_none() {
             return Ok(Vec::new());
         }
-    let q = self.q(&self.lang.e2e_test_query().unwrap(), &NodeType::E2eTest);
+        let f = file.replace('\\', "/");
+        let lower_code = code.to_lowercase();
+        let playwright = lower_code.contains("@playwright/test");
+        let has_cypress = lower_code.contains("cy.");
+        let has_puppeteer = lower_code.contains("puppeteer") || lower_code.contains("browser.newpage");
+        let fname = f.rsplit('/').next().unwrap_or(&f).to_lowercase();
+        let filename_e2e = fname.starts_with("e2e.") || fname.starts_with("e2e_") || fname.starts_with("e2e-") || fname.contains("e2e.test") || fname.contains("e2e.spec");
+        if !(f.contains("/__e2e__/") || f.contains("/e2e/") || f.contains(".e2e.") || playwright || has_cypress || has_puppeteer || filename_e2e) {
+            return Ok(Vec::new());
+        }
+        let q = self.q(&self.lang.e2e_test_query().unwrap(), &NodeType::E2eTest);
     let tree = self.lang.parse(&code, &NodeType::E2eTest)?;
         let mut cursor = QueryCursor::new();
         let mut matches = cursor.matches(&q, tree.root_node(), code.as_bytes());
