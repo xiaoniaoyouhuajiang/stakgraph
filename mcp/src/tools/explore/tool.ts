@@ -11,9 +11,9 @@ curl "http://localhost:3000/explore?prompt=how%20does%20auth%20work%20in%20the%2
 export async function get_context(prompt: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = await getModel("anthropic", apiKey as string);
-  console.log("call claude:");
+  // console.log("call claude:");
   const tools = {
-    repo_map: tool({
+    repo_overview: tool({
       description:
         "Get a high-level view of the codebase architecture and structure. Use this to understand the project layout and identify where specific functionality might be located. Call this when you need to: 1) Orient yourself in an unfamiliar codebase, 2) Locate which directories/files might contain relevant code for a user's question, 3) Understand the overall project structure before diving deeper. Don't call this if you already know which specific files you need to examine.",
       inputSchema: z.object({}),
