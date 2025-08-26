@@ -704,7 +704,7 @@ impl Lang {
         } else if lname.contains("integration") {
             kind = "integration";
         }
-        test.meta.insert("test_kind".into(), kind.into());
+        test.add_test_kind(kind);
         Ok(test)
     }
     pub fn format_function_call<G: Graph>(
@@ -937,14 +937,14 @@ impl Lang {
                 tt = NodeType::E2eTest;
             } else {
                 let fetches = nd.body.matches("fetch(").count();
-                if fetches > 1 || nd.body.contains("axios(") {
+                if fetches > 0 || nd.body.contains("axios(") {
                     tt = NodeType::IntegrationTest;
                 }
             }
         }
-        if tt == NodeType::E2eTest { nd.meta.insert("test_kind".into(), "e2e".into()); }
-        else if tt == NodeType::IntegrationTest { nd.meta.insert("test_kind".into(), "integration".into()); }
-        else { nd.meta.insert("test_kind".into(), "unit".into()); }
+        if tt == NodeType::E2eTest { nd.add_test_kind("e2e"); }
+        else if tt == NodeType::IntegrationTest { nd.add_test_kind("integration"); }
+        else { nd.add_test_kind("unit"); }
         Ok((nd, tt))
     }
     pub fn format_integration_test_call<G: Graph>(
