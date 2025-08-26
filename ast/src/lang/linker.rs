@@ -43,6 +43,7 @@ pub fn link_e2e_tests_pages<G: Graph>(graph: &mut G) -> Result<()> {
             }
         }
     }
+    info!("linked {} e2e test->page edges", added);
     Ok(())
 }
 
