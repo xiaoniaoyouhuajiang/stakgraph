@@ -233,25 +233,49 @@ impl GraphOps {
         let integration = self.graph.find_nodes_by_type_async(NodeType::IntegrationTest).await;
         let e2e = self.graph.find_nodes_by_type_async(NodeType::E2eTest).await;
 
-        let unit_calls = self
+        // UnitTest covered if Calls -> Function.
+        // IntegrationTest covered if Calls -> Function OR Endpoint.
+        // E2eTest covered if Calls -> Function OR Endpoint OR Page.
+        let unit_calls_funcs = self
             .graph
             .find_nodes_with_edge_type_async(NodeType::UnitTest, NodeType::Function, EdgeType::Calls)
             .await;
-        let integration_calls = self
+        let integration_calls_funcs = self
             .graph
             .find_nodes_with_edge_type_async(NodeType::IntegrationTest, NodeType::Function, EdgeType::Calls)
             .await;
-        let e2e_calls = self
+        let integration_calls_endpoints = self
+            .graph
+            .find_nodes_with_edge_type_async(NodeType::IntegrationTest, NodeType::Endpoint, EdgeType::Calls)
+            .await;
+        let e2e_calls_funcs = self
             .graph
             .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Function, EdgeType::Calls)
+            .await;
+        let e2e_calls_endpoints = self
+            .graph
+            .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Endpoint, EdgeType::Calls)
+            .await;
+        let e2e_calls_pages = self
+            .graph
+            .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Page, EdgeType::Calls)
             .await;
 
         let collect_covered = |calls: &Vec<(NodeData, NodeData)>| -> HashSet<String> {
             calls.iter().map(|(src,_ )| format!("{}:{}:{}", src.name, src.file, src.start)).collect()
         };
-        let unit_covered = collect_covered(&unit_calls);
-        let integration_covered = collect_covered(&integration_calls);
-        let e2e_covered = collect_covered(&e2e_calls);
+        let unit_covered = collect_covered(&unit_calls_funcs);
+        let integration_covered = {
+            let mut set = collect_covered(&integration_calls_funcs);
+            for k in collect_covered(&integration_calls_endpoints) { set.insert(k); }
+            set
+        };
+        let e2e_covered = {
+            let mut set = collect_covered(&e2e_calls_funcs);
+            for k in collect_covered(&e2e_calls_endpoints) { set.insert(k); }
+            for k in collect_covered(&e2e_calls_pages) { set.insert(k); }
+            set
+        };
 
         let build = |tests: Vec<NodeData>, covered: &HashSet<String>| -> Option<CoverageStat> {
             let filtered: Vec<NodeData> = tests.into_iter().filter(|n| in_scope(n)).collect();
