@@ -37,33 +37,53 @@ impl Stack for ReactTs {
         ))
     }
     fn classify_test(&self, name: &str, file: &str, body: &str) -> NodeType {
-        if file.contains("/e2e/") {
+        // 1. Path based (strongest signal)
+        let f = file.replace('\\', "/");
+        let fname = f.rsplit('/').next().unwrap_or(&f).to_lowercase();
+        if f.contains("/__e2e__/")
+            || f.contains("/e2e/")
+            || f.contains(".e2e.")
+            || fname.starts_with("e2e.")
+            || fname.starts_with("e2e_")
+            || fname.starts_with("e2e-")
+            || fname.contains("e2e.test")
+            || fname.contains("e2e.spec")
+        {
             return NodeType::E2eTest;
         }
-        if file.contains("/integration/") {
+        if f.contains("/integration/") || f.contains(".int.") || f.contains(".integration.") {
             return NodeType::IntegrationTest;
         }
-        if file.contains("/unit/") {
+        if f.contains("/unit/") || f.contains(".unit.") {
             return NodeType::UnitTest;
         }
-        let lower = name.to_lowercase();
-        let mut tt = NodeType::UnitTest;
-        if lower.contains("e2e") {
-            tt = NodeType::E2eTest;
-        } else if lower.contains("integration") || lower.contains("api") || lower.contains("api ") {
-            tt = NodeType::IntegrationTest;
+
+        let lower_name = name.to_lowercase();
+        // 2. Explicit tokens in test name
+        if lower_name.contains("e2e") {
+            return NodeType::E2eTest;
         }
-        if tt == NodeType::UnitTest {
-            if body.contains("page.") || body.contains("cy.") || body.contains("browser.") {
-                tt = NodeType::E2eTest;
-            } else {
-                let fetches = body.matches("fetch(").count();
-                if fetches > 0 || body.contains("axios(") {
-                    tt = NodeType::IntegrationTest;
-                }
-            }
+        if lower_name.contains("integration") {
+            return NodeType::IntegrationTest;
         }
-        tt
+
+        // 3. Body heuristics (tighter): network => integration; real browser automation => e2e
+        let body_l = body.to_lowercase();
+    let has_playwright_import = body_l.contains("@playwright/test");
+    let has_browser_actions = body_l.contains("page.goto(") || body_l.contains("page.click(") || body_l.contains("page.evaluate(");
+    let has_cypress = body_l.contains("cy.") || body_l.contains("cypress");
+    let has_puppeteer = body_l.contains("puppeteer") || body_l.contains("browser.newpage");
+    if (has_playwright_import && has_browser_actions) || has_cypress || has_puppeteer {
+            return NodeType::E2eTest;
+        }
+
+        // Treat heavy network usage as integration. Avoid upgrading just for a variable 'page.'
+        let network_markers = ["fetch(", "axios.", "axios(", "supertest(", "request(", "/api/"];
+        if network_markers.iter().any(|m| body_l.contains(m)) {
+            return NodeType::IntegrationTest;
+        }
+
+        NodeType::UnitTest
     }
     fn is_lib_file(&self, file_name: &str) -> bool {
         file_name.contains("node_modules/")
