@@ -74,9 +74,7 @@ pub trait Graph: Default + Debug {
                 NodeType::File,
                 &tr.node.file,
             );
-            if let Some(edge) = tr.edge.clone() {
-                self.add_edge(edge);
-            }
+            for e in tr.edges.clone() { self.add_edge(e); }
         }
     }
     fn add_calls(&mut self, calls: (Vec<FunctionCall>, Vec<FunctionCall>, Vec<Edge>, Vec<Edge>));

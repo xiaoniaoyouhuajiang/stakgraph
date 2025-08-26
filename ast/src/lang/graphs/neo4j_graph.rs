@@ -867,7 +867,7 @@ impl Neo4jGraph {
                 let edge = Edge::uses(test_call.source.clone(), ext_nd);
                 txn_manager.add_edge(&edge);
             } else {
-                let edge = Edge::new_test_call(test_call.clone());
+                let edge = Edge::from_test_call(test_call);
                 txn_manager.add_edge(&edge);
             }
         }
@@ -1257,9 +1257,7 @@ impl Graph for Neo4jGraph {
                 NodeType::File,
                 &tr.node.file,
             );
-            if let Some(edge) = tr.edge.clone() {
-                self.add_edge(edge);
-            }
+            for e in tr.edges.iter() { self.add_edge(e.clone()); }
         }
     }
     fn add_calls(

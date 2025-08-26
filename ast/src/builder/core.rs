@@ -1,5 +1,5 @@
 use super::utils::*;
-use crate::lang::graphs::Graph;
+use crate::lang::{graphs::Graph, linker::link_tests};
 #[cfg(feature = "neo4j")]
 use crate::lang::graphs::Neo4jGraph;
 
@@ -837,6 +837,8 @@ impl Repo {
             stats.insert("function_calls".to_string(), function_call_count);
             info!("=> got {} function calls", _i);
         }
+
+        link_tests(graph)?;
 
         self.lang
             .lang()

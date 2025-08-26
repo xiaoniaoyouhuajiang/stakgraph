@@ -36,12 +36,21 @@ impl Stack for ReactTs {
                 )"#
         ))
     }
-    fn classify_test(&self, name: &str, _file: &str, body: &str) -> NodeType {
+    fn classify_test(&self, name: &str, file: &str, body: &str) -> NodeType {
+        if file.contains("/e2e/") {
+            return NodeType::E2eTest;
+        }
+        if file.contains("/integration/") {
+            return NodeType::IntegrationTest;
+        }
+        if file.contains("/unit/") {
+            return NodeType::UnitTest;
+        }
         let lower = name.to_lowercase();
         let mut tt = NodeType::UnitTest;
         if lower.contains("e2e") {
             tt = NodeType::E2eTest;
-        } else if lower.contains("integration") || lower.contains(" api") || lower.contains("api ") {
+        } else if lower.contains("integration") || lower.contains("api") || lower.contains("api ") {
             tt = NodeType::IntegrationTest;
         }
         if tt == NodeType::UnitTest {
