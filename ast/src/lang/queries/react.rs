@@ -36,6 +36,26 @@ impl Stack for ReactTs {
                 )"#
         ))
     }
+    fn classify_test(&self, name: &str, _file: &str, body: &str) -> NodeType {
+        let lower = name.to_lowercase();
+        let mut tt = NodeType::UnitTest;
+        if lower.contains("e2e") {
+            tt = NodeType::E2eTest;
+        } else if lower.contains("integration") || lower.contains(" api") || lower.contains("api ") {
+            tt = NodeType::IntegrationTest;
+        }
+        if tt == NodeType::UnitTest {
+            if body.contains("page.") || body.contains("cy.") || body.contains("browser.") {
+                tt = NodeType::E2eTest;
+            } else {
+                let fetches = body.matches("fetch(").count();
+                if fetches > 0 || body.contains("axios(") {
+                    tt = NodeType::IntegrationTest;
+                }
+            }
+        }
+        tt
+    }
     fn is_lib_file(&self, file_name: &str) -> bool {
         file_name.contains("node_modules/")
     }
