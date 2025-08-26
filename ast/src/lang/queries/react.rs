@@ -36,6 +36,26 @@ impl Stack for ReactTs {
                 )"#
         ))
     }
+    fn classify_test(&self, name: &str, _file: &str, body: &str) -> NodeType {
+        let lower = name.to_lowercase();
+        let mut tt = NodeType::UnitTest;
+        if lower.contains("e2e") {
+            tt = NodeType::E2eTest;
+        } else if lower.contains("integration") || lower.contains(" api") || lower.contains("api ") {
+            tt = NodeType::IntegrationTest;
+        }
+        if tt == NodeType::UnitTest {
+            if body.contains("page.") || body.contains("cy.") || body.contains("browser.") {
+                tt = NodeType::E2eTest;
+            } else {
+                let fetches = body.matches("fetch(").count();
+                if fetches > 0 || body.contains("axios(") {
+                    tt = NodeType::IntegrationTest;
+                }
+            }
+        }
+        tt
+    }
     fn is_lib_file(&self, file_name: &str) -> bool {
         file_name.contains("node_modules/")
     }
@@ -321,30 +341,35 @@ impl Stack for ReactTs {
     fn test_query(&self) -> Option<String> {
         Some(format!(
             r#"[
-                    (call_expression
-                        function: (identifier) @it (#match? @it "^(it|test)$")
-                        arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
-                    )
-                    (call_expression
-                        function: (member_expression
+                (call_expression
+                    function: (identifier) @it (#match? @it "^(it|test)$")
+                    arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
+                )
+                (call_expression
+                    function: (member_expression
                         object: (identifier) @it (#match? @it "^(it|test)$")
                         property: (property_identifier)?
-                        )
-                        arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
                     )
-                    (call_expression
-                        function: (member_expression
-                            object: (member_expression
-                                object: (identifier) @cypress (#eq? @cypress "Cypress")
-                                property: (property_identifier) @commands (#eq? @commands "Commands")
-                            )
-                            property: (property_identifier) @add (#eq? @add "add")
+                    arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
+                )
+                (call_expression
+                    function: (member_expression
+                        object: (member_expression
+                            object: (identifier) @it2 (#match? @it2 "^(it|test)$")
+                            property: (property_identifier) @each (#eq? @each "each")
                         )
-                        arguments: (arguments
-                            (string) @{FUNCTION_NAME}
-                        )
+                        property: (property_identifier)?
                     )
-                ] @{FUNCTION_DEFINITION}"#
+                    arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
+                )
+                (call_expression
+                    function: (member_expression
+                        object: (identifier) @it3 (#match? @it3 "^(it|test)$")
+                        property: (property_identifier) @mod (#match? @mod "^(only|skip|todo|concurrent)$")
+                    )
+                    arguments: (arguments [ (string) (template_string) ] @{FUNCTION_NAME})
+                )
+            ] @{FUNCTION_DEFINITION}"#
         ))
     }
     fn integration_test_query(&self) -> Option<String> {
@@ -352,21 +377,32 @@ impl Stack for ReactTs {
             r#"[
                 (call_expression
                     function: (identifier) @describe (#eq? @describe "describe")
-                    arguments: (arguments
-                        [ (string) (template_string) ] @{E2E_TEST_NAME} (#match? @{E2E_TEST_NAME} "(?i)e2e")
-                        (_)
-                    )
+                    arguments: (arguments [ (string) (template_string) ] @{TEST_NAME} (_))
                 ) @{INTEGRATION_TEST}
                 (call_expression
                     function: (member_expression
-                        object: (identifier) @test (#eq? @test "test")
-                        property: (property_identifier) @desc (#eq? @desc "describe")
+                        object: (identifier) @describe2 (#eq? @describe2 "describe")
+                        property: (property_identifier) @mod (#match? @mod "^(only|skip|each)$")
                     )
-                    arguments: (arguments
-                        [ (string) (template_string) ] @{E2E_TEST_NAME} (#match? @{E2E_TEST_NAME} "(?i)e2e")
-                        (_)
-                    )
+                    arguments: (arguments [ (string) (template_string) ] @{TEST_NAME} (_))
                 ) @{INTEGRATION_TEST}
+            ]"#
+        ))
+    }
+    fn e2e_test_query(&self) -> Option<String> {
+        Some(format!(
+            r#"[
+                (call_expression
+                    function: (identifier) @pwtest (#eq? @pwtest "test")
+                    arguments: (arguments [ (string) (template_string) ] @{E2E_TEST_NAME} (_))
+                ) @{E2E_TEST}
+                (call_expression
+                    function: (member_expression
+                        object: (identifier) @pwtest2 (#eq? @pwtest2 "test")
+                        property: (property_identifier) @mod (#match? @mod "^(only|skip|fixme|fail|slow)$")
+                    )
+                    arguments: (arguments [ (string) (template_string) ] @{E2E_TEST_NAME} (_))
+                ) @{E2E_TEST}
             ]"#
         ))
     }
@@ -767,7 +803,14 @@ impl Stack for ReactTs {
             || file_name.ends_with(".test.tsx")
             || file_name.ends_with(".test.jsx")
             || file_name.ends_with(".test.js")
-            || file_name.ends_with(".test.ts")
+            || file_name.ends_with(".e2e.ts")
+            || file_name.ends_with(".e2e.tsx")
+            || file_name.ends_with(".e2e.jsx")
+            || file_name.ends_with(".e2e.js")
+            || file_name.ends_with(".spec.ts")
+            || file_name.ends_with(".spec.tsx")
+            || file_name.ends_with(".spec.jsx")
+            || file_name.ends_with(".spec.js")
     }
 
     fn is_test(&self, _func_name: &str, func_file: &str) -> bool {
