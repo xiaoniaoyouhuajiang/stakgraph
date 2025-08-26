@@ -135,6 +135,18 @@ class Db {
     }
   }
 
+  async get_file_ends_with(file_end: string): Promise<Neo4jNode> {
+    const session = this.driver.session();
+    try {
+      const r = await session.run(Q.FILE_ENDS_WITH_QUERY, {
+        file_name: file_end,
+      });
+      return r.records.map((record) => deser_node(record, "f"))[0];
+    } finally {
+      await session.close();
+    }
+  }
+
   async get_repo_subtree(
     name: string,
     ref_id: string,

@@ -237,6 +237,25 @@ export async function get_repo_map(
   return finalText;
 }
 
+export async function get_file_map(file_end: string): Promise<string> {
+  const f = await db.get_file_ends_with(file_end);
+  const tokenizer = await createByModelName("gpt-4");
+  const record = await get_subtree({
+    node_type: "File",
+    name: "",
+    ref_id: f.ref_id as string,
+    depth: 1,
+    tests: false,
+    direction: "down",
+    trim: [],
+  });
+
+  const tree = await buildTree(record, "down", tokenizer, true);
+  alphabetizeNodeLabels(tree.root);
+  const text = archy(tree.root);
+  return text;
+}
+
 export async function get_map(params: MapParams): Promise<string> {
   const record = await get_subtree(params);
   const pkg_files = await db.get_pkg_files();
