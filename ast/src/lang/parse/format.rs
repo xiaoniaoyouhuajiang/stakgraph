@@ -1008,7 +1008,7 @@ impl Lang {
         let source = NodeKeys::new(&caller_name, file, 0);
         let edge = Edge::new(
             EdgeType::Calls,
-            NodeRef::from(source, NodeType::UnitTest),
+            NodeRef::from(source, NodeType::IntegrationTest),
             NodeRef::from(endpoint, NodeType::Endpoint),
         );
         Ok(Some(edge))

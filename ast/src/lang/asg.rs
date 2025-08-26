@@ -205,14 +205,15 @@ pub struct Calls {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TestRecord {
     pub node: NodeData,
-    pub kind: NodeType,          
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edge: Option<Edge>,   
+    pub kind: NodeType,
+    pub edges: Vec<Edge>,
 }
 
 impl TestRecord {
     pub fn new(node: NodeData, kind: NodeType, edge: Option<Edge>) -> Self {
-        Self { node, kind, edge }
+        let mut edges = Vec::new();
+        if let Some(e) = edge { edges.push(e); }
+        Self { node, kind, edges }
     }
     pub fn test_kind(&self) -> String {
         self.node

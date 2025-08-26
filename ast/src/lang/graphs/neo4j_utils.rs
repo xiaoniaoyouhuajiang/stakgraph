@@ -774,6 +774,7 @@ pub fn add_calls_query(
     funcs: &[(Calls, Option<NodeData>, Option<NodeData>)],
     tests: &[(Calls, Option<NodeData>, Option<NodeData>)],
     int_tests: &[Edge],
+    extras: &[Edge],
 ) -> Vec<(String, BoltMap)> {
     let mut queries = Vec::new();
 
@@ -806,14 +807,13 @@ pub fn add_calls_query(
             let edge = Edge::uses(test_call.source.clone(), ext_nd);
             queries.push(add_edge_query(&edge));
         } else {
-            let edge = Edge::new_test_call(test_call.clone());
+            let edge = Edge::from_test_call(test_call);
             queries.push(add_edge_query(&edge));
         }
     }
 
-    for edge in int_tests {
-        queries.push(add_edge_query(edge));
-    }
+    for edge in int_tests { queries.push(add_edge_query(edge)); }
+    for edge in extras { queries.push(add_edge_query(edge)); }
 
     queries
 }

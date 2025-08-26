@@ -358,9 +358,7 @@ impl Graph for ArrayGraph {
                 NodeType::File,
                 &tr.node.file,
             );
-            if let Some(edge) = tr.edge.clone() {
-                self.add_edge(edge);
-            }
+            for e in tr.edges.iter() { self.add_edge(e.clone()); }
         }
     }
 
@@ -451,7 +449,8 @@ impl Graph for ArrayGraph {
 
                 if !unique_edges.contains(&edge_key) {
                     unique_edges.insert(edge_key);
-                    self.add_edge(Edge::new_test_call(tc));
+                    let edge = Edge::from_test_call(&tc);
+                    self.add_edge(edge);
                 }
             }
         }
