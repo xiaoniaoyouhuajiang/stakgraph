@@ -251,6 +251,53 @@ impl Stack for Ruby {
     fn e2e_test_id_finder_string(&self) -> Option<String> {
         Some("get_by_test_id".to_string())
     }
+    fn test_query(&self) -> Option<String> {
+        Some(format!(
+            r#"(
+                (call
+                    method: (identifier) @it (#match? @it "^(it|specify|scenario)$")
+                    arguments: (argument_list (string) @{FUNCTION_NAME} (_)* )
+                    block: (do_block)
+                ) @{FUNCTION_DEFINITION}
+            )"#
+        ))
+    }
+
+    fn classify_test(&self, name: &str, file: &str, body: &str) -> NodeType {
+        let f = file.replace('\\', "/").to_lowercase();
+
+        if f.contains("/spec/system/") || f.contains("/spec/features/") || f.contains("/spec/feature/") || f.contains("/spec/acceptance/") || f.contains("/test/system/") 
+        { return NodeType::E2eTest; }
+
+        if f.contains("/spec/requests/") || f.contains("/spec/controllers/") || f.contains("/spec/integration/") || f.contains("/spec/api/") || f.contains("/test/integration/") 
+        { return NodeType::IntegrationTest; }
+
+        if f.contains("/spec/models/") || f.contains("/spec/services/") || f.contains("/spec/lib/") || f.contains("/test/models/") || f.contains("/test/helpers/") 
+        { return NodeType::UnitTest; }
+
+
+        let lname = name.to_lowercase();
+
+        if lname.contains("e2e") || lname.contains("system") || lname.contains("feature ")
+         { return NodeType::E2eTest; }
+
+        if lname.contains("integration") || lname.contains("request ") || lname.contains("api ") 
+        { return NodeType::IntegrationTest; }
+
+        let b = body.to_lowercase();
+
+        let e2e_markers = ["visit(", "click_", "fill_in(", "have_content(", "page.", "find(", "have_selector(", "attach_file(", "within(", "choose(", "select("]; 
+
+        if e2e_markers.iter().any(|m| b.contains(m)) { return NodeType::E2eTest; }
+
+        let integration_markers = ["get ", "post ", "put ", "patch ", "delete ", "response.", "json_response", "assert_response", "have_http_status"]; 
+
+        if integration_markers.iter().any(|m| b.contains(m)) 
+        { return NodeType::IntegrationTest; }
+
+        NodeType::UnitTest
+    }
+
     fn use_handler_finder(&self) -> bool {
         true
     }
