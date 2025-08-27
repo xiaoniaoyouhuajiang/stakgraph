@@ -48,7 +48,6 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<()> {
 
     let libraries = graph.find_nodes_by_type(NodeType::Library);
     nodes_count += libraries.len();
-    // assert!(libraries.len() >= 5, "Expected >=5 library nodes, got {}", libraries.len());
     assert_eq!(libraries.len(), 5, "Expected 5 library nodes, got {}", libraries.len());
 
     let pkg_files = graph.find_nodes_by_name(NodeType::File, "Gemfile");
@@ -239,6 +238,7 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<()> {
 
     let calls = graph.count_edges_of_type(EdgeType::Calls);
     edges_count += calls;
+
     if use_lsp {
     assert_eq!(calls, 17, "Expected 17 call edges with lsp");
     } else {
@@ -556,10 +556,13 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<()> {
 
     let unit_tests = graph.find_nodes_by_type(NodeType::UnitTest);
     assert_eq!(unit_tests.len(), 3, "Expected 3 unit tests, got {}", unit_tests.len());
+    nodes_count += unit_tests.len();
     let integration_tests = graph.find_nodes_by_type(NodeType::IntegrationTest);
     assert_eq!(integration_tests.len(), 2, "Expected 2 integration tests, got {}", integration_tests.len());
+    nodes_count += integration_tests.len();
     let e2e_tests = graph.find_nodes_by_type(NodeType::E2eTest);
     assert_eq!(e2e_tests.len(), 6, "Expected 6 e2e tests, got {}", e2e_tests.len());
+    nodes_count += e2e_tests.len();
 
 
     let (nodes, edges) = graph.get_graph_size();
@@ -570,13 +573,11 @@ pub async fn test_ruby_generic<G: Graph>() -> Result<()> {
         nodes_count
     );
 
-    let expected_edges = if use_lsp { 152 } else { 140 };
-
     assert_eq!(
         edges as usize,
-        expected_edges,
+        edges_count,
         "Expected {} edges, found {} (edges_count computed: {})",
-        expected_edges,
+        edges_count,
         edges,
         edges_count
     );
