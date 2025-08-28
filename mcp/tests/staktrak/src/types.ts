@@ -26,6 +26,12 @@ export interface Assertion {
   timestamp: number;
 }
 
+export interface ComponentInfo {
+  name: string;
+  level: number;
+  type: 'function' | 'class';
+}
+
 // Add to types.ts
 export interface ClickDetail {
   x: number;
