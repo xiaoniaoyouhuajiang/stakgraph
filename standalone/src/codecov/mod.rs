@@ -19,7 +19,7 @@ pub struct CodecovBody {
 }
 
 
-pub async fn run(body: CodecovBody) -> Result<String> {
+pub async fn run(body: CodecovBody) -> Result<Report> {
     let repo_path = ast::repo::Repo::get_path_from_url(&body.repo_url)?;
     ast::repo::clone_repo(&body.repo_url, &repo_path, body.username.clone(), body.pat.clone(), body.commit.as_deref()).await?;
     let commit = match lsp::git::get_commit_hash(&repo_path).await { Ok(h) => h, Err(_) => body.commit.clone().unwrap_or_default() };
@@ -45,7 +45,7 @@ pub async fn run(body: CodecovBody) -> Result<String> {
     for provider in artifact_sources.into_iter() {
         for ap in provider.artifact_paths(Path::new(&repo_path)) { if let Some(name) = ap.file_name().and_then(|s| s.to_str()) { let _ = fs::copy(&ap, dir.join(format!("{}-{}", short_commit, name))); } }
     }
-    Ok(file.display().to_string())
+    Ok(report)
 }
 fn providers() -> Vec<Box<dyn TestCoverage>> { vec![Box::new(coverage::typescript::TypeScriptCoverage)] }
 

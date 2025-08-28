@@ -755,7 +755,7 @@ pub async fn has_handler(Query(params): Query<HasParams>) -> Result<Json<HasResp
 #[axum::debug_handler]
 pub async fn codecov_handler(Json(body): Json<CodecovBody>) -> impl IntoResponse {
     match codecov::run(body).await {
-        Ok(path) => Json(serde_json::json!({"report_path": path})).into_response(),
+        Ok(report) => Json(serde_json::json!({"report": report})).into_response(),
         Err(e) => WebError(e).into_response(),
     }
 }
