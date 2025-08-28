@@ -232,9 +232,9 @@ impl TestCoverage for TypeScriptCoverage {
                             }
                         }
                         if !ran_script {
-                            let args = ["vitest","run","--coverage","--coverage.provider=v8","--coverage.reporter=json-summary"];
+                            let args = ["vitest","run","--coverage","--coverage.provider=istanbul","--coverage.reporter=json","--coverage.reporter=json-summary"];
                             let _ = if uses_yarn { Self::run_cmd(pkg_dir, "yarn", &args) }
-                                else if uses_pnpm { Self::run_cmd(pkg_dir, "pnpm", &["exec","vitest","run","--coverage","--coverage.provider=v8","--coverage.reporter=json-summary"]) }
+                                else if uses_pnpm { Self::run_cmd(pkg_dir, "pnpm", &["exec","vitest","run","--coverage","--coverage.provider=istanbul","--coverage.reporter=json","--coverage.reporter=json-summary"]) }
                                 else { Self::run_cmd(pkg_dir, "npx", &args) };
                         }
                     }
@@ -264,9 +264,9 @@ impl TestCoverage for TypeScriptCoverage {
                 }
             }
             if !ran_script {
-                let args = ["vitest","run","--coverage","--coverage.provider=v8","--coverage.reporter=json-summary"];
+                let args = ["vitest","run","--coverage","--coverage.provider=istanbul","--coverage.reporter=json","--coverage.reporter=json-summary"];
                 if uses_yarn { let _ = Self::run_cmd(repo_path, "yarn", &args); }
-                else if uses_pnpm { let _ = Self::run_cmd(repo_path, "pnpm", &["exec","vitest","run","--coverage","--coverage.provider=v8","--coverage.reporter=json-summary"]); }
+                else if uses_pnpm { let _ = Self::run_cmd(repo_path, "pnpm", &["exec","vitest","run","--coverage","--coverage.provider=istanbul","--coverage.reporter=json","--coverage.reporter=json-summary"]); }
                 else { let _ = Self::run_cmd(repo_path, "npx", &args); }
             }
         }
@@ -294,7 +294,7 @@ impl TestCoverage for TypeScriptCoverage {
                 .and_then(|d| d.get("vitest"))
                 .is_some();
 
-        // workspace aggregation
+
         let workspace_dirs = Self::workspace_package_paths(repo_path);
         if !workspace_dirs.is_empty() {
             let mut parts = Vec::new();
@@ -324,15 +324,19 @@ impl TestCoverage for TypeScriptCoverage {
         Ok(res)
     }
     fn artifact_paths(&self, repo_path: &Path) -> Vec<PathBuf> {
-        let cov_dir = repo_path.join("coverage");
-        [
-            "coverage-summary.json",
-            "coverage-final.json",
-            "coverage-run.log",
-        ]
-        .into_iter()
-        .map(|name| cov_dir.join(name))
-        .filter(|p| p.exists())
-        .collect()
+        let mut out: Vec<PathBuf> = Vec::new();
+        for name in ["coverage-summary.json", "coverage-run.log"].iter() {
+            let p = repo_path.join("coverage").join(name);
+            if p.exists() { out.push(p); }
+        }
+      
+        let workspaces = Self::workspace_package_paths(repo_path);
+        for ws in workspaces.iter() {
+            for name in ["coverage-summary.json", "coverage-run.log"].iter() {
+                let p = ws.join("coverage").join(name);
+                if p.exists() { out.push(p); }
+            }
+        }
+        out
     }
 }

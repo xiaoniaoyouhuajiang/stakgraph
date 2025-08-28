@@ -31,7 +31,9 @@ pub fn parse_summary_or_final(
 ) -> Result<(Option<Metric>, Option<Metric>, Option<Metric>, Option<Metric>)> {
     use shared::Error;
     let summary_path = repo_path.join("coverage/coverage-summary.json");
+    println!("Checking for coverage summary at {}", summary_path.display());
     if summary_path.exists() {
+        println!("Found coverage summary at {}", summary_path.display());
         let v: serde_json::Value = serde_json::from_slice(&fs::read(&summary_path)?)?;
         let total = v
             .get("total")
@@ -43,8 +45,10 @@ pub fn parse_summary_or_final(
             metric(&total, "functions"),
             metric(&total, "statements"),
         ));
+    } else {
+        println!("No coverage summary found at {}", summary_path.display());
     }
-    let final_path = repo_path.join("coverage/coverage-final.json");
+    let final_path = repo_path.join("coverage/coverage-final.jso n");
     if !final_path.exists() {
         return Ok((None, None, None, None));
     }
@@ -87,42 +91,28 @@ pub fn parse_summary_or_final(
             }
         }
     }
-    let lines_m = if line_total > 0 {
-        Some(Metric {
-            total: line_total,
-            covered: line_cov,
-            pct: pct(line_cov, line_total),
-        })
+    let lines_m = if line_total > 0 { 
+        Some(Metric { total: line_total, covered: line_cov, pct: pct(line_cov, line_total) })
     } else {
         None
     };
+
     let branches_m = if branch_total > 0 {
-        Some(Metric {
-            total: branch_total,
-            covered: branch_cov,
-            pct: pct(branch_cov, branch_total),
-        })
+        Some(Metric { total: branch_total, covered: branch_cov, pct: pct(branch_cov, branch_total) })
     } else {
         None
     };
     let functions_m = if fn_total > 0 {
-        Some(Metric {
-            total: fn_total,
-            covered: fn_cov,
-            pct: pct(fn_cov, fn_total),
-        })
+        Some(Metric { total: fn_total, covered: fn_cov, pct: pct(fn_cov, fn_total) })
     } else {
         None
     };
     let statements_m = if stmt_total > 0 {
-        Some(Metric {
-            total: stmt_total,
-            covered: stmt_cov,
-            pct: pct(stmt_cov, stmt_total),
-        })
+        Some(Metric { total: stmt_total, covered: stmt_cov, pct: pct(stmt_cov, stmt_total) })
     } else {
         None
     };
+
     Ok((lines_m, branches_m, functions_m, statements_m))
 }
 

@@ -34,7 +34,7 @@ pub async fn run(body: CodecovBody) -> Result<Report> {
         }
     }
     let report = Report { repo_url: body.repo_url, commit, generated_at: Utc::now().to_rfc3339(), languages, errors };
-    let out_dir = std::env::var("CODECOV_OUTPUT_ROOT").unwrap_or_else(|_| "coverage_reports".into());
+    let out_dir = std::env::var("CODECOV_OUTPUT_ROOT").unwrap_or_else(|_| "standalone/coverage_reports".into());
     let repo_key = sanitize_repo(&report.repo_url);
     let dir = Path::new(&out_dir).join(&repo_key);
     fs::create_dir_all(&dir)?;
@@ -43,7 +43,11 @@ pub async fn run(body: CodecovBody) -> Result<Report> {
     let f = fs::File::create(&file)?;
     serde_json::to_writer_pretty(f, &report)?;
     for provider in artifact_sources.into_iter() {
-        for ap in provider.artifact_paths(Path::new(&repo_path)) { if let Some(name) = ap.file_name().and_then(|s| s.to_str()) { let _ = fs::copy(&ap, dir.join(format!("{}-{}", short_commit, name))); } }
+        for ap in provider.artifact_paths(Path::new(&repo_path)) { 
+            if let Some(name) = ap.file_name().and_then(|s| s.to_str()) {
+                 let _ = fs::copy(&ap, dir.join(format!("{}-{}", short_commit, name)));
+                 } 
+            }
     }
     Ok(report)
 }
