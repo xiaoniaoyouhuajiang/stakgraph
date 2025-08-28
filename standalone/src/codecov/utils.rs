@@ -48,10 +48,13 @@ pub fn parse_summary_or_final(
     } else {
         println!("No coverage summary found at {}", summary_path.display());
     }
-    let final_path = repo_path.join("coverage/coverage-final.jso n");
+    let final_path = repo_path.join("coverage/coverage-final.json");
+    println!("Checking for coverage final at {}", final_path.display());
     if !final_path.exists() {
+        println!("No coverage final found at {}", final_path.display());
         return Ok((None, None, None, None));
     }
+    println!("Found coverage final at {}", final_path.display());
     let v: serde_json::Value = serde_json::from_slice(&fs::read(&final_path)?)?;
     let mut line_total = 0;
     let mut line_cov = 0;
