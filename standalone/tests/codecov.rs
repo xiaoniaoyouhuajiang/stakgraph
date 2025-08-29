@@ -1,4 +1,5 @@
-use standalone::codecov::{run, CodecovBody};
+use standalone::codecov::run;
+use standalone::types::CodecovBody;
 
 #[tokio::test]
 #[ignore]

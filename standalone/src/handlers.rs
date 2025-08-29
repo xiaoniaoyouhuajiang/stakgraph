@@ -2,7 +2,7 @@ use crate::types::{
     AsyncRequestStatus, AsyncStatus, CoverageParams, CoverageStat, Coverage, EmbedCodeParams,
     FetchRepoBody, FetchRepoResponse, HasParams, HasResponse, ProcessBody, ProcessResponse, Result,
     UncoveredParams, UncoveredResponse, VectorSearchParams, VectorSearchResult, WebError,
-    WebhookPayload, CodecovBody, CodecovRequestStatus, Report,
+    WebhookPayload, CodecovBody, CodecovRequestStatus,
 };
 use crate::utils::{
     create_uncovered_response_items, format_uncovered_response_as_snippet, parse_node_type,
@@ -766,7 +766,6 @@ pub async fn codecov_handler(
             CodecovRequestStatus {
                 status: AsyncStatus::InProgress,
                 result: None,
-                progress: 0,
                 error: None,
             },
         );
@@ -776,27 +775,12 @@ pub async fn codecov_handler(
     let codecov_status_map_clone = codecov_status_map.clone();
 
     tokio::spawn(async move {
-        let update_progress = |new_progress: u32| {
-            let status_map = codecov_status_map_clone.clone();
-            let request_id = request_id_clone.clone();
-            tokio::spawn(async move {
-                let mut map = status_map.lock().await;
-                if let Some(status) = map.get_mut(&request_id) {
-                    status.progress = new_progress;
-                }
-            })
-        };
-
-        update_progress(10).await;
-
         match codecov::run(body).await {
             Ok(report) => {
-                update_progress(100).await;
                 let mut map = codecov_status_map_clone.lock().await;
                 if let Some(status) = map.get_mut(&request_id_clone) {
                     status.status = AsyncStatus::Complete;
                     status.result = Some(report);
-                    status.progress = 100;
                 }
             }
             Err(e) => {
@@ -804,7 +788,6 @@ pub async fn codecov_handler(
                 if let Some(status) = map.get_mut(&request_id_clone) {
                     status.status = AsyncStatus::Failed(e.to_string());
                     status.error = Some(e.to_string());
-                    status.progress = 100;
                 }
             }
         }

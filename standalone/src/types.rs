@@ -182,7 +182,6 @@ pub struct CodecovBody {
 pub struct CodecovRequestStatus {
     pub status: AsyncStatus,
     pub result: Option<Report>,
-    pub progress: u32,
     pub error: Option<String>,
 }
 
