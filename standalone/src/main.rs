@@ -4,6 +4,7 @@ mod handlers;
 mod types;
 mod utils;
 mod webhook;
+mod codecov;
 
 use ast::repo::StatusUpdate;
 use axum::extract::Request;
@@ -16,13 +17,14 @@ use tower_http::services::ServeFile;
 use tower_http::trace::TraceLayer;
 use tracing::{debug_span, Span};
 use tracing_subscriber::{filter::LevelFilter, EnvFilter};
-use types::{AsyncStatusMap, Result};
+use types::{AsyncStatusMap, CodecovStatusMap, Result};
 
 #[derive(Clone)]
 struct AppState {
     tx: broadcast::Sender<StatusUpdate>,
-    api_token: Option<String>, // Changed to Option<String>
+    api_token: Option<String>,
     async_status: AsyncStatusMap,
+    codecov_status: CodecovStatusMap,
 }
 
 #[cfg(feature = "neo4j")]
@@ -65,6 +67,7 @@ async fn main() -> Result<()> {
         tx,
         api_token,
         async_status: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        codecov_status: Arc::new(Mutex::new(std::collections::HashMap::new())),
     });
 
     tracing::debug!("starting server");
@@ -86,7 +89,9 @@ async fn main() -> Result<()> {
         .route("/search", post(handlers::vector_search_handler))
         .route("/tests/coverage", get(handlers::coverage_handler))
         .route("/tests/uncovered", get(handlers::uncovered_handler))
-        .route("/tests/has", get(handlers::has_handler));
+        .route("/tests/has", get(handlers::has_handler))
+        .route("/codecov", post(handlers::codecov_handler))
+        .route("/codecov/:request_id", get(handlers::codecov_status_handler));
 
     // Add bearer auth middleware only if API token is provided
     if app_state.api_token.is_some() {
