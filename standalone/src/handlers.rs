@@ -2,7 +2,7 @@ use crate::types::{
     AsyncRequestStatus, AsyncStatus, CoverageParams, CoverageStat, Coverage, EmbedCodeParams,
     FetchRepoBody, FetchRepoResponse, HasParams, HasResponse, ProcessBody, ProcessResponse, Result,
     UncoveredParams, UncoveredResponse, VectorSearchParams, VectorSearchResult, WebError,
-    WebhookPayload,
+    WebhookPayload, CodecovBody, CodecovRequestStatus, Report,
 };
 use crate::utils::{
     create_uncovered_response_items, format_uncovered_response_as_snippet, parse_node_type,
@@ -30,7 +30,6 @@ use std::time::Instant;
 use tokio::sync::broadcast;
 use tracing::info;
 use crate::codecov;
-use crate::codecov::CodecovBody;
 
 pub async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
     let rx = app_state.tx.subscribe();
@@ -753,9 +752,82 @@ pub async fn has_handler(Query(params): Query<HasParams>) -> Result<Json<HasResp
 }
 
 #[axum::debug_handler]
-pub async fn codecov_handler(Json(body): Json<CodecovBody>) -> impl IntoResponse {
-    match codecov::run(body).await {
-        Ok(report) => Json(serde_json::json!({"report": report})).into_response(),
-        Err(e) => WebError(e).into_response(),
+pub async fn codecov_handler(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<CodecovBody>,
+) -> impl IntoResponse {
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let codecov_status_map = state.codecov_status.clone();
+
+    {
+        let mut map = codecov_status_map.lock().await;
+        map.insert(
+            request_id.clone(),
+            CodecovRequestStatus {
+                status: AsyncStatus::InProgress,
+                result: None,
+                progress: 0,
+                error: None,
+            },
+        );
+    }
+
+    let request_id_clone = request_id.clone();
+    let codecov_status_map_clone = codecov_status_map.clone();
+
+    tokio::spawn(async move {
+        let update_progress = |new_progress: u32| {
+            let status_map = codecov_status_map_clone.clone();
+            let request_id = request_id_clone.clone();
+            tokio::spawn(async move {
+                let mut map = status_map.lock().await;
+                if let Some(status) = map.get_mut(&request_id) {
+                    status.progress = new_progress;
+                }
+            })
+        };
+
+        update_progress(10).await;
+
+        match codecov::run(body).await {
+            Ok(report) => {
+                update_progress(100).await;
+                let mut map = codecov_status_map_clone.lock().await;
+                if let Some(status) = map.get_mut(&request_id_clone) {
+                    status.status = AsyncStatus::Complete;
+                    status.result = Some(report);
+                    status.progress = 100;
+                }
+            }
+            Err(e) => {
+                let mut map = codecov_status_map_clone.lock().await;
+                if let Some(status) = map.get_mut(&request_id_clone) {
+                    status.status = AsyncStatus::Failed(e.to_string());
+                    status.error = Some(e.to_string());
+                    status.progress = 100;
+                }
+            }
+        }
+    });
+
+    Json(serde_json::json!({ "request_id": request_id })).into_response()
+}
+
+#[axum::debug_handler]
+pub async fn codecov_status_handler(
+    State(state): State<Arc<AppState>>,
+    Path(request_id): Path<String>,
+) -> impl IntoResponse {
+    let codecov_status_map = state.codecov_status.clone();
+    let map = codecov_status_map.lock().await;
+
+    if let Some(status) = map.get(&request_id) {
+        Json(status).into_response()
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "Request ID not found" })),
+        )
+            .into_response()
     }
 }

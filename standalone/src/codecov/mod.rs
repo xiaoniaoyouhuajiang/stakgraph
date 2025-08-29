@@ -2,22 +2,12 @@ pub mod utils;
 pub mod coverage;
 
 use chrono::Utc;
-use serde::Deserialize;
 use shared::Result;
 use std::fs;
 use std::path::Path;
 use utils::sanitize_repo;
 use coverage::TestCoverage;
-use crate::types::Report;
-
-#[derive(Deserialize)]
-pub struct CodecovBody {
-    pub repo_url: String,
-    pub username: Option<String>,
-    pub pat: Option<String>,
-    pub commit: Option<String>,
-}
-
+use crate::types::{Report, CodecovBody};
 
 pub async fn run(body: CodecovBody) -> Result<Report> {
     let repo_path = ast::repo::Repo::get_path_from_url(&body.repo_url)?;
@@ -51,5 +41,9 @@ pub async fn run(body: CodecovBody) -> Result<Report> {
     }
     Ok(report)
 }
-fn providers() -> Vec<Box<dyn TestCoverage>> { vec![Box::new(coverage::typescript::TypeScriptCoverage)] }
+fn providers() -> Vec<Box<dyn TestCoverage>> { 
+    vec![
+        Box::new(coverage::typescript::TypeScriptCoverage),
+    ]
+}
 

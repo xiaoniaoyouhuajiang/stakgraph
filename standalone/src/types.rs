@@ -71,6 +71,7 @@ pub struct AsyncRequestStatus {
 }
 
 pub type AsyncStatusMap = Arc<Mutex<HashMap<String, AsyncRequestStatus>>>;
+pub type CodecovStatusMap = Arc<Mutex<HashMap<String, CodecovRequestStatus>>>;
 
 #[derive(Deserialize)]
 pub struct EmbedCodeParams {
@@ -168,14 +169,31 @@ pub struct HasParams {
 pub struct HasResponse {
     pub covered: bool,
 }
-#[derive(Serialize, Clone)]
+
+#[derive(Deserialize)]
+pub struct CodecovBody {
+    pub repo_url: String,
+    pub username: Option<String>,
+    pub pat: Option<String>,
+    pub commit: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodecovRequestStatus {
+    pub status: AsyncStatus,
+    pub result: Option<Report>,
+    pub progress: u32,
+    pub error: Option<String>,
+}
+
+#[derive(Serialize, Clone, Debug, Deserialize)]
 pub struct Metric {
     pub total: u64,
     pub covered: u64,
     pub pct: f64,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug, Deserialize)]
 pub struct LanguageReport {
     pub language: String,
     pub lines: Option<Metric>,
@@ -184,7 +202,7 @@ pub struct LanguageReport {
     pub statements: Option<Metric>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug, Deserialize)]
 pub struct Report {
     pub repo_url: String,
     pub commit: String,
