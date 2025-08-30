@@ -4,7 +4,7 @@ use crate::{lang::Lang, repo::Repo};
 use shared::error::Result;
 use std::str::FromStr;
 
-pub async fn test_cpp_generic<G: Graph>() -> Result<()> {
+pub async fn test_cpp_generic<G: Graph + 'static>() -> Result<()> {
     let repo = Repo::new(
         "src/testing/cpp",
         Lang::from_str("cpp").unwrap(),

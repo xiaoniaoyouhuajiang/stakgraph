@@ -4,7 +4,7 @@ use crate::{lang::Lang, repo::Repo};
 use shared::error::Result;
 use std::str::FromStr;
 
-pub async fn test_swift_generic<G: Graph>() -> Result<()> {
+pub async fn test_swift_generic<G: Graph + 'static>() -> Result<()> {
     let repo = Repo::new(
         "src/testing/swift",
         Lang::from_str("swift").unwrap(),

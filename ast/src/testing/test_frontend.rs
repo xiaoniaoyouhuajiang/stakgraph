@@ -31,7 +31,7 @@ impl FrontendArtefact<'_> {
         }
     }
 }
-impl<G: Graph> FrontendTester<G> {
+impl<G: Graph + 'static> FrontendTester<G> {
     pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self>
     where
         G: Default,

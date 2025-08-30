@@ -11,7 +11,7 @@ pub struct BackendTester<G: Graph> {
     repo: Option<String>,
 }
 
-impl<G: Graph> BackendTester<G> {
+impl<G: Graph + 'static> BackendTester<G> {
     pub async fn from_repo(lang: Lang, repo: Option<String>) -> Result<Self>
     where
         G: Default,
