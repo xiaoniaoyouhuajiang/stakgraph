@@ -226,6 +226,16 @@ pub async fn ingest(
     })?;
 
     repos.set_status_tx(state.tx.clone()).await;
+    let streaming = std::env::var("STREAM_UPLOAD").is_ok();
+    if streaming {
+        let mut graph_ops = GraphOps::new();
+        graph_ops.connect().await?;
+        for repo in &repos.0 {
+            let stripped_root = strip_tmp(&repo.root).display().to_string();
+            info!("[stream] Pre-clearing old data for {}...", stripped_root);
+            graph_ops.clear_existing_graph(&stripped_root).await?;
+        }
+    }
 
     let btree_graph = repos
         .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
@@ -235,15 +245,17 @@ pub async fn ingest(
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
-    for repo in &repos.0 {
-        let stripped_root = strip_tmp(&repo.root).display().to_string();
-        info!("Clearing old data for {}...", stripped_root);
-        graph_ops.clear_existing_graph(&stripped_root).await?;
+    if !streaming {
+        for repo in &repos.0 {
+            let stripped_root = strip_tmp(&repo.root).display().to_string();
+            info!("Clearing old data for {}...", stripped_root);
+            graph_ops.clear_existing_graph(&stripped_root).await?;
+        }
     }
 
     let start_upload = Instant::now();
 
-    let (nodes, edges) = if std::env::var("STREAM_UPLOAD").is_ok() {
+    let (nodes, edges) = if streaming {
         graph_ops.graph.get_graph_size()
     } else {
         info!("Uploading to Neo4j...");
