@@ -151,4 +151,7 @@ pub trait Graph: Default + Debug {
             .find(|node| node.file == file && node.start == line as usize)
     }
     fn has_edge(&self, source: &Node, target: &Node, edge_type: EdgeType) -> bool;
+
+    fn get_nodes(&self) -> Vec<(String, NodeType, NodeData)> { Vec::new() }
+    fn get_edges(&self) -> Vec<(String, String, EdgeType)> { Vec::new() }
 }

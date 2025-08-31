@@ -219,6 +219,13 @@ impl Graph for BTreeMapGraph {
         }
         None
     }
+
+        fn get_nodes(&self) -> Vec<(String, NodeType, NodeData)> {
+            self.nodes.iter().map(|(k, n)| (k.clone(), n.node_type.clone(), n.node_data.clone())).collect()
+        }
+        fn get_edges(&self) -> Vec<(String, String, EdgeType)> {
+            self.edges.iter().cloned().collect()
+        }
     fn add_instances(&mut self, instances: Vec<NodeData>) {
         for inst in instances {
             if let Some(of) = &inst.data_type {

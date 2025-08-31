@@ -1,11 +1,11 @@
 #![cfg(feature = "neo4j")]
-use crate::lang::graphs::{neo4j_utils::*, Neo4jGraph, BTreeMapGraph, ArrayGraph};
+use crate::lang::graphs::{neo4j_utils::*, Neo4jGraph};
 use crate::lang::graphs::{Graph, EdgeType};
-use crate::utils::{create_node_key, create_node_key_from_ref};
 use neo4rs::BoltMap;
 use std::collections::HashSet;
 use shared::Result;
 use tracing::{info, debug};
+use std::fmt::Debug;
 
 pub struct GraphStreamingUploader {
     uploaded_nodes: HashSet<String>,
@@ -17,7 +17,7 @@ impl GraphStreamingUploader {
         Self { uploaded_nodes: HashSet::new(), uploaded_edges: HashSet::new() }
     }
 
-    pub async fn flush_stage<G: Graph + std::fmt::Debug + 'static>(
+    pub async fn flush_stage<G: Graph + Debug>(
         &mut self,
         graph: &G,
         neo: &Neo4jGraph,
@@ -25,20 +25,10 @@ impl GraphStreamingUploader {
     ) -> Result<()> {
         let mut node_queries: Vec<(String, BoltMap)> = Vec::new();
         let mut new_nodes_cnt = 0usize;
-        if let Some(bt) = (graph as &dyn std::any::Any).downcast_ref::<BTreeMapGraph>() {
-            for (k, n) in bt.nodes.iter() {
-                if self.uploaded_nodes.insert(k.clone()) {
-                    node_queries.push(add_node_query(&n.node_type, &n.node_data));
-                    new_nodes_cnt += 1;
-                }
-            }
-        } else if let Some(arr) = (graph as &dyn std::any::Any).downcast_ref::<ArrayGraph>() {
-            for n in arr.nodes.iter() {
-                let k = create_node_key(n);
-                if self.uploaded_nodes.insert(k) {
-                    node_queries.push(add_node_query(&n.node_type, &n.node_data));
-                    new_nodes_cnt += 1;
-                }
+        for (key, node_type, node_data) in graph.get_nodes() {
+            if self.uploaded_nodes.insert(key) {
+                node_queries.push(add_node_query(&node_type, &node_data));
+                new_nodes_cnt += 1;
             }
         }
 
@@ -49,23 +39,10 @@ impl GraphStreamingUploader {
 
         let mut edge_specs: Vec<(String, String, EdgeType)> = Vec::new();
         let mut new_edges_cnt = 0usize;
-        if let Some(bt) = (graph as &dyn std::any::Any).downcast_ref::<BTreeMapGraph>() {
-            for (s, t, et) in bt.edges.iter() {
-                let triple = (s.clone(), t.clone(), et.clone());
-                if self.uploaded_edges.insert(triple.clone()) {
-                    edge_specs.push(triple);
-                    new_edges_cnt += 1;
-                }
-            }
-        } else if let Some(arr) = (graph as &dyn std::any::Any).downcast_ref::<ArrayGraph>() {
-            for e in arr.edges.iter() {
-                let s = create_node_key_from_ref(&e.source);
-                let t = create_node_key_from_ref(&e.target);
-                let triple = (s, t, e.edge.clone());
-                if self.uploaded_edges.insert(triple.clone()) {
-                    edge_specs.push(triple);
-                    new_edges_cnt += 1;
-                }
+        for triple in graph.get_edges() {
+            if self.uploaded_edges.insert(triple.clone()) {
+                edge_specs.push(triple);
+                new_edges_cnt += 1;
             }
         }
 

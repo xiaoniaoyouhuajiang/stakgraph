@@ -738,6 +738,21 @@ impl Graph for ArrayGraph {
                 && edge.target.node_data.file.ends_with(&target.node_data.file)
         })
     }
+
+    fn get_nodes(&self) -> Vec<(String, NodeType, NodeData)> {
+        self.nodes
+            .iter()
+            .map(|n| (create_node_key(n), n.node_type.clone(), n.node_data.clone()))
+            .collect()
+    }
+    fn get_edges(&self) -> Vec<(String, String, EdgeType)> {
+        self.edges
+            .iter()
+            .map(|e| {
+                (create_node_key_from_ref(&e.source), create_node_key_from_ref(&e.target), e.edge.clone())
+            })
+            .collect()
+    }
 }
 
 impl ArrayGraph {

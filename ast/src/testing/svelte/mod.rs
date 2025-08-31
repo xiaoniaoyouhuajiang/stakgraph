@@ -5,7 +5,7 @@ use shared::error::Result;
 use std::str::FromStr;
 use test_log::test;
 
-pub async fn test_svelte_generic<G: Graph + 'static>() -> Result<()> {
+pub async fn test_svelte_generic<G: Graph>() -> Result<()> {
     let repo = Repo::new(
         "src/testing/svelte",
         Lang::from_str("svelte").unwrap(),

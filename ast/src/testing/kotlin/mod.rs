@@ -6,7 +6,7 @@ use std::str::FromStr;
 use crate::utils::get_use_lsp;
 
 
-pub async fn test_kotlin_generic<G: Graph + 'static>() -> Result<()> {
+pub async fn test_kotlin_generic<G: Graph>() -> Result<()> {
     let use_lsp = get_use_lsp();
     let repo = Repo::new(
         "src/testing/kotlin",

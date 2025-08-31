@@ -30,7 +30,7 @@ impl Repo {
     pub async fn build_graph_neo4j(&self) -> Result<Neo4jGraph> {
         self.build_graph_inner().await
     }
-    pub async fn build_graph_inner<G: Graph + 'static>(&self) -> Result<G> {
+    pub async fn build_graph_inner<G: Graph>(&self) -> Result<G> {
         let graph_root = strip_tmp(&self.root).display().to_string();
         let mut graph = G::new(graph_root, self.lang.kind.clone());
         let mut stats = std::collections::HashMap::new();
