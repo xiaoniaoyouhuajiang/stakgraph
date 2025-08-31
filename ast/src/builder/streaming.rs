@@ -1,11 +1,12 @@
 #![cfg(feature = "neo4j")]
 use crate::lang::graphs::{neo4j_utils::*, Neo4jGraph};
-use crate::lang::graphs::{Graph, EdgeType};
+use crate::lang::graphs::EdgeType;
+use crate::lang::{NodeType, NodeData, Edge};
+use crate::lang::graphs::Node as GraphNode;
 use neo4rs::BoltMap;
 use std::collections::HashSet;
 use shared::Result;
 use tracing::{info, debug};
-use std::fmt::Debug;
 
 pub struct GraphStreamingUploader {
     uploaded_nodes: HashSet<String>,
@@ -17,17 +18,20 @@ impl GraphStreamingUploader {
         Self { uploaded_nodes: HashSet::new(), uploaded_edges: HashSet::new() }
     }
 
-    pub async fn flush_stage<G: Graph + Debug>(
+    pub async fn flush_stage(
         &mut self,
-        graph: &G,
         neo: &Neo4jGraph,
         stage: &str,
+        delta_nodes: &[(NodeType, NodeData)],
+        delta_edges: &[Edge],
     ) -> Result<()> {
         let mut node_queries: Vec<(String, BoltMap)> = Vec::new();
         let mut new_nodes_cnt = 0usize;
-        for (key, node_type, node_data) in graph.get_nodes() {
+
+        for (nt, nd) in delta_nodes.iter() {
+            let key = crate::utils::create_node_key(&GraphNode::new(nt.clone(), nd.clone()));
             if self.uploaded_nodes.insert(key) {
-                node_queries.push(add_node_query(&node_type, &node_data));
+                node_queries.push(add_node_query(nt, nd));
                 new_nodes_cnt += 1;
             }
         }
@@ -39,7 +43,10 @@ impl GraphStreamingUploader {
 
         let mut edge_specs: Vec<(String, String, EdgeType)> = Vec::new();
         let mut new_edges_cnt = 0usize;
-        for triple in graph.get_edges() {
+        for e in delta_edges.iter() {
+            let s = crate::utils::create_node_key_from_ref(&e.source);
+            let t = crate::utils::create_node_key_from_ref(&e.target);
+            let triple = (s, t, e.edge.clone());
             if self.uploaded_edges.insert(triple.clone()) {
                 edge_specs.push(triple);
                 new_edges_cnt += 1;

@@ -7,6 +7,8 @@ pub mod parse;
 pub mod queries;
 
 use asg::*;
+pub use asg::NodeData;
+pub use graphs::Edge;
 use consts::*;
 pub use graphs::*;
 use lsp::{CmdSender, Language};

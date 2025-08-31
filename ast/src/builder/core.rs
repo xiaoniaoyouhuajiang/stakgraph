@@ -38,15 +38,14 @@ impl Repo {
         #[cfg(feature = "neo4j")]
         let mut streaming_ctx: Option<StreamingUploadContext> = if std::env::var("STREAM_UPLOAD").is_ok() {
             let g = Neo4jGraph::default();
-            let _ = g.connect().await; // ignore errors here; later usage will error if needed
-            let _ = g.create_indexes().await;
+            let _ = g.connect().await;
             Some(StreamingUploadContext::new(g))
         } else { None };
 
         self.send_status_update("initialization", 1);
     self.add_repository_and_language_nodes(&mut graph).await?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "repository_language").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "repository_language", &[], &[]).await; }
         let files = self.collect_and_add_directories(&mut graph)?;
         stats.insert("directories".to_string(), files.len());
 
@@ -55,40 +54,40 @@ impl Repo {
         self.send_status_with_stats(stats.clone());
         self.send_status_progress(100, 100, 1);
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "files").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "files", &[], &[]).await; }
 
         self.setup_lsp(&filez)?;
 
     self.process_libraries(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "libraries").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "libraries", &[], &[]).await; }
         self.process_import_sections(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "imports").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "imports", &[], &[]).await; }
         self.process_variables(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "variables").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "variables", &[], &[]).await; }
         self.process_classes(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "classes").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "classes", &[], &[]).await; }
         self.process_instances_and_traits(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "instances_traits").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "instances_traits", &[], &[]).await; }
         self.process_data_models(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "data_models").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "data_models", &[], &[]).await; }
         self.process_functions_and_tests(&mut graph, &filez).await?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "functions_tests").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "functions_tests", &[], &[]).await; }
         self.process_pages_and_templates(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "pages_templates").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "pages_templates", &[], &[]).await; }
         self.process_endpoints(&mut graph, &filez)?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "endpoints").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "endpoints", &[], &[]).await; }
         self.finalize_graph(&mut graph, &filez, &mut stats).await?;
     #[cfg(feature = "neo4j")]
-    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&graph, &ctx.neo, "finalize").await; }
+    if let Some(ctx) = &mut streaming_ctx { let _ = ctx.uploader.flush_stage(&ctx.neo, "finalize", &[], &[]).await; }
         let graph = filter_by_revs(
             &self.root.to_str().unwrap(),
             self.revs.clone(),
