@@ -1,7 +1,7 @@
 #[cfg(feature = "neo4j")]
 use test_log::test;
 #[cfg(feature = "neo4j")]
-use ast::lang::graphs::graph::Graph; // bring trait for analysis()
+use ast::lang::graphs::graph::Graph;
 
 #[cfg(feature = "neo4j")]
 async fn clear_neo4j() {
@@ -46,7 +46,7 @@ async fn graph_streaming_consistency() {
 
     clear_neo4j().await;
 
-    info!("Building local BTreeMapGraph (baseline)...");
+    info!("Building local BTreeMapGraph");
     let repos = Repo::new_clone_multi_detect(repo_url, None, None, Vec::new(), Vec::new(), None, Some(false))
         .await
         .unwrap();
@@ -59,8 +59,7 @@ async fn graph_streaming_consistency() {
 
     info!("Local baseline: nodes={}, edges={}", local_node_count, local_edge_count);
 
-    // Dump local in-memory graph structure
-    info!("--- Local BTreeMapGraph analysis (nodes & edges) ---");
+    info!(">>>>> Local BTreeMapGraph analysis");
     local_graph.analysis();
 
 
@@ -69,8 +68,8 @@ async fn graph_streaming_consistency() {
     let (neo_nodes, neo_edges) = graph_ops.get_graph_size().await.unwrap();
     info!("Neo4j streamed result: nodes={}, edges={}", neo_nodes, neo_edges);
 
-    // Dump remote streamed graph structure
-    info!("--- Remote Neo4jGraph analysis (nodes & edges) ---");
+
+    info!(">>>>> Remote Neo4jGraph analysis");
     graph_ops.graph.analysis();
 
 

@@ -245,56 +245,46 @@ impl Graph for BTreeMapGraph {
     }
 
     fn add_functions(&mut self, functions: Vec<Function>) {
-        for (node, method_of, reqs, dms, trait_operand, return_types) in functions {
-            let node_clone = node.clone();
-            let func_node = Node::new(NodeType::Function, node);
-            let func_key = create_node_key(&func_node);
-            if !self.nodes.contains_key(&func_key) {
-                self.nodes.insert(func_key.clone(), func_node);
-            }
+        for (func_node_data, method_of, reqs, dms, trait_operand, return_types) in functions {
+            let func_clone = func_node_data.clone();
+            self.add_node(NodeType::Function, func_node_data);
 
-            let file_prefix = format!("{:?}-", NodeType::File).to_lowercase();
-
-            if let Some((_, file_node)) = self
-                .nodes
-                .range(file_prefix..)
-                .find(|(_, n)| n.node_data.file == node_clone.file)
+            if let Some(file_name) = std::path::Path::new(&func_clone.file)
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
             {
-                let edge = Edge::contains(
-                    NodeType::File,
-                    &file_node.node_data,
-                    NodeType::Function,
-                    &node_clone,
-                );
-                self.add_edge(edge);
-            }
-
-            if let Some(p) = method_of {
-                self.add_edge(p.into());
-            }
-
-            if let Some(to) = trait_operand {
-                self.add_edge(to.into());
-            }
-
-            for rt in return_types {
-                self.add_edge(rt);
-            }
-
-            for r in reqs {
-                let req_node = Node::new(NodeType::Request, r.clone());
-                let req_key = create_node_key(&req_node);
-                if !self.nodes.contains_key(&req_key) {
-                    self.nodes.insert(req_key, req_node);
+                if let Some(file_node_data) = self
+                    .find_nodes_by_name(NodeType::File, &file_name)
+                    .first()
+                    .cloned()
+                {
+                    let contains_edge = Edge::contains(
+                        NodeType::File,
+                        &file_node_data,
+                        NodeType::Function,
+                        &func_clone,
+                    );
+                    self.add_edge(contains_edge);
                 }
-
-                let edge = Edge::calls(NodeType::Function, &node_clone, NodeType::Request, &r);
-                self.add_edge(edge);
             }
 
-            for dm in dms {
-                self.add_edge(dm);
+            if let Some(p) = method_of { self.add_edge(p.into()); }
+            if let Some(to) = trait_operand { self.add_edge(to.into()); }
+            for rt in return_types { self.add_edge(rt); }
+
+            for req in reqs {
+                let req_clone = req.clone();
+                self.add_node(NodeType::Request, req);
+                let calls_edge = Edge::calls(
+                    NodeType::Function,
+                    &func_clone,
+                    NodeType::Request,
+                    &req_clone,
+                );
+                self.add_edge(calls_edge);
             }
+
+            for dm_edge in dms { self.add_edge(dm_edge); }
         }
     }
 
