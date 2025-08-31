@@ -241,7 +241,13 @@ pub async fn ingest(
         .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
         .await
         .map_err(|e| WebError(shared::Error::Custom(format!("Failed to build graphs: {}", e))))?;
-    info!("\n\n ==>>Building BTreeMapGraph took {:.2?} \n\n", start_build.elapsed());
+    let build_ms = start_build.elapsed().as_millis();
+    info!(
+        "[SPEED] Workflow=ingest stage=build_ms={} repo={} streaming={}",
+        build_ms,
+        final_repo_url,
+        streaming
+    );
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
 
@@ -277,14 +283,22 @@ pub async fn ingest(
         step_description: Some("Graph building completed".to_string()),
     });
 
+    let upload_ms = start_upload.elapsed().as_millis();
     info!(
-        "\n\n ==>> Uploading to Neo4j took {:.2?} \n\n",
-        start_upload.elapsed()
+        "[SPEED] workflow=ingest stage=upload_ms={} repo={} streaming={}",
+        upload_ms,
+        final_repo_url,
+        streaming
     );
 
+    let total_ms = start_total.elapsed().as_millis();
     info!(
-        "\n\n ==>> Total ingest time: {:.2?} \n\n",
-        start_total.elapsed()
+        "[SPEED] workflow=ingest stage=total_ms={} repo={} streaming={} nodes={} edges={}",
+        total_ms,
+        final_repo_url,
+        streaming,
+        nodes,
+        edges
     );
 
     if let Ok(diry) = std::env::var("PRINT_ROOT") {
