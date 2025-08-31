@@ -5,6 +5,8 @@ use lsp::Language;
 use serde::Serialize;
 use shared::error::Result;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+#[cfg(feature = "neo4j")]
+use crate::builder::streaming;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct BTreeMapGraph {
@@ -48,16 +50,20 @@ impl Graph for BTreeMapGraph {
         (self.nodes.len() as u32, self.edges.len() as u32)
     }
     fn add_edge(&mut self, edge: Edge) {
-        let source_key = create_node_key_from_ref(&edge.source);
-        let target_key = create_node_key_from_ref(&edge.target);
-        let edge_key = format!("{}-{}-{:?}", source_key, target_key, edge.edge);
-        self.edge_keys.insert(edge_key);
-        self.edges.insert((source_key, target_key, edge.edge));
+    #[cfg(feature = "neo4j")]
+    if std::env::var("STREAM_UPLOAD").is_ok() { streaming::record_edge(&edge); }
+    let source_key = create_node_key_from_ref(&edge.source);
+    let target_key = create_node_key_from_ref(&edge.target);
+    let edge_key = format!("{}-{}-{:?}", source_key, target_key, edge.edge.clone());
+    self.edge_keys.insert(edge_key);
+    self.edges.insert((source_key, target_key, edge.edge));
     }
     fn add_node(&mut self, node_type: NodeType, node_data: NodeData) {
         let node = Node::new(node_type.clone(), node_data.clone());
         let node_key = create_node_key(&node);
         self.nodes.insert(node_key.clone(), node);
+    #[cfg(feature = "neo4j")]
+    if std::env::var("STREAM_UPLOAD").is_ok() { streaming::record_node(&node_type, &node_data); }
     }
 
     fn get_graph_keys(&self) -> (HashSet<String>, HashSet<String>) {
@@ -219,7 +225,6 @@ impl Graph for BTreeMapGraph {
         }
         None
     }
-
     fn add_instances(&mut self, instances: Vec<NodeData>) {
         for inst in instances {
             if let Some(of) = &inst.data_type {

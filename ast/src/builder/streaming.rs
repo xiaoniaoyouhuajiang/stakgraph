@@ -74,3 +74,25 @@ pub struct StreamingUploadContext {
 impl StreamingUploadContext {
     pub fn new(neo: Neo4jGraph) -> Self { Self { neo, uploader: GraphStreamingUploader::new() } }
 }
+
+use lazy_static::lazy_static;
+use std::sync::Mutex;
+
+lazy_static! {
+    static ref DELTA_NODES: Mutex<Vec<(NodeType, NodeData)>> = Mutex::new(Vec::new());
+    static ref DELTA_EDGES: Mutex<Vec<Edge>> = Mutex::new(Vec::new());
+}
+
+pub fn record_node(nt: &NodeType, nd: &NodeData) {
+    if std::env::var("STREAM_UPLOAD").is_err() { return; }
+    if let Ok(mut g) = DELTA_NODES.lock() { g.push((nt.clone(), nd.clone())); }
+}
+pub fn record_edge(e: &Edge) {
+    if std::env::var("STREAM_UPLOAD").is_err() { return; }
+    if let Ok(mut g) = DELTA_EDGES.lock() { g.push(e.clone()); }
+}
+pub fn drain_deltas() -> (Vec<(NodeType, NodeData)>, Vec<Edge>) {
+    let mut n = DELTA_NODES.lock().unwrap();
+    let mut e = DELTA_EDGES.lock().unwrap();
+    (std::mem::take(&mut *n), std::mem::take(&mut *e))
+}

@@ -1,6 +1,10 @@
 pub use crate::builder::progress::StatusUpdate;
 use crate::lang::graphs::Graph;
 use crate::lang::{linker, ArrayGraph, BTreeMapGraph, Lang};
+#[cfg(feature = "neo4j")]
+use crate::builder::streaming::{GraphStreamingUploader, drain_deltas};
+#[cfg(feature = "neo4j")]
+use crate::lang::graphs::Neo4jGraph;
 use git_url_parse::GitUrl;
 use ignore::WalkBuilder;
 use lsp::language::{Language, PROGRAMMING_LANGUAGES};
@@ -70,10 +74,23 @@ impl Repos {
             return Err(Error::Custom("Language is not supported".into()));
         }
         let mut graph = G::new(String::new(), Language::Typescript);
+        #[cfg(feature = "neo4j")]
+        let mut streaming: Option<(Neo4jGraph, GraphStreamingUploader)> = if std::env::var("STREAM_UPLOAD").is_ok() {
+            let neo = Neo4jGraph::default();
+            let _ = neo.connect().await; 
+            Some((neo, GraphStreamingUploader::new()))
+        } else { None };
         for repo in &self.0 {
             info!("building graph for {:?}", repo);
             let subgraph = repo.build_graph_inner().await?;
             graph.extend_graph(subgraph);
+            #[cfg(feature = "neo4j")]
+            if let Some((neo, uploader)) = &mut streaming {
+                let (dn,de) = drain_deltas();
+                if !(dn.is_empty() && de.is_empty()) {
+                    let _ = uploader.flush_stage(neo, "repo_complete", &dn, &de).await;
+                }
+            }
         }
 
         if let Some(first_repo) = &self.0.get(0) {
@@ -83,6 +100,13 @@ impl Repos {
         linker::link_e2e_tests(&mut graph)?;
         info!("linking api nodes");
         linker::link_api_nodes(&mut graph)?;
+        #[cfg(feature = "neo4j")]
+        if let Some((neo, uploader)) = &mut streaming {
+            let (dn,de) = drain_deltas();
+            if !(dn.is_empty() && de.is_empty()) {
+                let _ = uploader.flush_stage(neo, "cross_repo_linking", &dn, &de).await;
+            }
+        }
 
         let (nodes_size, edges_size) = graph.get_graph_size();
         println!("Final Graph: {} nodes and {} edges", nodes_size, edges_size);
