@@ -44,6 +44,11 @@ impl GraphOps {
         }
     }
 
+
+    pub async fn get_graph_size(&self) -> Result<(u32,u32)> { self.graph.get_graph_size_async().await }
+    pub async fn fetch_all_node_keys(&self) -> Result<Vec<String>> { self.graph.fetch_all_node_keys().await }
+    pub async fn fetch_all_edge_triples(&self) -> Result<Vec<(String,String,EdgeType)>> { self.graph.fetch_all_edge_triples().await }
+
     pub async fn connect(&mut self) -> Result<()> {
         self.graph.connect().await
     }
@@ -214,7 +219,9 @@ impl GraphOps {
         temp_graph.analysis();
 
         self.graph.clear().await?;
-        self.upload_btreemap_to_neo4j(&temp_graph, None).await?;
+        if std::env::var("STREAM_UPLOAD").is_err() {
+            self.upload_btreemap_to_neo4j(&temp_graph, None).await?;
+        }
         self.graph.create_indexes().await?;
 
         self.graph

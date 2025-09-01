@@ -598,6 +598,14 @@ pub fn all_nodes_and_edges_query() -> (String, String) {
     (node_query.to_string(), edge_query.to_string())
 }
 
+pub fn all_node_keys_query() -> String {
+    "MATCH (n) WHERE n.node_key IS NOT NULL RETURN n.node_key as node_key".to_string()
+}
+
+pub fn all_edge_triples_query() -> String {
+    "MATCH (s)-[e]->(t) RETURN s.node_key as s_key, type(e) as edge_type, t.node_key as t_key".to_string()
+}
+
 pub fn filter_out_nodes_without_children_query(
     parent_type: NodeType,
     child_type: NodeType,
