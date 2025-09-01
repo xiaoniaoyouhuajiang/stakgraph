@@ -689,9 +689,9 @@ pub async fn coverage_handler(
         .await?;
 
     Ok(Json(Coverage {
-    unit_tests: totals.unit_tests.map(|s| CoverageStat { total: s.total, covered: s.covered, percent: s.percent }),
-    integration_tests: totals.integration_tests.map(|s| CoverageStat { total: s.total, covered: s.covered, percent: s.percent }),
-    e2e_tests: totals.e2e_tests.map(|s| CoverageStat { total: s.total, covered: s.covered, percent: s.percent }),
+    unit_tests: totals.unit_tests.map(|s| CoverageStat { total: s.total, total_tests: s.total_tests, covered: s.covered, percent: s.percent }),
+    integration_tests: totals.integration_tests.map(|s| CoverageStat { total: s.total, total_tests: s.total_tests, covered: s.covered, percent: s.percent }),
+    e2e_tests: totals.e2e_tests.map(|s| CoverageStat { total: s.total, total_tests: s.total_tests, covered: s.covered, percent: s.percent }),
     }))
 }
 

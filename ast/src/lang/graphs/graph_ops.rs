@@ -26,6 +26,7 @@ pub struct GraphOps {
 #[derive(Debug, Clone)]
 pub struct CoverageStat {
     pub total: usize,
+    pub total_tests: usize,
     pub covered: usize,
     pub percent: f64,
 }
@@ -235,68 +236,74 @@ impl GraphOps {
         repo: Option<&str>,
     ) -> Result<GraphCoverage> {
         self.graph.ensure_connected().await?;
-        let in_scope = |n: &NodeData| repo.map_or(true, |r| n.file.starts_with(r));
-        let unit = self.graph.find_nodes_by_type_async(NodeType::UnitTest).await;
-        let integration = self.graph.find_nodes_by_type_async(NodeType::IntegrationTest).await;
-        let e2e = self.graph.find_nodes_by_type_async(NodeType::E2eTest).await;
 
-        // UnitTest covered if Calls -> Function.
-        // IntegrationTest covered if Calls -> Function OR Endpoint.
-        // E2eTest covered if Calls -> Function OR Endpoint OR Page.
-        let unit_calls_funcs = self
-            .graph
+        let in_scope = |n: &NodeData| repo.map_or(true, |r| n.file.starts_with(r));
+
+        let unit_tests = self.graph.find_nodes_by_type_async(NodeType::UnitTest).await;
+        let integration_tests = self.graph.find_nodes_by_type_async(NodeType::IntegrationTest).await;
+        let e2e_tests = self.graph.find_nodes_by_type_async(NodeType::E2eTest).await;
+
+        let functions = self.graph.find_nodes_by_type_async(NodeType::Function).await;
+        let endpoints = self.graph.find_nodes_by_type_async(NodeType::Endpoint).await;
+        let pages = self.graph.find_nodes_by_type_async(NodeType::Page).await;
+
+        let unit_calls_funcs = self.graph
             .find_nodes_with_edge_type_async(NodeType::UnitTest, NodeType::Function, EdgeType::Calls)
             .await;
-        let integration_calls_funcs = self
-            .graph
-            .find_nodes_with_edge_type_async(NodeType::IntegrationTest, NodeType::Function, EdgeType::Calls)
-            .await;
-        let integration_calls_endpoints = self
-            .graph
+        let integration_calls_endpoints = self.graph
             .find_nodes_with_edge_type_async(NodeType::IntegrationTest, NodeType::Endpoint, EdgeType::Calls)
             .await;
-        let e2e_calls_funcs = self
-            .graph
-            .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Function, EdgeType::Calls)
-            .await;
-        let e2e_calls_endpoints = self
-            .graph
-            .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Endpoint, EdgeType::Calls)
-            .await;
-        let e2e_calls_pages = self
-            .graph
+    let e2e_calls_pages = self.graph
             .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Page, EdgeType::Calls)
             .await;
 
-        let collect_covered = |calls: &Vec<(NodeData, NodeData)>| -> HashSet<String> {
-            calls.iter().map(|(src,_ )| format!("{}:{}:{}", src.name, src.file, src.start)).collect()
-        };
-        let unit_covered = collect_covered(&unit_calls_funcs);
-        let integration_covered = {
-            let mut set = collect_covered(&integration_calls_funcs);
-            for k in collect_covered(&integration_calls_endpoints) { set.insert(k); }
-            set
-        };
-        let e2e_covered = {
-            let mut set = collect_covered(&e2e_calls_funcs);
-            for k in collect_covered(&e2e_calls_endpoints) { set.insert(k); }
-            for k in collect_covered(&e2e_calls_pages) { set.insert(k); }
-            set
+        let collect_targets = |calls: &Vec<(NodeData, NodeData)>| -> HashSet<String> {
+            calls
+                .iter()
+                .map(|(_, tgt)| format!("{}:{}:{}", tgt.name, tgt.file, tgt.start))
+                .collect()
         };
 
-        let build = |tests: Vec<NodeData>, covered: &HashSet<String>| -> Option<CoverageStat> {
-            let filtered: Vec<NodeData> = tests.into_iter().filter(|n| in_scope(n)).collect();
-            let total = filtered.len();
-            if total == 0 { return None; }
-            let covered_count = filtered.iter().filter(|n| covered.contains(&format!("{}:{}:{}", n.name, n.file, n.start))).count();
-            let percent = if total == 0 { 0.0 } else { (covered_count as f64 / total as f64) * 100.0 };
-            Some(CoverageStat { total, covered: covered_count, percent: (percent * 100.0).round() / 100.0 })
+        let unit_target_functions = collect_targets(&unit_calls_funcs);
+        let integration_target_endpoints = collect_targets(&integration_calls_endpoints);
+    let e2e_target_pages = collect_targets(&e2e_calls_pages);
+
+        let unit_functions_in_scope: Vec<NodeData> = functions
+            .into_iter()
+            .filter(|n| in_scope(n))
+            .filter(|n| {
+                if n.body.trim().is_empty() { return false; }
+                let is_component = n.meta.get("component").map(|v| v == "true").unwrap_or(false);
+                !is_component
+            })
+            .collect();
+        let integration_endpoints_in_scope: Vec<NodeData> = endpoints.into_iter().filter(|n| in_scope(n)).collect();
+    let pages_in_scope: Vec<NodeData> = pages.into_iter().filter(|n| in_scope(n)).collect();
+        let unit_tests_in_scope: Vec<NodeData> = unit_tests.into_iter().filter(|n| in_scope(n)).collect();
+        let integration_tests_in_scope: Vec<NodeData> = integration_tests.into_iter().filter(|n| in_scope(n)).collect();
+        let e2e_tests_in_scope: Vec<NodeData> = e2e_tests.into_iter().filter(|n| in_scope(n)).collect();
+
+    let e2e_pages_in_scope = pages_in_scope.clone();
+
+        let build_stat = |total_nodes: &Vec<NodeData>, total_tests: &Vec<NodeData>, covered_set: &HashSet<String>| -> Option<CoverageStat> {
+            if total_nodes.is_empty() { return None; }
+            let covered_count = total_nodes
+                .iter()
+                .filter(|n| covered_set.contains(&format!("{}:{}:{}", n.name, n.file, n.start)))
+                .count();
+            let percent = if total_nodes.is_empty() { 0.0 } else { (covered_count as f64 / total_nodes.len() as f64) * 100.0 };
+            Some(CoverageStat {
+                total: total_nodes.len(),
+                total_tests: total_tests.len(),
+                covered: covered_count,
+                percent: (percent * 100.0).round() / 100.0,
+            })
         };
 
         Ok(GraphCoverage {
-            unit_tests: build(unit, &unit_covered),
-            integration_tests: build(integration, &integration_covered),
-            e2e_tests: build(e2e, &e2e_covered),
+            unit_tests: build_stat(&unit_functions_in_scope, &unit_tests_in_scope, &unit_target_functions),
+            integration_tests: build_stat(&integration_endpoints_in_scope, &integration_tests_in_scope, &integration_target_endpoints),
+            e2e_tests: build_stat(&e2e_pages_in_scope, &e2e_tests_in_scope, &e2e_target_pages),
         })
     }
 
