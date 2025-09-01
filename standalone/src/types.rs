@@ -101,6 +101,7 @@ pub struct CoverageParams {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CoverageStat {
     pub total: usize,
+    pub total_tests: usize,
     pub covered: usize,
     pub percent: f64,
 }
