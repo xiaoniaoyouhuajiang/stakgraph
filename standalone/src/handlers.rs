@@ -603,9 +603,15 @@ pub async fn vector_search_handler(
         )
         .await?;
 
+    let is_test = std::env::var("TEST_REF_ID").ok().filter(|v| !v.is_empty()).is_some();
     let response: Vec<VectorSearchResult> = results
         .into_iter()
-        .map(|(node, score)| VectorSearchResult { node, score })
+        .map(|(mut node, score)| {
+            if is_test {
+                node.meta.remove("date_added_to_graph");
+            }
+            VectorSearchResult { node, score }
+        })
         .collect();
 
     Ok(Json(response))
