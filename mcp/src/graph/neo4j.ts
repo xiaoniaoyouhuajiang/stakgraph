@@ -91,6 +91,71 @@ class Db {
     }
   }
 
+  async nodes_by_types_per_type(
+    labels: NodeType[],
+    limit_per_type: number,
+    since?: number,
+    language?: string
+  ): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+      const r = await session.run(Q.MULTI_TYPE_LATEST_PER_TYPE_QUERY, {
+        labels,
+        limit_per_type,
+        since: since ?? null,
+        extensions,
+      });
+      return r.records.map((record) => deser_node(record, "n"));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async nodes_by_types_total(
+    labels: NodeType[],
+    limit_total: number,
+    since?: number,
+    language?: string
+  ): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const extensions = language ? getExtensionsForLanguage(language) : [];
+      const r = await session.run(Q.MULTI_TYPE_LATEST_TOTAL_QUERY, {
+        labels,
+        labelsSize: labels.length,
+        limit_total,
+        since: since ?? null,
+        extensions,
+      });
+      return r.records.map((record) => deser_node(record, "n"));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async edges_between_node_keys(keys: string[]): Promise<Neo4jEdge[]> {
+    if (keys.length === 0) return [];
+    const session = this.driver.session();
+    try {
+      const r = await session.run(Q.EDGES_BETWEEN_NODE_KEYS_QUERY, { keys });
+      return r.records.map((record) => {
+        const edge = record.get("r");
+        const source = record.get("a");
+        const target = record.get("b");
+        return {
+          edge_type: edge.type,
+          ref_id: edge.properties.ref_id,
+          source: source.properties.node_key,
+          target: target.properties.node_key,
+          properties: edge.properties,
+        } as Neo4jEdge;
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
   skip_string(skips: NodeType[]) {
     return skips.map((skip) => `-${skip}`).join("|");
   }

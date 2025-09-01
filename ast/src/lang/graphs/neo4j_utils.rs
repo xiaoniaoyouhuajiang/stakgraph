@@ -75,14 +75,14 @@ impl NodeQueryBuilder {
 
         // println!("[NodeQueryBuilder] node_key: {}", node_key);
 
-        let query = format!(
-            "MERGE (node:{}:{} {{node_key: $node_key}})
-            ON CREATE SET node += $properties
-            ON MATCH SET node += $properties
-            Return node",
-            self.node_type.to_string(),
-            DATA_BANK,
-        );
+    let query = format!(
+        "MERGE (node:{}:{} {{node_key: $node_key}})
+         ON CREATE SET node += $properties, node.date_added_to_graph = $now
+         ON MATCH SET node += $properties, node.date_added_to_graph = $now
+         Return node",
+        self.node_type.to_string(),
+        DATA_BANK,
+    );
 
         (query, properties)
     }
@@ -219,6 +219,13 @@ impl<'a> TransactionManager<'a> {
                 }
                 let properties = boltmap_to_bolttype_map(bolt_map);
                 query_obj = query_obj.param("properties", properties);
+                if query_str.contains("$now") {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    if let Ok(dur) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                        let ts = dur.as_secs_f64();
+                        query_obj = query_obj.param("now", neo4rs::BoltType::String(format!("{:.7}", ts).into()));
+                    }
+                }
             } else {
                 for (key, value) in bolt_map.value.iter() {
                     query_obj = query_obj.param(key.value.as_str(), value.clone());
@@ -256,6 +263,13 @@ pub async fn execute_batch(conn: &Neo4jConnection, queries: Vec<(String, BoltMap
                 }
                 let properties = boltmap_to_bolttype_map(params);
                 query_obj = query_obj.param("properties", properties);
+                if query_str.contains("$now") {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    if let Ok(dur) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                        let ts = dur.as_secs_f64();
+                        query_obj = query_obj.param("now", neo4rs::BoltType::String(format!("{:.7}", ts).into()));
+                    }
+                }
             } else {
                 for (key, value) in params.value.iter() {
                     query_obj = query_obj.param(key.value.as_str(), value.clone());
