@@ -253,10 +253,7 @@ impl GraphOps {
         let integration_calls_endpoints = self.graph
             .find_nodes_with_edge_type_async(NodeType::IntegrationTest, NodeType::Endpoint, EdgeType::Calls)
             .await;
-        let e2e_calls_endpoints = self.graph
-            .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Endpoint, EdgeType::Calls)
-            .await;
-        let e2e_calls_pages = self.graph
+    let e2e_calls_pages = self.graph
             .find_nodes_with_edge_type_async(NodeType::E2eTest, NodeType::Page, EdgeType::Calls)
             .await;
 
@@ -269,29 +266,24 @@ impl GraphOps {
 
         let unit_target_functions = collect_targets(&unit_calls_funcs);
         let integration_target_endpoints = collect_targets(&integration_calls_endpoints);
-        let e2e_target_endpoints = collect_targets(&e2e_calls_endpoints);
-        let e2e_target_pages = collect_targets(&e2e_calls_pages);
+    let e2e_target_pages = collect_targets(&e2e_calls_pages);
 
-        let mut e2e_targets_union = e2e_target_endpoints.clone();
-        for k in e2e_target_pages { e2e_targets_union.insert(k); }
-
-        let unit_functions_in_scope: Vec<NodeData> = functions.into_iter().filter(|n| in_scope(n)).collect();
+        let unit_functions_in_scope: Vec<NodeData> = functions
+            .into_iter()
+            .filter(|n| in_scope(n))
+            .filter(|n| {
+                if n.body.trim().is_empty() { return false; }
+                let is_component = n.meta.get("component").map(|v| v == "true").unwrap_or(false);
+                !is_component
+            })
+            .collect();
         let integration_endpoints_in_scope: Vec<NodeData> = endpoints.into_iter().filter(|n| in_scope(n)).collect();
-        let pages_in_scope: Vec<NodeData> = pages.into_iter().filter(|n| in_scope(n)).collect();
+    let pages_in_scope: Vec<NodeData> = pages.into_iter().filter(|n| in_scope(n)).collect();
         let unit_tests_in_scope: Vec<NodeData> = unit_tests.into_iter().filter(|n| in_scope(n)).collect();
         let integration_tests_in_scope: Vec<NodeData> = integration_tests.into_iter().filter(|n| in_scope(n)).collect();
         let e2e_tests_in_scope: Vec<NodeData> = e2e_tests.into_iter().filter(|n| in_scope(n)).collect();
 
-        let mut e2e_nodes_union: Vec<NodeData> = Vec::new();
-        let mut seen = HashSet::new();
-        for n in &integration_endpoints_in_scope {
-            let k = format!("{}:{}:{}", n.name, n.file, n.start);
-            if seen.insert(k) { e2e_nodes_union.push(n.clone()); }
-        }
-        for n in &pages_in_scope {
-            let k = format!("{}:{}:{}", n.name, n.file, n.start);
-            if seen.insert(k) { e2e_nodes_union.push(n.clone()); }
-        }
+    let e2e_pages_in_scope = pages_in_scope.clone();
 
         let build_stat = |total_nodes: &Vec<NodeData>, total_tests: &Vec<NodeData>, covered_set: &HashSet<String>| -> Option<CoverageStat> {
             if total_nodes.is_empty() { return None; }
@@ -311,7 +303,7 @@ impl GraphOps {
         Ok(GraphCoverage {
             unit_tests: build_stat(&unit_functions_in_scope, &unit_tests_in_scope, &unit_target_functions),
             integration_tests: build_stat(&integration_endpoints_in_scope, &integration_tests_in_scope, &integration_target_endpoints),
-            e2e_tests: build_stat(&e2e_nodes_union, &e2e_tests_in_scope, &e2e_targets_union),
+            e2e_tests: build_stat(&e2e_pages_in_scope, &e2e_tests_in_scope, &e2e_target_pages),
         })
     }
 
