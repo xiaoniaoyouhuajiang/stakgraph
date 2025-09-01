@@ -78,7 +78,7 @@ impl NodeQueryBuilder {
     let query = format!(
         "MERGE (node:{}:{} {{node_key: $node_key}})
          ON CREATE SET node += $properties, node.date_added_to_graph = $now
-         ON MATCH SET node.date_added_to_graph = CASE WHEN node.hash IS NULL OR node.hash <> $properties.hash THEN $now ELSE node.date_added_to_graph END, node += $properties
+         ON MATCH SET node += $properties, node.date_added_to_graph = $now
          Return node",
         self.node_type.to_string(),
         DATA_BANK,
