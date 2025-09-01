@@ -340,7 +340,6 @@ export async function get_graph(
     "json",
     language
   );
-
   let edges_result: any[] = [];
   if (include_edges) {
     const result = await get_edges(
@@ -352,7 +351,6 @@ export async function get_graph(
     );
     edges_result = Array.isArray(result) ? result : [];
   }
-
   return {
     nodes: Array.isArray(nodes_result) ? nodes_result : [],
     edges: Array.isArray(edges_result) ? edges_result : [],

@@ -28,6 +28,7 @@ export interface NodeData {
   docs?: string;
   hash?: string;
   verb?: string;
+  date_added_to_graph?: string;
   [key: string]: any; // Allow any other properties
 }
 

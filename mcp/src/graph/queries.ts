@@ -117,6 +117,42 @@ END
 RETURN n
 `;
 
+export const MULTI_TYPE_LATEST_PER_TYPE_QUERY = `
+UNWIND $labels AS lbl
+MATCH (n)
+WHERE any(l IN labels(n) WHERE l = lbl)
+  AND ($since IS NULL OR (n.date_added_to_graph IS NOT NULL AND toFloat(n.date_added_to_graph) >= $since))
+  AND (
+    $extensions IS NULL OR size($extensions) = 0 OR
+    (n.file IS NOT NULL AND ANY(ext IN $extensions WHERE n.file ENDS WITH ext))
+  )
+WITH lbl, n, coalesce(toFloat(n.date_added_to_graph), 0) AS ts
+ORDER BY lbl, ts DESC, n.node_key
+WITH lbl, collect(n)[0..$limit_per_type] AS nodes
+UNWIND nodes AS n
+RETURN DISTINCT n;
+`;
+
+export const MULTI_TYPE_LATEST_TOTAL_QUERY = `
+MATCH (n)
+WHERE ($labelsSize = 0 OR any(l IN labels(n) WHERE l IN $labels))
+  AND ($since IS NULL OR (n.date_added_to_graph IS NOT NULL AND toFloat(n.date_added_to_graph) >= $since))
+  AND (
+    $extensions IS NULL OR size($extensions) = 0 OR
+    (n.file IS NOT NULL AND ANY(ext IN $extensions WHERE n.file ENDS WITH ext))
+  )
+WITH n, coalesce(toFloat(n.date_added_to_graph),0) AS ts
+ORDER BY ts DESC, n.node_key
+LIMIT $limit_total
+RETURN n;
+`;
+
+export const EDGES_BETWEEN_NODE_KEYS_QUERY = `
+MATCH (a)-[r]->(b)
+WHERE a.node_key IN $keys AND b.node_key IN $keys
+RETURN r, a, b;
+`;
+
 export const FILES_QUERY = `
 MATCH path = (d:Directory)-[:CONTAINS*0..]->(node)
 WHERE (node:Directory OR node:File)

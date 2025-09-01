@@ -5,6 +5,7 @@ import {
   node_type_descriptions,
   NodeType,
   EdgeType,
+  relevant_node_types,
 } from "./types.js";
 import {
   nameFileOnly,
@@ -14,9 +15,16 @@ import {
   cloneRepoToTmp,
   extractEnvVarsFromRepo,
   findDockerComposeFiles,
+  parseNodeTypes,
+  parseRefIds,
+  parseSince,
+  parseLimit,
+  parseLimitMode,
+  buildGraphMeta,
 } from "./utils.js";
 import fs from "fs/promises";
 import * as G from "./graph.js";
+import { db } from "./neo4j.js";
 import { parseServiceFile, extractContainersFromCompose } from "./service.js";
 import * as path from "path";
 import { get_context } from "../tools/explore/tool.js";
@@ -327,25 +335,62 @@ export async function get_shortest_path(req: Request, res: Response) {
 
 export async function get_graph(req: Request, res: Response) {
   try {
-    const node_type = req.query.node_type as NodeType;
-    const edge_type = req.query.edge_type as EdgeType;
+    const edge_type =
+      (req.query.edge_type as EdgeType) || ("CALLS" as EdgeType);
     const concise = isTrue(req.query.concise as string);
-    let ref_ids: string[] = [];
-    if (req.query.ref_ids) {
-      ref_ids = (req.query.ref_ids as string).split(",");
-    }
     const include_edges = isTrue(req.query.edges as string);
-    const language = req.query.language as string;
+    const language = req.query.language as string | undefined;
+    const since = parseSince(req.query);
+    const limit_param = parseLimit(req.query);
+    const limit_mode = parseLimitMode(req.query);
+    let labels = parseNodeTypes(req.query);
+    if (labels.length === 0) labels = relevant_node_types();
 
-    const result = await G.get_graph(
-      node_type,
-      edge_type,
-      concise,
-      ref_ids,
-      include_edges,
-      language
-    );
-    res.json(result);
+    const perTypeDefault = 100;
+    let nodes: any[] = [];
+    const ref_ids = parseRefIds(req.query);
+    if (ref_ids.length > 0) {
+      nodes = await db.nodes_by_ref_ids(ref_ids, language);
+    } else {
+      if (limit_mode === "total") {
+        nodes = await db.nodes_by_types_total(
+          labels,
+          limit_param || perTypeDefault,
+          since,
+          language
+        );
+      } else {
+        nodes = await db.nodes_by_types_per_type(
+          labels,
+          limit_param || perTypeDefault,
+          since,
+          language
+        );
+      }
+    }
+
+    let edges: any[] = [];
+    if (include_edges) {
+      const keys = nodes.map((n) => n.properties.node_key).filter(Boolean);
+      edges = await db.edges_between_node_keys(keys);
+    }
+
+    res.json({
+      nodes: concise
+        ? nodes.map((n) => nameFileOnly(n))
+        : nodes.map((n) => toReturnNode(n)),
+      edges: include_edges
+        ? concise
+          ? edges.map((e) => ({
+              edge_type: e.edge_type,
+              source: e.source,
+              target: e.target,
+            }))
+          : edges
+        : [],
+      status: "Success",
+      meta: buildGraphMeta(labels, nodes, limit_param, limit_mode, since),
+    });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send("Internal Server Error");

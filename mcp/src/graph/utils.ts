@@ -317,3 +317,62 @@ export async function findDockerComposeFiles(
   const found = await fg(patterns, { cwd: repoDir, absolute: true });
   return found;
 }
+export function parseNodeTypes(query: any): NodeType[] {
+  const param =
+    (query.node_types as string) || (query.node_type as string) || "";
+  if (!param) return [];
+  return Array.from(
+    new Set(
+      param
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
+    )
+  ) as NodeType[];
+}
+
+export function parseRefIds(query: any): string[] {
+  const ref_ids = (query.ref_ids as string) || "";
+  if (!ref_ids) return [];
+  return ref_ids
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s !== "");
+}
+
+export function parseSince(query: any): number | undefined {
+  if (query.since === undefined) return undefined;
+  const v = parseFloat(query.since as string);
+  return isNaN(v) ? undefined : v;
+}
+
+export function parseLimit(query: any): number | undefined {
+  if (query.limit === undefined) return undefined;
+  const v = parseInt(query.limit as string);
+  return isNaN(v) ? undefined : v;
+}
+
+export type LimitMode = "per_type" | "total";
+export function parseLimitMode(query: any): LimitMode {
+  const m = (query.limit_mode as string) || "per_type";
+  return m === "total" ? "total" : "per_type";
+}
+
+export function buildGraphMeta(
+  labels: NodeType[],
+  nodes: any[],
+  limit: number | undefined,
+  limit_mode: LimitMode,
+  since: number | undefined
+) {
+  return {
+    node_types: labels,
+    limit: limit || null,
+    limit_mode,
+    since: since || null,
+    counts: labels.reduce((acc, l) => {
+      acc[l] = nodes.filter((n) => n.labels.includes(l)).length;
+      return acc;
+    }, {} as Record<string, number>),
+  };
+}
