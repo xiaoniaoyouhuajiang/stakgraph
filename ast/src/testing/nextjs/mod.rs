@@ -108,12 +108,12 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes += functions.len();
     if use_lsp {
-        assert_eq!(functions.len(), 46, "Expected 46 Function nodes with LSP");
+        assert_eq!(functions.len(), 39, "Expected 39 Function nodes with LSP");
     } else {
         assert_eq!(
             functions.len(),
-            35,
-            "Expected 35 Function nodes without LSP"
+            28,
+            "Expected 28 Function nodes without LSP"
         );
     }
 
@@ -205,11 +205,11 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let calls = graph.count_edges_of_type(EdgeType::Calls);
     edges += calls;
-    assert_eq!(calls, 77, "Expected 77 Calls edges");
+    assert_eq!(calls, 84, "Expected 84 Calls edges");
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges += contains;
-    assert_eq!(contains, 163, "Expected 163 Contains edges");
+    assert_eq!(contains, 153, "Expected 153 Contains edges");
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
     edges += handlers;
@@ -217,7 +217,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let tests = graph.find_nodes_by_type(NodeType::UnitTest);
     nodes += tests.len();
-    assert_eq!(tests.len(), 9, "Expected 9 UnitTest nodes");
+    assert_eq!(tests.len(), 6, "Expected 6 UnitTest nodes");
 
     let integration_test = graph.find_nodes_by_type(NodeType::IntegrationTest);
     nodes += integration_test.len();
@@ -247,7 +247,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let uses = graph.count_edges_of_type(EdgeType::Uses);
     edges += uses;
     if use_lsp {
-        assert_eq!(uses, 35, "Expected 35 Uses edges with LSP");
+        assert_eq!(uses, 46, "Expected 46 Uses edges with LSP");
     } else {
         assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
     }

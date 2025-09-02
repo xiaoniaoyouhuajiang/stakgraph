@@ -1019,7 +1019,7 @@ impl Lang {
         Ok(Some(edge))
     }
 
-    fn clean_and_combine_comments(&self, comments: &[String]) -> String {
+    pub fn clean_and_combine_comments(&self, comments: &[String]) -> String {
         let mut cleaned_comments = Vec::new();
         
         for comment in comments {
