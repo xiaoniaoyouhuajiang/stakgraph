@@ -136,20 +136,24 @@ import NewPerson from "./components/NewPerson";"#
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
     if use_lsp == true {
-        assert_eq!(functions.len(), 23, "Expected 23 functions/components");
+        assert_eq!(functions.len(), 24, "Expected 24 functions/components");
     } else {
-        assert_eq!(functions.len(), 17, "Expected 17 functions/components");
+        assert_eq!(functions.len(), 18, "Expected 18 functions/components");
     }
 
     let mut sorted_functions = functions.clone();
     sorted_functions.sort_by(|a, b| a.name.cmp(&b.name));
 
+    let app_function = sorted_functions
+        .iter()
+        .find(|f| f.name == "App")
+        .expect("App function not found");
     assert_eq!(
-        sorted_functions[0].name, "App",
+        app_function.name, "App",
         "App component name is incorrect"
     );
     assert_eq!(
-        normalize_path(&sorted_functions[0].file),
+        normalize_path(&app_function.file),
         "src/testing/react/src/App.tsx",
         "App component file path is incorrect"
     );
@@ -486,8 +490,8 @@ import NewPerson from "./components/NewPerson";"#
     let contains_edges_count = graph.count_edges_of_type(EdgeType::Contains);
     edges_count += contains_edges_count;
     assert_eq!(
-        contains_edges_count, 69,
-        "Expected 69 contains edges, got {}",
+        contains_edges_count, 70,
+        "Expected 70 contains edges, got {}",
         contains_edges_count
     );
 

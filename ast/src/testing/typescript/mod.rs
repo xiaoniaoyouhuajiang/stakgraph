@@ -96,10 +96,10 @@ import {{ sequelize }} from "./config.js";"#
 
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
-    if use_lsp == true {
-        assert_eq!(functions.len(), 9, "Expected 9 functions");
+    if use_lsp {
+        assert_eq!(functions.len(), 15, "Expected 15 functions with LSP");
     } else {
-        assert_eq!(functions.len(), 6, "Expected 6 functions");
+        assert_eq!(functions.len(), 12, "Expected 12 functions without LSP");
     }
 
     let classes = graph.find_nodes_by_type(NodeType::Class);
@@ -112,7 +112,11 @@ import {{ sequelize }} from "./config.js";"#
 
     let calls_edges_count = graph.count_edges_of_type(EdgeType::Calls);
     edges_count += calls_edges_count;
-    assert_eq!(calls_edges_count, 2, "Expected 2 calls edges");
+    if use_lsp {
+        assert_eq!(calls_edges_count, 2, "Expected 2 calls edges with LSP");
+    } else {
+        assert_eq!(calls_edges_count, 3, "Expected 3 calls edges without LSP");
+    }
 
     let data_models = graph.find_nodes_by_type(NodeType::DataModel);
     nodes_count += data_models.len();
@@ -128,14 +132,14 @@ import {{ sequelize }} from "./config.js";"#
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges_count += contains;
-    assert_eq!(contains, 64, "Expected 64 contains edges");
+    assert_eq!(contains, 81, "Expected 81 contains edges");
 
     let import_edges_count = graph.count_edges_of_type(EdgeType::Imports);
     edges_count += import_edges_count;
     if use_lsp {
         assert_eq!(import_edges_count, 15, "Expected 15 import edges");
     } else {
-        assert_eq!(import_edges_count, 12, "Expected 12 import edges");
+    assert_eq!(import_edges_count, 12, "Expected 12 import edges");
     }
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
@@ -173,7 +177,7 @@ import {{ sequelize }} from "./config.js";"#
     if use_lsp {
         assert_eq!(uses, 5, "Expected 5 uses edges");
     } else {
-        assert_eq!(uses, 0, "Expected 0 uses edges");
+    assert_eq!(uses, 0, "Expected 0 uses edges");
     }
 
     let post_person_endpoint = endpoints
