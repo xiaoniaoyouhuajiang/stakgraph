@@ -2,6 +2,8 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Card component container
+// Provides base styling and layout
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
