@@ -89,7 +89,7 @@ Tagger.Textarea = (function() {
                 const resultItems = Array.from(Tagger.elements.resultsList.querySelectorAll('.result-item'));
                 if (resultItems.length > 0 && Tagger.state.selectedResultIndex < resultItems.length) {
                     const selectedItem = resultItems[Tagger.state.selectedResultIndex];
-                    Tagger.Tooltip.showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
+                    Tagger.Tooltip.showTooltip(selectedItem.dataset.body, selectedItem.dataset.docs, selectedItem.dataset.file);
                 }
             }
         }
@@ -119,6 +119,7 @@ Tagger.Textarea = (function() {
             // Show the tooltip for this tag
             Tagger.Tooltip.showTooltip(
                 tagElement.dataset.body, 
+                tagElement.dataset.docs,
                 tagElement.dataset.file
             );
         } else {
@@ -246,6 +247,7 @@ Tagger.Textarea = (function() {
             
             // Store data for tooltip
             resultItem.dataset.body = result.properties.body || '';
+            resultItem.dataset.docs = result.properties.docs || '';
             resultItem.dataset.file = result.properties.file || '';
             
             // Create container for flex layout
@@ -336,7 +338,7 @@ Tagger.Textarea = (function() {
             // If shift is pressed, show the tooltip for the selected item
             if (Tagger.state.shiftPressed) {
                 const selectedItem = resultItems[Tagger.state.selectedResultIndex];
-                Tagger.Tooltip.showTooltip(selectedItem.dataset.body, selectedItem.dataset.file);
+                Tagger.Tooltip.showTooltip(selectedItem.dataset.body, selectedItem.dataset.docs, selectedItem.dataset.file);
             }
         }
     },
@@ -395,6 +397,7 @@ Tagger.Textarea = (function() {
             tagSpan.textContent = `${Tagger.state.currentTrigger}${Tagger.state.currentTag}`;
         }
         tagSpan.dataset.body = result.properties.body || '';
+        tagSpan.dataset.docs = result.properties.docs || '';
         tagSpan.dataset.file = result.properties.file || '';
         tagSpan.dataset.nodeType = result.node_type;
         

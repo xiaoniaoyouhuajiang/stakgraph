@@ -10,6 +10,7 @@ import { NODE_TYPE_COLORS, html } from "./utils.js";
 export const Prompt = ({ onSend, baseUrl, apiToken }) => {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipBodyText, setTooltipBodyText] = useState("");
+  const [tooltipDocsText, setTooltipDocsText] = useState("");
   const [tooltipFilePath, setTooltipFilePath] = useState("");
   const [results, setResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
@@ -44,11 +45,13 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
             const selectedItem = results[selectedResultIndex];
             showTooltip(
               selectedItem.properties.body,
+              selectedItem.properties.docs,
               selectedItem.properties.file
             );
           } else if (activeTagElement) {
             showTooltip(
               activeTagElement.dataset.body,
+              activeTagElement.dataset.docs,
               activeTagElement.dataset.file
             );
           }
@@ -101,12 +104,13 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
   }, [selectedResultIndex, showResults, results]);
 
   // Tooltip methods
-  const showTooltip = useCallback((bodyText, filePath) => {
+  const showTooltip = useCallback((bodyText, docsText, filePath) => {
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
       tooltipTimeoutRef.current = null;
     }
     setTooltipBodyText(bodyText || "");
+    setTooltipDocsText(docsText || "");
     setTooltipFilePath(filePath || "");
     setTooltipVisible(true);
   }, []);
@@ -253,6 +257,7 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
         tagSpan.textContent = `${currentRangeInfo.triggerChar}${currentRangeInfo.tagText}`;
       }
       tagSpan.dataset.body = result.properties.body || "";
+      tagSpan.dataset.docs = result.properties.docs || "";
       tagSpan.dataset.file = result.properties.file || "";
       tagSpan.dataset.name = result.properties.name || "";
       tagSpan.dataset.node_type = result.node_type;
@@ -316,7 +321,7 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
       setSelectedResultIndex(index);
       setIsHoveringResult(true);
       // Always show tooltip on hover, regardless of shift key
-      showTooltip(result.properties.body, result.properties.file);
+      showTooltip(result.properties.body, result.properties.docs, result.properties.file);
     },
     [showTooltip]
   );
@@ -335,6 +340,21 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
     }, 50);
   }, [hideTooltip]);
 
+  const handleTooltipMouseEnter = useCallback(() => {
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+      tooltipTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleTooltipMouseLeave = useCallback(() => {
+    if (!isHoveringResult) {
+      tooltipTimeoutRef.current = setTimeout(() => {
+        hideTooltip();
+      }, 150);
+    }
+  }, [isHoveringResult, hideTooltip]);
+
   const handleTagClick = useCallback(
     (tagElement) => {
       // If clicking on the same tag that's already active, do nothing
@@ -346,7 +366,7 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
       setActiveTagElement(tagElement);
 
       // Show the tooltip for this tag
-      showTooltip(tagElement.dataset.body, tagElement.dataset.file);
+      showTooltip(tagElement.dataset.body, tagElement.dataset.docs, tagElement.dataset.file);
     },
     [activeTagElement, tooltipVisible, showTooltip]
   );
@@ -361,6 +381,7 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
       node_type: el.dataset.node_type || null,
       file: el.dataset.file || null,
       body: el.dataset.body || null,
+      docs: el.dataset.docs || null,
       name: el.dataset.name || null,
     }));
   }, []);
@@ -449,10 +470,13 @@ export const Prompt = ({ onSend, baseUrl, apiToken }) => {
     <div class="content-container">
       <${Tooltip}
         bodyText=${tooltipBodyText}
+        docsText=${tooltipDocsText}
         filePath=${tooltipFilePath}
         isVisible=${tooltipVisible}
         onClose=${hideTooltip}
         onUntag=${untagElement}
+        onMouseEnter=${handleTooltipMouseEnter}
+        onMouseLeave=${handleTooltipMouseLeave}
       />
       <${Editor}
         onSearchTriggered=${searchForTag}

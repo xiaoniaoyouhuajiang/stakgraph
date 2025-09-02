@@ -93,10 +93,44 @@ impl Stack for Python {
     // this captures both
     fn function_definition_query(&self) -> String {
         format!(
-            "(function_definition
+            r#"
+            (function_definition
                 name: (identifier) @{FUNCTION_NAME}
                 parameters: (parameters) @{ARGUMENTS}
-            ) @{FUNCTION_DEFINITION}"
+            ) @{FUNCTION_DEFINITION}
+
+            ; Function with preceding comment
+            (comment)+ @{FUNCTION_COMMENT}
+            .
+            (function_definition
+                name: (identifier) @{FUNCTION_NAME}
+                parameters: (parameters) @{ARGUMENTS}
+            ) @{FUNCTION_DEFINITION}
+
+            ; Function with docstring in body
+            (function_definition
+                name: (identifier) @{FUNCTION_NAME}
+                parameters: (parameters) @{ARGUMENTS}
+                body: (block
+                    (expression_statement
+                        (string) @{FUNCTION_COMMENT}
+                    )
+                )
+            ) @{FUNCTION_DEFINITION}
+
+            ; Function with both preceding comment and docstring
+            (comment)+ @{FUNCTION_COMMENT}
+            .
+            (function_definition
+                name: (identifier) @{FUNCTION_NAME}
+                parameters: (parameters) @{ARGUMENTS}
+                body: (block
+                    (expression_statement
+                        (string) @{FUNCTION_COMMENT}
+                    )
+                )
+            ) @{FUNCTION_DEFINITION}
+            "#
         )
     }
     fn find_function_parent(

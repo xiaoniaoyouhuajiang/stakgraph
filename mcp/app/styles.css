@@ -188,6 +188,43 @@ body {
   font-family: inherit;
 }
 
+.docs-section {
+  margin-bottom: 12px;
+}
+
+.docs-header {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--text-color);
+  margin-bottom: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.docs-content {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-color);
+  background-color: var(--docs-bg, #2c313a);
+  padding: 8px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.code-section {
+  margin-top: 8px;
+}
+
+.code-header {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--text-color);
+  margin-bottom: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
 .tagged-text {
   font-weight: bold;
   cursor: pointer;

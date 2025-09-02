@@ -8,6 +8,7 @@ use streaming_iterator::StreamingIterator;
 use tree_sitter::QueryMatch;
 
 use super::utils::{find_def, is_capitalized, log_cmd, trim_quotes};
+use super::super::queries::consts::FUNCTION_COMMENT;
 
 impl Lang {
     pub fn format_class_with_associations<G: Graph>(
@@ -464,6 +465,7 @@ impl Lang {
         let mut trait_operand = None;
         let mut name_pos = None;
         let mut return_type_data_models = Vec::new();
+        let mut comments = Vec::new();
 
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == PARENT_TYPE {
@@ -631,12 +633,18 @@ impl Lang {
                         }
                     }
                 }
+            } else if o == FUNCTION_COMMENT {
+                comments.push(body);
             }
             Ok(())
         })?;
         if func.body.is_empty() {
             log_cmd(format!("found function but empty body {:?}", func.name));
             return Ok(None);
+        }
+
+        if !comments.is_empty() {
+            func.docs = Some(self.clean_and_combine_comments(&comments));
         }
 
         if matches!(self.kind, Language::React) {
@@ -1009,5 +1017,58 @@ impl Lang {
             NodeRef::from(endpoint, NodeType::Endpoint),
         );
         Ok(Some(edge))
+    }
+
+    fn clean_and_combine_comments(&self, comments: &[String]) -> String {
+        let mut cleaned_comments = Vec::new();
+        
+        for comment in comments {
+            let cleaned = self.clean_comment(comment);
+            if !cleaned.is_empty() {
+                cleaned_comments.push(cleaned);
+            }
+        }
+        
+        cleaned_comments.join("\n").trim().to_string()
+    }
+
+    fn clean_comment(&self, comment: &str) -> String {
+        let lines: Vec<String> = comment
+            .lines()
+            .map(|line| {
+                let trimmed = line.trim();
+                if let Some(stripped) = trimmed.strip_prefix("///") {
+                    stripped.trim().to_string()
+                } else if let Some(stripped) = trimmed.strip_prefix("//") {
+                    stripped.trim().to_string()
+                } else if let Some(stripped) = trimmed.strip_prefix("#") {
+                    stripped.trim().to_string()
+                } else if let Some(stripped) = trimmed.strip_prefix("/*") {
+                    let without_start = stripped.trim();
+                    if let Some(without_end) = without_start.strip_suffix("*/") {
+                        without_end.trim().to_string()
+                    } else {
+                        without_start.to_string()
+                    }
+                } else if let Some(stripped) = trimmed.strip_suffix("*/") {
+                    stripped.trim().to_string()
+                } else if let Some(stripped) = trimmed.strip_prefix("*") {
+                    stripped.trim().to_string()
+                } else if trimmed.starts_with("\"\"\"") && trimmed.ends_with("\"\"\"") && trimmed.len() > 6 {
+                    trimmed[3..trimmed.len()-3].trim().to_string()
+                } else if trimmed.starts_with("'''") && trimmed.ends_with("'''") && trimmed.len() > 6 {
+                    trimmed[3..trimmed.len()-3].trim().to_string()
+                } else if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
+                    trimmed[3..].trim().to_string()
+                } else if trimmed.ends_with("\"\"\"") || trimmed.ends_with("'''") {
+                    trimmed[..trimmed.len()-3].trim().to_string()
+                } else {
+                    trimmed.to_string()
+                }
+            })
+            .filter(|line| !line.is_empty())
+            .collect();
+            
+        lines.join("\n")
     }
 }

@@ -110,7 +110,7 @@ impl Stack for Go {
     fn function_definition_query(&self) -> String {
         let return_type = format!(r#"result: (_)? @{RETURN_TYPES}"#);
         format!(
-            "[
+            r#"[
                 (function_declaration
                     name: (identifier) @{FUNCTION_NAME}
                     parameters: (parameter_list) @{ARGUMENTS}
@@ -130,7 +130,35 @@ impl Stack for Go {
                     parameters: (parameter_list) @{ARGUMENTS}
                     {return_type}
                 )
-            ] @{FUNCTION_DEFINITION}"
+            ] @{FUNCTION_DEFINITION}
+
+            ; Function with preceding comment
+            (comment)+ @{FUNCTION_COMMENT}
+            .
+            (function_declaration
+                name: (identifier) @{FUNCTION_NAME}
+                parameters: (parameter_list) @{ARGUMENTS}
+                {return_type}
+            ) @{FUNCTION_DEFINITION}
+
+            ; Method with preceding comment
+            (comment)+ @{FUNCTION_COMMENT}
+            .
+            (method_declaration
+                receiver: (parameter_list
+                    (parameter_declaration
+                        name: (identifier) @{PARENT_NAME}
+                        type: [
+                            (type_identifier)
+                            (pointer_type) (type_identifier)
+                        ] @{PARENT_TYPE}
+                    )
+                )
+                name: (field_identifier) @{FUNCTION_NAME}
+                parameters: (parameter_list) @{ARGUMENTS}
+                {return_type}
+            ) @{FUNCTION_DEFINITION}
+            "#
         )
     }
     fn function_call_query(&self) -> String {
