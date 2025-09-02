@@ -202,11 +202,10 @@ pub async fn ingest(
     let start_total = Instant::now();
     let (_, final_repo_url, username, pat, commit) = resolve_repo(&body)?;
     let use_lsp = body.use_lsp;
-
     let repo_url = final_repo_url.clone();
 
-    let start_build = Instant::now();
 
+    let start_clone = Instant::now();
     let mut repos = Repo::new_clone_multi_detect(
         &repo_url,
         username.clone(),
@@ -223,6 +222,11 @@ pub async fn ingest(
             e
         )))
     })?;
+    let clone_s = start_clone.elapsed().as_secs_f64();
+    info!(
+        "[perf][ingest] phase=clone_detect repo={} s={:.2}",
+        final_repo_url, clone_s
+    );
 
     repos.set_status_tx(state.tx.clone()).await;
     let streaming = std::env::var("STREAM_UPLOAD").is_ok();
@@ -231,21 +235,20 @@ pub async fn ingest(
         graph_ops.connect().await?;
         for repo in &repos.0 {
             let stripped_root = strip_tmp(&repo.root).display().to_string();
-            info!("[stream] Pre-clearing old data for {}...", stripped_root);
+            info!("[Stream] Pre-clearing old data for {}...", stripped_root);
             graph_ops.clear_existing_graph(&stripped_root).await?;
         }
     }
 
+    let start_build = Instant::now();
     let btree_graph = repos
         .build_graphs_inner::<ast::lang::graphs::BTreeMapGraph>()
         .await
         .map_err(|e| WebError(shared::Error::Custom(format!("Failed to build graphs: {}", e))))?;
-    let build_ms = start_build.elapsed().as_millis();
+    let build_s = start_build.elapsed().as_secs_f64();
     info!(
-        "[SPEED] Workflow=ingest stage=build_ms={} repo={} streaming={}",
-        build_ms,
-        final_repo_url,
-        streaming
+        "[perf][ingest] phase=build repo={} streaming={} s={:.2}",
+        final_repo_url, streaming, build_s
     );
     let mut graph_ops = GraphOps::new();
     graph_ops.connect().await?;
@@ -282,20 +285,23 @@ pub async fn ingest(
         step_description: Some("Graph building completed".to_string()),
     });
 
-    let upload_ms = start_upload.elapsed().as_millis();
+    let upload_s = start_upload.elapsed().as_secs_f64();
     info!(
-        "[SPEED] workflow=ingest stage=upload_ms={} repo={} streaming={}",
-        upload_ms,
-        final_repo_url,
-        streaming
+        "[perf][ingest] phase=upload repo={} streaming={} s={:.2}",
+        final_repo_url, streaming, upload_s
     );
 
-    let total_ms = start_total.elapsed().as_millis();
+    let build_upload_s = build_s + upload_s;
+    let total_s = start_total.elapsed().as_secs_f64();
     info!(
-        "[SPEED] workflow=ingest stage=total_ms={} repo={} streaming={} nodes={} edges={}",
-        total_ms,
+        "[perf][ingest][results] repo={} streaming={} clone_s={:.2} build_s={:.2} upload_s={:.2} build_upload_s={:.2} total_s={:.2} nodes={} edges={}",
         final_repo_url,
         streaming,
+        clone_s,
+        build_s,
+        upload_s,
+        build_upload_s,
+        total_s,
         nodes,
         edges
     );
