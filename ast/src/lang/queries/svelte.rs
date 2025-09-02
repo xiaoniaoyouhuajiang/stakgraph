@@ -62,7 +62,6 @@ impl Stack for Svelte {
 
             ; Attribute with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (
                 attribute
                 (expression

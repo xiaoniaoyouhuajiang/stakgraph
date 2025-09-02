@@ -182,7 +182,6 @@ impl Stack for Rust {
               (line_comment)+
               (block_comment)+
             ] @{FUNCTION_COMMENT}
-            .
             (function_item
               name: (identifier) @{FUNCTION_NAME}
               parameters: (parameters) @{ARGUMENTS}
@@ -194,7 +193,6 @@ impl Stack for Rust {
               (line_comment)+
               (block_comment)+
             ] @{FUNCTION_COMMENT}
-            .
             (function_signature_item
               name: (identifier) @{FUNCTION_NAME}
               parameters: (parameters) @{ARGUMENTS}
@@ -208,7 +206,6 @@ impl Stack for Rust {
                   (line_comment)+
                   (block_comment)+
                 ] @{FUNCTION_COMMENT}
-                .
                 (function_item
                   name: (identifier) @{FUNCTION_NAME}
                   parameters: (parameters) @{ARGUMENTS}

@@ -66,8 +66,7 @@ impl Stack for Swift {
         [
             (comment)+
             (multiline_comment)+
-        ] @{FUNCTION_COMMENT}
-        .
+                    ] @{FUNCTION_COMMENT}
         (function_declaration
             (simple_identifier) @{FUNCTION_NAME}
         ) @{FUNCTION_DEFINITION}

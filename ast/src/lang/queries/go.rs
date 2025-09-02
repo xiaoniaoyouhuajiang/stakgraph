@@ -134,7 +134,6 @@ impl Stack for Go {
 
             ; Function with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (function_declaration
                 name: (identifier) @{FUNCTION_NAME}
                 parameters: (parameter_list) @{ARGUMENTS}
@@ -143,7 +142,6 @@ impl Stack for Go {
 
             ; Method with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (method_declaration
                 receiver: (parameter_list
                     (parameter_declaration

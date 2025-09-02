@@ -144,7 +144,6 @@ impl Stack for TypeScript {
 
             ; Function with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (function_declaration
                 name: (identifier) @{FUNCTION_NAME}
                 parameters : (formal_parameters)? @{ARGUMENTS}
@@ -164,7 +163,6 @@ impl Stack for TypeScript {
 
             ; Arrow function with preceding comment  
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (lexical_declaration
                 (variable_declarator
                     name: (identifier) @{FUNCTION_NAME}
@@ -184,7 +182,6 @@ impl Stack for TypeScript {
 
             ; Method definition with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (method_definition
                 name: (property_identifier) @{FUNCTION_NAME}
                 parameters: (formal_parameters)? @{ARGUMENTS}

@@ -110,7 +110,6 @@ impl Stack for Java {
                 (line_comment)+
                 (block_comment)+
             ] @{FUNCTION_COMMENT}
-            .
             (method_declaration
                 type: (_) @{RETURN_TYPES}
                 name: (identifier) @{FUNCTION_NAME}                
@@ -132,7 +131,6 @@ impl Stack for Java {
                 (line_comment)+
                 (block_comment)+
             ] @{FUNCTION_COMMENT}
-            .
             (constructor_declaration
                 name: (identifier) @{FUNCTION_NAME}
                 (formal_parameters

@@ -130,7 +130,6 @@ impl Stack for Ruby {
 
             ; Method with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (method
                 name: (identifier) @{FUNCTION_NAME}
                 parameters: (method_parameters)? @{ARGUMENTS}
@@ -138,7 +137,6 @@ impl Stack for Ruby {
 
             ; Singleton method with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (singleton_method
                 name: (identifier) @{FUNCTION_NAME}
                 parameters: (method_parameters)? @{ARGUMENTS}

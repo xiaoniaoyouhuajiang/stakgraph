@@ -101,7 +101,6 @@ impl Stack for Python {
 
             ; Function with preceding comment
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (function_definition
                 name: (identifier) @{FUNCTION_NAME}
                 parameters: (parameters) @{ARGUMENTS}
@@ -120,7 +119,6 @@ impl Stack for Python {
 
             ; Function with both preceding comment and docstring
             (comment)+ @{FUNCTION_COMMENT}
-            .
             (function_definition
                 name: (identifier) @{FUNCTION_NAME}
                 parameters: (parameters) @{ARGUMENTS}

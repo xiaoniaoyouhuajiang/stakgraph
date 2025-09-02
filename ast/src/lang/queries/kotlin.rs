@@ -133,7 +133,6 @@ impl Stack for Kotlin {
                             (line_comment)+
                             (multiline_comment)+
                         ] @{FUNCTION_COMMENT}
-                        .
                         (function_declaration
                             (simple_identifier) @{FUNCTION_NAME}
                             (function_value_parameters) @{ARGUMENTS}
@@ -146,7 +145,6 @@ impl Stack for Kotlin {
                     (line_comment)+
                     (multiline_comment)+
                 ] @{FUNCTION_COMMENT}
-                .
                 (function_declaration
                     (simple_identifier) @{FUNCTION_NAME}
                     (function_value_parameters) @{ARGUMENTS}

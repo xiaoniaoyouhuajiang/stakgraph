@@ -167,7 +167,6 @@ impl Stack for Cpp {
             [
                 (comment)+
             ] @{FUNCTION_COMMENT}
-            .
             (function_definition
                 type : (_) @{RETURN_TYPES}
                 declarator: (function_declarator
@@ -185,7 +184,6 @@ impl Stack for Cpp {
                     [
                         (comment)+
                     ] @{FUNCTION_COMMENT}
-                    .
                     (function_definition
                         type : (_) @{RETURN_TYPES}
                         declarator: (function_declarator
