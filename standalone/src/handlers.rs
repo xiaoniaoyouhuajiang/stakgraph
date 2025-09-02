@@ -29,7 +29,6 @@ use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::broadcast;
 use tracing::info;
-use crate::codecov;
 
 pub async fn sse_handler(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
     let rx = app_state.tx.subscribe();
@@ -802,7 +801,7 @@ pub async fn codecov_handler(
     let codecov_status_map_clone = codecov_status_map.clone();
 
     tokio::spawn(async move {
-        match codecov::run(body).await {
+        match crate::codecov::run(body).await {
             Ok(report) => {
                 let mut map = codecov_status_map_clone.lock().await;
                 if let Some(status) = map.get_mut(&request_id_clone) {
