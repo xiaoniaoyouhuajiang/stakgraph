@@ -176,43 +176,16 @@ impl Stack for Rust {
                   parameters: (parameters) @{ARGUMENTS}
                   return_type: (type_identifier)? @{RETURN_TYPES}
                   body: (block)? @method.body) @method)) @impl
-
-            ; Function with preceding comment/doc comment
-            [
-              (line_comment)+
-              (block_comment)+
-            ] @{FUNCTION_COMMENT}
-            (function_item
-              name: (identifier) @{FUNCTION_NAME}
-              parameters: (parameters) @{ARGUMENTS}
-              return_type: (type_identifier)? @{RETURN_TYPES}
-              body: (block)? @function.body) @{FUNCTION_DEFINITION}
-
-            ; Function signature with preceding comment/doc comment
-            [
-              (line_comment)+
-              (block_comment)+
-            ] @{FUNCTION_COMMENT}
-            (function_signature_item
-              name: (identifier) @{FUNCTION_NAME}
-              parameters: (parameters) @{ARGUMENTS}
-              return_type: (type_identifier)? @{RETURN_TYPES}) @{FUNCTION_DEFINITION}
-
-            ; Method with preceding comment/doc comment
-            (impl_item
-              type: (_) @{PARENT_TYPE}
-              body: (declaration_list
-                [
-                  (line_comment)+
-                  (block_comment)+
-                ] @{FUNCTION_COMMENT}
-                (function_item
-                  name: (identifier) @{FUNCTION_NAME}
-                  parameters: (parameters) @{ARGUMENTS}
-                  return_type: (type_identifier)? @{RETURN_TYPES}
-                  body: (block)? @method.body) @method)) @impl
             "#
         )
+    }
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"
+            [
+              (line_comment)+
+              (block_comment)+
+            ] @{FUNCTION_COMMENT}
+        "#))
     }
     fn function_call_query(&self) -> String {
         format!(

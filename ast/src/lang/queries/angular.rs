@@ -153,38 +153,17 @@ impl Stack for Angular {
     fn function_definition_query(&self) -> String {
         format!(
             r#"
+
+
             (method_definition
                 name: (property_identifier) @{FUNCTION_NAME}
                 parameters: (formal_parameters)
             )@{FUNCTION_DEFINITION}
-
-            ; Method with preceding comment
-            [
-                (comment)+
-            ] @{FUNCTION_COMMENT}
-            (method_definition
-                name: (property_identifier) @{FUNCTION_NAME}
-                parameters: (formal_parameters)
-            )@{FUNCTION_DEFINITION}
-
-            ; Function declaration
-            (function_declaration
-                name: (identifier) @{FUNCTION_NAME}
-                parameters: (formal_parameters)? @{ARGUMENTS}
-                return_type: (type_annotation)? @{RETURN_TYPES}
-            ) @{FUNCTION_DEFINITION}
-
-            ; Function declaration with preceding comment
-            [
-                (comment)+
-            ] @{FUNCTION_COMMENT}
-            (function_declaration
-                name: (identifier) @{FUNCTION_NAME}
-                parameters: (formal_parameters)? @{ARGUMENTS}
-                return_type: (type_annotation)? @{RETURN_TYPES}
-            ) @{FUNCTION_DEFINITION}
             "#
         )
+    }
+    fn comment_query(&self) -> Option<String> { 
+        Some(format!(r#"(comment) @{FUNCTION_COMMENT}"#))
     }
 
     fn function_call_query(&self) -> String {

@@ -106,7 +106,7 @@ impl Stack for Kotlin {
     //GIVEN
     fn function_definition_query(&self) -> String {
         format!(
-            r#"(
+            "(
                 (class_declaration
                     (type_identifier)? @{PARENT_TYPE}
                     (class_body
@@ -124,33 +124,16 @@ impl Stack for Kotlin {
                     (function_value_parameters) @{ARGUMENTS}
                 ) @{FUNCTION_DEFINITION}
                 )
-
-                ; Class method with preceding comment
-                (class_declaration
-                    (type_identifier)? @{PARENT_TYPE}
-                    (class_body
-                        [
-                            (line_comment)+
-                            (multiline_comment)+
-                        ] @{FUNCTION_COMMENT}
-                        (function_declaration
-                            (simple_identifier) @{FUNCTION_NAME}
-                            (function_value_parameters) @{ARGUMENTS}
-                        ) @{FUNCTION_DEFINITION}
-                    )
-                )
-
-                ; Top-level function with preceding comment
-                [
-                    (line_comment)+
-                    (multiline_comment)+
-                ] @{FUNCTION_COMMENT}
-                (function_declaration
-                    (simple_identifier) @{FUNCTION_NAME}
-                    (function_value_parameters) @{ARGUMENTS}
-                ) @{FUNCTION_DEFINITION}
-            "#
+            "
         )
+    }
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"
+             [
+                (line_comment)+
+                (multiline_comment)+
+            ] @{FUNCTION_COMMENT}
+        "#))
     }
 
     fn find_function_parent(

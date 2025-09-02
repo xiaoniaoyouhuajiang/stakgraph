@@ -162,41 +162,12 @@ impl Stack for Cpp {
                 )@{FUNCTION_DEFINITION}
                 ]
             )
-
-            ; Function with preceding comment
-            [
-                (comment)+
-            ] @{FUNCTION_COMMENT}
-            (function_definition
-                type : (_) @{RETURN_TYPES}
-                declarator: (function_declarator
-                    declarator : (identifier) @{FUNCTION_NAME}
-                    parameters: (parameter_list
-                        (parameter_declaration)@{ARGUMENTS}
-                    )?
-                )
-            )@{FUNCTION_DEFINITION}
-
-            ; Class method with preceding comment
-            (class_specifier
-                name:(type_identifier)@{PARENT_TYPE}
-                body: (field_declaration_list
-                    [
-                        (comment)+
-                    ] @{FUNCTION_COMMENT}
-                    (function_definition
-                        type : (_) @{RETURN_TYPES}
-                        declarator: (function_declarator
-                            declarator : (field_identifier) @{FUNCTION_NAME}
-                            parameters: (parameter_list
-                                (parameter_declaration)@{ARGUMENTS}
-                            )?
-                        )
-                    )@{FUNCTION_DEFINITION}
-                )
-            )
             "#
         )
+    }
+
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"(comment) @{FUNCTION_COMMENT}"#))
     }
 
     fn function_call_query(&self) -> String {

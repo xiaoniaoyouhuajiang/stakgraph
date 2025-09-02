@@ -104,41 +104,17 @@ impl Stack for Java {
                     (formal_parameter)@{ARGUMENTS}
                 )?  
             )@{FUNCTION_DEFINITION}
-
-            ; Method with preceding comment/javadoc
-            [
-                (line_comment)+
-                (block_comment)+
-            ] @{FUNCTION_COMMENT}
-            (method_declaration
-                type: (_) @{RETURN_TYPES}
-                name: (identifier) @{FUNCTION_NAME}                
-                (formal_parameters
-                    (formal_parameter)@{ARGUMENTS}
-                )?  
-            )@{FUNCTION_DEFINITION}
-
-            ; Constructor
-            (constructor_declaration
-                name: (identifier) @{FUNCTION_NAME}
-                (formal_parameters
-                    (formal_parameter)@{ARGUMENTS}
-                )?
-            )@{FUNCTION_DEFINITION}
-
-            ; Constructor with preceding comment/javadoc
-            [
-                (line_comment)+
-                (block_comment)+
-            ] @{FUNCTION_COMMENT}
-            (constructor_declaration
-                name: (identifier) @{FUNCTION_NAME}
-                (formal_parameters
-                    (formal_parameter)@{ARGUMENTS}
-                )?
-            )@{FUNCTION_DEFINITION}
             "#
         )
+    }
+
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#" [
+                    (line_comment)+
+                    (block_comment)+
+                ] @{FUNCTION_COMMENT}
+                "#
+        ))
     }
 
     fn function_call_query(&self) -> String {

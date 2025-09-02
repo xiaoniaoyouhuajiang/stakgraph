@@ -59,17 +59,11 @@ impl Stack for Svelte {
                     (_) @{FUNCTION_NAME}
                 ) @{FUNCTION_DEFINITION}
             )
-
-            ; Attribute with preceding comment
-            (comment)+ @{FUNCTION_COMMENT}
-            (
-                attribute
-                (expression
-                    (_) @{FUNCTION_NAME}
-                ) @{FUNCTION_DEFINITION}
-            )
             "#
         )
+    }
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"(comment) @{FUNCTION_COMMENT}"#))
     }
 
     fn function_call_query(&self) -> String {

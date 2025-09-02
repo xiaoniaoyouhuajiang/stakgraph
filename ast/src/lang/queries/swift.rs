@@ -61,17 +61,16 @@ impl Stack for Swift {
         (function_declaration
             (simple_identifier) @{FUNCTION_NAME}
         ) @{FUNCTION_DEFINITION}
-
-        ; Function with preceding comment
-        [
-            (comment)+
-            (multiline_comment)+
-                    ] @{FUNCTION_COMMENT}
-        (function_declaration
-            (simple_identifier) @{FUNCTION_NAME}
-        ) @{FUNCTION_DEFINITION}
         "#
         )
+    }
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"
+             [
+                (comment)+
+                (multiline_comment)+
+             ] @{FUNCTION_COMMENT}
+        "#))
     }
 
     fn function_call_query(&self) -> String {

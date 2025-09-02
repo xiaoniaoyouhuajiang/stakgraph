@@ -117,7 +117,7 @@ impl Stack for Ruby {
 
     fn function_definition_query(&self) -> String {
         format!(
-            r#"[
+            "[
                 (method
                     name: (identifier) @{FUNCTION_NAME}
                     parameters: (method_parameters)? @{ARGUMENTS}
@@ -126,23 +126,13 @@ impl Stack for Ruby {
                     name: (identifier) @{FUNCTION_NAME}
                     parameters: (method_parameters)? @{ARGUMENTS}
                 )
-            ] @{FUNCTION_DEFINITION}
-
-            ; Method with preceding comment
-            (comment)+ @{FUNCTION_COMMENT}
-            (method
-                name: (identifier) @{FUNCTION_NAME}
-                parameters: (method_parameters)? @{ARGUMENTS}
-            ) @{FUNCTION_DEFINITION}
-
-            ; Singleton method with preceding comment
-            (comment)+ @{FUNCTION_COMMENT}
-            (singleton_method
-                name: (identifier) @{FUNCTION_NAME}
-                parameters: (method_parameters)? @{ARGUMENTS}
-            ) @{FUNCTION_DEFINITION}
-            "#
+            ] @{FUNCTION_DEFINITION}"
         )
+    }
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"
+            (comment)+ @{FUNCTION_COMMENT}
+        "#))
     }
     fn function_call_query(&self) -> String {
         format!(

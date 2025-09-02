@@ -141,54 +141,12 @@ impl Stack for TypeScript {
                 parameters : (formal_parameters)? @{ARGUMENTS}
                 return_type: (type_annotation)? @{RETURN_TYPES}
             ) @{FUNCTION_DEFINITION}
-
-            ; Function with preceding comment
-            (comment)+ @{FUNCTION_COMMENT}
-            (function_declaration
-                name: (identifier) @{FUNCTION_NAME}
-                parameters : (formal_parameters)? @{ARGUMENTS}
-                return_type: (type_annotation)? @{RETURN_TYPES}
-            ) @{FUNCTION_DEFINITION}
-
-            ; Arrow function
-            (lexical_declaration
-                (variable_declarator
-                    name: (identifier) @{FUNCTION_NAME}
-                    value: (arrow_function
-                        parameters: (formal_parameters)? @{ARGUMENTS}
-                        return_type: (type_annotation)? @{RETURN_TYPES}
-                    )
-                )
-            ) @{FUNCTION_DEFINITION}
-
-            ; Arrow function with preceding comment  
-            (comment)+ @{FUNCTION_COMMENT}
-            (lexical_declaration
-                (variable_declarator
-                    name: (identifier) @{FUNCTION_NAME}
-                    value: (arrow_function
-                        parameters: (formal_parameters)? @{ARGUMENTS}
-                        return_type: (type_annotation)? @{RETURN_TYPES}
-                    )
-                )
-            ) @{FUNCTION_DEFINITION}
-
-            ; Method definition
-            (method_definition
-                name: (property_identifier) @{FUNCTION_NAME}
-                parameters: (formal_parameters)? @{ARGUMENTS}
-                return_type: (type_annotation)? @{RETURN_TYPES}
-            ) @{FUNCTION_DEFINITION}
-
-            ; Method definition with preceding comment
-            (comment)+ @{FUNCTION_COMMENT}
-            (method_definition
-                name: (property_identifier) @{FUNCTION_NAME}
-                parameters: (formal_parameters)? @{ARGUMENTS}
-                return_type: (type_annotation)? @{RETURN_TYPES}
-            ) @{FUNCTION_DEFINITION}
             "#
         )
+    }
+
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"(comment) @{FUNCTION_COMMENT}"#))
     }
 
     fn function_call_query(&self) -> String {
