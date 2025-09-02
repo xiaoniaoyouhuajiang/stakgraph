@@ -186,30 +186,8 @@ pub struct CodecovRequestStatus {
     pub error: Option<String>,
 }
 
-#[derive(Serialize, Clone, Debug, Deserialize)]
-pub struct Metric {
-    pub total: u64,
-    pub covered: u64,
-    pub pct: f64,
-}
-
-#[derive(Serialize, Clone, Debug, Deserialize)]
-pub struct LanguageReport {
-    pub language: String,
-    pub lines: Option<Metric>,
-    pub branches: Option<Metric>,
-    pub functions: Option<Metric>,
-    pub statements: Option<Metric>,
-}
-
-#[derive(Serialize, Clone, Debug, Deserialize)]
-pub struct Report {
-    pub repo_url: String,
-    pub commit: String,
-    pub generated_at: String,
-    pub languages: Vec<LanguageReport>,
-    pub errors: Vec<String>,
-}
+#[allow(unused_imports)]
+pub use shared::codecov::{Metric, LanguageReport, Report};
 
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {
