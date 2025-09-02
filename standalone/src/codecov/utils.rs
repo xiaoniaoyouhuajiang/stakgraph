@@ -2,6 +2,7 @@ use crate::types::Metric;
 use shared::Result;
 use std::fs;
 use std::path::Path;
+use std::collections::HashMap;
 
 pub fn sanitize_repo(u: &str) -> String {
     u.chars()
@@ -139,4 +140,65 @@ pub fn has_any_files_with_ext(repo_path: &Path, exts: &[&str]) -> Result<bool> {
         }
     }
     Ok(false)
+}
+
+pub fn collect_uncovered_lines(repo_path: &Path) -> Result<HashMap<String, Vec<u32>>> {
+    let mut out = HashMap::new();
+    let final_path = repo_path.join("coverage/coverage-final.json");
+    if !final_path.exists() { return Ok(out); }
+    let v: serde_json::Value = serde_json::from_slice(&fs::read(&final_path)?)?;
+    if let Some(obj) = v.as_object() {
+        for (file, data) in obj.iter() {
+            let mut collected: Vec<u32> = Vec::new();
+            if let Some(lines_obj) = data.get("l").and_then(|x| x.as_object()) {
+                collected = lines_obj.iter().filter_map(|(k, v)| {
+                    if v.as_i64().unwrap_or(0) == 0 { k.parse::<u32>().ok() } else { None }
+                }).collect();
+            } else if let (Some(stmt_map), Some(stmt_hits)) = (data.get("statementMap"), data.get("s")) {
+                if let (Some(stmt_map_obj), Some(stmt_hits_obj)) = (stmt_map.as_object(), stmt_hits.as_object()) {
+                    use std::collections::HashSet;
+                    let mut set = HashSet::new();
+                    for (id, loc_val) in stmt_map_obj.iter() {
+                        if let Some(hit) = stmt_hits_obj.get(id).and_then(|v| v.as_i64()) {
+                            if hit == 0 {
+                                if let Some(range) = loc_val.get("start").and_then(|s| s.get("line")).and_then(|l| l.as_u64()) {
+                                    if let Some(end_line) = loc_val.get("end").and_then(|e| e.get("line")).and_then(|l| l.as_u64()) {
+                                        let start_line = range.min(u64::from(u32::MAX)) as u32;
+                                        let end_line_u32 = end_line.min(u64::from(u32::MAX)) as u32;
+                                        for ln in start_line..=end_line_u32 { set.insert(ln); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    collected = set.into_iter().collect();
+                }
+            }
+            if !collected.is_empty() {
+                collected.sort_unstable();
+                out.insert(file.clone(), collected);
+            }
+        }
+    }
+    Ok(out)
+}
+
+pub fn augment_and_copy_summary(repo_path: &Path, src: &Path, dest: &Path) -> Result<()> {
+    use std::io::Write;
+    if !src.exists() { return Ok(()); }
+    let mut summary: serde_json::Value = serde_json::from_slice(&fs::read(src)?)?;
+    let uncovered = collect_uncovered_lines(repo_path)?;
+    if let Some(obj) = summary.as_object_mut() {
+        for (file, lines) in uncovered.into_iter() {
+            if let Some(file_entry) = obj.get_mut(&file) {
+                if let Some(map) = file_entry.as_object_mut() {
+                    map.insert("uncoveredLines".into(), serde_json::Value::Array(lines.into_iter().map(|n| serde_json::Value::from(n)).collect()));
+                }
+            }
+        }
+    }
+    let mut f = fs::File::create(dest)?;
+    let bytes = serde_json::to_vec_pretty(&summary)?;
+    f.write_all(&bytes)?;
+    Ok(())
 }

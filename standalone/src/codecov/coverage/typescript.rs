@@ -78,7 +78,8 @@ impl TypeScriptCoverage {
                         script_cmd.to_string(),
                     ];
                     args.extend(script_args);
-                    CommandRunner::run_with_string_args(repo_path, "npx", &args[1..])
+                    let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+                    CommandRunner::run(repo_path, "npx", &str_args)
                 }
             }
         }
@@ -136,7 +137,7 @@ impl TestCoverage for TypeScriptCoverage {
         
         let extensions = &["js", "ts", "jsx", "tsx"];
         let test_files = find_test_files(repo_path, extensions);
-        if !test_files.is_empty() {
+        if test_files.is_empty() {
             return Err(Error::Custom("Test files not found".to_string()));
         }
         
@@ -157,8 +158,41 @@ impl TestCoverage for TypeScriptCoverage {
                 }
             }
         }
-
-      Ok(())
+        if !repo_path.join("coverage/coverage-summary.json").exists() {
+            let pm = PackageManager::primary_for_repo(repo_path).unwrap_or(PackageManager::Npm);
+            let mut args: Vec<String> = vec![
+                "c8".into(),
+                "--reporter=json-summary".into(),
+                "--reporter=json".into(),
+                "--reports-dir=./coverage".into(),
+            ];
+            match pm {
+                PackageManager::Npm => {
+                    args.push("npm".into());
+                    args.push("test".into());
+                    args.push("--".into());
+                    args.push("--coverage".into());
+                }
+                PackageManager::Yarn => {
+                    args.push("yarn".into());
+                    args.push("test".into());
+                    args.push("--coverage".into());
+                }
+                PackageManager::Pnpm => {
+                    args.push("pnpm".into());
+                    args.push("test".into());
+                    args.push("--".into());
+                    args.push("--coverage".into());
+                }
+                _ => {}
+            }
+            let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            let _ = CommandRunner::run(repo_path, "npx", &str_args);
+        }
+        if !repo_path.join("coverage/coverage-summary.json").exists() {
+            return Err(Error::Custom("coverage not produced".into()));
+        }
+        Ok(())
     }
 
     fn parse(&self, repo_path: &Path) -> Result<Option<LanguageReport>> {

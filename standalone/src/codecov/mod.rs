@@ -5,7 +5,7 @@ use chrono::Utc;
 use shared::Result;
 use std::fs;
 use std::path::Path;
-use utils::sanitize_repo;
+use utils::{sanitize_repo, augment_and_copy_summary};
 use coverage::TestCoverage;
 use crate::types::{Report, CodecovBody};
 
@@ -33,11 +33,16 @@ pub async fn run(body: CodecovBody) -> Result<Report> {
     let f = fs::File::create(&file)?;
     serde_json::to_writer_pretty(f, &report)?;
     for provider in artifact_sources.into_iter() {
-        for ap in provider.artifact_paths(Path::new(&repo_path)) { 
+        for ap in provider.artifact_paths(Path::new(&repo_path)) {
             if let Some(name) = ap.file_name().and_then(|s| s.to_str()) {
-                 let _ = fs::copy(&ap, dir.join(format!("{}-{}", short_commit, name)));
-                 } 
+                let dest = dir.join(format!("{}-{}", short_commit, name));
+                if name == "coverage-summary.json" {
+                    let _ = augment_and_copy_summary(Path::new(&repo_path), &ap, &dest);
+                } else {
+                    let _ = fs::copy(&ap, &dest);
+                }
             }
+        }
     }
     Ok(report)
 }
