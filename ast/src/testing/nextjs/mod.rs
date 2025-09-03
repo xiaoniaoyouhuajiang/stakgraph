@@ -187,7 +187,27 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
         .iter()
         .find(|f| f.name == "cn" && f.file.ends_with("nextjs/lib/utils.ts"))
         .map(|n| Node::new(NodeType::Function, n.clone()))
-        .expect("Function 'Card' not found");
+        .expect("Function 'cn' not found");
+
+    if let Some(cn_func) = functions.iter().find(|f| f.name == "cn" && f.file.ends_with("nextjs/lib/utils.ts")) {
+        assert_eq!(
+            cn_func.docs.as_deref(),
+            Some("Merge class names conditionally\nAccepts any number of class values"),
+            "Expected docs for 'cn' function not found or mismatched"
+        );
+    } else {
+        panic!("Function 'cn' not found for docs assertion");
+    }
+
+    if let Some(card_fn) = functions.iter().find(|f| f.name == "Card" && f.file.ends_with("nextjs/components/ui/card.tsx")) {
+        assert_eq!(
+            card_fn.docs.as_deref(),
+            Some("Card component container\nProvides base styling and layout"),
+            "Expected docs for 'Card' function not found or mismatched"
+        );
+    } else {
+        panic!("Function 'Card' not found for docs assertion");
+    }
 
     let card_func = functions
         .iter()

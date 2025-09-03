@@ -4,10 +4,10 @@ Tagger.Tooltip = (function() { return {
         // Nothing to initialize for now
     },
     
-    showTooltip: function(bodyText, filePath) {
+    showTooltip: function(bodyText, docsText, filePath) {
         const tooltip = Tagger.elements.tooltip;
         
-        if (!bodyText) {
+        if (!bodyText && !docsText) {
             tooltip.innerHTML = '<div class="file-info"><span class="file-path">No content available</span><div class="actions"><div class="untag-btn">Untag</div><div class="close-btn">×</div></div></div>';
             tooltip.style.display = 'block';
             this.setupTooltipButtons();
@@ -53,28 +53,51 @@ Tagger.Tooltip = (function() { return {
         }
         
         // Create pre and code elements for syntax highlighting
-        const pre = document.createElement('pre');
-        const code = document.createElement('code');
-        
-        // If we have a file path, try to set the language class
-        if (filePath) {
-            const langClass = this.getHighlightJsClass(filePath);
-            if (langClass) {
-                code.className = langClass;
-            }
-        }
-        
-        // Show the entire code body (not just first 15 lines)
-        code.textContent = bodyText;
-        pre.appendChild(code);
-        
         // Clear tooltip and add new content
         tooltip.innerHTML = '';
         tooltip.appendChild(fileInfo);
-        tooltip.appendChild(pre);
         
-        // Apply syntax highlighting
-        hljs.highlightElement(code);
+        if (docsText) {
+            const docsSection = document.createElement('div');
+            docsSection.className = 'docs-section';
+            
+            const docsHeader = document.createElement('div');
+            docsHeader.className = 'docs-header';
+            docsHeader.textContent = 'Documentation';
+            docsSection.appendChild(docsHeader);
+            
+            const docsContent = document.createElement('div');
+            docsContent.className = 'docs-content';
+            docsContent.textContent = docsText;
+            docsSection.appendChild(docsContent);
+            
+            tooltip.appendChild(docsSection);
+        }
+        
+        if (bodyText) {
+            if (docsText) {
+                const codeHeader = document.createElement('div');
+                codeHeader.className = 'code-header';
+                codeHeader.textContent = 'Source Code';
+                tooltip.appendChild(codeHeader);
+            }
+            
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            
+            if (filePath) {
+                const langClass = this.getHighlightJsClass(filePath);
+                if (langClass) {
+                    code.className = langClass;
+                }
+            }
+            
+            code.textContent = bodyText;
+            pre.appendChild(code);
+            tooltip.appendChild(pre);
+            
+            hljs.highlightElement(code);
+        }
         
         // Show tooltip
         tooltip.style.display = 'block';

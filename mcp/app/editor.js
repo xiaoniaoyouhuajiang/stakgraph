@@ -164,6 +164,7 @@ export const Editor = ({
 
 export const Tooltip = ({
   bodyText,
+  docsText,
   filePath,
   isVisible,
   onClose,
@@ -172,6 +173,7 @@ export const Tooltip = ({
   onMouseLeave,
 }) => {
   const codeRef = useRef(null);
+  const docsRef = useRef(null);
 
   useEffect(() => {
     if (isVisible && bodyText && codeRef.current) {
@@ -209,9 +211,21 @@ export const Tooltip = ({
         </div>
       </div>
       <div class="tooltip-content">
+        ${docsText &&
+        html`
+          <div class="docs-section">
+            <div class="docs-header">Documentation</div>
+            <div class="docs-content" ref=${docsRef}>${docsText}</div>
+          </div>
+        `}
         ${bodyText
-          ? html`<pre><code class=${langClass} ref=${codeRef}>${bodyText}</code></pre>`
-          : "No content available"}
+          ? html`
+              <div class="code-section">
+                ${docsText && html`<div class="code-header">Source Code</div>`}
+                <pre><code class=${langClass} ref=${codeRef}>${bodyText}</code></pre>
+              </div>
+            `
+          : !docsText && "No content available"}
       </div>
     </div>
   `;

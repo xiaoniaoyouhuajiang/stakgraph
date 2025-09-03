@@ -99,6 +99,9 @@ impl Stack for Python {
             ) @{FUNCTION_DEFINITION}"
         )
     }
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"(comment)+ @{FUNCTION_COMMENT}"#))
+    }
     fn find_function_parent(
         &self,
         node: TreeNode,

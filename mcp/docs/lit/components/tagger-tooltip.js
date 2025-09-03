@@ -4,6 +4,7 @@ import { emit, fileUtils } from './utils.js';
 class TaggerTooltip extends LitElement {
   static properties = {
     body: { type: String },
+    docs: { type: String },
     file: { type: String },
     visible: { type: Boolean, reflect: true }
   };
@@ -104,11 +105,45 @@ class TaggerTooltip extends LitElement {
     .close-btn:hover, .untag-btn:hover {
       background-color: var(--tooltip-action-hover, #4e5563);
     }
+    
+    .docs-section {
+      margin-bottom: 12px;
+    }
+    
+    .docs-header {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--text-color, #b9c0c8);
+      margin-bottom: 6px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--tooltip-header-border, #3e4451);
+    }
+    
+    .docs-content {
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--text-color, #b9c0c8);
+      background-color: var(--docs-bg, #1e2329);
+      padding: 8px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    
+    .code-header {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--text-color, #b9c0c8);
+      margin-bottom: 6px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--tooltip-header-border, #3e4451);
+    }
   `;
 
   constructor() {
     super();
     this.body = '';
+    this.docs = '';
     this.file = '';
     this.visible = false;
   }
@@ -127,12 +162,21 @@ class TaggerTooltip extends LitElement {
           <div class="close-btn" @click="${this._close}">×</div>
         </div>
       </div>
-      <pre><code class="${lang}">${this.body || 'No content available'}</code></pre>
+      ${this.docs ? html`
+        <div class="docs-section">
+          <div class="docs-header">Documentation</div>
+          <div class="docs-content">${this.docs}</div>
+        </div>
+      ` : ''}
+      ${this.body ? html`
+        ${this.docs ? html`<div class="code-header">Source Code</div>` : ''}
+        <pre><code class="${lang}">${this.body}</code></pre>
+      ` : !this.docs ? 'No content available' : ''}
     `;
   }
 
   updated(changedProps) {
-    if ((changedProps.has('body') || changedProps.has('visible')) && this.visible) {
+    if ((changedProps.has('body') || changedProps.has('docs') || changedProps.has('visible')) && this.visible) {
       // Apply syntax highlighting
       setTimeout(() => {
         if (!this.visible) return; // Skip if tooltip became hidden

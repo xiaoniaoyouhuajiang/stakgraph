@@ -127,6 +127,14 @@ impl Stack for Kotlin {
             "
         )
     }
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"
+             [
+                (line_comment)+
+                (multiline_comment)+
+            ] @{FUNCTION_COMMENT}
+        "#))
+    }
 
     fn find_function_parent(
         &self,

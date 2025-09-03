@@ -166,6 +166,10 @@ impl Stack for Cpp {
         )
     }
 
+    fn comment_query(&self) -> Option<String> {
+        Some(format!(r#"(comment) @{FUNCTION_COMMENT}"#))
+    }
+
     fn function_call_query(&self) -> String {
         format!(
             r#"

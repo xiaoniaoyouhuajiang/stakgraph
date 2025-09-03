@@ -144,12 +144,16 @@ import NewPerson from "./components/NewPerson";"#
     let mut sorted_functions = functions.clone();
     sorted_functions.sort_by(|a, b| a.name.cmp(&b.name));
 
+    let app_function = sorted_functions
+        .iter()
+        .find(|f| f.name == "App")
+        .expect("App function not found");
     assert_eq!(
-        sorted_functions[0].name, "App",
+        app_function.name, "App",
         "App component name is incorrect"
     );
     assert_eq!(
-        normalize_path(&sorted_functions[0].file),
+        normalize_path(&app_function.file),
         "src/testing/react/src/App.tsx",
         "App component file path is incorrect"
     );

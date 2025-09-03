@@ -44,7 +44,57 @@ pub type Function = (
 // Calls, args, external function (from library or std), call another Class
 pub type FunctionCall = (Calls, Option<NodeData>, Option<NodeData>);
 
+struct FunctionComment {
+    start: usize,
+    end: usize,
+    text: String,
+}
+
 impl Lang {
+    fn collect_function_comments(&self, code: &str) -> Result<Vec<FunctionComment>> {
+        let mut out = Vec::new();
+        let Some(cq) = self.lang.comment_query() else { return Ok(out); };
+        let comment_q = self.q(&cq, &NodeType::Function);
+        let tree = self.lang.parse(code, &NodeType::Function)?;
+        let mut cursor = QueryCursor::new();
+        let mut matches = cursor.matches(&comment_q, tree.root_node(), code.as_bytes());
+        while let Some(m) = matches.next() {
+            for cap in m.captures.iter() {
+                let name = &comment_q.capture_names()[cap.index as usize];
+                if *name == FUNCTION_COMMENT {
+                    if let Ok(txt) = cap.node.utf8_text(code.as_bytes()) {
+                        out.push(FunctionComment { start: cap.node.start_position().row, end: cap.node.end_position().row, text: txt.to_string() });
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
+    fn attach_function_comments(&self, code: &str, funcs: &mut Vec<Function>) -> Result<()> {
+        if funcs.is_empty() { return Ok(()); }
+        let mut cs = self.collect_function_comments(code)?;
+        if cs.is_empty() { return Ok(()); }
+        cs.sort_by_key(|c| c.end);
+        for f in funcs.iter_mut() {
+            if f.0.docs.is_some() { continue; }
+            let start = f.0.start;
+            let mut block: Vec<&FunctionComment> = Vec::new();
+            for c in cs.iter().rev() {
+                if c.end >= start { continue; }
+                if block.is_empty() {
+                    if start - c.end <= 2 { block.push(c); } else { break; }
+                } else {
+                    let last = block.last().unwrap();
+                    if last.start > 0 && last.start.saturating_sub(c.end) <= 2 { block.push(c); } else { break; }
+                }
+            }
+            if block.is_empty() { continue; }
+            block.sort_by_key(|c| c.start);
+            let cleaned = self.clean_and_combine_comments(&block.iter().map(|c| c.text.clone()).collect::<Vec<_>>());
+            if !cleaned.trim().is_empty() { f.0.docs = Some(cleaned); }
+        }
+        Ok(())
+    }
     pub fn new_python() -> Self {
         Self {
             kind: Language::Python,
@@ -338,7 +388,8 @@ impl Lang {
         lsp_tx: &Option<CmdSender>,
     ) -> Result<(Vec<Function>, Vec<TestRecord>)> {
         let qo = self.q(&self.lang.function_definition_query(), &NodeType::Function);
-        let funcs1 = self.collect_functions(&qo, code, file, graph, lsp_tx)?;
+        let mut funcs1 = self.collect_functions(&qo, code, file, graph, lsp_tx)?;
+        self.attach_function_comments(code, &mut funcs1)?;
         let (funcs, filtered_tests) = self.lang.filter_tests(funcs1);
         let mut tests: Vec<TestRecord> = Vec::new();
         for t in filtered_tests.iter() {

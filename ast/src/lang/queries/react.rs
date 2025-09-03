@@ -331,6 +331,9 @@ impl Stack for ReactTs {
         ] @{FUNCTION_DEFINITION}"#
         )
     }
+        fn comment_query(&self) -> Option<String> {
+             Some(format!(r#"(comment) @{FUNCTION_COMMENT}"#))
+             }
     fn data_model_query(&self) -> Option<String> {
         Some(format!(
             r#"[

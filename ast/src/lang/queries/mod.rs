@@ -95,6 +95,7 @@ pub trait Stack {
     fn identifier_query(&self) -> String {
         format!("(identifier) @identifier")
     }
+    fn comment_query(&self) -> Option<String> { None }
     fn type_identifier_node_name(&self) -> String {
         "type_identifier".to_string()
     }
