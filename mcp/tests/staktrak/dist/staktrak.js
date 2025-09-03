@@ -36,9 +36,9 @@ var userBehaviour = (() => {
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
   // src/index.ts
-  var index_exports = {};
-  __export(index_exports, {
-    default: () => index_default
+  var src_exports = {};
+  __export(src_exports, {
+    default: () => src_default
   });
 
   // src/utils.ts
@@ -95,8 +95,10 @@ var userBehaviour = (() => {
     if (tagName === "input") {
       const type = element.type;
       const name = element.name;
-      if (type) fallbacks.push(`input[type="${type}"]`);
-      if (name) fallbacks.push(`input[name="${name}"]`);
+      if (type)
+        fallbacks.push(`input[type="${type}"]`);
+      if (name)
+        fallbacks.push(`input[name="${name}"]`);
     }
     const contextualSelector = generateContextualSelector(element);
     if (contextualSelector) {
@@ -134,7 +136,8 @@ var userBehaviour = (() => {
   var generateTextBasedSelector = (element, text) => {
     const tagName = element.tagName.toLowerCase();
     const cleanText = text.replace(/"/g, '\\"').trim();
-    if (cleanText.length === 0 || cleanText.length > 50) return null;
+    if (cleanText.length === 0 || cleanText.length > 50)
+      return null;
     if (tagName === "button" || tagName === "a" || element.getAttribute("role") === "button") {
       return `text=${cleanText}`;
     }
@@ -143,23 +146,31 @@ var userBehaviour = (() => {
   var generateClassBasedSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const classList = element.classList;
-    if (!classList.length) return tagName;
+    if (!classList.length)
+      return tagName;
     const safeClasses = Array.from(classList).filter((cls) => {
-      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/)) return false;
-      if (cls.includes("module__")) return false;
-      if (cls.includes("emotion-")) return false;
-      if (cls.includes("css-")) return false;
-      if (cls.length > 30) return false;
+      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/))
+        return false;
+      if (cls.includes("module__"))
+        return false;
+      if (cls.includes("emotion-"))
+        return false;
+      if (cls.includes("css-"))
+        return false;
+      if (cls.length > 30)
+        return false;
       return /^[a-zA-Z][a-zA-Z0-9-]*$/.test(cls);
     });
-    if (safeClasses.length === 0) return tagName;
+    if (safeClasses.length === 0)
+      return tagName;
     const limitedClasses = safeClasses.slice(0, 3);
     return `${tagName}.${limitedClasses.join(".")}`;
   };
   var generateContextualSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const parent = element.parentElement;
-    if (!parent) return null;
+    if (!parent)
+      return null;
     if (tagName === "button" && parent.tagName === "NAV") {
       return "nav button";
     }
@@ -190,7 +201,8 @@ var userBehaviour = (() => {
       const part = index > 1 ? `${tagName}[${index}]` : tagName;
       parts.unshift(part);
       current = current.parentElement;
-      if (parts.length > 10) break;
+      if (parts.length > 10)
+        break;
     }
     return "/" + parts.join("/");
   };
@@ -224,7 +236,8 @@ var userBehaviour = (() => {
     ];
     importantAttrs.forEach((attr) => {
       const value = htmlEl.getAttribute(attr);
-      if (value) attrs[attr] = value;
+      if (value)
+        attrs[attr] = value;
     });
     return attrs;
   };
@@ -233,7 +246,8 @@ var userBehaviour = (() => {
     return strategies.primary;
   };
   var filterClickDetails = (clickDetails, assertions, config) => {
-    if (!clickDetails.length) return [];
+    if (!clickDetails.length)
+      return [];
     let filtered = config.filterAssertionClicks ? clickDetails.filter(
       (click) => !assertions.some(
         (assertion) => Math.abs(click.timestamp - assertion.timestamp) < 1e3 && (click.selectors.primary.includes(assertion.selector) || assertion.selector.includes(click.selectors.primary) || click.selectors.fallbacks.some(
@@ -244,7 +258,8 @@ var userBehaviour = (() => {
     const clicksBySelector = {};
     filtered.forEach((click) => {
       const key = click.selectors.primary;
-      if (!clicksBySelector[key]) clicksBySelector[key] = [];
+      if (!clicksBySelector[key])
+        clicksBySelector[key] = [];
       clicksBySelector[key].push(click);
     });
     const result = [];
@@ -348,7 +363,8 @@ var userBehaviour = (() => {
       let level = 0;
       const maxTraversalDepth = Number((_a = window.STAKTRAK_CONFIG) == null ? void 0 : _a.maxTraversalDepth) || 10;
       const extractSource = (source) => {
-        if (!source) return null;
+        if (!source)
+          return null;
         return {
           fileName: source.fileName,
           lineNumber: source.lineNumber,
@@ -457,7 +473,8 @@ var userBehaviour = (() => {
         file.lines.sort((a, b) => a - b);
       });
       const formatComponentsForChat = (components) => {
-        if (components.length === 0) return void 0;
+        if (components.length === 0)
+          return void 0;
         const sortedComponents = components.sort((a, b) => a.level - b.level).slice(0, 3);
         const componentLines = sortedComponents.map((c) => {
           const nameToUse = c.name || "Unknown";
@@ -924,17 +941,23 @@ var userBehaviour = (() => {
       }
     }
     const labelMatch = locatorCall.match(/getByLabel\(['"](.*?)['"]\)/);
-    if (labelMatch) return `getByLabel:${labelMatch[1]}`;
+    if (labelMatch)
+      return `getByLabel:${labelMatch[1]}`;
     const placeholderMatch = locatorCall.match(/getByPlaceholder\(['"](.*?)['"]\)/);
-    if (placeholderMatch) return `getByPlaceholder:${placeholderMatch[1]}`;
+    if (placeholderMatch)
+      return `getByPlaceholder:${placeholderMatch[1]}`;
     const testIdMatch = locatorCall.match(/getByTestId\(['"](.*?)['"]\)/);
-    if (testIdMatch) return `getByTestId:${testIdMatch[1]}`;
+    if (testIdMatch)
+      return `getByTestId:${testIdMatch[1]}`;
     const titleMatch = locatorCall.match(/getByTitle\(['"](.*?)['"]\)/);
-    if (titleMatch) return `getByTitle:${titleMatch[1]}`;
+    if (titleMatch)
+      return `getByTitle:${titleMatch[1]}`;
     const altMatch = locatorCall.match(/getByAltText\(['"](.*?)['"]\)/);
-    if (altMatch) return `getByAltText:${altMatch[1]}`;
+    if (altMatch)
+      return `getByAltText:${altMatch[1]}`;
     const locatorMatch = locatorCall.match(/locator\(['"](.*?)['"]\)/);
-    if (locatorMatch) return locatorMatch[1];
+    if (locatorMatch)
+      return locatorMatch[1];
     const locatorWithOptionsMatch = locatorCall.match(/locator\(['"](.*?)['"],\s*\{\s*hasText:\s*['"](.*?)['"]\s*\}/);
     if (locatorWithOptionsMatch) {
       const [, selector, text] = locatorWithOptionsMatch;
@@ -944,9 +967,11 @@ var userBehaviour = (() => {
   }
   function parseChainedCall(baseSelector, chainCall) {
     const filterTextMatch = chainCall.match(/filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}/);
-    if (filterTextMatch) return `${baseSelector}:filter-text("${filterTextMatch[1]}")`;
+    if (filterTextMatch)
+      return `${baseSelector}:filter-text("${filterTextMatch[1]}")`;
     const filterRegexMatch = chainCall.match(/filter\(\{\s*hasText:\s*\/(.*?)\/([gimuy]*)\s*\}/);
-    if (filterRegexMatch) return `${baseSelector}:filter-regex("/${filterRegexMatch[1]}/${filterRegexMatch[2]}")`;
+    if (filterRegexMatch)
+      return `${baseSelector}:filter-regex("/${filterRegexMatch[1]}/${filterRegexMatch[2]}")`;
     const filterHasMatch = chainCall.match(/filter\(\{\s*has:\s*page\.(.+?)\s*\}/);
     if (filterHasMatch) {
       const innerSelector = parseLocatorCall(filterHasMatch[1]);
@@ -957,10 +982,13 @@ var userBehaviour = (() => {
       const innerSelector = parseLocatorCall(filterHasNotMatch[1]);
       return `${baseSelector}:filter-has-not("${innerSelector}")`;
     }
-    if (chainCall.includes("first()")) return `${baseSelector}:first`;
-    if (chainCall.includes("last()")) return `${baseSelector}:last`;
+    if (chainCall.includes("first()"))
+      return `${baseSelector}:first`;
+    if (chainCall.includes("last()"))
+      return `${baseSelector}:last`;
     const nthMatch = chainCall.match(/nth\((\d+)\)/);
-    if (nthMatch) return `${baseSelector}:nth(${nthMatch[1]})`;
+    if (nthMatch)
+      return `${baseSelector}:nth(${nthMatch[1]})`;
     const andMatch = chainCall.match(/and\(page\.(.+?)\)/);
     if (andMatch) {
       const otherSelector = parseLocatorCall(andMatch[1]);
@@ -977,7 +1005,8 @@ var userBehaviour = (() => {
       return `${baseSelector} >> ${innerSelector}`;
     }
     const locatorChainMatch = chainCall.match(/^locator\(['"](.*?)['"]\)/);
-    if (locatorChainMatch) return `${baseSelector} >> ${locatorChainMatch[1]}`;
+    if (locatorChainMatch)
+      return `${baseSelector} >> ${locatorChainMatch[1]}`;
     return `${baseSelector}:${chainCall}`;
   }
   function extractSelectorFromArg(selectorArg) {
@@ -1251,11 +1280,7 @@ var userBehaviour = (() => {
     return [];
   }
   function findElements(selector) {
-    var _a;
-    const iframe = document.querySelector("#trackingFrame");
-    const iframeDoc = (iframe == null ? void 0 : iframe.contentDocument) || ((_a = iframe == null ? void 0 : iframe.contentWindow) == null ? void 0 : _a.document);
-    const searchContext = iframeDoc || document;
-    return findElementsInContext(selector, searchContext);
+    return findElementsInContext(selector, document);
   }
   function findElementsInContext(selector, searchContext) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
@@ -1460,7 +1485,8 @@ var userBehaviour = (() => {
           } else {
             element = label.querySelector("input, textarea, select");
           }
-          if (element) matches.push(element);
+          if (element)
+            matches.push(element);
         }
       }
       return matches;
@@ -1636,7 +1662,8 @@ var userBehaviour = (() => {
     return null;
   }
   function ensureStylesInDocument(doc) {
-    if (doc.querySelector("#staktrak-highlight-styles")) return;
+    if (doc.querySelector("#staktrak-highlight-styles"))
+      return;
     const style = doc.createElement("style");
     style.id = "staktrak-highlight-styles";
     style.textContent = `
@@ -1659,11 +1686,8 @@ var userBehaviour = (() => {
     doc.head.appendChild(style);
   }
   function highlightElement(element, matchedText) {
-    var _a;
     try {
-      const iframe = document.querySelector("#trackingFrame");
-      const doc = (iframe == null ? void 0 : iframe.contentDocument) || ((_a = iframe == null ? void 0 : iframe.contentWindow) == null ? void 0 : _a.document) || document;
-      ensureStylesInDocument(doc);
+      ensureStylesInDocument(document);
       element.scrollIntoView({
         behavior: "smooth",
         block: "center",
@@ -1678,16 +1702,15 @@ var userBehaviour = (() => {
     }
   }
   function highlightTextInElement(element, textToHighlight) {
-    var _a;
     try {
       let wrapTextNodes2 = function(node) {
-        var _a2;
+        var _a;
         if (node.nodeType === Node.TEXT_NODE) {
           const textContent = node.textContent || "";
           if (textContent.includes(textToHighlight)) {
             const parent = node.parentNode;
             if (parent) {
-              const tempDiv = doc.createElement("div");
+              const tempDiv = document.createElement("div");
               tempDiv.innerHTML = textContent.replace(
                 new RegExp(`(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
                 '<span class="staktrak-text-highlight">$1</span>'
@@ -1698,15 +1721,13 @@ var userBehaviour = (() => {
               parent.removeChild(node);
             }
           }
-        } else if (node.nodeType === Node.ELEMENT_NODE && !((_a2 = node.classList) == null ? void 0 : _a2.contains("staktrak-text-highlight"))) {
+        } else if (node.nodeType === Node.ELEMENT_NODE && !((_a = node.classList) == null ? void 0 : _a.contains("staktrak-text-highlight"))) {
           const children = Array.from(node.childNodes);
           children.forEach((child) => wrapTextNodes2(child));
         }
       };
       var wrapTextNodes = wrapTextNodes2;
-      const iframe = document.querySelector("#trackingFrame");
-      const doc = (iframe == null ? void 0 : iframe.contentDocument) || ((_a = iframe == null ? void 0 : iframe.contentWindow) == null ? void 0 : _a.document) || document;
-      ensureStylesInDocument(doc);
+      ensureStylesInDocument(document);
       wrapTextNodes2(element);
       element.setAttribute("data-staktrak-processed", "true");
       setTimeout(() => {
@@ -1714,7 +1735,7 @@ var userBehaviour = (() => {
         highlights.forEach((highlight) => {
           const parent = highlight.parentNode;
           if (parent) {
-            parent.insertBefore(doc.createTextNode(highlight.textContent || ""), highlight);
+            parent.insertBefore(document.createTextNode(highlight.textContent || ""), highlight);
             parent.removeChild(highlight);
           }
         });
@@ -1727,7 +1748,8 @@ var userBehaviour = (() => {
   }
   async function verifyExpectation(action) {
     var _a, _b;
-    if (!action.selector) return;
+    if (!action.selector)
+      return;
     switch (action.expectation) {
       case "toBeVisible":
         const element = await waitForElement(action.selector);
@@ -1906,7 +1928,8 @@ var userBehaviour = (() => {
   }
   function getPlaywrightReplayState() {
     const state = playwrightReplayRef.current;
-    if (!state) return null;
+    if (!state)
+      return null;
     return {
       actions: state.actions,
       status: state.status,
@@ -1918,7 +1941,8 @@ var userBehaviour = (() => {
   function initPlaywrightReplay() {
     window.addEventListener("message", (event) => {
       const { data } = event;
-      if (!data || !data.type) return;
+      if (!data || !data.type)
+        return;
       switch (data.type) {
         case "staktrak-playwright-replay-start":
           if (data.testCode) {
@@ -2312,10 +2336,12 @@ var userBehaviour = (() => {
       );
     }
     setupMessageHandling() {
-      if (this.memory.alwaysListeners.length > 0) return;
+      if (this.memory.alwaysListeners.length > 0)
+        return;
       const messageHandler = (event) => {
         var _a;
-        if (!((_a = event.data) == null ? void 0 : _a.type)) return;
+        if (!((_a = event.data) == null ? void 0 : _a.type))
+          return;
         switch (event.data.type) {
           case "staktrak-start":
             this.resetResults();
@@ -2457,6 +2483,6 @@ var userBehaviour = (() => {
     initPlaywrightReplay();
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
-  var index_default = userBehaviour;
-  return __toCommonJS(index_exports);
+  var src_default = userBehaviour;
+  return __toCommonJS(src_exports);
 })();

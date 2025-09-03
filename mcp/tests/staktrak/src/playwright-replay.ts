@@ -856,12 +856,8 @@ async function waitForElements(selector: string, timeout = 5000): Promise<Elemen
   return [];
 }
 
-function findElements(selector: string): Element[] {
-  const iframe = document.querySelector('#trackingFrame') as HTMLIFrameElement;
-  const iframeDoc = iframe?.contentDocument || iframe?.contentWindow?.document;
-  const searchContext = iframeDoc || document;
-  
-  return findElementsInContext(selector, searchContext);
+function findElements(selector: string): Element[] {  
+  return findElementsInContext(selector, document);
 }
 
 function findElementsInContext(selector: string, searchContext: Document): Element[] {
@@ -1350,10 +1346,7 @@ function ensureStylesInDocument(doc: Document): void {
 
 function highlightElement(element: Element, matchedText?: string): void {
   try {
-    const iframe = document.querySelector('#trackingFrame') as HTMLIFrameElement;
-    const doc = iframe?.contentDocument || iframe?.contentWindow?.document || document;
-    
-    ensureStylesInDocument(doc);
+    ensureStylesInDocument(document);
     
     element.scrollIntoView({ 
       behavior: 'smooth', 
@@ -1372,11 +1365,8 @@ function highlightElement(element: Element, matchedText?: string): void {
 }
 
 function highlightTextInElement(element: Element, textToHighlight: string): void {
-  try {
-    const iframe = document.querySelector('#trackingFrame') as HTMLIFrameElement;
-    const doc = iframe?.contentDocument || iframe?.contentWindow?.document || document;
-    
-    ensureStylesInDocument(doc);
+  try {    
+    ensureStylesInDocument(document);
     
     function wrapTextNodes(node: Node): void {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -1384,7 +1374,7 @@ function highlightTextInElement(element: Element, textToHighlight: string): void
         if (textContent.includes(textToHighlight)) {
           const parent = node.parentNode;
           if (parent) {
-            const tempDiv = doc.createElement('div');
+            const tempDiv = document.createElement('div');
             tempDiv.innerHTML = textContent.replace(
               new RegExp(`(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
               '<span class="staktrak-text-highlight">$1</span>'
@@ -1411,7 +1401,7 @@ function highlightTextInElement(element: Element, textToHighlight: string): void
       highlights.forEach(highlight => {
         const parent = highlight.parentNode;
         if (parent) {
-          parent.insertBefore(doc.createTextNode(highlight.textContent || ''), highlight);
+          parent.insertBefore(document.createTextNode(highlight.textContent || ''), highlight);
           parent.removeChild(highlight);
         }
       });
