@@ -560,7 +560,9 @@ var userBehaviour = (() => {
           variables.set(varName, selector);
           continue;
         }
-        const chainedVariableMatch = trimmed.match(/^const\s+(\w+)\s*=\s*(\w+)\.(.+);$/);
+        const chainedVariableMatch = trimmed.match(
+          /^const\s+(\w+)\s*=\s*(\w+)\.(.+);$/
+        );
         if (chainedVariableMatch) {
           const [, newVarName, baseVarName, chainCall] = chainedVariableMatch;
           if (variables.has(baseVarName)) {
@@ -570,12 +572,21 @@ var userBehaviour = (() => {
             continue;
           }
         }
-        const awaitVariableCallMatch = trimmed.match(/^await\s+(\w+)\.(\w+)\((.*?)\);?$/);
+        const awaitVariableCallMatch = trimmed.match(
+          /^await\s+(\w+)\.(\w+)\((.*?)\);?$/
+        );
         if (awaitVariableCallMatch) {
           const [, varName, method, args] = awaitVariableCallMatch;
           if (variables.has(varName)) {
             const selector = variables.get(varName);
-            const action = parseVariableMethodCall(varName, method, args, comment, lineNumber, selector);
+            const action = parseVariableMethodCall(
+              varName,
+              method,
+              args,
+              comment,
+              lineNumber,
+              selector
+            );
             if (action) {
               actions.push(action);
             }
@@ -587,46 +598,77 @@ var userBehaviour = (() => {
           const [, varName, method, args] = variableCallMatch;
           if (variables.has(varName)) {
             const selector = variables.get(varName);
-            const action = parseVariableMethodCall(varName, method, args, comment, lineNumber, selector);
+            const action = parseVariableMethodCall(
+              varName,
+              method,
+              args,
+              comment,
+              lineNumber,
+              selector
+            );
             if (action) {
               actions.push(action);
             }
             continue;
           }
         }
-        const pageLocatorActionMatch = trimmed.match(/^(?:await\s+)?page\.locator\(([^)]+)\)\.(\w+)\((.*?)\);?$/);
+        const pageLocatorActionMatch = trimmed.match(
+          /^(?:await\s+)?page\.locator\(([^)]+)\)\.(\w+)\((.*?)\);?$/
+        );
         if (pageLocatorActionMatch) {
           const [, selectorArg, method, args] = pageLocatorActionMatch;
           const selector = extractSelectorFromArg(selectorArg);
-          const action = parseDirectAction(method, args, comment, lineNumber, selector);
+          const action = parseDirectAction(
+            method,
+            args,
+            comment,
+            lineNumber,
+            selector
+          );
           if (action) {
             actions.push(action);
           }
           continue;
         }
-        const expectVariableMatch = trimmed.match(/^(?:await\s+)?expect\((\w+)\)\.(.+)$/);
+        const expectVariableMatch = trimmed.match(
+          /^(?:await\s+)?expect\((\w+)\)\.(.+)$/
+        );
         if (expectVariableMatch) {
           const [, varName, expectation] = expectVariableMatch;
           if (variables.has(varName)) {
             const selector = variables.get(varName);
-            const action = parseExpectStatement(expectation, comment, lineNumber, selector);
+            const action = parseExpectStatement(
+              expectation,
+              comment,
+              lineNumber,
+              selector
+            );
             if (action) {
               actions.push(action);
             }
             continue;
           }
         }
-        const expectLocatorMatch = trimmed.match(/^(?:await\s+)?expect\(page\.locator\(([^)]+)\)\)\.(.+)$/);
+        const expectLocatorMatch = trimmed.match(
+          /^(?:await\s+)?expect\(page\.locator\(([^)]+)\)\)\.(.+)$/
+        );
         if (expectLocatorMatch) {
           const [, selectorArg, expectation] = expectLocatorMatch;
           const selector = extractSelectorFromArg(selectorArg);
-          const action = parseExpectStatement(expectation, comment, lineNumber, selector);
+          const action = parseExpectStatement(
+            expectation,
+            comment,
+            lineNumber,
+            selector
+          );
           if (action) {
             actions.push(action);
           }
           continue;
         }
-        const waitForSelectorMatch = trimmed.match(/^(?:await\s+)?page\.waitForSelector\(['"](.*?)['"]\);?$/);
+        const waitForSelectorMatch = trimmed.match(
+          /^(?:await\s+)?page\.waitForSelector\(['"](.*?)['"]\);?$/
+        );
         if (waitForSelectorMatch) {
           actions.push({
             type: "waitForSelector",
@@ -647,7 +689,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("page.setViewportSize(")) {
-          const sizeMatch = trimmed.match(/page\.setViewportSize\(\s*{\s*width:\s*(\d+),\s*height:\s*(\d+)\s*}\s*\)/);
+          const sizeMatch = trimmed.match(
+            /page\.setViewportSize\(\s*{\s*width:\s*(\d+),\s*height:\s*(\d+)\s*}\s*\)/
+          );
           if (sizeMatch) {
             actions.push({
               type: "setViewportSize",
@@ -660,7 +704,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("page.waitForLoadState(")) {
-          const stateMatch = trimmed.match(/page\.waitForLoadState\(['"](.*?)['"]\)/);
+          const stateMatch = trimmed.match(
+            /page\.waitForLoadState\(['"](.*?)['"]\)/
+          );
           actions.push({
             type: "waitForLoadState",
             value: stateMatch ? stateMatch[1] : "networkidle",
@@ -678,7 +724,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("page.fill(")) {
-          const fillMatch = trimmed.match(/page\.fill\(['"](.*?)['"],\s*['"](.*?)['"]\)/);
+          const fillMatch = trimmed.match(
+            /page\.fill\(['"](.*?)['"],\s*['"](.*?)['"]\)/
+          );
           if (fillMatch) {
             actions.push({
               type: "fill",
@@ -709,7 +757,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("page.selectOption(")) {
-          const selectMatch = trimmed.match(/page\.selectOption\(['"](.*?)['"],\s*['"](.*?)['"]\)/);
+          const selectMatch = trimmed.match(
+            /page\.selectOption\(['"](.*?)['"],\s*['"](.*?)['"]\)/
+          );
           if (selectMatch) {
             actions.push({
               type: "selectOption",
@@ -730,7 +780,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("page.waitForSelector(")) {
-          const selectorMatch = trimmed.match(/page\.waitForSelector\(['"](.*?)['"]\)/);
+          const selectorMatch = trimmed.match(
+            /page\.waitForSelector\(['"](.*?)['"]\)/
+          );
           if (selectorMatch) {
             actions.push({
               type: "waitForSelector",
@@ -740,7 +792,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("page.getByRole(")) {
-          const roleMatch = trimmed.match(/page\.getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*['"](.*?)['"]\s*\})?\)/);
+          const roleMatch = trimmed.match(
+            /page\.getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*['"](.*?)['"]\s*\})?\)/
+          );
           if (roleMatch) {
             const [, role, name] = roleMatch;
             const selector = name ? `role:${role}[name="${name}"]` : `role:${role}`;
@@ -762,7 +816,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("page.getByPlaceholder(")) {
-          const placeholderMatch = trimmed.match(/page\.getByPlaceholder\(['"](.*?)['"]\)/);
+          const placeholderMatch = trimmed.match(
+            /page\.getByPlaceholder\(['"](.*?)['"]\)/
+          );
           if (placeholderMatch) {
             actions.push({
               type: "click",
@@ -802,7 +858,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("expect(") && trimmed.includes("toBeVisible()")) {
-          const getByTextMatch = trimmed.match(/expect\(page\.getByText\(['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?\)\)\.toBeVisible\(\)/);
+          const getByTextMatch = trimmed.match(
+            /expect\(page\.getByText\(['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?\)\)\.toBeVisible\(\)/
+          );
           if (getByTextMatch) {
             const text = getByTextMatch[1];
             const exact = getByTextMatch[2] === "true";
@@ -815,7 +873,9 @@ var userBehaviour = (() => {
               lineNumber
             });
           } else {
-            const locatorFilterMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\.filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}\)\)\.toBeVisible\(\)/);
+            const locatorFilterMatch = trimmed.match(
+              /expect\(page\.locator\(['"](.*?)['"]\)\.filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}\)\)\.toBeVisible\(\)/
+            );
             if (locatorFilterMatch) {
               const selector = locatorFilterMatch[1];
               const filterText = locatorFilterMatch[2];
@@ -827,7 +887,9 @@ var userBehaviour = (() => {
                 lineNumber
               });
             } else {
-              const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeVisible\(\)/);
+              const expectMatch = trimmed.match(
+                /expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeVisible\(\)/
+              );
               if (expectMatch) {
                 actions.push({
                   type: "expect",
@@ -840,7 +902,9 @@ var userBehaviour = (() => {
             }
           }
         } else if (trimmed.includes("expect(") && trimmed.includes("toContainText(")) {
-          const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.toContainText\(['"](.*?)['"]\)/);
+          const expectMatch = trimmed.match(
+            /expect\(page\.locator\(['"](.*?)['"]\)\)\.toContainText\(['"](.*?)['"]\)/
+          );
           if (expectMatch) {
             actions.push({
               type: "expect",
@@ -852,7 +916,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("expect(") && trimmed.includes("toBeChecked()")) {
-          const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeChecked\(\)/);
+          const expectMatch = trimmed.match(
+            /expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeChecked\(\)/
+          );
           if (expectMatch) {
             actions.push({
               type: "expect",
@@ -863,7 +929,9 @@ var userBehaviour = (() => {
             });
           }
         } else if (trimmed.includes("expect(") && trimmed.includes("not.toBeChecked()")) {
-          const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.not\.toBeChecked\(\)/);
+          const expectMatch = trimmed.match(
+            /expect\(page\.locator\(['"](.*?)['"]\)\)\.not\.toBeChecked\(\)/
+          );
           if (expectMatch) {
             actions.push({
               type: "expect",
@@ -888,17 +956,35 @@ var userBehaviour = (() => {
         return { type: "click", selector: actualSelector, comment, lineNumber };
       case "fill":
         const fillValue = ((_a = args.match(/['"](.*?)['"]/)) == null ? void 0 : _a[1]) || "";
-        return { type: "fill", selector: actualSelector, value: fillValue, comment, lineNumber };
+        return {
+          type: "fill",
+          selector: actualSelector,
+          value: fillValue,
+          comment,
+          lineNumber
+        };
       case "check":
         return { type: "check", selector: actualSelector, comment, lineNumber };
       case "uncheck":
         return { type: "uncheck", selector: actualSelector, comment, lineNumber };
       case "selectOption":
         const optionValue = ((_b = args.match(/['"](.*?)['"]/)) == null ? void 0 : _b[1]) || "";
-        return { type: "selectOption", selector: actualSelector, value: optionValue, comment, lineNumber };
+        return {
+          type: "selectOption",
+          selector: actualSelector,
+          value: optionValue,
+          comment,
+          lineNumber
+        };
       case "waitFor":
         const stateMatch = args.match(/{\s*state:\s*['"](.*?)['"]\s*}/);
-        return { type: "waitFor", selector: actualSelector, options: stateMatch ? { state: stateMatch[1] } : {}, comment, lineNumber };
+        return {
+          type: "waitFor",
+          selector: actualSelector,
+          options: stateMatch ? { state: stateMatch[1] } : {},
+          comment,
+          lineNumber
+        };
       case "hover":
         return { type: "hover", selector: actualSelector, comment, lineNumber };
       case "focus":
@@ -906,13 +992,20 @@ var userBehaviour = (() => {
       case "blur":
         return { type: "blur", selector: actualSelector, comment, lineNumber };
       case "scrollIntoViewIfNeeded":
-        return { type: "scrollIntoView", selector: actualSelector, comment, lineNumber };
+        return {
+          type: "scrollIntoView",
+          selector: actualSelector,
+          comment,
+          lineNumber
+        };
       default:
         return null;
     }
   }
   function parseLocatorCall(locatorCall) {
-    const roleMatch = locatorCall.match(/getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*([^}]+)\s*\})?\)/);
+    const roleMatch = locatorCall.match(
+      /getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*([^}]+)\s*\})?\)/
+    );
     if (roleMatch) {
       const [, role, nameArg] = roleMatch;
       if (nameArg) {
@@ -934,7 +1027,9 @@ var userBehaviour = (() => {
       if (regexMatch) {
         return `getByText-regex:/${regexMatch[1]}/${regexMatch[2]}`;
       }
-      const stringMatch = args.match(/['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?/);
+      const stringMatch = args.match(
+        /['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?/
+      );
       if (stringMatch) {
         const [, text, exact] = stringMatch;
         return `getByText:${text}${exact === "true" ? ":exact" : ""}`;
@@ -943,7 +1038,9 @@ var userBehaviour = (() => {
     const labelMatch = locatorCall.match(/getByLabel\(['"](.*?)['"]\)/);
     if (labelMatch)
       return `getByLabel:${labelMatch[1]}`;
-    const placeholderMatch = locatorCall.match(/getByPlaceholder\(['"](.*?)['"]\)/);
+    const placeholderMatch = locatorCall.match(
+      /getByPlaceholder\(['"](.*?)['"]\)/
+    );
     if (placeholderMatch)
       return `getByPlaceholder:${placeholderMatch[1]}`;
     const testIdMatch = locatorCall.match(/getByTestId\(['"](.*?)['"]\)/);
@@ -958,7 +1055,9 @@ var userBehaviour = (() => {
     const locatorMatch = locatorCall.match(/locator\(['"](.*?)['"]\)/);
     if (locatorMatch)
       return locatorMatch[1];
-    const locatorWithOptionsMatch = locatorCall.match(/locator\(['"](.*?)['"],\s*\{\s*hasText:\s*['"](.*?)['"]\s*\}/);
+    const locatorWithOptionsMatch = locatorCall.match(
+      /locator\(['"](.*?)['"],\s*\{\s*hasText:\s*['"](.*?)['"]\s*\}/
+    );
     if (locatorWithOptionsMatch) {
       const [, selector, text] = locatorWithOptionsMatch;
       return `${selector}:has-text("${text}")`;
@@ -966,18 +1065,26 @@ var userBehaviour = (() => {
     return locatorCall;
   }
   function parseChainedCall(baseSelector, chainCall) {
-    const filterTextMatch = chainCall.match(/filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}/);
+    const filterTextMatch = chainCall.match(
+      /filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}/
+    );
     if (filterTextMatch)
       return `${baseSelector}:filter-text("${filterTextMatch[1]}")`;
-    const filterRegexMatch = chainCall.match(/filter\(\{\s*hasText:\s*\/(.*?)\/([gimuy]*)\s*\}/);
+    const filterRegexMatch = chainCall.match(
+      /filter\(\{\s*hasText:\s*\/(.*?)\/([gimuy]*)\s*\}/
+    );
     if (filterRegexMatch)
       return `${baseSelector}:filter-regex("/${filterRegexMatch[1]}/${filterRegexMatch[2]}")`;
-    const filterHasMatch = chainCall.match(/filter\(\{\s*has:\s*page\.(.+?)\s*\}/);
+    const filterHasMatch = chainCall.match(
+      /filter\(\{\s*has:\s*page\.(.+?)\s*\}/
+    );
     if (filterHasMatch) {
       const innerSelector = parseLocatorCall(filterHasMatch[1]);
       return `${baseSelector}:filter-has("${innerSelector}")`;
     }
-    const filterHasNotMatch = chainCall.match(/filter\(\{\s*hasNot:\s*page\.(.+?)\s*\}/);
+    const filterHasNotMatch = chainCall.match(
+      /filter\(\{\s*hasNot:\s*page\.(.+?)\s*\}/
+    );
     if (filterHasNotMatch) {
       const innerSelector = parseLocatorCall(filterHasNotMatch[1]);
       return `${baseSelector}:filter-has-not("${innerSelector}")`;
@@ -1026,10 +1133,22 @@ var userBehaviour = (() => {
         return { type: "uncheck", selector, comment, lineNumber };
       case "selectOption":
         const optionValue = ((_b = args.match(/['"](.*?)['"]/)) == null ? void 0 : _b[1]) || "";
-        return { type: "selectOption", selector, value: optionValue, comment, lineNumber };
+        return {
+          type: "selectOption",
+          selector,
+          value: optionValue,
+          comment,
+          lineNumber
+        };
       case "waitFor":
         const stateMatch = args.match(/{\s*state:\s*['"](.*?)['"]\s*}/);
-        return { type: "waitFor", selector, options: stateMatch ? { state: stateMatch[1] } : {}, comment, lineNumber };
+        return {
+          type: "waitFor",
+          selector,
+          options: stateMatch ? { state: stateMatch[1] } : {},
+          comment,
+          lineNumber
+        };
       case "hover":
         return { type: "hover", selector, comment, lineNumber };
       case "focus":
@@ -1044,48 +1163,89 @@ var userBehaviour = (() => {
   }
   function parseExpectStatement(expectation, comment, lineNumber, selector) {
     if (expectation.includes("toBeVisible()")) {
-      return { type: "expect", selector, expectation: "toBeVisible", comment, lineNumber };
+      return {
+        type: "expect",
+        selector,
+        expectation: "toBeVisible",
+        comment,
+        lineNumber
+      };
     }
-    const toContainTextMatch = expectation.match(/toContainText\(['"](.*?)['"]\)/);
+    const toContainTextMatch = expectation.match(
+      /toContainText\(['"](.*?)['"]\)/
+    );
     if (toContainTextMatch) {
-      return { type: "expect", selector, expectation: "toContainText", value: toContainTextMatch[1], comment, lineNumber };
+      return {
+        type: "expect",
+        selector,
+        expectation: "toContainText",
+        value: toContainTextMatch[1],
+        comment,
+        lineNumber
+      };
     }
     const toHaveTextMatch = expectation.match(/toHaveText\(['"](.*?)['"]\)/);
     if (toHaveTextMatch) {
-      return { type: "expect", selector, expectation: "toHaveText", value: toHaveTextMatch[1], comment, lineNumber };
+      return {
+        type: "expect",
+        selector,
+        expectation: "toHaveText",
+        value: toHaveTextMatch[1],
+        comment,
+        lineNumber
+      };
     }
     if (expectation.includes("toBeChecked()")) {
-      return { type: "expect", selector, expectation: "toBeChecked", comment, lineNumber };
+      return {
+        type: "expect",
+        selector,
+        expectation: "toBeChecked",
+        comment,
+        lineNumber
+      };
     }
     if (expectation.includes("not.toBeChecked()")) {
-      return { type: "expect", selector, expectation: "not.toBeChecked", comment, lineNumber };
+      return {
+        type: "expect",
+        selector,
+        expectation: "not.toBeChecked",
+        comment,
+        lineNumber
+      };
     }
     const toHaveCountMatch = expectation.match(/toHaveCount\((\d+)\)/);
     if (toHaveCountMatch) {
-      return { type: "expect", selector, expectation: "toHaveCount", value: parseInt(toHaveCountMatch[1]), comment, lineNumber };
+      return {
+        type: "expect",
+        selector,
+        expectation: "toHaveCount",
+        value: parseInt(toHaveCountMatch[1]),
+        comment,
+        lineNumber
+      };
     }
     return null;
   }
   function getRoleSelector(role) {
     const roleMap = {
-      "button": 'button, [role="button"], input[type="button"], input[type="submit"]',
-      "heading": 'h1, h2, h3, h4, h5, h6, [role="heading"]',
-      "link": 'a, [role="link"]',
-      "textbox": 'input[type="text"], input[type="email"], input[type="password"], textarea, [role="textbox"]',
-      "checkbox": 'input[type="checkbox"], [role="checkbox"]',
-      "radio": 'input[type="radio"], [role="radio"]',
-      "listitem": 'li, [role="listitem"]',
-      "list": 'ul, ol, [role="list"]',
-      "img": 'img, [role="img"]',
-      "table": 'table, [role="table"]',
-      "row": 'tr, [role="row"]',
-      "cell": 'td, th, [role="cell"], [role="gridcell"]',
-      "menu": '[role="menu"]',
-      "menuitem": '[role="menuitem"]',
-      "dialog": '[role="dialog"]',
-      "alert": '[role="alert"]',
-      "tab": '[role="tab"]',
-      "tabpanel": '[role="tabpanel"]'
+      button: 'button, [role="button"], input[type="button"], input[type="submit"]',
+      heading: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
+      link: 'a, [role="link"]',
+      textbox: 'input[type="text"], input[type="email"], input[type="password"], textarea, [role="textbox"]',
+      checkbox: 'input[type="checkbox"], [role="checkbox"]',
+      radio: 'input[type="radio"], [role="radio"]',
+      listitem: 'li, [role="listitem"]',
+      list: 'ul, ol, [role="list"]',
+      img: 'img, [role="img"]',
+      table: 'table, [role="table"]',
+      row: 'tr, [role="row"]',
+      cell: 'td, th, [role="cell"], [role="gridcell"]',
+      menu: '[role="menu"]',
+      menuitem: '[role="menuitem"]',
+      dialog: '[role="dialog"]',
+      alert: '[role="alert"]',
+      tab: '[role="tab"]',
+      tabpanel: '[role="tabpanel"]'
     };
     return roleMap[role] || `[role="${role}"]`;
   }
@@ -1095,10 +1255,13 @@ var userBehaviour = (() => {
       switch (action.type) {
         case "goto":
           if (action.value && typeof action.value === "string") {
-            window.parent.postMessage({
-              type: "staktrak-iframe-navigate",
-              url: action.value
-            }, "*");
+            window.parent.postMessage(
+              {
+                type: "staktrak-iframe-navigate",
+                url: action.value
+              },
+              "*"
+            );
           }
           break;
         case "setViewportSize":
@@ -1155,20 +1318,26 @@ var userBehaviour = (() => {
           break;
         case "check":
           if (action.selector) {
-            const element = await waitForElement(action.selector);
+            const element = await waitForElement(
+              action.selector
+            );
             if (element && (element.type === "checkbox" || element.type === "radio")) {
               element.scrollIntoView({ behavior: "auto", block: "center" });
               if (!element.checked) {
                 element.click();
               }
             } else {
-              throw new Error(`Checkbox/radio element not found: ${action.selector}`);
+              throw new Error(
+                `Checkbox/radio element not found: ${action.selector}`
+              );
             }
           }
           break;
         case "uncheck":
           if (action.selector) {
-            const element = await waitForElement(action.selector);
+            const element = await waitForElement(
+              action.selector
+            );
             if (element && element.type === "checkbox") {
               element.scrollIntoView({ behavior: "auto", block: "center" });
               if (element.checked) {
@@ -1181,7 +1350,9 @@ var userBehaviour = (() => {
           break;
         case "selectOption":
           if (action.selector && action.value !== void 0) {
-            const element = await waitForElement(action.selector);
+            const element = await waitForElement(
+              action.selector
+            );
             if (element && element.tagName === "SELECT") {
               element.scrollIntoView({ behavior: "auto", block: "center" });
               element.value = String(action.value);
@@ -1199,7 +1370,9 @@ var userBehaviour = (() => {
           if (action.selector) {
             const element = await waitForElement(action.selector);
             if (!element) {
-              throw new Error(`Element not found for waitFor: ${action.selector}`);
+              throw new Error(
+                `Element not found for waitFor: ${action.selector}`
+              );
             }
             if (((_a = action.options) == null ? void 0 : _a.state) === "visible") {
               if (!isElementVisible(element)) {
@@ -1213,8 +1386,12 @@ var userBehaviour = (() => {
             const element = await waitForElement(action.selector);
             if (element) {
               element.scrollIntoView({ behavior: "auto", block: "center" });
-              element.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-              element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+              element.dispatchEvent(
+                new MouseEvent("mouseover", { bubbles: true })
+              );
+              element.dispatchEvent(
+                new MouseEvent("mouseenter", { bubbles: true })
+              );
             } else {
               throw new Error(`Element not found for hover: ${action.selector}`);
             }
@@ -1222,22 +1399,30 @@ var userBehaviour = (() => {
           break;
         case "focus":
           if (action.selector) {
-            const element = await waitForElement(action.selector);
+            const element = await waitForElement(
+              action.selector
+            );
             if (element && typeof element.focus === "function") {
               element.scrollIntoView({ behavior: "auto", block: "center" });
               element.focus();
             } else {
-              throw new Error(`Element not found or not focusable: ${action.selector}`);
+              throw new Error(
+                `Element not found or not focusable: ${action.selector}`
+              );
             }
           }
           break;
         case "blur":
           if (action.selector) {
-            const element = await waitForElement(action.selector);
+            const element = await waitForElement(
+              action.selector
+            );
             if (element && typeof element.blur === "function") {
               element.blur();
             } else {
-              throw new Error(`Element not found or not blurable: ${action.selector}`);
+              throw new Error(
+                `Element not found or not blurable: ${action.selector}`
+              );
             }
           }
           break;
@@ -1245,9 +1430,15 @@ var userBehaviour = (() => {
           if (action.selector) {
             const element = await waitForElement(action.selector);
             if (element) {
-              element.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+              element.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+                inline: "center"
+              });
             } else {
-              throw new Error(`Element not found for scrollIntoView: ${action.selector}`);
+              throw new Error(
+                `Element not found for scrollIntoView: ${action.selector}`
+              );
             }
           }
           break;
@@ -1290,7 +1481,10 @@ var userBehaviour = (() => {
       for (let i = 1; i < parts.length; i++) {
         const newElements = [];
         for (const element of elements) {
-          const subElements = findElementsInContext(parts[i], element.ownerDocument || document);
+          const subElements = findElementsInContext(
+            parts[i],
+            element.ownerDocument || document
+          );
           newElements.push(...subElements.filter((el) => element.contains(el)));
         }
         elements = newElements;
@@ -1310,7 +1504,9 @@ var userBehaviour = (() => {
       }
     }
     if (selector.includes(":filter-regex(")) {
-      const match = selector.match(/^(.+?):filter-regex\("\/(.+?)\/([gimuy]*)"\)$/);
+      const match = selector.match(
+        /^(.+?):filter-regex\("\/(.+?)\/([gimuy]*)"\)$/
+      );
       if (match) {
         const [, baseSelector, pattern, flags] = match;
         const regex = new RegExp(pattern, flags);
@@ -1328,7 +1524,10 @@ var userBehaviour = (() => {
         const [, baseSelector, hasSelector] = match;
         const baseElements = findElementsInContext(baseSelector, searchContext);
         return baseElements.filter((el) => {
-          const childElements = findElementsInContext(hasSelector, el.ownerDocument || document);
+          const childElements = findElementsInContext(
+            hasSelector,
+            el.ownerDocument || document
+          );
           return childElements.some((child) => el.contains(child));
         });
       }
@@ -1339,7 +1538,10 @@ var userBehaviour = (() => {
         const [, baseSelector, hasNotSelector] = match;
         const baseElements = findElementsInContext(baseSelector, searchContext);
         return baseElements.filter((el) => {
-          const childElements = findElementsInContext(hasNotSelector, el.ownerDocument || document);
+          const childElements = findElementsInContext(
+            hasNotSelector,
+            el.ownerDocument || document
+          );
           return !childElements.some((child) => el.contains(child));
         });
       }
@@ -1395,10 +1597,12 @@ var userBehaviour = (() => {
           el.__stakTrakMatchedText = text.trim();
         }
       }
-      return matches.sort((a, b) => {
-        var _a2, _b2;
-        return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-      });
+      return matches.sort(
+        (a, b) => {
+          var _a2, _b2;
+          return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
+        }
+      );
     } else if (selector.startsWith("getByText-regex:")) {
       const regexPattern = selector.substring(16);
       const regexMatch = regexPattern.match(/^\/(.+?)\/([gimuy]*)$/);
@@ -1414,17 +1618,23 @@ var userBehaviour = (() => {
             el.__stakTrakMatchedText = elementText;
           }
         }
-        return matches.sort((a, b) => {
-          var _a2, _b2;
-          return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-        });
+        return matches.sort(
+          (a, b) => {
+            var _a2, _b2;
+            return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
+          }
+        );
       }
     } else if (selector.startsWith("role:")) {
-      const roleRegexMatch = selector.match(/^role:(\w+)\[name-regex="\/(.+?)\/([gimuy]*)"\]$/);
+      const roleRegexMatch = selector.match(
+        /^role:(\w+)\[name-regex="\/(.+?)\/([gimuy]*)"\]$/
+      );
       if (roleRegexMatch) {
         const [, role, pattern, flags] = roleRegexMatch;
         const regex = new RegExp(pattern, flags);
-        const roleElements = searchContext.querySelectorAll(`[role="${role}"], ${getRoleSelector(role)}`);
+        const roleElements = searchContext.querySelectorAll(
+          `[role="${role}"], ${getRoleSelector(role)}`
+        );
         const matches = [];
         for (const el of Array.from(roleElements)) {
           const elementText = ((_d = el.textContent) == null ? void 0 : _d.trim()) || "";
@@ -1438,7 +1648,9 @@ var userBehaviour = (() => {
       const roleMatch = selector.match(/^role:(\w+)(?:\[name="([^"]+)"\])?$/);
       if (roleMatch) {
         const [, role, name] = roleMatch;
-        const roleElements = searchContext.querySelectorAll(`[role="${role}"], ${getRoleSelector(role)}`);
+        const roleElements = searchContext.querySelectorAll(
+          `[role="${role}"], ${getRoleSelector(role)}`
+        );
         const matches = [];
         for (const el of Array.from(roleElements)) {
           if (name) {
@@ -1467,10 +1679,12 @@ var userBehaviour = (() => {
             el.__stakTrakMatchedText = text.trim();
           }
         }
-        return matches.sort((a, b) => {
-          var _a2, _b2;
-          return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-        });
+        return matches.sort(
+          (a, b) => {
+            var _a2, _b2;
+            return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
+          }
+        );
       }
     } else if (selector.startsWith("getByLabel:")) {
       const labelText = selector.substring(11);
@@ -1492,10 +1706,14 @@ var userBehaviour = (() => {
       return matches;
     } else if (selector.startsWith("getByPlaceholder:")) {
       const placeholder = selector.substring(17);
-      return Array.from(searchContext.querySelectorAll(`[placeholder*="${placeholder}"]`));
+      return Array.from(
+        searchContext.querySelectorAll(`[placeholder*="${placeholder}"]`)
+      );
     } else if (selector.startsWith("getByTestId:")) {
       const testId = selector.substring(12);
-      return Array.from(searchContext.querySelectorAll(`[data-testid="${testId}"]`));
+      return Array.from(
+        searchContext.querySelectorAll(`[data-testid="${testId}"]`)
+      );
     } else if (selector.startsWith("getByTitle:")) {
       const title = selector.substring(11);
       return Array.from(searchContext.querySelectorAll(`[title*="${title}"]`));
@@ -1543,26 +1761,38 @@ var userBehaviour = (() => {
             matches.push(el);
           }
         }
-        return matches.sort((a, b) => {
-          var _a2, _b2;
-          return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-        });
+        return matches.sort(
+          (a, b) => {
+            var _a2, _b2;
+            return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
+          }
+        );
       }
     } else if (selector.startsWith("id=")) {
       const id = selector.substring(3);
       return Array.from(searchContext.querySelectorAll(`#${id}`));
     } else if (selector.startsWith("data-testid=")) {
       const testId = selector.substring(13);
-      return Array.from(searchContext.querySelectorAll(`[data-testid="${testId}"]`));
+      return Array.from(
+        searchContext.querySelectorAll(`[data-testid="${testId}"]`)
+      );
     } else if (selector.startsWith("data-test-id=")) {
       const testId = selector.substring(14);
-      return Array.from(searchContext.querySelectorAll(`[data-test-id="${testId}"]`));
+      return Array.from(
+        searchContext.querySelectorAll(`[data-test-id="${testId}"]`)
+      );
     } else if (selector.startsWith("data-test=")) {
       const test = selector.substring(11);
       return Array.from(searchContext.querySelectorAll(`[data-test="${test}"]`));
     } else if (selector.startsWith("xpath=")) {
       const xpath = selector.substring(6);
-      const result = searchContext.evaluate(xpath, searchContext, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+      const result = searchContext.evaluate(
+        xpath,
+        searchContext,
+        null,
+        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+        null
+      );
       const matches = [];
       for (let i = 0; i < result.snapshotLength; i++) {
         const node = result.snapshotItem(i);
@@ -1712,7 +1942,10 @@ var userBehaviour = (() => {
             if (parent) {
               const tempDiv = document.createElement("div");
               tempDiv.innerHTML = textContent.replace(
-                new RegExp(`(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
+                new RegExp(
+                  `(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+                  "gi"
+                ),
                 '<span class="staktrak-text-highlight">$1</span>'
               );
               while (tempDiv.firstChild) {
@@ -1735,7 +1968,10 @@ var userBehaviour = (() => {
         highlights.forEach((highlight) => {
           const parent = highlight.parentNode;
           if (parent) {
-            parent.insertBefore(document.createTextNode(highlight.textContent || ""), highlight);
+            parent.insertBefore(
+              document.createTextNode(highlight.textContent || ""),
+              highlight
+            );
             parent.removeChild(highlight);
           }
         });
@@ -1760,23 +1996,31 @@ var userBehaviour = (() => {
       case "toContainText":
         const textElement = await waitForElement(action.selector);
         if (!textElement || !((_a = textElement.textContent) == null ? void 0 : _a.includes(String(action.value || "")))) {
-          throw new Error(`Element does not contain text "${action.value}": ${action.selector}`);
+          throw new Error(
+            `Element does not contain text "${action.value}": ${action.selector}`
+          );
         }
         break;
       case "toHaveText":
         const exactTextElement = await waitForElement(action.selector);
         if (!exactTextElement || ((_b = exactTextElement.textContent) == null ? void 0 : _b.trim()) !== String(action.value || "")) {
-          throw new Error(`Element does not have exact text "${action.value}": ${action.selector}`);
+          throw new Error(
+            `Element does not have exact text "${action.value}": ${action.selector}`
+          );
         }
         break;
       case "toBeChecked":
-        const checkedElement = await waitForElement(action.selector);
+        const checkedElement = await waitForElement(
+          action.selector
+        );
         if (!checkedElement || !checkedElement.checked) {
           throw new Error(`Element is not checked: ${action.selector}`);
         }
         break;
       case "not.toBeChecked":
-        const uncheckedElement = await waitForElement(action.selector);
+        const uncheckedElement = await waitForElement(
+          action.selector
+        );
         if (!uncheckedElement || uncheckedElement.checked) {
           throw new Error(`Element should not be checked: ${action.selector}`);
         }
@@ -1785,7 +2029,9 @@ var userBehaviour = (() => {
         const elements = await waitForElements(action.selector);
         const expectedCount = Number(action.value);
         if (elements.length !== expectedCount) {
-          throw new Error(`Expected ${expectedCount} elements, but found ${elements.length}: ${action.selector}`);
+          throw new Error(
+            `Expected ${expectedCount} elements, but found ${elements.length}: ${action.selector}`
+          );
         }
         break;
       default:
@@ -1848,17 +2094,23 @@ var userBehaviour = (() => {
         errors: [],
         timeouts: []
       };
-      window.parent.postMessage({
-        type: "staktrak-playwright-replay-started",
-        totalActions: actions.length,
-        actions
-      }, "*");
+      window.parent.postMessage(
+        {
+          type: "staktrak-playwright-replay-started",
+          totalActions: actions.length,
+          actions
+        },
+        "*"
+      );
       executeNextPlaywrightAction();
     } catch (error) {
-      window.parent.postMessage({
-        type: "staktrak-playwright-replay-error",
-        error: error instanceof Error ? error.message : "Unknown error"
-      }, "*");
+      window.parent.postMessage(
+        {
+          type: "staktrak-playwright-replay-error",
+          error: error instanceof Error ? error.message : "Unknown error"
+        },
+        "*"
+      );
     }
   }
   async function executeNextPlaywrightAction() {
@@ -1868,35 +2120,46 @@ var userBehaviour = (() => {
     }
     if (state.currentActionIndex >= state.actions.length) {
       state.status = "completed" /* COMPLETED */;
-      window.parent.postMessage({
-        type: "staktrak-playwright-replay-completed"
-      }, "*");
+      window.parent.postMessage(
+        {
+          type: "staktrak-playwright-replay-completed"
+        },
+        "*"
+      );
       return;
     }
     const action = state.actions[state.currentActionIndex];
     try {
-      window.parent.postMessage({
-        type: "staktrak-playwright-replay-progress",
-        current: state.currentActionIndex + 1,
-        total: state.actions.length,
-        currentAction: __spreadProps(__spreadValues({}, action), {
-          description: getActionDescription(action)
-        })
-      }, "*");
+      window.parent.postMessage(
+        {
+          type: "staktrak-playwright-replay-progress",
+          current: state.currentActionIndex + 1,
+          total: state.actions.length,
+          currentAction: __spreadProps(__spreadValues({}, action), {
+            description: getActionDescription(action)
+          })
+        },
+        "*"
+      );
       await executePlaywrightAction(action);
       state.currentActionIndex++;
       setTimeout(() => {
         executeNextPlaywrightAction();
       }, 300);
     } catch (error) {
-      state.errors.push(`Action ${state.currentActionIndex + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
+      state.errors.push(
+        `Action ${state.currentActionIndex + 1}: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
       state.currentActionIndex++;
-      window.parent.postMessage({
-        type: "staktrak-playwright-replay-error",
-        error: error instanceof Error ? error.message : "Unknown error",
-        actionIndex: state.currentActionIndex - 1,
-        action
-      }, "*");
+      window.parent.postMessage(
+        {
+          type: "staktrak-playwright-replay-error",
+          error: error instanceof Error ? error.message : "Unknown error",
+          actionIndex: state.currentActionIndex - 1,
+          action
+        },
+        "*"
+      );
       executeNextPlaywrightAction();
     }
   }
@@ -1906,7 +2169,10 @@ var userBehaviour = (() => {
       state.status = "paused" /* PAUSED */;
       state.timeouts.forEach((id) => clearTimeout(id));
       state.timeouts = [];
-      window.parent.postMessage({ type: "staktrak-playwright-replay-paused" }, "*");
+      window.parent.postMessage(
+        { type: "staktrak-playwright-replay-paused" },
+        "*"
+      );
     }
   }
   function resumePlaywrightReplay() {
@@ -1914,7 +2180,10 @@ var userBehaviour = (() => {
     if (state && state.status === "paused" /* PAUSED */) {
       state.status = "playing" /* PLAYING */;
       executeNextPlaywrightAction();
-      window.parent.postMessage({ type: "staktrak-playwright-replay-resumed" }, "*");
+      window.parent.postMessage(
+        { type: "staktrak-playwright-replay-resumed" },
+        "*"
+      );
     }
   }
   function stopPlaywrightReplay() {
@@ -1923,7 +2192,10 @@ var userBehaviour = (() => {
       state.status = "idle" /* IDLE */;
       state.timeouts.forEach((id) => clearTimeout(id));
       state.timeouts = [];
-      window.parent.postMessage({ type: "staktrak-playwright-replay-stopped" }, "*");
+      window.parent.postMessage(
+        { type: "staktrak-playwright-replay-stopped" },
+        "*"
+      );
     }
   }
   function getPlaywrightReplayState() {
@@ -1960,24 +2232,16 @@ var userBehaviour = (() => {
           break;
         case "staktrak-playwright-replay-ping":
           const currentState = getPlaywrightReplayState();
-          window.parent.postMessage({
-            type: "staktrak-playwright-replay-pong",
-            state: currentState
-          }, "*");
+          window.parent.postMessage(
+            {
+              type: "staktrak-playwright-replay-pong",
+              state: currentState
+            },
+            "*"
+          );
           break;
       }
     });
-  }
-  if (typeof window !== "undefined") {
-    window.PlaywrightReplay = {
-      parsePlaywrightTest,
-      startPlaywrightReplay,
-      pausePlaywrightReplay,
-      resumePlaywrightReplay,
-      stopPlaywrightReplay,
-      getPlaywrightReplayState,
-      initPlaywrightReplay
-    };
   }
 
   // src/index.ts
