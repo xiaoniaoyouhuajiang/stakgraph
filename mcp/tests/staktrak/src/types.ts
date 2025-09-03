@@ -155,3 +155,21 @@ export interface ReplayProgress {
   current: number;
   total: number;
 }
+
+export interface PlaywrightAction {
+  type: 'goto' | 'click' | 'fill' | 'check' | 'uncheck' | 'selectOption' | 'waitForTimeout' | 'expect' | 'setViewportSize' | 'waitForLoadState' | 'waitForSelector' | 'waitFor' | 'hover' | 'focus' | 'blur' | 'scrollIntoView';
+  selector?: string;
+  value?: string | number;
+  options?: Record<string, any>;
+  expectation?: 'toBeVisible' | 'toContainText' | 'toBeChecked' | 'not.toBeChecked' | 'toHaveText' | 'toHaveCount';
+  comment?: string;
+  lineNumber?: number;
+}
+
+export interface PlaywrightReplayState {
+  actions: PlaywrightAction[];
+  status: ReplayStatus;
+  currentActionIndex: number;
+  testCode: string;
+  errors: string[];
+}

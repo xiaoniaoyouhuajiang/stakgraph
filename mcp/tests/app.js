@@ -8,6 +8,7 @@ import {
   useTestFiles,
   usePopup,
   useIframeReplay,
+  usePlaywrightReplay,
 } from "./hooks.js";
 
 export const html = htm.bind(h);
@@ -58,7 +59,22 @@ const Staktrak = () => {
     stopReplay,
   } = useIframeReplay(iframeRef);
 
+  const {
+    isPlaywrightReplaying,
+    isPlaywrightPaused,
+    playwrightStatus,
+    playwrightProgress,
+    currentAction,
+    replayErrors,
+    startPlaywrightReplay,
+    pausePlaywrightReplay,
+    resumePlaywrightReplay,
+    stopPlaywrightReplay,
+  } = usePlaywrightReplay(iframeRef);
+
   const [filenameInput, setFilenameInput] = useState("");
+  const [testCodeInput, setTestCodeInput] = useState("");
+  const [showPlaywrightReplay, setShowPlaywrightReplay] = useState(false);
 
   const handleRecord = () => {
     if (!isRecording) {
@@ -120,6 +136,51 @@ const Staktrak = () => {
 
   const handleStopReplay = () => {
     stopReplay();
+  };
+
+  const handlePlaywrightReplay = () => {
+    if (isPlaywrightReplaying) {
+      if (isPlaywrightPaused) {
+        resumePlaywrightReplay();
+      } else {
+        pausePlaywrightReplay();
+      }
+    } else {
+      if (testCodeInput.trim()) {
+        const currentTestCode = testCodeInput;
+        
+        if (iframeRef.current) {
+          iframeRef.current.src = iframeRef.current.src;
+        }
+        
+        setTimeout(() => {
+          startPlaywrightReplay(currentTestCode);
+        }, 100);
+      } else {
+        showPopup("Please enter Playwright test code", "error");
+      }
+    }
+  };
+
+  const handleStopPlaywrightReplay = () => {
+    stopPlaywrightReplay();
+  };
+
+  const loadTestForReplay = async (testName) => {
+    try {
+      const response = await fetch(`/test/get?name=${encodeURIComponent(testName)}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setTestCodeInput(result.content);
+        setShowPlaywrightReplay(true);
+        showPopup(`Test "${testName}" loaded for replay`, "success");
+      } else {
+        showPopup(`Failed to load test: ${result.error}`, "error");
+      }
+    } catch (error) {
+      showPopup(`Error loading test: ${error.message}`, "error");
+    }
   };
 
   const copyTestToClipboard = () => {
@@ -198,7 +259,7 @@ const Staktrak = () => {
           <button
             class=${isRecording ? "stop" : "record"}
             onClick=${handleRecord}
-            disabled=${isReplaying}
+            disabled=${isReplaying || isPlaywrightReplaying}
           >
             ${isRecording
               ? html`<span class="btn-icon">⏹</span> Stop Recording`
@@ -207,7 +268,7 @@ const Staktrak = () => {
           <button
             class=${isAssertionMode ? "interact" : "assert"}
             onClick=${handleMode}
-            disabled=${!isRecording || isReplaying}
+            disabled=${!isRecording || isReplaying || isPlaywrightReplaying}
           >
             ${isAssertionMode
               ? html`<span class="btn-icon">🖱️</span> Interaction Mode`
@@ -216,7 +277,7 @@ const Staktrak = () => {
           <button
             class="generate"
             onClick=${handleGenerate}
-            disabled=${!canGenerate || isReplaying}
+            disabled=${!canGenerate || isReplaying || isPlaywrightReplaying}
           >
             <span class="btn-icon">⚙️</span> Generate Playwright Test
           </button>
@@ -224,7 +285,7 @@ const Staktrak = () => {
             <button
               class=${isReplaying ? (isPaused ? "resume" : "pause") : "replay"}
               onClick=${handleReplay}
-              disabled=${!canGenerate || isRecording}
+              disabled=${!canGenerate || isRecording || isPlaywrightReplaying}
             >
               ${isReplaying
                 ? isPaused
@@ -238,6 +299,12 @@ const Staktrak = () => {
                 <span class="btn-icon">⏹</span> Stop Replay
               </button>
             `}
+            <button
+              class="playwright-toggle"
+              onClick=${() => setShowPlaywrightReplay(!showPlaywrightReplay)}
+            >
+              <span class="btn-icon">🎬</span> ${showPlaywrightReplay ? "Hide" : "Show"} Code Replay
+            </button>
           </div>
         </div>
       </header>
@@ -257,12 +324,72 @@ const Staktrak = () => {
         </div>
       `}
 
+      ${isPlaywrightReplaying &&
+      html`
+        <div class="playwright-replay-progress-bar">
+          <div
+            class="playwright-replay-progress-inner"
+            style="width: ${(playwrightProgress.current /
+              Math.max(1, playwrightProgress.total)) *
+            100}%"
+          ></div>
+          <div class="playwright-replay-progress-text">
+            Playwright: Step ${playwrightProgress.current} of ${playwrightProgress.total} (${playwrightStatus})
+          </div>
+        </div>
+      `}
+
+      ${showPlaywrightReplay &&
+      html`
+        <div class="playwright-replay-section">
+          <h3>🎬 Playwright Code Replay</h3>
+          <div class="playwright-controls">
+            <textarea
+              class="test-code-input"
+              placeholder="Paste your Playwright test code here..."
+              value=${testCodeInput}
+              onInput=${(e) => setTestCodeInput(e.target.value)}
+              rows="10"
+            ></textarea>
+            <div class="playwright-buttons">
+              <button
+                class=${`playwright-replay-btn ${isPlaywrightReplaying ? "active" : ""}`}
+                onClick=${handlePlaywrightReplay}
+                disabled=${!testCodeInput.trim() && !isPlaywrightReplaying}
+              >
+                ${isPlaywrightReplaying
+                  ? isPlaywrightPaused
+                    ? "▶️ Resume Playwright"
+                    : "⏸️ Pause Playwright"
+                  : "🔄 Start Playwright Replay"}
+              </button>
+              ${isPlaywrightReplaying
+                ? html`<button class="stop-btn" onClick=${handleStopPlaywrightReplay}>
+                    ⏹️ Stop Playwright
+                  </button>`
+                : null}
+              
+            </div>
+            ${replayErrors.length > 0
+              ? html`<div class="replay-errors">
+                  <h4>⚠️ Replay Errors (${replayErrors.length}):</h4>
+                  ${replayErrors.slice(-3).map(error => html`
+                    <div class="error-item">
+                      Action ${error.actionIndex + 1}: ${error.message}
+                    </div>
+                  `)}
+                </div>`
+              : null}
+          </div>
+        </div>
+      `}
+
       <div class="main-content">
         ${selectedText &&
         html`<div class="selected-text" id="app-selection-display">
           Selected: "${selectedText}"
         </div>`}
-        <div class="iframe-container ${isReplaying ? "replaying" : ""}">
+        <div class="iframe-container ${isReplaying ? "replaying" : ""} ${isPlaywrightReplaying ? "playwright-replaying" : ""}">
           <iframe ref=${iframeRef} src=${url} id="trackingFrame"></iframe>
         </div>
 
@@ -392,6 +519,14 @@ const Staktrak = () => {
                         disabled=${isReplaying}
                       >
                         <span class="btn-icon">🗑️</span> Delete
+                      </button>
+                      <button
+                        class="replay-test-btn"
+                        onClick=${() => loadTestForReplay(file.filename)}
+                        title="Load for Playwright replay"
+                        disabled=${isReplaying || isPlaywrightReplaying}
+                      >
+                        <span class="btn-icon">🎬</span> Replay
                       </button>
                       <button
                         class="toggle-result"
