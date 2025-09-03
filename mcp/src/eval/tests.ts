@@ -338,6 +338,107 @@ export async function deleteTestByName(
   }
 }
 
+export async function runPlaywrightReplay(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const { testCode, speed } = req.body;
+    console.log("===> runPlaywrightReplay");
+
+    if (!testCode || typeof testCode !== "string") {
+      res.status(400).json({ error: "Test code is required" });
+      return;
+    }
+
+    if (!testCode.includes("page.") || !testCode.includes("test(")) {
+      res.status(400).json({ error: "Invalid Playwright test format" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "Playwright replay request received",
+      testCodeLength: testCode.length,
+      speed: speed || 1,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+export async function parsePlaywrightTest(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const { testCode } = req.body;
+    console.log("===> parsePlaywrightTest");
+
+    if (!testCode || typeof testCode !== "string") {
+      res.status(400).json({ error: "Test code is required" });
+      return;
+    }
+
+    const lines = testCode.split('\n');
+    const actions = [];
+    
+    let lineNumber = 0;
+    for (const line of lines) {
+      lineNumber++;
+      const trimmed = line.trim();
+      
+      if (trimmed.includes('page.goto(')) {
+        const urlMatch = trimmed.match(/page\.goto\(['"](.*?)['"]\)/);
+        if (urlMatch) {
+          actions.push({
+            type: 'goto',
+            value: urlMatch[1],
+            lineNumber
+          });
+        }
+      } else if (trimmed.includes('page.click(')) {
+        const selectorMatch = trimmed.match(/page\.click\(['"](.*?)['"]\)/);
+        if (selectorMatch) {
+          actions.push({
+            type: 'click',
+            selector: selectorMatch[1],
+            lineNumber
+          });
+        }
+      } else if (trimmed.includes('page.fill(')) {
+        const fillMatch = trimmed.match(/page\.fill\(['"](.*?)['"],\s*['"](.*?)['"]\)/);
+        if (fillMatch) {
+          actions.push({
+            type: 'fill',
+            selector: fillMatch[1],
+            value: fillMatch[2],
+            lineNumber
+          });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      actions,
+      totalActions: actions.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
 export async function renameTest(req: Request, res: Response): Promise<void> {
   try {
     const { from, to } = req.body || {};
@@ -418,6 +519,8 @@ export function test_routes(app: Express) {
   app.get("/test/delete", deleteTestByName);
   app.post("/test/save", saveTest);
   app.post("/test/rename", renameTest);
+  app.post("/test/playwright-replay", runPlaywrightReplay);
+  app.post("/test/playwright-parse", parsePlaywrightTest);
 
   let tests_base_path = path.join(getBaseDir(), "tests");
 

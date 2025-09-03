@@ -7,6 +7,7 @@ import {
   filterClickDetails,
 } from "./utils";
 import { debugMsg, isReactDevModeActive } from "./debug";
+import { initPlaywrightReplay } from "./playwright-replay";
 
 const defaultConfig: Config = {
   userInfo: true,
@@ -599,6 +600,8 @@ const initializeStakTrak = () => {
         console.log("StakTrak recording processed:", results),
     })
     .listen();
+  
+  initPlaywrightReplay();
 };
 
 document.readyState === "loading"

@@ -155,18 +155,9 @@ export const generateTextBasedSelector = (
   const cleanText = text.replace(/"/g, '\\"').trim();
   if (cleanText.length === 0 || cleanText.length > 50) return null;
 
-  // For buttons and links with short, unique text
-  if (tagName === "button") {
-    return `button:has-text("${cleanText}")`;
-  }
-
-  if (tagName === "a") {
-    return `a:has-text("${cleanText}")`;
-  }
-
-  // For elements with role=button
-  if ((element as HTMLElement).getAttribute("role") === "button") {
-    return `[role="button"]:has-text("${cleanText}")`;
+  if (tagName === "button" || tagName === "a" || 
+      (element as HTMLElement).getAttribute("role") === "button") {
+    return `text=${cleanText}`;
   }
 
   return null;

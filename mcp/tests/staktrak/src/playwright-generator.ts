@@ -101,16 +101,7 @@ function convertToPlaywrightSelector(clickDetail: ClickDetail): string {
   ) {
     const cleanText = selectors.text.trim();
     if (cleanText.length > 0 && cleanText.length <= 50) {
-      // Use Playwright's text locators
-      if (selectors.tagName === "button") {
-        return `button:has-text("${escapeTextForAssertion(cleanText)}")`;
-      }
-      if (selectors.tagName === "a") {
-        return `a:has-text("${escapeTextForAssertion(cleanText)}")`;
-      }
-      if (selectors.role === "button") {
-        return `[role="button"]:has-text("${escapeTextForAssertion(cleanText)}")`;
-      }
+      return `text=${escapeTextForAssertion(cleanText)}`;
     }
   }
 
