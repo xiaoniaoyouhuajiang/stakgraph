@@ -8,29 +8,35 @@ let playwrightReplayRef = {
     testCode: string;
     errors: string[];
     timeouts: number[];
-  } | null
+  } | null,
 };
 
 export function parsePlaywrightTest(testCode: string): PlaywrightAction[] {
   const actions: PlaywrightAction[] = [];
-  const lines = testCode.split('\n');
-  
+  const lines = testCode.split("\n");
+
   let lineNumber = 0;
   const variables: Map<string, string> = new Map();
-  
+
   for (const line of lines) {
     lineNumber++;
     const trimmed = line.trim();
-    
-    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('import') || 
-        trimmed.startsWith('test(') || trimmed.includes('async ({ page })') ||
-        trimmed === '}); ' || trimmed === '});') {
+
+    if (
+      !trimmed ||
+      trimmed.startsWith("//") ||
+      trimmed.startsWith("import") ||
+      trimmed.startsWith("test(") ||
+      trimmed.includes("async ({ page })") ||
+      trimmed === "}); " ||
+      trimmed === "});"
+    ) {
       continue;
     }
-    
+
     const commentMatch = line.match(/^\s*\/\/\s*(.+)/);
     const comment = commentMatch ? commentMatch[1] : undefined;
-    
+
     try {
       const variableMatch = trimmed.match(/^const\s+(\w+)\s*=\s*page\.(.+);$/);
       if (variableMatch) {
@@ -39,8 +45,10 @@ export function parsePlaywrightTest(testCode: string): PlaywrightAction[] {
         variables.set(varName, selector);
         continue;
       }
-      
-      const chainedVariableMatch = trimmed.match(/^const\s+(\w+)\s*=\s*(\w+)\.(.+);$/);
+
+      const chainedVariableMatch = trimmed.match(
+        /^const\s+(\w+)\s*=\s*(\w+)\.(.+);$/
+      );
       if (chainedVariableMatch) {
         const [, newVarName, baseVarName, chainCall] = chainedVariableMatch;
         if (variables.has(baseVarName)) {
@@ -50,400 +58,471 @@ export function parsePlaywrightTest(testCode: string): PlaywrightAction[] {
           continue;
         }
       }
-      
-      const awaitVariableCallMatch = trimmed.match(/^await\s+(\w+)\.(\w+)\((.*?)\);?$/);
+
+      const awaitVariableCallMatch = trimmed.match(
+        /^await\s+(\w+)\.(\w+)\((.*?)\);?$/
+      );
       if (awaitVariableCallMatch) {
         const [, varName, method, args] = awaitVariableCallMatch;
         if (variables.has(varName)) {
           const selector = variables.get(varName)!;
-          const action = parseVariableMethodCall(varName, method, args, comment, lineNumber, selector);
+          const action = parseVariableMethodCall(
+            varName,
+            method,
+            args,
+            comment,
+            lineNumber,
+            selector
+          );
           if (action) {
             actions.push(action);
           }
           continue;
         }
       }
-      
+
       const variableCallMatch = trimmed.match(/^(\w+)\.(\w+)\((.*?)\);?$/);
       if (variableCallMatch) {
         const [, varName, method, args] = variableCallMatch;
         if (variables.has(varName)) {
           const selector = variables.get(varName)!;
-          const action = parseVariableMethodCall(varName, method, args, comment, lineNumber, selector);
-          if (action) {
-            actions.push(action);
-          }
-        continue;
-      }
-      }
-      
-      const pageLocatorActionMatch = trimmed.match(/^(?:await\s+)?page\.locator\(([^)]+)\)\.(\w+)\((.*?)\);?$/);
-      if (pageLocatorActionMatch) {
-        const [, selectorArg, method, args] = pageLocatorActionMatch;
-        const selector = extractSelectorFromArg(selectorArg);
-        const action = parseDirectAction(method, args, comment, lineNumber, selector);
-        if (action) {
-          actions.push(action);
-        }
-        continue;
-      }
-      
-      const expectVariableMatch = trimmed.match(/^(?:await\s+)?expect\((\w+)\)\.(.+)$/);
-      if (expectVariableMatch) {
-        const [, varName, expectation] = expectVariableMatch;
-        if (variables.has(varName)) {
-          const selector = variables.get(varName)!;
-          const action = parseExpectStatement(expectation, comment, lineNumber, selector);
+          const action = parseVariableMethodCall(
+            varName,
+            method,
+            args,
+            comment,
+            lineNumber,
+            selector
+          );
           if (action) {
             actions.push(action);
           }
           continue;
         }
       }
-      
-      const expectLocatorMatch = trimmed.match(/^(?:await\s+)?expect\(page\.locator\(([^)]+)\)\)\.(.+)$/);
-      if (expectLocatorMatch) {
-        const [, selectorArg, expectation] = expectLocatorMatch;
+
+      const pageLocatorActionMatch = trimmed.match(
+        /^(?:await\s+)?page\.locator\(([^)]+)\)\.(\w+)\((.*?)\);?$/
+      );
+      if (pageLocatorActionMatch) {
+        const [, selectorArg, method, args] = pageLocatorActionMatch;
         const selector = extractSelectorFromArg(selectorArg);
-        const action = parseExpectStatement(expectation, comment, lineNumber, selector);
+        const action = parseDirectAction(
+          method,
+          args,
+          comment,
+          lineNumber,
+          selector
+        );
         if (action) {
           actions.push(action);
         }
         continue;
       }
-      
-      const waitForSelectorMatch = trimmed.match(/^(?:await\s+)?page\.waitForSelector\(['"](.*?)['"]\);?$/);
+
+      const expectVariableMatch = trimmed.match(
+        /^(?:await\s+)?expect\((\w+)\)\.(.+)$/
+      );
+      if (expectVariableMatch) {
+        const [, varName, expectation] = expectVariableMatch;
+        if (variables.has(varName)) {
+          const selector = variables.get(varName)!;
+          const action = parseExpectStatement(
+            expectation,
+            comment,
+            lineNumber,
+            selector
+          );
+          if (action) {
+            actions.push(action);
+          }
+          continue;
+        }
+      }
+
+      const expectLocatorMatch = trimmed.match(
+        /^(?:await\s+)?expect\(page\.locator\(([^)]+)\)\)\.(.+)$/
+      );
+      if (expectLocatorMatch) {
+        const [, selectorArg, expectation] = expectLocatorMatch;
+        const selector = extractSelectorFromArg(selectorArg);
+        const action = parseExpectStatement(
+          expectation,
+          comment,
+          lineNumber,
+          selector
+        );
+        if (action) {
+          actions.push(action);
+        }
+        continue;
+      }
+
+      const waitForSelectorMatch = trimmed.match(
+        /^(?:await\s+)?page\.waitForSelector\(['"](.*?)['"]\);?$/
+      );
       if (waitForSelectorMatch) {
         actions.push({
-          type: 'waitForSelector',
+          type: "waitForSelector",
           selector: waitForSelectorMatch[1],
           comment,
-          lineNumber
+          lineNumber,
         });
         continue;
       }
-      
-      if (trimmed.includes('page.goto(')) {
+
+      if (trimmed.includes("page.goto(")) {
         const urlMatch = trimmed.match(/page\.goto\(['"](.*?)['"]\)/);
         if (urlMatch) {
           actions.push({
-            type: 'goto',
+            type: "goto",
             value: urlMatch[1],
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.setViewportSize(')) {
-        const sizeMatch = trimmed.match(/page\.setViewportSize\(\s*{\s*width:\s*(\d+),\s*height:\s*(\d+)\s*}\s*\)/);
+      } else if (trimmed.includes("page.setViewportSize(")) {
+        const sizeMatch = trimmed.match(
+          /page\.setViewportSize\(\s*{\s*width:\s*(\d+),\s*height:\s*(\d+)\s*}\s*\)/
+        );
         if (sizeMatch) {
           actions.push({
-            type: 'setViewportSize',
+            type: "setViewportSize",
             options: {
               width: parseInt(sizeMatch[1]),
-              height: parseInt(sizeMatch[2])
+              height: parseInt(sizeMatch[2]),
             },
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.waitForLoadState(')) {
-        const stateMatch = trimmed.match(/page\.waitForLoadState\(['"](.*?)['"]\)/);
+      } else if (trimmed.includes("page.waitForLoadState(")) {
+        const stateMatch = trimmed.match(
+          /page\.waitForLoadState\(['"](.*?)['"]\)/
+        );
         actions.push({
-          type: 'waitForLoadState',
-          value: stateMatch ? stateMatch[1] : 'networkidle',
+          type: "waitForLoadState",
+          value: stateMatch ? stateMatch[1] : "networkidle",
           comment,
-          lineNumber
+          lineNumber,
         });
-      }
-      
-      else if (trimmed.includes('page.click(')) {
+      } else if (trimmed.includes("page.click(")) {
         const selectorMatch = trimmed.match(/page\.click\(['"](.*?)['"]\)/);
         if (selectorMatch) {
           actions.push({
-            type: 'click',
+            type: "click",
             selector: selectorMatch[1],
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.fill(')) {
-        const fillMatch = trimmed.match(/page\.fill\(['"](.*?)['"],\s*['"](.*?)['"]\)/);
+      } else if (trimmed.includes("page.fill(")) {
+        const fillMatch = trimmed.match(
+          /page\.fill\(['"](.*?)['"],\s*['"](.*?)['"]\)/
+        );
         if (fillMatch) {
           actions.push({
-            type: 'fill',
+            type: "fill",
             selector: fillMatch[1],
             value: fillMatch[2],
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.check(')) {
+      } else if (trimmed.includes("page.check(")) {
         const selectorMatch = trimmed.match(/page\.check\(['"](.*?)['"]\)/);
         if (selectorMatch) {
           actions.push({
-            type: 'check',
+            type: "check",
             selector: selectorMatch[1],
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.uncheck(')) {
+      } else if (trimmed.includes("page.uncheck(")) {
         const selectorMatch = trimmed.match(/page\.uncheck\(['"](.*?)['"]\)/);
         if (selectorMatch) {
           actions.push({
-            type: 'uncheck',
+            type: "uncheck",
             selector: selectorMatch[1],
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.selectOption(')) {
-        const selectMatch = trimmed.match(/page\.selectOption\(['"](.*?)['"],\s*['"](.*?)['"]\)/);
+      } else if (trimmed.includes("page.selectOption(")) {
+        const selectMatch = trimmed.match(
+          /page\.selectOption\(['"](.*?)['"],\s*['"](.*?)['"]\)/
+        );
         if (selectMatch) {
           actions.push({
-            type: 'selectOption',
+            type: "selectOption",
             selector: selectMatch[1],
             value: selectMatch[2],
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.waitForTimeout(')) {
+      } else if (trimmed.includes("page.waitForTimeout(")) {
         const timeoutMatch = trimmed.match(/page\.waitForTimeout\((\d+)\)/);
         if (timeoutMatch) {
           actions.push({
-            type: 'waitForTimeout',
+            type: "waitForTimeout",
             value: parseInt(timeoutMatch[1]),
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.waitForSelector(')) {
-        const selectorMatch = trimmed.match(/page\.waitForSelector\(['"](.*?)['"]\)/);
+      } else if (trimmed.includes("page.waitForSelector(")) {
+        const selectorMatch = trimmed.match(
+          /page\.waitForSelector\(['"](.*?)['"]\)/
+        );
         if (selectorMatch) {
           actions.push({
-            type: 'waitForSelector',
+            type: "waitForSelector",
             selector: selectorMatch[1],
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.getByRole(')) {
-        const roleMatch = trimmed.match(/page\.getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*['"](.*?)['"]\s*\})?\)/);
+      } else if (trimmed.includes("page.getByRole(")) {
+        const roleMatch = trimmed.match(
+          /page\.getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*['"](.*?)['"]\s*\})?\)/
+        );
         if (roleMatch) {
           const [, role, name] = roleMatch;
-          const selector = name ? `role:${role}[name="${name}"]` : `role:${role}`;
+          const selector = name
+            ? `role:${role}[name="${name}"]`
+            : `role:${role}`;
           actions.push({
-            type: 'click',
+            type: "click",
             selector,
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.getByLabel(')) {
+      } else if (trimmed.includes("page.getByLabel(")) {
         const labelMatch = trimmed.match(/page\.getByLabel\(['"](.*?)['"]\)/);
         if (labelMatch) {
           actions.push({
-            type: 'click',
+            type: "click",
             selector: `getByLabel:${labelMatch[1]}`,
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.getByPlaceholder(')) {
-        const placeholderMatch = trimmed.match(/page\.getByPlaceholder\(['"](.*?)['"]\)/);
+      } else if (trimmed.includes("page.getByPlaceholder(")) {
+        const placeholderMatch = trimmed.match(
+          /page\.getByPlaceholder\(['"](.*?)['"]\)/
+        );
         if (placeholderMatch) {
           actions.push({
-            type: 'click',
+            type: "click",
             selector: `getByPlaceholder:${placeholderMatch[1]}`,
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.getByTestId(')) {
+      } else if (trimmed.includes("page.getByTestId(")) {
         const testIdMatch = trimmed.match(/page\.getByTestId\(['"](.*?)['"]\)/);
         if (testIdMatch) {
           actions.push({
-            type: 'click',
+            type: "click",
             selector: `getByTestId:${testIdMatch[1]}`,
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.getByTitle(')) {
+      } else if (trimmed.includes("page.getByTitle(")) {
         const titleMatch = trimmed.match(/page\.getByTitle\(['"](.*?)['"]\)/);
         if (titleMatch) {
           actions.push({
-            type: 'click',
+            type: "click",
             selector: `getByTitle:${titleMatch[1]}`,
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('page.getByAltText(')) {
+      } else if (trimmed.includes("page.getByAltText(")) {
         const altMatch = trimmed.match(/page\.getByAltText\(['"](.*?)['"]\)/);
         if (altMatch) {
           actions.push({
-            type: 'click',
+            type: "click",
             selector: `getByAltText:${altMatch[1]}`,
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('expect(') && trimmed.includes('toBeVisible()')) {
-        const getByTextMatch = trimmed.match(/expect\(page\.getByText\(['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?\)\)\.toBeVisible\(\)/);
+      } else if (
+        trimmed.includes("expect(") &&
+        trimmed.includes("toBeVisible()")
+      ) {
+        const getByTextMatch = trimmed.match(
+          /expect\(page\.getByText\(['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?\)\)\.toBeVisible\(\)/
+        );
         if (getByTextMatch) {
           const text = getByTextMatch[1];
-          const exact = getByTextMatch[2] === 'true';
+          const exact = getByTextMatch[2] === "true";
           actions.push({
-            type: 'expect',
+            type: "expect",
             selector: `getByText:${text}`,
-            expectation: 'toBeVisible',
+            expectation: "toBeVisible",
             options: { exact },
             comment,
-            lineNumber
+            lineNumber,
           });
-        }
-        else {
-          const locatorFilterMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\.filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}\)\)\.toBeVisible\(\)/);
+        } else {
+          const locatorFilterMatch = trimmed.match(
+            /expect\(page\.locator\(['"](.*?)['"]\)\.filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}\)\)\.toBeVisible\(\)/
+          );
           if (locatorFilterMatch) {
             const selector = locatorFilterMatch[1];
             const filterText = locatorFilterMatch[2];
             actions.push({
-              type: 'expect',
+              type: "expect",
               selector: `${selector}:has-text("${filterText}")`,
-              expectation: 'toBeVisible',
+              expectation: "toBeVisible",
               comment,
-              lineNumber
+              lineNumber,
             });
-          }
-          else {
-            const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeVisible\(\)/);
+          } else {
+            const expectMatch = trimmed.match(
+              /expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeVisible\(\)/
+            );
             if (expectMatch) {
               actions.push({
-                type: 'expect',
+                type: "expect",
                 selector: expectMatch[1],
-                expectation: 'toBeVisible',
+                expectation: "toBeVisible",
                 comment,
-                lineNumber
+                lineNumber,
               });
             }
           }
         }
-      }
-      
-      else if (trimmed.includes('expect(') && trimmed.includes('toContainText(')) {
-        const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.toContainText\(['"](.*?)['"]\)/);
+      } else if (
+        trimmed.includes("expect(") &&
+        trimmed.includes("toContainText(")
+      ) {
+        const expectMatch = trimmed.match(
+          /expect\(page\.locator\(['"](.*?)['"]\)\)\.toContainText\(['"](.*?)['"]\)/
+        );
         if (expectMatch) {
           actions.push({
-            type: 'expect',
+            type: "expect",
             selector: expectMatch[1],
             value: expectMatch[2],
-            expectation: 'toContainText',
+            expectation: "toContainText",
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('expect(') && trimmed.includes('toBeChecked()')) {
-        const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeChecked\(\)/);
+      } else if (
+        trimmed.includes("expect(") &&
+        trimmed.includes("toBeChecked()")
+      ) {
+        const expectMatch = trimmed.match(
+          /expect\(page\.locator\(['"](.*?)['"]\)\)\.toBeChecked\(\)/
+        );
         if (expectMatch) {
           actions.push({
-            type: 'expect',
+            type: "expect",
             selector: expectMatch[1],
-            expectation: 'toBeChecked',
+            expectation: "toBeChecked",
             comment,
-            lineNumber
+            lineNumber,
           });
         }
-      }
-      
-      else if (trimmed.includes('expect(') && trimmed.includes('not.toBeChecked()')) {
-        const expectMatch = trimmed.match(/expect\(page\.locator\(['"](.*?)['"]\)\)\.not\.toBeChecked\(\)/);
+      } else if (
+        trimmed.includes("expect(") &&
+        trimmed.includes("not.toBeChecked()")
+      ) {
+        const expectMatch = trimmed.match(
+          /expect\(page\.locator\(['"](.*?)['"]\)\)\.not\.toBeChecked\(\)/
+        );
         if (expectMatch) {
           actions.push({
-            type: 'expect',
+            type: "expect",
             selector: expectMatch[1],
-            expectation: 'not.toBeChecked',
+            expectation: "not.toBeChecked",
             comment,
-            lineNumber
+            lineNumber,
           });
         }
       }
-      
     } catch (error) {
       console.warn(`Failed to parse line ${lineNumber}: ${trimmed}`, error);
     }
   }
-  
+
   return actions;
 }
 
-function parseVariableMethodCall(varName: string, method: string, args: string, comment?: string, lineNumber?: number, selector?: string): PlaywrightAction | null {
+function parseVariableMethodCall(
+  varName: string,
+  method: string,
+  args: string,
+  comment?: string,
+  lineNumber?: number,
+  selector?: string
+): PlaywrightAction | null {
   const actualSelector = selector || `variable:${varName}`;
-  
+
   switch (method) {
-    case 'click':
-      return { type: 'click', selector: actualSelector, comment, lineNumber };
-    case 'fill':
-      const fillValue = args.match(/['"](.*?)['"]/)?.[1] || '';
-      return { type: 'fill', selector: actualSelector, value: fillValue, comment, lineNumber };
-    case 'check':
-      return { type: 'check', selector: actualSelector, comment, lineNumber };
-    case 'uncheck':
-      return { type: 'uncheck', selector: actualSelector, comment, lineNumber };
-    case 'selectOption':
-      const optionValue = args.match(/['"](.*?)['"]/)?.[1] || '';
-      return { type: 'selectOption', selector: actualSelector, value: optionValue, comment, lineNumber };
-    case 'waitFor':
+    case "click":
+      return { type: "click", selector: actualSelector, comment, lineNumber };
+    case "fill":
+      const fillValue = args.match(/['"](.*?)['"]/)?.[1] || "";
+      return {
+        type: "fill",
+        selector: actualSelector,
+        value: fillValue,
+        comment,
+        lineNumber,
+      };
+    case "check":
+      return { type: "check", selector: actualSelector, comment, lineNumber };
+    case "uncheck":
+      return { type: "uncheck", selector: actualSelector, comment, lineNumber };
+    case "selectOption":
+      const optionValue = args.match(/['"](.*?)['"]/)?.[1] || "";
+      return {
+        type: "selectOption",
+        selector: actualSelector,
+        value: optionValue,
+        comment,
+        lineNumber,
+      };
+    case "waitFor":
       const stateMatch = args.match(/{\s*state:\s*['"](.*?)['"]\s*}/);
-      return { type: 'waitFor', selector: actualSelector, options: stateMatch ? { state: stateMatch[1] } : {}, comment, lineNumber };
-    case 'hover':
-      return { type: 'hover', selector: actualSelector, comment, lineNumber };
-    case 'focus':
-      return { type: 'focus', selector: actualSelector, comment, lineNumber };
-    case 'blur':
-      return { type: 'blur', selector: actualSelector, comment, lineNumber };
-    case 'scrollIntoViewIfNeeded':
-      return { type: 'scrollIntoView', selector: actualSelector, comment, lineNumber };
+      return {
+        type: "waitFor",
+        selector: actualSelector,
+        options: stateMatch ? { state: stateMatch[1] } : {},
+        comment,
+        lineNumber,
+      };
+    case "hover":
+      return { type: "hover", selector: actualSelector, comment, lineNumber };
+    case "focus":
+      return { type: "focus", selector: actualSelector, comment, lineNumber };
+    case "blur":
+      return { type: "blur", selector: actualSelector, comment, lineNumber };
+    case "scrollIntoViewIfNeeded":
+      return {
+        type: "scrollIntoView",
+        selector: actualSelector,
+        comment,
+        lineNumber,
+      };
     default:
       return null;
   }
 }
 
 function parseLocatorCall(locatorCall: string): string {
-  const roleMatch = locatorCall.match(/getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*([^}]+)\s*\})?\)/);
+  const roleMatch = locatorCall.match(
+    /getByRole\(['"](.*?)['"](?:,\s*\{\s*name:\s*([^}]+)\s*\})?\)/
+  );
   if (roleMatch) {
     const [, role, nameArg] = roleMatch;
     if (nameArg) {
@@ -458,7 +537,7 @@ function parseLocatorCall(locatorCall: string): string {
     }
     return `role:${role}`;
   }
-  
+
   const textMatch = locatorCall.match(/getByText\(([^)]+)\)/);
   if (textMatch) {
     const args = textMatch[1];
@@ -466,273 +545,371 @@ function parseLocatorCall(locatorCall: string): string {
     if (regexMatch) {
       return `getByText-regex:/${regexMatch[1]}/${regexMatch[2]}`;
     }
-    const stringMatch = args.match(/['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?/);
+    const stringMatch = args.match(
+      /['"](.*?)['"](?:,\s*\{\s*exact:\s*(true|false)\s*\})?/
+    );
     if (stringMatch) {
       const [, text, exact] = stringMatch;
-      return `getByText:${text}${exact === 'true' ? ':exact' : ''}`;
+      return `getByText:${text}${exact === "true" ? ":exact" : ""}`;
     }
   }
-  
+
   const labelMatch = locatorCall.match(/getByLabel\(['"](.*?)['"]\)/);
   if (labelMatch) return `getByLabel:${labelMatch[1]}`;
-  
-  const placeholderMatch = locatorCall.match(/getByPlaceholder\(['"](.*?)['"]\)/);
+
+  const placeholderMatch = locatorCall.match(
+    /getByPlaceholder\(['"](.*?)['"]\)/
+  );
   if (placeholderMatch) return `getByPlaceholder:${placeholderMatch[1]}`;
-  
+
   const testIdMatch = locatorCall.match(/getByTestId\(['"](.*?)['"]\)/);
   if (testIdMatch) return `getByTestId:${testIdMatch[1]}`;
-  
+
   const titleMatch = locatorCall.match(/getByTitle\(['"](.*?)['"]\)/);
   if (titleMatch) return `getByTitle:${titleMatch[1]}`;
-  
+
   const altMatch = locatorCall.match(/getByAltText\(['"](.*?)['"]\)/);
   if (altMatch) return `getByAltText:${altMatch[1]}`;
-  
+
   const locatorMatch = locatorCall.match(/locator\(['"](.*?)['"]\)/);
   if (locatorMatch) return locatorMatch[1];
-  
-  const locatorWithOptionsMatch = locatorCall.match(/locator\(['"](.*?)['"],\s*\{\s*hasText:\s*['"](.*?)['"]\s*\}/);
+
+  const locatorWithOptionsMatch = locatorCall.match(
+    /locator\(['"](.*?)['"],\s*\{\s*hasText:\s*['"](.*?)['"]\s*\}/
+  );
   if (locatorWithOptionsMatch) {
     const [, selector, text] = locatorWithOptionsMatch;
     return `${selector}:has-text("${text}")`;
   }
-  
+
   return locatorCall;
 }
 
 function parseChainedCall(baseSelector: string, chainCall: string): string {
-  const filterTextMatch = chainCall.match(/filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}/);
-  if (filterTextMatch) return `${baseSelector}:filter-text("${filterTextMatch[1]}")`;
-  
-  const filterRegexMatch = chainCall.match(/filter\(\{\s*hasText:\s*\/(.*?)\/([gimuy]*)\s*\}/);
-  if (filterRegexMatch) return `${baseSelector}:filter-regex("/${filterRegexMatch[1]}/${filterRegexMatch[2]}")`;
-  
-  const filterHasMatch = chainCall.match(/filter\(\{\s*has:\s*page\.(.+?)\s*\}/);
+  const filterTextMatch = chainCall.match(
+    /filter\(\{\s*hasText:\s*['"](.*?)['"]\s*\}/
+  );
+  if (filterTextMatch)
+    return `${baseSelector}:filter-text("${filterTextMatch[1]}")`;
+
+  const filterRegexMatch = chainCall.match(
+    /filter\(\{\s*hasText:\s*\/(.*?)\/([gimuy]*)\s*\}/
+  );
+  if (filterRegexMatch)
+    return `${baseSelector}:filter-regex("/${filterRegexMatch[1]}/${filterRegexMatch[2]}")`;
+
+  const filterHasMatch = chainCall.match(
+    /filter\(\{\s*has:\s*page\.(.+?)\s*\}/
+  );
   if (filterHasMatch) {
     const innerSelector = parseLocatorCall(filterHasMatch[1]);
     return `${baseSelector}:filter-has("${innerSelector}")`;
   }
-  
-  const filterHasNotMatch = chainCall.match(/filter\(\{\s*hasNot:\s*page\.(.+?)\s*\}/);
+
+  const filterHasNotMatch = chainCall.match(
+    /filter\(\{\s*hasNot:\s*page\.(.+?)\s*\}/
+  );
   if (filterHasNotMatch) {
     const innerSelector = parseLocatorCall(filterHasNotMatch[1]);
     return `${baseSelector}:filter-has-not("${innerSelector}")`;
   }
-  
-  if (chainCall.includes('first()')) return `${baseSelector}:first`;
-  if (chainCall.includes('last()')) return `${baseSelector}:last`;
-  
+
+  if (chainCall.includes("first()")) return `${baseSelector}:first`;
+  if (chainCall.includes("last()")) return `${baseSelector}:last`;
+
   const nthMatch = chainCall.match(/nth\((\d+)\)/);
   if (nthMatch) return `${baseSelector}:nth(${nthMatch[1]})`;
-  
+
   const andMatch = chainCall.match(/and\(page\.(.+?)\)/);
   if (andMatch) {
     const otherSelector = parseLocatorCall(andMatch[1]);
     return `${baseSelector}:and("${otherSelector}")`;
   }
-  
+
   const orMatch = chainCall.match(/or\(page\.(.+?)\)/);
   if (orMatch) {
     const otherSelector = parseLocatorCall(orMatch[1]);
     return `${baseSelector}:or("${otherSelector}")`;
   }
-  
+
   const getByMatch = chainCall.match(/^(getBy\w+\([^)]+\))/);
   if (getByMatch) {
     const innerSelector = parseLocatorCall(getByMatch[1]);
     return `${baseSelector} >> ${innerSelector}`;
   }
-  
+
   const locatorChainMatch = chainCall.match(/^locator\(['"](.*?)['"]\)/);
   if (locatorChainMatch) return `${baseSelector} >> ${locatorChainMatch[1]}`;
-  
+
   return `${baseSelector}:${chainCall}`;
 }
 
 function extractSelectorFromArg(selectorArg: string): string {
-  return selectorArg.trim().replace(/^['"]|['"]$/g, '');
+  return selectorArg.trim().replace(/^['"]|['"]$/g, "");
 }
 
-function parseDirectAction(method: string, args: string, comment?: string, lineNumber?: number, selector?: string): PlaywrightAction | null {
+function parseDirectAction(
+  method: string,
+  args: string,
+  comment?: string,
+  lineNumber?: number,
+  selector?: string
+): PlaywrightAction | null {
   switch (method) {
-    case 'click':
-      return { type: 'click', selector, comment, lineNumber };
-    case 'fill':
-      const fillValue = args.match(/['"](.*?)['"]/)?.[1] || '';
-      return { type: 'fill', selector, value: fillValue, comment, lineNumber };
-    case 'check':
-      return { type: 'check', selector, comment, lineNumber };
-    case 'uncheck':
-      return { type: 'uncheck', selector, comment, lineNumber };
-    case 'selectOption':
-      const optionValue = args.match(/['"](.*?)['"]/)?.[1] || '';
-      return { type: 'selectOption', selector, value: optionValue, comment, lineNumber };
-    case 'waitFor':
+    case "click":
+      return { type: "click", selector, comment, lineNumber };
+    case "fill":
+      const fillValue = args.match(/['"](.*?)['"]/)?.[1] || "";
+      return { type: "fill", selector, value: fillValue, comment, lineNumber };
+    case "check":
+      return { type: "check", selector, comment, lineNumber };
+    case "uncheck":
+      return { type: "uncheck", selector, comment, lineNumber };
+    case "selectOption":
+      const optionValue = args.match(/['"](.*?)['"]/)?.[1] || "";
+      return {
+        type: "selectOption",
+        selector,
+        value: optionValue,
+        comment,
+        lineNumber,
+      };
+    case "waitFor":
       const stateMatch = args.match(/{\s*state:\s*['"](.*?)['"]\s*}/);
-      return { type: 'waitFor', selector, options: stateMatch ? { state: stateMatch[1] } : {}, comment, lineNumber };
-    case 'hover':
-      return { type: 'hover', selector, comment, lineNumber };
-    case 'focus':
-      return { type: 'focus', selector, comment, lineNumber };
-    case 'blur':
-      return { type: 'blur', selector, comment, lineNumber };
-    case 'scrollIntoViewIfNeeded':
-      return { type: 'scrollIntoView', selector, comment, lineNumber };
+      return {
+        type: "waitFor",
+        selector,
+        options: stateMatch ? { state: stateMatch[1] } : {},
+        comment,
+        lineNumber,
+      };
+    case "hover":
+      return { type: "hover", selector, comment, lineNumber };
+    case "focus":
+      return { type: "focus", selector, comment, lineNumber };
+    case "blur":
+      return { type: "blur", selector, comment, lineNumber };
+    case "scrollIntoViewIfNeeded":
+      return { type: "scrollIntoView", selector, comment, lineNumber };
     default:
       return null;
   }
 }
 
-function parseExpectStatement(expectation: string, comment?: string, lineNumber?: number, selector?: string): PlaywrightAction | null {
-  if (expectation.includes('toBeVisible()')) {
-    return { type: 'expect', selector, expectation: 'toBeVisible', comment, lineNumber };
+function parseExpectStatement(
+  expectation: string,
+  comment?: string,
+  lineNumber?: number,
+  selector?: string
+): PlaywrightAction | null {
+  if (expectation.includes("toBeVisible()")) {
+    return {
+      type: "expect",
+      selector,
+      expectation: "toBeVisible",
+      comment,
+      lineNumber,
+    };
   }
-  
-  const toContainTextMatch = expectation.match(/toContainText\(['"](.*?)['"]\)/);
+
+  const toContainTextMatch = expectation.match(
+    /toContainText\(['"](.*?)['"]\)/
+  );
   if (toContainTextMatch) {
-    return { type: 'expect', selector, expectation: 'toContainText', value: toContainTextMatch[1], comment, lineNumber };
+    return {
+      type: "expect",
+      selector,
+      expectation: "toContainText",
+      value: toContainTextMatch[1],
+      comment,
+      lineNumber,
+    };
   }
-  
+
   const toHaveTextMatch = expectation.match(/toHaveText\(['"](.*?)['"]\)/);
   if (toHaveTextMatch) {
-    return { type: 'expect', selector, expectation: 'toHaveText', value: toHaveTextMatch[1], comment, lineNumber };
+    return {
+      type: "expect",
+      selector,
+      expectation: "toHaveText",
+      value: toHaveTextMatch[1],
+      comment,
+      lineNumber,
+    };
   }
-  
-  if (expectation.includes('toBeChecked()')) {
-    return { type: 'expect', selector, expectation: 'toBeChecked', comment, lineNumber };
+
+  if (expectation.includes("toBeChecked()")) {
+    return {
+      type: "expect",
+      selector,
+      expectation: "toBeChecked",
+      comment,
+      lineNumber,
+    };
   }
-  
-  if (expectation.includes('not.toBeChecked()')) {
-    return { type: 'expect', selector, expectation: 'not.toBeChecked', comment, lineNumber };
+
+  if (expectation.includes("not.toBeChecked()")) {
+    return {
+      type: "expect",
+      selector,
+      expectation: "not.toBeChecked",
+      comment,
+      lineNumber,
+    };
   }
-  
+
   const toHaveCountMatch = expectation.match(/toHaveCount\((\d+)\)/);
   if (toHaveCountMatch) {
-    return { type: 'expect', selector, expectation: 'toHaveCount', value: parseInt(toHaveCountMatch[1]), comment, lineNumber };
+    return {
+      type: "expect",
+      selector,
+      expectation: "toHaveCount",
+      value: parseInt(toHaveCountMatch[1]),
+      comment,
+      lineNumber,
+    };
   }
-  
+
   return null;
 }
 
 function getRoleSelector(role: string): string {
   const roleMap: Record<string, string> = {
-    'button': 'button, [role="button"], input[type="button"], input[type="submit"]',
-    'heading': 'h1, h2, h3, h4, h5, h6, [role="heading"]',
-    'link': 'a, [role="link"]',
-    'textbox': 'input[type="text"], input[type="email"], input[type="password"], textarea, [role="textbox"]',
-    'checkbox': 'input[type="checkbox"], [role="checkbox"]',
-    'radio': 'input[type="radio"], [role="radio"]',
-    'listitem': 'li, [role="listitem"]',
-    'list': 'ul, ol, [role="list"]',
-    'img': 'img, [role="img"]',
-    'table': 'table, [role="table"]',
-    'row': 'tr, [role="row"]',
-    'cell': 'td, th, [role="cell"], [role="gridcell"]',
-    'menu': '[role="menu"]',
-    'menuitem': '[role="menuitem"]',
-    'dialog': '[role="dialog"]',
-    'alert': '[role="alert"]',
-    'tab': '[role="tab"]',
-    'tabpanel': '[role="tabpanel"]'
+    button:
+      'button, [role="button"], input[type="button"], input[type="submit"]',
+    heading: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
+    link: 'a, [role="link"]',
+    textbox:
+      'input[type="text"], input[type="email"], input[type="password"], textarea, [role="textbox"]',
+    checkbox: 'input[type="checkbox"], [role="checkbox"]',
+    radio: 'input[type="radio"], [role="radio"]',
+    listitem: 'li, [role="listitem"]',
+    list: 'ul, ol, [role="list"]',
+    img: 'img, [role="img"]',
+    table: 'table, [role="table"]',
+    row: 'tr, [role="row"]',
+    cell: 'td, th, [role="cell"], [role="gridcell"]',
+    menu: '[role="menu"]',
+    menuitem: '[role="menuitem"]',
+    dialog: '[role="dialog"]',
+    alert: '[role="alert"]',
+    tab: '[role="tab"]',
+    tabpanel: '[role="tabpanel"]',
   };
-  
+
   return roleMap[role] || `[role="${role}"]`;
 }
 
-async function executePlaywrightAction(action: PlaywrightAction): Promise<void> {
+async function executePlaywrightAction(
+  action: PlaywrightAction
+): Promise<void> {
   try {
     switch (action.type) {
-      case 'goto':
-        if (action.value && typeof action.value === 'string') {
-          window.parent.postMessage({
-            type: "staktrak-iframe-navigate",
-            url: action.value
-          }, "*");
+      case "goto":
+        if (action.value && typeof action.value === "string") {
+          window.parent.postMessage(
+            {
+              type: "staktrak-iframe-navigate",
+              url: action.value,
+            },
+            "*"
+          );
         }
         break;
-        
-      case 'setViewportSize':
+
+      case "setViewportSize":
         if (action.options) {
           try {
             if (window.top === window) {
               window.resizeTo(action.options.width, action.options.height);
             }
           } catch (e) {
-            console.warn('Cannot resize viewport in iframe context:', e);
+            console.warn("Cannot resize viewport in iframe context:", e);
           }
         }
         break;
-        
-      case 'waitForLoadState':
+
+      case "waitForLoadState":
         break;
-        
-      case 'waitForSelector':
+
+      case "waitForSelector":
         if (action.selector) {
           await waitForElement(action.selector);
         }
         break;
-        
-      case 'click':
+
+      case "click":
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
             const htmlElement = element as HTMLElement;
-            element.scrollIntoView({ behavior: 'auto', block: 'center' });
-            
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             const originalBorder = htmlElement.style.border;
-            htmlElement.style.border = '3px solid #ff6b6b';
-            htmlElement.style.boxShadow = '0 0 10px rgba(255, 107, 107, 0.5)';
-            
+            htmlElement.style.border = "3px solid #ff6b6b";
+            htmlElement.style.boxShadow = "0 0 10px rgba(255, 107, 107, 0.5)";
+
             htmlElement.click();
-            
+
             setTimeout(() => {
               htmlElement.style.border = originalBorder;
-              htmlElement.style.boxShadow = '';
+              htmlElement.style.boxShadow = "";
             }, 300);
           } else {
             throw new Error(`Element not found: ${action.selector}`);
           }
         }
         break;
-        
-      case 'fill':
+
+      case "fill":
         if (action.selector && action.value !== undefined) {
-          const element = await waitForElement(action.selector) as HTMLInputElement | HTMLTextAreaElement;
+          const element = (await waitForElement(action.selector)) as
+            | HTMLInputElement
+            | HTMLTextAreaElement;
           if (element) {
-            element.scrollIntoView({ behavior: 'auto', block: 'center' });
-            
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             element.focus();
-            element.value = '';
+            element.value = "";
             element.value = String(action.value);
-            element.dispatchEvent(new Event('input', { bubbles: true }));
-            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.dispatchEvent(new Event("input", { bubbles: true }));
+            element.dispatchEvent(new Event("change", { bubbles: true }));
           } else {
             throw new Error(`Input element not found: ${action.selector}`);
           }
         }
         break;
-        
-      case 'check':
+
+      case "check":
         if (action.selector) {
-          const element = await waitForElement(action.selector) as HTMLInputElement;
-          if (element && (element.type === 'checkbox' || element.type === 'radio')) {
-            element.scrollIntoView({ behavior: 'auto', block: 'center' });
-            
+          const element = (await waitForElement(
+            action.selector
+          )) as HTMLInputElement;
+          if (
+            element &&
+            (element.type === "checkbox" || element.type === "radio")
+          ) {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             if (!element.checked) {
               element.click();
             }
           } else {
-            throw new Error(`Checkbox/radio element not found: ${action.selector}`);
+            throw new Error(
+              `Checkbox/radio element not found: ${action.selector}`
+            );
           }
         }
         break;
-        
-      case 'uncheck':
+
+      case "uncheck":
         if (action.selector) {
-          const element = await waitForElement(action.selector) as HTMLInputElement;
-          if (element && element.type === 'checkbox') {
-            element.scrollIntoView({ behavior: 'auto', block: 'center' });
-            
+          const element = (await waitForElement(
+            action.selector
+          )) as HTMLInputElement;
+          if (element && element.type === "checkbox") {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             if (element.checked) {
               element.click();
             }
@@ -741,93 +918,115 @@ async function executePlaywrightAction(action: PlaywrightAction): Promise<void> 
           }
         }
         break;
-        
-      case 'selectOption':
+
+      case "selectOption":
         if (action.selector && action.value !== undefined) {
-          const element = await waitForElement(action.selector) as HTMLSelectElement;
-          if (element && element.tagName === 'SELECT') {
-            element.scrollIntoView({ behavior: 'auto', block: 'center' });
-            
+          const element = (await waitForElement(
+            action.selector
+          )) as HTMLSelectElement;
+          if (element && element.tagName === "SELECT") {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             element.value = String(action.value);
-            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.dispatchEvent(new Event("change", { bubbles: true }));
           } else {
             throw new Error(`Select element not found: ${action.selector}`);
           }
         }
         break;
-        
-      case 'waitForTimeout':
+
+      case "waitForTimeout":
         const shortDelay = Math.min(action.value as number, 500);
-        await new Promise(resolve => setTimeout(resolve, shortDelay));
+        await new Promise((resolve) => setTimeout(resolve, shortDelay));
         break;
-        
-      case 'waitFor':
+
+      case "waitFor":
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (!element) {
-            throw new Error(`Element not found for waitFor: ${action.selector}`);
+            throw new Error(
+              `Element not found for waitFor: ${action.selector}`
+            );
           }
-          if (action.options?.state === 'visible') {
+          if (action.options?.state === "visible") {
             if (!isElementVisible(element)) {
               throw new Error(`Element is not visible: ${action.selector}`);
             }
           }
         }
         break;
-        
-      case 'hover':
+
+      case "hover":
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
-            element.scrollIntoView({ behavior: 'auto', block: 'center' });
-            element.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-            element.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+            element.dispatchEvent(
+              new MouseEvent("mouseover", { bubbles: true })
+            );
+            element.dispatchEvent(
+              new MouseEvent("mouseenter", { bubbles: true })
+            );
           } else {
             throw new Error(`Element not found for hover: ${action.selector}`);
           }
         }
         break;
-        
-      case 'focus':
+
+      case "focus":
         if (action.selector) {
-          const element = await waitForElement(action.selector) as HTMLElement;
-          if (element && typeof element.focus === 'function') {
-            element.scrollIntoView({ behavior: 'auto', block: 'center' });
+          const element = (await waitForElement(
+            action.selector
+          )) as HTMLElement;
+          if (element && typeof element.focus === "function") {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
             element.focus();
           } else {
-            throw new Error(`Element not found or not focusable: ${action.selector}`);
+            throw new Error(
+              `Element not found or not focusable: ${action.selector}`
+            );
           }
         }
         break;
-        
-      case 'blur':
+
+      case "blur":
         if (action.selector) {
-          const element = await waitForElement(action.selector) as HTMLElement;
-          if (element && typeof element.blur === 'function') {
+          const element = (await waitForElement(
+            action.selector
+          )) as HTMLElement;
+          if (element && typeof element.blur === "function") {
             element.blur();
           } else {
-            throw new Error(`Element not found or not blurable: ${action.selector}`);
+            throw new Error(
+              `Element not found or not blurable: ${action.selector}`
+            );
           }
         }
         break;
-        
-      case 'scrollIntoView':
+
+      case "scrollIntoView":
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            element.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+              inline: "center",
+            });
           } else {
-            throw new Error(`Element not found for scrollIntoView: ${action.selector}`);
+            throw new Error(
+              `Element not found for scrollIntoView: ${action.selector}`
+            );
           }
         }
         break;
-        
-      case 'expect':
+
+      case "expect":
         if (action.selector) {
           await verifyExpectation(action);
         }
         break;
-        
+
       default:
         console.warn(`Unknown action type: ${action.type}`);
         break;
@@ -837,9 +1036,12 @@ async function executePlaywrightAction(action: PlaywrightAction): Promise<void> 
   }
 }
 
-async function waitForElements(selector: string, timeout = 5000): Promise<Element[]> {
+async function waitForElements(
+  selector: string,
+  timeout = 5000
+): Promise<Element[]> {
   const startTime = Date.now();
-  
+
   while (Date.now() - startTime < timeout) {
     try {
       const elements = findElements(selector);
@@ -849,98 +1051,112 @@ async function waitForElements(selector: string, timeout = 5000): Promise<Elemen
     } catch (error) {
       console.warn(`Error finding elements with selector: ${selector}`, error);
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  
+
   return [];
 }
 
-function findElements(selector: string): Element[] {  
+function findElements(selector: string): Element[] {
   return findElementsInContext(selector, document);
 }
 
-function findElementsInContext(selector: string, searchContext: Document): Element[] {
-  if (selector.includes(' >> ')) {
-    const parts = selector.split(' >> ');
+function findElementsInContext(
+  selector: string,
+  searchContext: Document
+): Element[] {
+  if (selector.includes(" >> ")) {
+    const parts = selector.split(" >> ");
     let elements = findElementsInContext(parts[0], searchContext);
-    
+
     for (let i = 1; i < parts.length; i++) {
       const newElements: Element[] = [];
       for (const element of elements) {
-        const subElements = findElementsInContext(parts[i], element.ownerDocument || document);
-        newElements.push(...subElements.filter(el => element.contains(el)));
+        const subElements = findElementsInContext(
+          parts[i],
+          element.ownerDocument || document
+        );
+        newElements.push(...subElements.filter((el) => element.contains(el)));
       }
       elements = newElements;
     }
     return elements;
   }
-  
-  if (selector.includes(':filter-text(')) {
+
+  if (selector.includes(":filter-text(")) {
     const match = selector.match(/^(.+?):filter-text\("(.+?)"\)$/);
     if (match) {
       const [, baseSelector, filterText] = match;
       const baseElements = findElementsInContext(baseSelector, searchContext);
-      
-      return baseElements.filter(el => {
-        const elementText = el.textContent?.trim() || '';
+
+      return baseElements.filter((el) => {
+        const elementText = el.textContent?.trim() || "";
         return elementText.includes(filterText);
       });
     }
   }
-  
-  if (selector.includes(':filter-regex(')) {
-    const match = selector.match(/^(.+?):filter-regex\("\/(.+?)\/([gimuy]*)"\)$/);
+
+  if (selector.includes(":filter-regex(")) {
+    const match = selector.match(
+      /^(.+?):filter-regex\("\/(.+?)\/([gimuy]*)"\)$/
+    );
     if (match) {
       const [, baseSelector, pattern, flags] = match;
       const regex = new RegExp(pattern, flags);
       const baseElements = findElementsInContext(baseSelector, searchContext);
-      
-      return baseElements.filter(el => {
-        const elementText = el.textContent?.trim() || '';
+
+      return baseElements.filter((el) => {
+        const elementText = el.textContent?.trim() || "";
         return regex.test(elementText);
       });
     }
   }
-  
-  if (selector.includes(':filter-has(')) {
+
+  if (selector.includes(":filter-has(")) {
     const match = selector.match(/^(.+?):filter-has\("(.+?)"\)$/);
     if (match) {
       const [, baseSelector, hasSelector] = match;
       const baseElements = findElementsInContext(baseSelector, searchContext);
-      
-      return baseElements.filter(el => {
-        const childElements = findElementsInContext(hasSelector, el.ownerDocument || document);
-        return childElements.some(child => el.contains(child));
+
+      return baseElements.filter((el) => {
+        const childElements = findElementsInContext(
+          hasSelector,
+          el.ownerDocument || document
+        );
+        return childElements.some((child) => el.contains(child));
       });
     }
   }
-  
-  if (selector.includes(':filter-has-not(')) {
+
+  if (selector.includes(":filter-has-not(")) {
     const match = selector.match(/^(.+?):filter-has-not\("(.+?)"\)$/);
     if (match) {
       const [, baseSelector, hasNotSelector] = match;
       const baseElements = findElementsInContext(baseSelector, searchContext);
-      
-      return baseElements.filter(el => {
-        const childElements = findElementsInContext(hasNotSelector, el.ownerDocument || document);
-        return !childElements.some(child => el.contains(child));
+
+      return baseElements.filter((el) => {
+        const childElements = findElementsInContext(
+          hasNotSelector,
+          el.ownerDocument || document
+        );
+        return !childElements.some((child) => el.contains(child));
       });
     }
   }
-  
-  if (selector.includes(':first')) {
-    const baseSelector = selector.replace(':first', '');
+
+  if (selector.includes(":first")) {
+    const baseSelector = selector.replace(":first", "");
     const elements = findElementsInContext(baseSelector, searchContext);
     return elements.length > 0 ? [elements[0]] : [];
   }
-  
-  if (selector.includes(':last')) {
-    const baseSelector = selector.replace(':last', '');
+
+  if (selector.includes(":last")) {
+    const baseSelector = selector.replace(":last", "");
     const elements = findElementsInContext(baseSelector, searchContext);
     return elements.length > 0 ? [elements[elements.length - 1]] : [];
   }
-  
+
   const nthMatch = selector.match(/^(.+?):nth\((\d+)\)$/);
   if (nthMatch) {
     const [, baseSelector, index] = nthMatch;
@@ -948,241 +1164,264 @@ function findElementsInContext(selector: string, searchContext: Document): Eleme
     const idx = parseInt(index);
     return idx < elements.length ? [elements[idx]] : [];
   }
-  
-  if (selector.includes(':and(')) {
+
+  if (selector.includes(":and(")) {
     const match = selector.match(/^(.+?):and\("(.+?)"\)$/);
     if (match) {
       const [, baseSelector, andSelector] = match;
       const baseElements = findElementsInContext(baseSelector, searchContext);
       const andElements = findElementsInContext(andSelector, searchContext);
-      
-      return baseElements.filter(el => andElements.includes(el));
+
+      return baseElements.filter((el) => andElements.includes(el));
     }
   }
-  
-  if (selector.includes(':or(')) {
+
+  if (selector.includes(":or(")) {
     const match = selector.match(/^(.+?):or\("(.+?)"\)$/);
     if (match) {
       const [, baseSelector, orSelector] = match;
       const baseElements = findElementsInContext(baseSelector, searchContext);
       const orElements = findElementsInContext(orSelector, searchContext);
-      
+
       const allElements = [...baseElements, ...orElements];
       return Array.from(new Set(allElements));
     }
   }
-      
-      if (selector.startsWith('getByText:')) {
-        const parts = selector.substring(10).split(':');
-        const text = parts[0];
-        const exact = parts[1] === 'exact';
-        const allElements = searchContext.querySelectorAll('*');
-        
+
+  if (selector.startsWith("getByText:")) {
+    const parts = selector.substring(10).split(":");
+    const text = parts[0];
+    const exact = parts[1] === "exact";
+    const allElements = searchContext.querySelectorAll("*");
+
     const matches: Element[] = [];
-        
-        for (const el of Array.from(allElements)) {
-          const elementText = el.textContent?.trim() || '';
-          const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE 
-            ? el.childNodes[0].textContent?.trim() || ''
-            : elementText;
-          
-      const matchesText = exact 
-            ? elementOwnText === text.trim() || elementText === text.trim()
-            : elementOwnText.includes(text.trim()) || elementText.includes(text.trim());
-            
+
+    for (const el of Array.from(allElements)) {
+      const elementText = el.textContent?.trim() || "";
+      const elementOwnText =
+        el.childNodes.length === 1 &&
+        el.childNodes[0].nodeType === Node.TEXT_NODE
+          ? el.childNodes[0].textContent?.trim() || ""
+          : elementText;
+
+      const matchesText = exact
+        ? elementOwnText === text.trim() || elementText === text.trim()
+        : elementOwnText.includes(text.trim()) ||
+          elementText.includes(text.trim());
+
       if (matchesText) {
         matches.push(el);
         (el as any).__stakTrakMatchedText = text.trim();
       }
     }
-    
-    return matches.sort((a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0));
-  }
-  
-  else if (selector.startsWith('getByText-regex:')) {
+
+    return matches.sort(
+      (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
+    );
+  } else if (selector.startsWith("getByText-regex:")) {
     const regexPattern = selector.substring(16);
     const regexMatch = regexPattern.match(/^\/(.+?)\/([gimuy]*)$/);
     if (regexMatch) {
       const [, pattern, flags] = regexMatch;
       const regex = new RegExp(pattern, flags);
-      const allElements = searchContext.querySelectorAll('*');
-      
+      const allElements = searchContext.querySelectorAll("*");
+
       const matches: Element[] = [];
       for (const el of Array.from(allElements)) {
-        const elementText = el.textContent?.trim() || '';
+        const elementText = el.textContent?.trim() || "";
         if (regex.test(elementText)) {
           matches.push(el);
           (el as any).__stakTrakMatchedText = elementText;
         }
       }
-      return matches.sort((a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0));
+      return matches.sort(
+        (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
+      );
     }
-  } 
-  else if (selector.startsWith('role:')) {
-    const roleRegexMatch = selector.match(/^role:(\w+)\[name-regex="\/(.+?)\/([gimuy]*)"\]$/);
+  } else if (selector.startsWith("role:")) {
+    const roleRegexMatch = selector.match(
+      /^role:(\w+)\[name-regex="\/(.+?)\/([gimuy]*)"\]$/
+    );
     if (roleRegexMatch) {
       const [, role, pattern, flags] = roleRegexMatch;
       const regex = new RegExp(pattern, flags);
-      const roleElements = searchContext.querySelectorAll(`[role="${role}"], ${getRoleSelector(role)}`);
-      
+      const roleElements = searchContext.querySelectorAll(
+        `[role="${role}"], ${getRoleSelector(role)}`
+      );
+
       const matches: Element[] = [];
       for (const el of Array.from(roleElements)) {
-        const elementText = el.textContent?.trim() || '';
-        const ariaLabel = el.getAttribute('aria-label') || '';
+        const elementText = el.textContent?.trim() || "";
+        const ariaLabel = el.getAttribute("aria-label") || "";
         if (regex.test(elementText) || regex.test(ariaLabel)) {
           matches.push(el);
         }
       }
       return matches;
     }
-    
-        const roleMatch = selector.match(/^role:(\w+)(?:\[name="([^"]+)"\])?$/);
-        if (roleMatch) {
-          const [, role, name] = roleMatch;
-          const roleElements = searchContext.querySelectorAll(`[role="${role}"], ${getRoleSelector(role)}`);
-          
+
+    const roleMatch = selector.match(/^role:(\w+)(?:\[name="([^"]+)"\])?$/);
+    if (roleMatch) {
+      const [, role, name] = roleMatch;
+      const roleElements = searchContext.querySelectorAll(
+        `[role="${role}"], ${getRoleSelector(role)}`
+      );
+
       const matches: Element[] = [];
-          for (const el of Array.from(roleElements)) {
-            if (name) {
-              const elementText = el.textContent?.trim() || '';
-              const ariaLabel = el.getAttribute('aria-label') || '';
-              if (elementText.includes(name) || ariaLabel.includes(name)) {
+      for (const el of Array.from(roleElements)) {
+        if (name) {
+          const elementText = el.textContent?.trim() || "";
+          const ariaLabel = el.getAttribute("aria-label") || "";
+          if (elementText.includes(name) || ariaLabel.includes(name)) {
             matches.push(el);
-              }
-            } else {
+          }
+        } else {
           matches.push(el);
         }
       }
       return matches;
     }
-  } 
-  else if (selector.includes(':has-text(')) {
-    const match = selector.match(/^(.+?):has-text\("(.+?)"\)$/) || selector.match(/^(.+?):has-text\((.+?)\)$/);
+  } else if (selector.includes(":has-text(")) {
+    const match =
+      selector.match(/^(.+?):has-text\("(.+?)"\)$/) ||
+      selector.match(/^(.+?):has-text\((.+?)\)$/);
     if (match) {
       const [, baseSelector, text] = match;
       const elements = searchContext.querySelectorAll(baseSelector);
-      
+
       const matches: Element[] = [];
-      
+
       for (const el of Array.from(elements)) {
-        const elementText = el.textContent?.trim() || '';
-        const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE 
-          ? el.childNodes[0].textContent?.trim() || ''
-          : elementText;
-        
-        if (elementOwnText.includes(text.trim()) || elementText.includes(text.trim())) {
+        const elementText = el.textContent?.trim() || "";
+        const elementOwnText =
+          el.childNodes.length === 1 &&
+          el.childNodes[0].nodeType === Node.TEXT_NODE
+            ? el.childNodes[0].textContent?.trim() || ""
+            : elementText;
+
+        if (
+          elementOwnText.includes(text.trim()) ||
+          elementText.includes(text.trim())
+        ) {
           matches.push(el);
           (el as any).__stakTrakMatchedText = text.trim();
         }
       }
-      
-      return matches.sort((a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0));
+
+      return matches.sort(
+        (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
+      );
     }
-  }
-  else if (selector.startsWith('getByLabel:')) {
-        const labelText = selector.substring(11);
-        const labels = searchContext.querySelectorAll('label');
-        
+  } else if (selector.startsWith("getByLabel:")) {
+    const labelText = selector.substring(11);
+    const labels = searchContext.querySelectorAll("label");
+
     const matches: Element[] = [];
-        for (const label of Array.from(labels)) {
-          if (label.textContent?.includes(labelText)) {
-            const forAttr = label.getAttribute('for');
+    for (const label of Array.from(labels)) {
+      if (label.textContent?.includes(labelText)) {
+        const forAttr = label.getAttribute("for");
         let element: Element | null = null;
-            if (forAttr) {
-              element = searchContext.querySelector(`#${forAttr}`);
-            } else {
-              element = label.querySelector('input, textarea, select');
-            }
-        if (element) matches.push(element);
-          }
+        if (forAttr) {
+          element = searchContext.querySelector(`#${forAttr}`);
+        } else {
+          element = label.querySelector("input, textarea, select");
         }
+        if (element) matches.push(element);
+      }
+    }
     return matches;
-  } 
-  else if (selector.startsWith('getByPlaceholder:')) {
-        const placeholder = selector.substring(17);
-    return Array.from(searchContext.querySelectorAll(`[placeholder*="${placeholder}"]`));
-  } 
-  else if (selector.startsWith('getByTestId:')) {
-        const testId = selector.substring(12);
-    return Array.from(searchContext.querySelectorAll(`[data-testid="${testId}"]`));
-  } 
-  else if (selector.startsWith('getByTitle:')) {
-        const title = selector.substring(11);
+  } else if (selector.startsWith("getByPlaceholder:")) {
+    const placeholder = selector.substring(17);
+    return Array.from(
+      searchContext.querySelectorAll(`[placeholder*="${placeholder}"]`)
+    );
+  } else if (selector.startsWith("getByTestId:")) {
+    const testId = selector.substring(12);
+    return Array.from(
+      searchContext.querySelectorAll(`[data-testid="${testId}"]`)
+    );
+  } else if (selector.startsWith("getByTitle:")) {
+    const title = selector.substring(11);
     return Array.from(searchContext.querySelectorAll(`[title*="${title}"]`));
-  } 
-  else if (selector.startsWith('getByAltText:')) {
-        const altText = selector.substring(13);
+  } else if (selector.startsWith("getByAltText:")) {
+    const altText = selector.substring(13);
     return Array.from(searchContext.querySelectorAll(`[alt*="${altText}"]`));
-  } 
-  else if (selector.startsWith('variable:')) {
+  } else if (selector.startsWith("variable:")) {
     return [];
-  } 
-  else if (selector.startsWith('text=')) {
+  } else if (selector.startsWith("text=")) {
     const regexMatch = selector.match(/^text=\/(.+?)\/([gimuy]*)$/);
     if (regexMatch) {
       const [, pattern, flags] = regexMatch;
       const regex = new RegExp(pattern, flags);
-      const allElements = searchContext.querySelectorAll('*');
+      const allElements = searchContext.querySelectorAll("*");
       const matches: Element[] = [];
       for (const el of Array.from(allElements)) {
-            const elementText = el.textContent?.trim() || '';
+        const elementText = el.textContent?.trim() || "";
         if (regex.test(elementText)) {
           matches.push(el);
         }
       }
       return matches;
     }
-    
+
     const exactMatch = selector.match(/^text="([^"]+)"$/);
     if (exactMatch) {
       const text = exactMatch[1];
-      const allElements = searchContext.querySelectorAll('*');
+      const allElements = searchContext.querySelectorAll("*");
       const matches: Element[] = [];
       for (const el of Array.from(allElements)) {
-        const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE 
-          ? el.childNodes[0].textContent?.trim() || ''
-          : '';
+        const elementOwnText =
+          el.childNodes.length === 1 &&
+          el.childNodes[0].nodeType === Node.TEXT_NODE
+            ? el.childNodes[0].textContent?.trim() || ""
+            : "";
         if (elementOwnText === text.trim()) {
           matches.push(el);
         }
       }
       return matches;
     }
-    
-        const textMatch = selector.match(/text=["']?([^"']+)["']?/);
-        if (textMatch) {
-          const text = textMatch[1];
-          const allElements = searchContext.querySelectorAll('*');
+
+    const textMatch = selector.match(/text=["']?([^"']+)["']?/);
+    if (textMatch) {
+      const text = textMatch[1];
+      const allElements = searchContext.querySelectorAll("*");
       const matches: Element[] = [];
-          for (const el of Array.from(allElements)) {
-            const elementText = el.textContent?.trim() || '';
+      for (const el of Array.from(allElements)) {
+        const elementText = el.textContent?.trim() || "";
         if (elementText.includes(text.trim())) {
           matches.push(el);
         }
       }
-      return matches.sort((a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0));
+      return matches.sort(
+        (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
+      );
     }
-  }
-  
-  else if (selector.startsWith('id=')) {
+  } else if (selector.startsWith("id=")) {
     const id = selector.substring(3);
     return Array.from(searchContext.querySelectorAll(`#${id}`));
-  }
-  else if (selector.startsWith('data-testid=')) {
+  } else if (selector.startsWith("data-testid=")) {
     const testId = selector.substring(13);
-    return Array.from(searchContext.querySelectorAll(`[data-testid="${testId}"]`));
-  }
-  else if (selector.startsWith('data-test-id=')) {
+    return Array.from(
+      searchContext.querySelectorAll(`[data-testid="${testId}"]`)
+    );
+  } else if (selector.startsWith("data-test-id=")) {
     const testId = selector.substring(14);
-    return Array.from(searchContext.querySelectorAll(`[data-test-id="${testId}"]`));
-  }
-  else if (selector.startsWith('data-test=')) {
+    return Array.from(
+      searchContext.querySelectorAll(`[data-test-id="${testId}"]`)
+    );
+  } else if (selector.startsWith("data-test=")) {
     const test = selector.substring(11);
     return Array.from(searchContext.querySelectorAll(`[data-test="${test}"]`));
-  } 
-  else if (selector.startsWith('xpath=')) {
-        const xpath = selector.substring(6);
-    const result = searchContext.evaluate(xpath, searchContext, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+  } else if (selector.startsWith("xpath=")) {
+    const xpath = selector.substring(6);
+    const result = searchContext.evaluate(
+      xpath,
+      searchContext,
+      null,
+      XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+      null
+    );
     const matches: Element[] = [];
     for (let i = 0; i < result.snapshotLength; i++) {
       const node = result.snapshotItem(i);
@@ -1191,68 +1430,68 @@ function findElementsInContext(selector: string, searchContext: Document): Eleme
       }
     }
     return matches;
-  }
-  
-  else if (selector.includes(',')) {
-    const selectors = selector.split(',').map(s => s.trim());
+  } else if (selector.includes(",")) {
+    const selectors = selector.split(",").map((s) => s.trim());
     const allMatches: Element[] = [];
-    
+
     for (const sel of selectors) {
       const matches = findElementsInContext(sel, searchContext);
       allMatches.push(...matches);
     }
-    
+
     return Array.from(new Set(allMatches));
-  }
-  
-  else if (selector.includes(':visible')) {
-    const baseSelector = selector.replace(':visible', '');
-    const elements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : [];
-    
-    return elements.filter(el => {
+  } else if (selector.includes(":visible")) {
+    const baseSelector = selector.replace(":visible", "");
+    const elements = baseSelector
+      ? Array.from(searchContext.querySelectorAll(baseSelector))
+      : [];
+
+    return elements.filter((el) => {
       const style = window.getComputedStyle(el);
-      return style.display !== 'none' && 
-             style.visibility !== 'hidden' && 
-             style.opacity !== '0' &&
-             el.getBoundingClientRect().width > 0 &&
-             el.getBoundingClientRect().height > 0;
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        style.opacity !== "0" &&
+        el.getBoundingClientRect().width > 0 &&
+        el.getBoundingClientRect().height > 0
+      );
     });
-  }
-  
-  else if (selector.includes(':has(')) {
+  } else if (selector.includes(":has(")) {
     const match = selector.match(/^(.+?):has\((.+?)\)$/);
     if (match) {
       const [, baseSelector, hasSelector] = match;
-      const baseElements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : [];
-      
-      return baseElements.filter(el => {
+      const baseElements = baseSelector
+        ? Array.from(searchContext.querySelectorAll(baseSelector))
+        : [];
+
+      return baseElements.filter((el) => {
         const childElements = Array.from(el.querySelectorAll(hasSelector));
         return childElements.length > 0;
       });
     }
-  }
-  
-  else if (selector.includes(':nth-match(')) {
+  } else if (selector.includes(":nth-match(")) {
     const match = selector.match(/^:nth-match\((.+?),\s*(\d+)\)$/);
     if (match) {
       const [, innerSelector, nthStr] = match;
       const nth = parseInt(nthStr);
       const elements = findElementsInContext(innerSelector, searchContext);
-      return nth <= elements.length ? [elements[nth - 1]] : []; 
+      return nth <= elements.length ? [elements[nth - 1]] : [];
     }
-  }
-  
-  else if (selector.includes(':text(')) {
-    const match = selector.match(/^(.+?):text\("([^"]+)"\)$/) || selector.match(/^(.+?):text\(([^)]+)\)$/);
+  } else if (selector.includes(":text(")) {
+    const match =
+      selector.match(/^(.+?):text\("([^"]+)"\)$/) ||
+      selector.match(/^(.+?):text\(([^)]+)\)$/);
     if (match) {
       const [, baseSelector, text] = match;
-      const baseElements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : Array.from(searchContext.querySelectorAll('*'));
-      
+      const baseElements = baseSelector
+        ? Array.from(searchContext.querySelectorAll(baseSelector))
+        : Array.from(searchContext.querySelectorAll("*"));
+
       let shortestMatch: Element | null = null;
       let shortestLength = Infinity;
-      
+
       for (const el of baseElements) {
-        const elementText = el.textContent?.trim() || '';
+        const elementText = el.textContent?.trim() || "";
         if (elementText.includes(text.trim())) {
           if (elementText.length < shortestLength) {
             shortestMatch = el;
@@ -1260,46 +1499,53 @@ function findElementsInContext(selector: string, searchContext: Document): Eleme
           }
         }
       }
-      
+
       return shortestMatch ? [shortestMatch] : [];
     }
-  }
-  
-  else if (selector.includes(':text-is(')) {
-    const match = selector.match(/^(.+?):text-is\("([^"]+)"\)$/) || selector.match(/^(.+?):text-is\(([^)]+)\)$/);
+  } else if (selector.includes(":text-is(")) {
+    const match =
+      selector.match(/^(.+?):text-is\("([^"]+)"\)$/) ||
+      selector.match(/^(.+?):text-is\(([^)]+)\)$/);
     if (match) {
       const [, baseSelector, text] = match;
-      const baseElements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : Array.from(searchContext.querySelectorAll('*'));
-      
-      return baseElements.filter(el => {
-        const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE 
-          ? el.childNodes[0].textContent?.trim() || ''
-          : '';
+      const baseElements = baseSelector
+        ? Array.from(searchContext.querySelectorAll(baseSelector))
+        : Array.from(searchContext.querySelectorAll("*"));
+
+      return baseElements.filter((el) => {
+        const elementOwnText =
+          el.childNodes.length === 1 &&
+          el.childNodes[0].nodeType === Node.TEXT_NODE
+            ? el.childNodes[0].textContent?.trim() || ""
+            : "";
         return elementOwnText === text.trim();
       });
     }
-  }
-  
-  else if (selector.includes(':right-of(') || selector.includes(':left-of(') || 
-           selector.includes(':above(') || selector.includes(':below(') || 
-           selector.includes(':near(')) {
+  } else if (
+    selector.includes(":right-of(") ||
+    selector.includes(":left-of(") ||
+    selector.includes(":above(") ||
+    selector.includes(":below(") ||
+    selector.includes(":near(")
+  ) {
     return [];
-  }
-  
-  else {
+  } else {
     try {
       return Array.from(searchContext.querySelectorAll(selector));
     } catch (error) {
       return [];
     }
   }
-  
+
   return [];
 }
 
-async function waitForElement(selector: string, timeout = 5000): Promise<Element | null> {
+async function waitForElement(
+  selector: string,
+  timeout = 5000
+): Promise<Element | null> {
   const startTime = Date.now();
-  
+
   while (Date.now() - startTime < timeout) {
     try {
       const elements = findElements(selector);
@@ -1309,20 +1555,20 @@ async function waitForElement(selector: string, timeout = 5000): Promise<Element
         return element;
       }
     } catch (error) {
-      console.warn('Error finding element with selector:', selector, error);
+      console.warn("Error finding element with selector:", selector, error);
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  
+
   return null;
 }
 
 function ensureStylesInDocument(doc: Document): void {
-  if (doc.querySelector('#staktrak-highlight-styles')) return;
-  
-  const style = doc.createElement('style');
-  style.id = 'staktrak-highlight-styles';
+  if (doc.querySelector("#staktrak-highlight-styles")) return;
+
+  const style = doc.createElement("style");
+  style.id = "staktrak-highlight-styles";
   style.textContent = `
     .staktrak-text-highlight {
       background-color: #3b82f6 !important;
@@ -1340,129 +1586,157 @@ function ensureStylesInDocument(doc: Document): void {
       100% { background-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
     }
   `;
-  
+
   doc.head.appendChild(style);
 }
 
 function highlightElement(element: Element, matchedText?: string): void {
   try {
     ensureStylesInDocument(document);
-    
-    element.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'center', 
-      inline: 'center' 
+
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "center",
     });
-    
-    const textToHighlight = matchedText || (element as any).__stakTrakMatchedText;
-    
+
+    const textToHighlight =
+      matchedText || (element as any).__stakTrakMatchedText;
+
     if (textToHighlight) {
       highlightTextInElement(element, textToHighlight);
-    }    
+    }
   } catch (error) {
-    console.warn('Error highlighting element:', error);
+    console.warn("Error highlighting element:", error);
   }
 }
 
-function highlightTextInElement(element: Element, textToHighlight: string): void {
-  try {    
+function highlightTextInElement(
+  element: Element,
+  textToHighlight: string
+): void {
+  try {
     ensureStylesInDocument(document);
-    
+
     function wrapTextNodes(node: Node): void {
       if (node.nodeType === Node.TEXT_NODE) {
-        const textContent = node.textContent || '';
+        const textContent = node.textContent || "";
         if (textContent.includes(textToHighlight)) {
           const parent = node.parentNode;
           if (parent) {
-            const tempDiv = document.createElement('div');
+            const tempDiv = document.createElement("div");
             tempDiv.innerHTML = textContent.replace(
-              new RegExp(`(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
+              new RegExp(
+                `(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+                "gi"
+              ),
               '<span class="staktrak-text-highlight">$1</span>'
             );
-            
+
             while (tempDiv.firstChild) {
               parent.insertBefore(tempDiv.firstChild, node);
             }
             parent.removeChild(node);
           }
         }
-      } else if (node.nodeType === Node.ELEMENT_NODE && !(node as Element).classList?.contains('staktrak-text-highlight')) {
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !(node as Element).classList?.contains("staktrak-text-highlight")
+      ) {
         const children = Array.from(node.childNodes);
-        children.forEach(child => wrapTextNodes(child));
+        children.forEach((child) => wrapTextNodes(child));
       }
     }
-    
+
     wrapTextNodes(element);
-    
-    element.setAttribute('data-staktrak-processed', 'true');
-    
+
+    element.setAttribute("data-staktrak-processed", "true");
+
     setTimeout(() => {
-      const highlights = element.querySelectorAll('.staktrak-text-highlight');
-      highlights.forEach(highlight => {
+      const highlights = element.querySelectorAll(".staktrak-text-highlight");
+      highlights.forEach((highlight) => {
         const parent = highlight.parentNode;
         if (parent) {
-          parent.insertBefore(document.createTextNode(highlight.textContent || ''), highlight);
+          parent.insertBefore(
+            document.createTextNode(highlight.textContent || ""),
+            highlight
+          );
           parent.removeChild(highlight);
         }
       });
-      
-      element.removeAttribute('data-staktrak-processed');
-      
+
+      element.removeAttribute("data-staktrak-processed");
+
       element.normalize();
     }, 3000);
-    
   } catch (error) {
-    console.warn('Error highlighting text:', error);
+    console.warn("Error highlighting text:", error);
   }
 }
 
 async function verifyExpectation(action: PlaywrightAction): Promise<void> {
   if (!action.selector) return;
-  
+
   switch (action.expectation) {
-    case 'toBeVisible':
+    case "toBeVisible":
       const element = await waitForElement(action.selector);
       if (!element || !isElementVisible(element)) {
         throw new Error(`Element is not visible: ${action.selector}`);
       }
       break;
-      
-    case 'toContainText':
+
+    case "toContainText":
       const textElement = await waitForElement(action.selector);
-      if (!textElement || !textElement.textContent?.includes(String(action.value || ''))) {
-        throw new Error(`Element does not contain text "${action.value}": ${action.selector}`);
+      if (
+        !textElement ||
+        !textElement.textContent?.includes(String(action.value || ""))
+      ) {
+        throw new Error(
+          `Element does not contain text "${action.value}": ${action.selector}`
+        );
       }
       break;
-      
-    case 'toHaveText':
+
+    case "toHaveText":
       const exactTextElement = await waitForElement(action.selector);
-      if (!exactTextElement || exactTextElement.textContent?.trim() !== String(action.value || '')) {
-        throw new Error(`Element does not have exact text "${action.value}": ${action.selector}`);
+      if (
+        !exactTextElement ||
+        exactTextElement.textContent?.trim() !== String(action.value || "")
+      ) {
+        throw new Error(
+          `Element does not have exact text "${action.value}": ${action.selector}`
+        );
       }
       break;
-      
-    case 'toBeChecked':
-      const checkedElement = await waitForElement(action.selector) as HTMLInputElement;
+
+    case "toBeChecked":
+      const checkedElement = (await waitForElement(
+        action.selector
+      )) as HTMLInputElement;
       if (!checkedElement || !checkedElement.checked) {
         throw new Error(`Element is not checked: ${action.selector}`);
       }
       break;
-      
-    case 'not.toBeChecked':
-      const uncheckedElement = await waitForElement(action.selector) as HTMLInputElement;
+
+    case "not.toBeChecked":
+      const uncheckedElement = (await waitForElement(
+        action.selector
+      )) as HTMLInputElement;
       if (!uncheckedElement || uncheckedElement.checked) {
         throw new Error(`Element should not be checked: ${action.selector}`);
       }
       break;
-      
-    case 'toHaveCount':
+
+    case "toHaveCount":
       const elements = await waitForElements(action.selector);
       const expectedCount = Number(action.value);
       if (elements.length !== expectedCount) {
-        throw new Error(`Expected ${expectedCount} elements, but found ${elements.length}: ${action.selector}`);
+        throw new Error(
+          `Expected ${expectedCount} elements, but found ${elements.length}: ${action.selector}`
+        );
       }
       break;
-      
+
     default:
       console.warn(`Unknown expectation: ${action.expectation}`);
   }
@@ -1470,84 +1744,89 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
 
 function isElementVisible(element: Element): boolean {
   const style = window.getComputedStyle(element);
-  return style.display !== 'none' && 
-         style.visibility !== 'hidden' && 
-         style.opacity !== '0' &&
-         element.getBoundingClientRect().width > 0 &&
-         element.getBoundingClientRect().height > 0;
+  return (
+    style.display !== "none" &&
+    style.visibility !== "hidden" &&
+    style.opacity !== "0" &&
+    element.getBoundingClientRect().width > 0 &&
+    element.getBoundingClientRect().height > 0
+  );
 }
 
 function getActionDescription(action: PlaywrightAction): string {
   switch (action.type) {
-    case 'goto':
+    case "goto":
       return `Navigate to ${action.value}`;
-    case 'click':
+    case "click":
       return `Click element: ${action.selector}`;
-    case 'fill':
+    case "fill":
       return `Fill "${action.value}" in ${action.selector}`;
-    case 'check':
+    case "check":
       return `Check checkbox: ${action.selector}`;
-    case 'uncheck':
+    case "uncheck":
       return `Uncheck checkbox: ${action.selector}`;
-    case 'selectOption':
+    case "selectOption":
       return `Select "${action.value}" in ${action.selector}`;
-    case 'hover':
+    case "hover":
       return `Hover over element: ${action.selector}`;
-    case 'focus':
+    case "focus":
       return `Focus element: ${action.selector}`;
-    case 'blur':
+    case "blur":
       return `Blur element: ${action.selector}`;
-    case 'scrollIntoView':
+    case "scrollIntoView":
       return `Scroll element into view: ${action.selector}`;
-    case 'waitFor':
+    case "waitFor":
       return `Wait for element: ${action.selector}`;
-    case 'expect':
+    case "expect":
       return `Verify ${action.selector} ${action.expectation}`;
-    case 'setViewportSize':
+    case "setViewportSize":
       return `Set viewport size to ${action.value}`;
-    case 'waitForTimeout':
+    case "waitForTimeout":
       return `Wait ${action.value}ms`;
-    case 'waitForLoadState':
-      return 'Wait for page to load';
-    case 'waitForSelector':
+    case "waitForLoadState":
+      return "Wait for page to load";
+    case "waitForSelector":
       return `Wait for element: ${action.selector}`;
     default:
       return `Execute ${action.type}`;
   }
 }
 
-
-
 export function startPlaywrightReplay(testCode: string): void {
   try {
     const actions = parsePlaywrightTest(testCode);
-    
+
     if (actions.length === 0) {
-      throw new Error('No valid actions found in test code');
+      throw new Error("No valid actions found in test code");
     }
-    
+
     playwrightReplayRef.current = {
       actions,
       status: ReplayStatus.PLAYING,
       currentActionIndex: 0,
       testCode,
       errors: [],
-      timeouts: []
+      timeouts: [],
     };
-    
-    window.parent.postMessage({ 
-      type: "staktrak-playwright-replay-started",
-      totalActions: actions.length,
-      actions: actions
-    }, "*");
-    
+
+    window.parent.postMessage(
+      {
+        type: "staktrak-playwright-replay-started",
+        totalActions: actions.length,
+        actions: actions,
+      },
+      "*"
+    );
+
     executeNextPlaywrightAction();
-    
   } catch (error) {
-    window.parent.postMessage({ 
-      type: "staktrak-playwright-replay-error",
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, "*");
+    window.parent.postMessage(
+      {
+        type: "staktrak-playwright-replay-error",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      "*"
+    );
   }
 }
 
@@ -1556,48 +1835,58 @@ async function executeNextPlaywrightAction(): Promise<void> {
   if (!state || state.status !== ReplayStatus.PLAYING) {
     return;
   }
-  
+
   if (state.currentActionIndex >= state.actions.length) {
     state.status = ReplayStatus.COMPLETED;
-    window.parent.postMessage({ 
-      type: "staktrak-playwright-replay-completed" 
-    }, "*");
+    window.parent.postMessage(
+      {
+        type: "staktrak-playwright-replay-completed",
+      },
+      "*"
+    );
     return;
   }
-  
+
   const action = state.actions[state.currentActionIndex];
-  
+
   try {
-    window.parent.postMessage({ 
-      type: "staktrak-playwright-replay-progress",
-      current: state.currentActionIndex + 1,
-      total: state.actions.length,
-      currentAction: {
-        ...action,
-        description: getActionDescription(action)
-      }
-    }, "*");
-    
+    window.parent.postMessage(
+      {
+        type: "staktrak-playwright-replay-progress",
+        current: state.currentActionIndex + 1,
+        total: state.actions.length,
+        currentAction: {
+          ...action,
+          description: getActionDescription(action),
+        },
+      },
+      "*"
+    );
+
     await executePlaywrightAction(action);
-    
+
     state.currentActionIndex++;
-    
+
     setTimeout(() => {
       executeNextPlaywrightAction();
     }, 300);
-    
   } catch (error) {
-    state.errors.push(`Action ${state.currentActionIndex + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    
+    state.errors.push(
+      `Action ${state.currentActionIndex + 1}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+
     state.currentActionIndex++;
-    
-    window.parent.postMessage({ 
-      type: "staktrak-playwright-replay-error",
-      error: error instanceof Error ? error.message : 'Unknown error',
-      actionIndex: state.currentActionIndex - 1,
-      action: action
-    }, "*");
-    
+
+    window.parent.postMessage(
+      {
+        type: "staktrak-playwright-replay-error",
+        error: error instanceof Error ? error.message : "Unknown error",
+        actionIndex: state.currentActionIndex - 1,
+        action: action,
+      },
+      "*"
+    );
+
     executeNextPlaywrightAction();
   }
 }
@@ -1606,11 +1895,14 @@ export function pausePlaywrightReplay(): void {
   const state = playwrightReplayRef.current;
   if (state) {
     state.status = ReplayStatus.PAUSED;
-    
-    state.timeouts.forEach(id => clearTimeout(id as any));
+
+    state.timeouts.forEach((id) => clearTimeout(id as any));
     state.timeouts = [];
-    
-    window.parent.postMessage({ type: "staktrak-playwright-replay-paused" }, "*");
+
+    window.parent.postMessage(
+      { type: "staktrak-playwright-replay-paused" },
+      "*"
+    );
   }
 }
 
@@ -1618,10 +1910,13 @@ export function resumePlaywrightReplay(): void {
   const state = playwrightReplayRef.current;
   if (state && state.status === ReplayStatus.PAUSED) {
     state.status = ReplayStatus.PLAYING;
-    
+
     executeNextPlaywrightAction();
-    
-    window.parent.postMessage({ type: "staktrak-playwright-replay-resumed" }, "*");
+
+    window.parent.postMessage(
+      { type: "staktrak-playwright-replay-resumed" },
+      "*"
+    );
   }
 }
 
@@ -1629,72 +1924,65 @@ export function stopPlaywrightReplay(): void {
   const state = playwrightReplayRef.current;
   if (state) {
     state.status = ReplayStatus.IDLE;
-    
-    state.timeouts.forEach(id => clearTimeout(id as any));
+
+    state.timeouts.forEach((id) => clearTimeout(id as any));
     state.timeouts = [];
-    
-    window.parent.postMessage({ type: "staktrak-playwright-replay-stopped" }, "*");
+
+    window.parent.postMessage(
+      { type: "staktrak-playwright-replay-stopped" },
+      "*"
+    );
   }
 }
 
 export function getPlaywrightReplayState(): PlaywrightReplayState | null {
   const state = playwrightReplayRef.current;
   if (!state) return null;
-  
+
   return {
     actions: state.actions,
     status: state.status,
     currentActionIndex: state.currentActionIndex,
     testCode: state.testCode,
-    errors: state.errors
+    errors: state.errors,
   };
 }
 
 export function initPlaywrightReplay(): void {
   window.addEventListener("message", (event) => {
     const { data } = event;
-    
+
     if (!data || !data.type) return;
-    
+
     switch (data.type) {
       case "staktrak-playwright-replay-start":
         if (data.testCode) {
           startPlaywrightReplay(data.testCode);
         }
         break;
-        
+
       case "staktrak-playwright-replay-pause":
         pausePlaywrightReplay();
         break;
-        
+
       case "staktrak-playwright-replay-resume":
         resumePlaywrightReplay();
         break;
-        
+
       case "staktrak-playwright-replay-stop":
         stopPlaywrightReplay();
         break;
-        
+
       case "staktrak-playwright-replay-ping":
         const currentState = getPlaywrightReplayState();
-        window.parent.postMessage({ 
-          type: "staktrak-playwright-replay-pong", 
-          state: currentState 
-        }, "*");
+        window.parent.postMessage(
+          {
+            type: "staktrak-playwright-replay-pong",
+            state: currentState,
+          },
+          "*"
+        );
         break;
     }
   });
 }
-
-if (typeof window !== "undefined") {
-  (window as any).PlaywrightReplay = {
-    parsePlaywrightTest,
-    startPlaywrightReplay,
-    pausePlaywrightReplay,
-    resumePlaywrightReplay,
-    stopPlaywrightReplay,
-    getPlaywrightReplayState,
-    initPlaywrightReplay
-  };
-}
-
