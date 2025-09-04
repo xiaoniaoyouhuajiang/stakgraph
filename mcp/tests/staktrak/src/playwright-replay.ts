@@ -1525,8 +1525,9 @@ function findElementsInContext(
 
 async function waitForElement(
   selector: string,
-  timeout = 5000
+  matchedText?: string
 ): Promise<Element | null> {
+  const timeout = 5000;
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeout) {
@@ -1534,6 +1535,9 @@ async function waitForElement(
       const elements = findElements(selector);
       if (elements.length > 0) {
         const element = elements[0];
+        if (matchedText) {
+          (element as any).__stakTrakMatchedText = matchedText;
+        }
         setTimeout(() => highlightElement(element), 100);
         return element;
       }
@@ -1806,7 +1810,10 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     case "toContainText":
-      const textElement = await waitForElement(action.selector);
+      const textElement = await waitForElement(
+        action.selector,
+        String(action.value)
+      );
       if (
         !textElement ||
         !textElement.textContent?.includes(String(action.value || ""))
@@ -1818,7 +1825,10 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     case "toHaveText":
-      const exactTextElement = await waitForElement(action.selector);
+      const exactTextElement = await waitForElement(
+        action.selector,
+        String(action.value)
+      );
       if (
         !exactTextElement ||
         exactTextElement.textContent?.trim() !== String(action.value || "")

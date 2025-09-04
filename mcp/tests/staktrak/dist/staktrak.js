@@ -1861,13 +1861,17 @@ var userBehaviour = (() => {
     }
     return [];
   }
-  async function waitForElement(selector, timeout = 5e3) {
+  async function waitForElement(selector, matchedText) {
+    const timeout = 5e3;
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
       try {
         const elements = findElements(selector);
         if (elements.length > 0) {
           const element = elements[0];
+          if (matchedText) {
+            element.__stakTrakMatchedText = matchedText;
+          }
           setTimeout(() => highlightElement(element), 100);
           return element;
         }
@@ -2090,7 +2094,10 @@ var userBehaviour = (() => {
         }
         break;
       case "toContainText":
-        const textElement = await waitForElement(action.selector);
+        const textElement = await waitForElement(
+          action.selector,
+          String(action.value)
+        );
         if (!textElement || !((_a = textElement.textContent) == null ? void 0 : _a.includes(String(action.value || "")))) {
           throw new Error(
             `Element does not contain text "${action.value}": ${action.selector}`
@@ -2098,7 +2105,10 @@ var userBehaviour = (() => {
         }
         break;
       case "toHaveText":
-        const exactTextElement = await waitForElement(action.selector);
+        const exactTextElement = await waitForElement(
+          action.selector,
+          String(action.value)
+        );
         if (!exactTextElement || ((_b = exactTextElement.textContent) == null ? void 0 : _b.trim()) !== String(action.value || "")) {
           throw new Error(
             `Element does not have exact text "${action.value}": ${action.selector}`
