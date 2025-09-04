@@ -57,7 +57,7 @@ export function useIframeMessaging(iframeRef, initialURL) {
     const handleMessage = (event) => {
       if (event.data && event.data.type) {
         if (event.data && event.data.type.startsWith("staktrak-")) {
-          console.log("Staktrak message received:", event.data);
+          console.log("[MSG FROM IFRAME]:", event.type);
         }
         switch (event.data.type) {
           case "staktrak-setup":
@@ -701,7 +701,10 @@ export function usePlaywrightReplay(iframeRef) {
   const { showPopup } = usePopup();
   const [isPlaywrightReplaying, setIsPlaywrightReplaying] = useState(false);
   const [isPlaywrightPaused, setIsPlaywrightPaused] = useState(false);
-  const [playwrightProgress, setPlaywrightProgress] = useState({ current: 0, total: 0 });
+  const [playwrightProgress, setPlaywrightProgress] = useState({
+    current: 0,
+    total: 0,
+  });
 
   const [playwrightStatus, setPlaywrightStatus] = useState("idle");
   const [currentAction, setCurrentAction] = useState(null);
@@ -713,12 +716,12 @@ export function usePlaywrightReplay(iframeRef) {
       return false;
     }
 
-    if (!testCode || typeof testCode !== 'string') {
+    if (!testCode || typeof testCode !== "string") {
       showPopup("No test code provided for replay", "warning");
       return false;
     }
 
-    if (!testCode.includes('page.') || !testCode.includes('test(')) {
+    if (!testCode.includes("page.") || !testCode.includes("test(")) {
       showPopup("Invalid Playwright test format", "error");
       return false;
     }
@@ -777,7 +780,12 @@ export function usePlaywrightReplay(iframeRef) {
   };
 
   const resumePlaywrightReplay = () => {
-    if (!isPlaywrightReplaying || !isPlaywrightPaused || !iframeRef?.current?.contentWindow) return;
+    if (
+      !isPlaywrightReplaying ||
+      !isPlaywrightPaused ||
+      !iframeRef?.current?.contentWindow
+    )
+      return;
 
     try {
       iframeRef.current.contentWindow.postMessage(
@@ -819,7 +827,6 @@ export function usePlaywrightReplay(iframeRef) {
     }
   };
 
-
   useEffect(() => {
     const handleMessage = (event) => {
       const { data } = event;
@@ -840,28 +847,34 @@ export function usePlaywrightReplay(iframeRef) {
           setIsPlaywrightPaused(false);
           setPlaywrightStatus("completed");
           setCurrentAction(null);
-          
+
           const container = document.querySelector(".iframe-container");
           if (container) {
             container.classList.remove("playwright-replaying");
           }
-          
+
           showPopup("Playwright replay completed successfully", "success");
           break;
 
         case "staktrak-playwright-replay-error":
           const errorMsg = data.error || "Unknown error";
-          setReplayErrors(prev => [...prev, {
-            message: errorMsg,
-            actionIndex: data.actionIndex,
-            action: data.action,
-            timestamp: new Date().toISOString()
-          }]);
-          
+          setReplayErrors((prev) => [
+            ...prev,
+            {
+              message: errorMsg,
+              actionIndex: data.actionIndex,
+              action: data.action,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+
           // Don't stop replay on error, just log it
           console.warn("Playwright replay error:", errorMsg);
           if (data.actionIndex !== undefined) {
-            showPopup(`Error at action ${data.actionIndex + 1}: ${errorMsg}`, "warning");
+            showPopup(
+              `Error at action ${data.actionIndex + 1}: ${errorMsg}`,
+              "warning"
+            );
           }
           break;
 
@@ -881,7 +894,7 @@ export function usePlaywrightReplay(iframeRef) {
           setPlaywrightStatus("idle");
           setCurrentAction(null);
           setPlaywrightProgress({ current: 0, total: 0 });
-          
+
           const stopContainer = document.querySelector(".iframe-container");
           if (stopContainer) {
             stopContainer.classList.remove("playwright-replaying");

@@ -148,11 +148,11 @@ const Staktrak = () => {
     } else {
       if (testCodeInput.trim()) {
         const currentTestCode = testCodeInput;
-        
+
         if (iframeRef.current) {
-          iframeRef.current.src = iframeRef.current.src;
+          // iframeRef.current.src = iframeRef.current.src;
         }
-        
+
         setTimeout(() => {
           startPlaywrightReplay(currentTestCode);
         }, 100);
@@ -168,9 +168,11 @@ const Staktrak = () => {
 
   const loadTestForReplay = async (testName) => {
     try {
-      const response = await fetch(`/test/get?name=${encodeURIComponent(testName)}`);
+      const response = await fetch(
+        `/test/get?name=${encodeURIComponent(testName)}`
+      );
       const result = await response.json();
-      
+
       if (result.success) {
         setTestCodeInput(result.content);
         setShowPlaywrightReplay(true);
@@ -303,7 +305,10 @@ const Staktrak = () => {
               class="playwright-toggle"
               onClick=${() => setShowPlaywrightReplay(!showPlaywrightReplay)}
             >
-              <span class="btn-icon">🎬</span> ${showPlaywrightReplay ? "Hide" : "Show"} Code Replay
+              <span class="btn-icon">🎬</span> ${showPlaywrightReplay
+                ? "Hide"
+                : "Show"}
+              Code Replay
             </button>
           </div>
         </div>
@@ -323,7 +328,6 @@ const Staktrak = () => {
           </div>
         </div>
       `}
-
       ${isPlaywrightReplaying &&
       html`
         <div class="playwright-replay-progress-bar">
@@ -334,11 +338,11 @@ const Staktrak = () => {
             100}%"
           ></div>
           <div class="playwright-replay-progress-text">
-            Playwright: Step ${playwrightProgress.current} of ${playwrightProgress.total} (${playwrightStatus})
+            Playwright: Step ${playwrightProgress.current} of
+            ${playwrightProgress.total} (${playwrightStatus})
           </div>
         </div>
       `}
-
       ${showPlaywrightReplay &&
       html`
         <div class="playwright-replay-section">
@@ -353,7 +357,9 @@ const Staktrak = () => {
             ></textarea>
             <div class="playwright-buttons">
               <button
-                class=${`playwright-replay-btn ${isPlaywrightReplaying ? "active" : ""}`}
+                class=${`playwright-replay-btn ${
+                  isPlaywrightReplaying ? "active" : ""
+                }`}
                 onClick=${handlePlaywrightReplay}
                 disabled=${!testCodeInput.trim() && !isPlaywrightReplaying}
               >
@@ -364,20 +370,26 @@ const Staktrak = () => {
                   : "🔄 Start Playwright Replay"}
               </button>
               ${isPlaywrightReplaying
-                ? html`<button class="stop-btn" onClick=${handleStopPlaywrightReplay}>
+                ? html`<button
+                    class="stop-btn"
+                    onClick=${handleStopPlaywrightReplay}
+                  >
                     ⏹️ Stop Playwright
                   </button>`
                 : null}
-              
             </div>
             ${replayErrors.length > 0
               ? html`<div class="replay-errors">
                   <h4>⚠️ Replay Errors (${replayErrors.length}):</h4>
-                  ${replayErrors.slice(-3).map(error => html`
-                    <div class="error-item">
-                      Action ${error.actionIndex + 1}: ${error.message}
-                    </div>
-                  `)}
+                  ${replayErrors
+                    .slice(-3)
+                    .map(
+                      (error) => html`
+                        <div class="error-item">
+                          Action ${error.actionIndex + 1}: ${error.message}
+                        </div>
+                      `
+                    )}
                 </div>`
               : null}
           </div>
@@ -389,7 +401,11 @@ const Staktrak = () => {
         html`<div class="selected-text" id="app-selection-display">
           Selected: "${selectedText}"
         </div>`}
-        <div class="iframe-container ${isReplaying ? "replaying" : ""} ${isPlaywrightReplaying ? "playwright-replaying" : ""}">
+        <div
+          class="iframe-container ${isReplaying
+            ? "replaying"
+            : ""} ${isPlaywrightReplaying ? "playwright-replaying" : ""}"
+        >
           <iframe ref=${iframeRef} src=${url} id="trackingFrame"></iframe>
         </div>
 
