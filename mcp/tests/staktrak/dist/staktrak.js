@@ -1929,11 +1929,6 @@ var userBehaviour = (() => {
   function highlightElement(element, matchedText) {
     try {
       ensureStylesInDocument(document);
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "center"
-      });
       const textToHighlight = matchedText || element.__stakTrakMatchedText;
       let textHighlighted = false;
       if (textToHighlight) {

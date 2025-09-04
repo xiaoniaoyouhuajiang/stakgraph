@@ -1601,11 +1601,11 @@ function highlightElement(element: Element, matchedText?: string): void {
   try {
     ensureStylesInDocument(document);
 
-    element.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "center",
-    });
+    // element.scrollIntoView({
+    //   behavior: "smooth",
+    //   block: "center",
+    //   inline: "center",
+    // });
 
     const textToHighlight =
       matchedText || (element as any).__stakTrakMatchedText;
