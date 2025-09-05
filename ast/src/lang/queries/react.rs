@@ -84,10 +84,6 @@ impl Stack for ReactTs {
         if NETWORK_MARKERS.iter().any(|m| body_l.contains(m)) {
             return NodeType::IntegrationTest;
         }
-       if NETWORK_MARKERS.iter().any(|m| body_l.contains(m)) {
-            return NodeType::IntegrationTest;
-        }
-
         NodeType::UnitTest
     }
     fn is_lib_file(&self, file_name: &str) -> bool {
@@ -409,23 +405,6 @@ impl Stack for ReactTs {
             ] @{FUNCTION_DEFINITION}"#
         ))
     }
-    fn integration_test_query(&self) -> Option<String> {
-        Some(format!(
-            r#"[
-                (call_expression
-                    function: (identifier) @describe (#eq? @describe "describe")
-                    arguments: (arguments [ (string) (template_string) ] @{TEST_NAME} (_))
-                ) @{INTEGRATION_TEST}
-                (call_expression
-                    function: (member_expression
-                        object: (identifier) @describe2 (#eq? @describe2 "describe")
-                        property: (property_identifier) @mod (#match? @mod "^(only|skip|each)$")
-                    )
-                    arguments: (arguments [ (string) (template_string) ] @{TEST_NAME} (_))
-                ) @{INTEGRATION_TEST}
-            ]"#
-        ))
-    }
     fn e2e_test_query(&self) -> Option<String> {
         Some(format!(
             r#"[
@@ -704,25 +683,22 @@ impl Stack for ReactTs {
         }
         vec![format!(
             r#"
-(lexical_declaration
-	(variable_declarator
-    	name: (object_pattern
-        	;; first only
-        	. (shorthand_property_identifier_pattern) @{EXTRA_PROP}
-        )?
-        value: (call_expression
-            function: (identifier) @{EXTRA_NAME} (#match? @{EXTRA_NAME} "{extra_regex}")
-        )
-    )
-) @{EXTRA}?
+            (lexical_declaration
+                (variable_declarator
+                    name: (object_pattern
+                        ;; first only
+                        . (shorthand_property_identifier_pattern) @{EXTRA_PROP}
+                    )?
+                    value: (call_expression
+                        function: (identifier) @{EXTRA_NAME} (#match? @{EXTRA_NAME} "{extra_regex}")
+                    )
+                )
+            ) @{EXTRA}?
             "#,
         )]
     }
 
     fn use_extra_page_finder(&self) -> bool {
-        true
-    }
-    fn use_integration_test_finder(&self) -> bool {
         true
     }
     fn is_extra_page(&self, file_name: &str) -> bool {
