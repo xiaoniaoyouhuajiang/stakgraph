@@ -1,4 +1,3 @@
-import { anthropic } from "@ai-sdk/anthropic";
 import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
@@ -19,11 +18,7 @@ import {
 import * as Q from "./queries.js";
 import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
 import { callGenerateObject } from "../aieo/src/stream.js";
-import {
-  getApiKeyForProvider,
-  PROVIDERS,
-  Provider,
-} from "../aieo/src/provider.js";
+import { getApiKeyForProvider, Provider } from "../aieo/src/provider.js";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { createByModelName } from "@microsoft/tiktokenizer";
@@ -533,7 +528,14 @@ class Db {
   async create_hint(question: string, answer: string, embeddings: number[]) {
     const session = this.driver.session();
     const name = question.slice(0, 80);
-    const node_key = `Hint|:|${name}|:|hint://generated|:|0`;
+    const node_key = create_node_key({
+      node_type: "Hint",
+      node_data: {
+        name,
+        file: "hint://generated",
+        start: 0,
+      },
+    } as Node);
     try {
       await session.run(Q.CREATE_HINT_QUERY, {
         node_key,
