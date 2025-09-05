@@ -72,8 +72,13 @@ export async function explore(req: Request, res: Response) {
     res.status(400).json({ error: "Missing prompt" });
     return;
   }
-  const result = await get_context(prompt);
-  res.json({ result });
+  try {
+    const result = await get_context(prompt);
+    res.json({ result });
+  } catch (error) {
+    console.error("Explore Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
 }
 
 export async function get_nodes(req: Request, res: Response) {

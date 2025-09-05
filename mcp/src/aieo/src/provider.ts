@@ -18,9 +18,32 @@ export const PROVIDERS: Provider[] = [
 const SOTA = {
   anthropic: "claude-4-sonnet-20250514",
   google: "gemini-2.5-pro-preview-05-06",
-  openai: "gpt-4.1",
+  openai: "gpt-5",
   claude_code: "sonnet",
 };
+
+export function getApiKeyForProvider(provider: Provider | string): string {
+  let apiKey: string | undefined;
+  console.log(process.env.ANTHROPIC_API_KEY);
+  switch (provider) {
+    case "anthropic":
+      apiKey = process.env.ANTHROPIC_API_KEY;
+      break;
+    case "google":
+      apiKey = process.env.GOOGLE_API_KEY;
+      break;
+    case "openai":
+      apiKey = process.env.OPENAI_API_KEY;
+      break;
+    case "claude_code":
+      apiKey = process.env.CLAUDE_CODE_API_KEY;
+      break;
+  }
+  if (!apiKey) {
+    throw new Error(`API key not found for provider: ${provider}`);
+  }
+  return apiKey;
+}
 
 export async function getModel(
   provider: Provider,
