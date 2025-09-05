@@ -843,7 +843,7 @@ async function executePlaywrightAction(
           const element = await waitForElement(action.selector);
           if (element) {
             const htmlElement = element as HTMLElement;
-            element.scrollIntoView({ behavior: "auto", block: "center" });
+            // element.scrollIntoView({ behavior: "auto", block: "center" });
 
             const originalBorder = htmlElement.style.border;
             htmlElement.style.border = "3px solid #ff6b6b";
@@ -867,7 +867,7 @@ async function executePlaywrightAction(
             | HTMLInputElement
             | HTMLTextAreaElement;
           if (element) {
-            element.scrollIntoView({ behavior: "auto", block: "center" });
+            // element.scrollIntoView({ behavior: "auto", block: "center" });
 
             element.focus();
             element.value = "";
@@ -889,7 +889,7 @@ async function executePlaywrightAction(
             element &&
             (element.type === "checkbox" || element.type === "radio")
           ) {
-            element.scrollIntoView({ behavior: "auto", block: "center" });
+            // element.scrollIntoView({ behavior: "auto", block: "center" });
 
             if (!element.checked) {
               element.click();
@@ -908,7 +908,7 @@ async function executePlaywrightAction(
             action.selector
           )) as HTMLInputElement;
           if (element && element.type === "checkbox") {
-            element.scrollIntoView({ behavior: "auto", block: "center" });
+            // element.scrollIntoView({ behavior: "auto", block: "center" });
 
             if (element.checked) {
               element.click();
@@ -925,7 +925,7 @@ async function executePlaywrightAction(
             action.selector
           )) as HTMLSelectElement;
           if (element && element.tagName === "SELECT") {
-            element.scrollIntoView({ behavior: "auto", block: "center" });
+            // element.scrollIntoView({ behavior: "auto", block: "center" });
 
             element.value = String(action.value);
             element.dispatchEvent(new Event("change", { bubbles: true }));
@@ -960,7 +960,7 @@ async function executePlaywrightAction(
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
-            element.scrollIntoView({ behavior: "auto", block: "center" });
+            // element.scrollIntoView({ behavior: "auto", block: "center" });
             element.dispatchEvent(
               new MouseEvent("mouseover", { bubbles: true })
             );
@@ -979,7 +979,7 @@ async function executePlaywrightAction(
             action.selector
           )) as HTMLElement;
           if (element && typeof element.focus === "function") {
-            element.scrollIntoView({ behavior: "auto", block: "center" });
+            // element.scrollIntoView({ behavior: "auto", block: "center" });
             element.focus();
           } else {
             throw new Error(
@@ -1542,15 +1542,18 @@ function findElementsInContext(
 
 async function waitForElement(
   selector: string,
-  timeout = 5000
+  matchedText?: string
 ): Promise<Element | null> {
   const startTime = Date.now();
-
+  const timeout = 5000;
   while (Date.now() - startTime < timeout) {
     try {
       const elements = findElements(selector);
       if (elements.length > 0) {
         const element = elements[0];
+        if (matchedText) {
+          (element as any).__stakTrakMatchedText = matchedText;
+        }
         setTimeout(() => highlightElement(element), 100);
         return element;
       }
@@ -1594,11 +1597,11 @@ function highlightElement(element: Element, matchedText?: string): void {
   try {
     ensureStylesInDocument(document);
 
-    element.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "center",
-    });
+    // element.scrollIntoView({
+    //   behavior: "smooth",
+    //   block: "center",
+    //   inline: "center",
+    // });
 
     const textToHighlight =
       matchedText || (element as any).__stakTrakMatchedText;
@@ -1686,7 +1689,7 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     case "toContainText":
-      const textElement = await waitForElement(action.selector);
+      const textElement = await waitForElement(action.selector, action.value);
       if (
         !textElement ||
         !textElement.textContent?.includes(String(action.value || ""))
@@ -1698,7 +1701,10 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     case "toHaveText":
-      const exactTextElement = await waitForElement(action.selector);
+      const exactTextElement = await waitForElement(
+        action.selector,
+        action.value
+      );
       if (
         !exactTextElement ||
         exactTextElement.textContent?.trim() !== String(action.value || "")
