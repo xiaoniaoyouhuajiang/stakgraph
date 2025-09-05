@@ -108,6 +108,8 @@ export async function understanding(req: Request, res: Response) {
           answer: top.properties.body,
           hint_ref_id: top.ref_id,
           reused: true,
+          edges_added: 0,
+          linked_ref_ids: [],
         });
         return;
       }
@@ -116,11 +118,27 @@ export async function understanding(req: Request, res: Response) {
     const answer = ctx;
     const embeddings = await vectorizeQuery(question);
     const created = await db.create_hint(question, answer, embeddings);
+    let edges_added = 0;
+    let linked_ref_ids: string[] = [];
+    try {
+      const provider = (req.query.provider as string) || undefined;
+      const r = await db.create_hint_edges_llm(
+        created.ref_id,
+        answer,
+        provider
+      );
+      edges_added = r.edges_added;
+      linked_ref_ids = r.linked_ref_ids;
+    } catch (e) {
+      console.error("Failed to create edges from hint", e);
+    }
     res.json({
       question,
       answer,
       hint_ref_id: created.ref_id,
       reused,
+      edges_added,
+      linked_ref_ids,
     });
   } catch (e: any) {
     console.error(e);
