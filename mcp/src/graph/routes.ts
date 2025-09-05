@@ -28,6 +28,7 @@ import { db } from "./neo4j.js";
 import { parseServiceFile, extractContainersFromCompose } from "./service.js";
 import * as path from "path";
 import { get_context } from "../tools/explore/tool.js";
+import { vectorizeQuery } from "../vector/index.js";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -78,6 +79,52 @@ export async function explore(req: Request, res: Response) {
   } catch (error) {
     console.error("Explore Error:", error);
     res.status(500).send("Internal Server Error");
+  }
+}
+
+export async function understanding(req: Request, res: Response) {
+  try {
+    const question = req.query.question as string;
+    if (!question) {
+      res.status(400).json({ error: "Missing question" });
+      return;
+    }
+    const similarityThreshold = 0.75;
+    const existing = await G.search(
+      question,
+      5,
+      ["Hint" as any],
+      false,
+      100000,
+      "vector",
+      "json"
+    );
+    let reused = false;
+    if (Array.isArray(existing) && existing.length > 0) {
+      const top: any = existing[0];
+      if (top.score && top.score >= similarityThreshold) {
+        res.json({
+          question,
+          answer: top.properties.body,
+          hint_ref_id: top.ref_id,
+          reused: true,
+        });
+        return;
+      }
+    }
+    const ctx = await get_context(question);
+    const answer = ctx;
+    const embeddings = await vectorizeQuery(question);
+    const created = await db.create_hint(question, answer, embeddings);
+    res.json({
+      question,
+      answer,
+      hint_ref_id: created.ref_id,
+      reused,
+    });
+  } catch (e: any) {
+    console.error(e);
+    res.status(500).json({ error: "Failed" });
   }
 }
 

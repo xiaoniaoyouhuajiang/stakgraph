@@ -52,7 +52,8 @@ export type NodeType =
   | "Var"
   | "Message"
   | "Person"
-  | "Video";
+  | "Video"
+  | "Hint";
 
 export type EdgeType =
   | "CALLS"
@@ -101,6 +102,7 @@ export function relevant_node_types(): NodeType[] {
     "Message",
     "Person",
     "Video",
+  "Hint",
   ];
 }
 
@@ -126,6 +128,7 @@ export function all_node_types(): NodeType[] {
     "Message",
     "Person",
     "Video",
+  "Hint",
   ];
 }
 
@@ -177,6 +180,7 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
       "A message in a conversation between developers, projects managers, or other stakeholders.",
     Person: "A person working on the project.",
     Video: "A recorded video conversation between stakeholders.",
+  Hint: "A question and answer pair generated from exploring the codebase to capture contextual understanding.",
   };
 }
 

@@ -512,6 +512,29 @@ class Db {
     }
   }
 
+  async create_hint(question: string, answer: string, embeddings: number[]) {
+    const session = this.driver.session();
+    const name = question.slice(0, 80);
+    const node_key = `Hint|:|${name}|:|hint://generated|:|0`;
+    try {
+      await session.run(Q.CREATE_HINT_QUERY, {
+        node_key,
+        name,
+        file: "hint://generated",
+        body: answer,
+        question,
+        embeddings,
+        ts: Date.now() / 1000,
+      });
+  const r = await session.run(Q.GET_HINT_QUERY, { node_key });
+      const record = r.records[0];
+      const n = record.get("n");
+      return { ref_id: n.properties.ref_id, node_key };
+    } finally {
+      await session.close();
+    }
+  }
+
   async createIndexes(): Promise<void> {
     let session: Session | null = null;
     try {
