@@ -108,12 +108,12 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes += functions.len();
     if use_lsp {
-        assert_eq!(functions.len(), 39, "Expected 39 Function nodes with LSP");
+        assert_eq!(functions.len(), 37, "Expected 37 Function nodes with LSP");
     } else {
         assert_eq!(
             functions.len(),
-            28,
-            "Expected 28 Function nodes without LSP"
+            26,
+            "Expected 26 Function nodes without LSP"
         );
     }
 
@@ -229,7 +229,11 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
 
     let contains = graph.count_edges_of_type(EdgeType::Contains);
     edges += contains;
+<<<<<<< HEAD
     assert_eq!(contains, 150, "Expected 150 Contains edges");
+=======
+    assert_eq!(contains, 149, "Expected 149 Contains edges");
+>>>>>>> abc2806 (remove variables read as functions)
 
     let handlers = graph.count_edges_of_type(EdgeType::Handler);
     edges += handlers;
@@ -267,7 +271,7 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
     let uses = graph.count_edges_of_type(EdgeType::Uses);
     edges += uses;
     if use_lsp {
-        assert_eq!(uses, 46, "Expected 46 Uses edges with LSP");
+        assert_eq!(uses, 44, "Expected 44 Uses edges with LSP");
     } else {
         assert_eq!(uses, 0, "Expected 0 Uses edge without LSP");
     }
@@ -286,9 +290,9 @@ pub async fn test_nextjs_generic<G: Graph>() -> Result<()> {
         let person_fn = functions
             .iter()
             .find(|f| {
-                f.name == "person"
+                f.name == "Person"
                     && f.file
-                        .ends_with("src/testing/nextjs/app/api/person/[id]/route.ts")
+                        .ends_with("src/testing/nextjs/app/person/page.tsx")
             })
             .map(|n| Node::new(NodeType::Function, n.clone()))
             .expect("Person function not found");

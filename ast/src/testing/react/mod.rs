@@ -136,9 +136,9 @@ import NewPerson from "./components/NewPerson";"#
     let functions = graph.find_nodes_by_type(NodeType::Function);
     nodes_count += functions.len();
     if use_lsp == true {
-        assert_eq!(functions.len(), 23, "Expected 23 functions/components");
+        assert_eq!(functions.len(), 21, "Expected 21 functions/components");
     } else {
-        assert_eq!(functions.len(), 17, "Expected 17 functions/components");
+        assert_eq!(functions.len(), 16, "Expected 16 functions/components");
     }
 
     let mut sorted_functions = functions.clone();
@@ -490,8 +490,8 @@ import NewPerson from "./components/NewPerson";"#
     let contains_edges_count = graph.count_edges_of_type(EdgeType::Contains);
     edges_count += contains_edges_count;
     assert_eq!(
-        contains_edges_count, 69,
-        "Expected 69 contains edges, got {}",
+        contains_edges_count, 68,
+        "Expected 68 contains edges, got {}",
         contains_edges_count
     );
 
@@ -529,7 +529,7 @@ import NewPerson from "./components/NewPerson";"#
     edges_count += uses;
 
     if use_lsp {
-        assert_eq!(uses, 14, "Expected 14 uses edges");
+        assert_eq!(uses, 13, "Expected 13 uses edges");
     }
 
     let (nodes, edges) = graph.get_graph_size();

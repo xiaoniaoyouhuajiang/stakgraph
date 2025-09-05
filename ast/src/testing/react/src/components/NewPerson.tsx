@@ -11,6 +11,8 @@ const FormContainer = styled.div`
   background-color: #f9f9f9;
 `;
 
+const adjustedStart = Math.max(0, end - 4);
+
 const FormTitle = styled.h2`
   text-align: center;
   color: #333;
