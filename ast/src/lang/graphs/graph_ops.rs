@@ -518,6 +518,7 @@ impl GraphOps {
         &mut self,
         node_type: NodeType,
         with_usage: bool,
+    offset: usize,
         limit: usize,
         root: Option<&str>,
         tests_filter: Option<&str>,
@@ -588,8 +589,9 @@ impl GraphOps {
             } else {
                 uncovered.sort_by(|a, b| a.0.name.cmp(&b.0.name));
             }
-            uncovered.truncate(limit);
-            let result: Vec<(NodeData, usize)> = uncovered;
+            let start = std::cmp::min(offset, uncovered.len());
+            let end = std::cmp::min(start + limit, uncovered.len());
+            let result: Vec<(NodeData, usize)> = uncovered[start..end].to_vec();
             return Ok((result, vec![]));
         }
 
@@ -646,8 +648,9 @@ impl GraphOps {
             } else {
                 res.sort_by(|a, b| a.0.name.cmp(&b.0.name));
             }
-            res.truncate(limit);
-            let result: Vec<(NodeData, usize)> = res;
+            let start = std::cmp::min(offset, res.len());
+            let end = std::cmp::min(start + limit, res.len());
+            let result: Vec<(NodeData, usize)> = res[start..end].to_vec();
             return Ok((vec![], result));
         }
 
