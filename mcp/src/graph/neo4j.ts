@@ -596,12 +596,12 @@ class Db {
         .default([]),
     });
     try {
-      return (await callGenerateObject({
+      return await callGenerateObject({
         provider,
         apiKey,
         prompt: `Extract exact code nodes referenced. Return JSON only. Use empty list if none.\n\n${truncated}`,
         schema,
-      })) as any;
+      });
     } catch (_) {
       return { nodes: [] };
     }
