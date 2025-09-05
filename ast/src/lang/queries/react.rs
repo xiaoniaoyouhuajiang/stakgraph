@@ -291,14 +291,14 @@ impl Stack for ReactTs {
                 (class_heritage
                     (extends_clause
                         value: (member_expression
-                            object: (identifier) @react (#eq @react "React")
-                            property: (property_identifier) @component (#eq @component "Component")
+                            object: (identifier) @react (#eq? @react "React")
+                            property: (property_identifier) @component (#eq? @component "Component")
                         )
                     )
                 )
                 body: (class_body
                     (method_definition
-                        name: (property_identifier) @render (#eq @render "render")
+                        name: (property_identifier) @render (#eq? @render "render")
                         return_type: (type_annotation)? @{RETURN_TYPES}
                         body: (statement_block
                             (return_statement
@@ -318,7 +318,7 @@ impl Stack for ReactTs {
                     name: (identifier) @{FUNCTION_NAME}
                     value: (call_expression
                         function: (member_expression
-                            object: (identifier) @styled-object (#eq @styled-object "styled")
+                            object: (identifier) @styled-object (#eq? @styled-object "styled")
                             property: (property_identifier) @styled-method
                         )
                     )
