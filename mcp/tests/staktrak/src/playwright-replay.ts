@@ -843,6 +843,7 @@ async function executePlaywrightAction(
           const element = await waitForElement(action.selector);
           if (element) {
             const htmlElement = element as HTMLElement;
+            element.scrollIntoView({ behavior: "auto", block: "center" });
 
             const originalBorder = htmlElement.style.border;
             htmlElement.style.border = "3px solid #ff6b6b";
@@ -866,6 +867,8 @@ async function executePlaywrightAction(
             | HTMLInputElement
             | HTMLTextAreaElement;
           if (element) {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             element.focus();
             element.value = "";
             element.value = String(action.value);
@@ -886,6 +889,8 @@ async function executePlaywrightAction(
             element &&
             (element.type === "checkbox" || element.type === "radio")
           ) {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             if (!element.checked) {
               element.click();
             }
@@ -903,6 +908,8 @@ async function executePlaywrightAction(
             action.selector
           )) as HTMLInputElement;
           if (element && element.type === "checkbox") {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             if (element.checked) {
               element.click();
             }
@@ -918,6 +925,8 @@ async function executePlaywrightAction(
             action.selector
           )) as HTMLSelectElement;
           if (element && element.tagName === "SELECT") {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
+
             element.value = String(action.value);
             element.dispatchEvent(new Event("change", { bubbles: true }));
           } else {
@@ -951,6 +960,7 @@ async function executePlaywrightAction(
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
             element.dispatchEvent(
               new MouseEvent("mouseover", { bubbles: true })
             );
@@ -969,6 +979,7 @@ async function executePlaywrightAction(
             action.selector
           )) as HTMLElement;
           if (element && typeof element.focus === "function") {
+            element.scrollIntoView({ behavior: "auto", block: "center" });
             element.focus();
           } else {
             throw new Error(
@@ -996,7 +1007,13 @@ async function executePlaywrightAction(
       case "scrollIntoView":
         if (action.selector) {
           const element = await waitForElement(action.selector);
-          if (!element) {
+          if (element) {
+            element.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+              inline: "center",
+            });
+          } else {
             throw new Error(
               `Element not found for scrollIntoView: ${action.selector}`
             );
@@ -1525,9 +1542,8 @@ function findElementsInContext(
 
 async function waitForElement(
   selector: string,
-  matchedText?: string
+  timeout = 5000
 ): Promise<Element | null> {
-  const timeout = 5000;
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeout) {
@@ -1535,9 +1551,6 @@ async function waitForElement(
       const elements = findElements(selector);
       if (elements.length > 0) {
         const element = elements[0];
-        if (matchedText) {
-          (element as any).__stakTrakMatchedText = matchedText;
-        }
         setTimeout(() => highlightElement(element), 100);
         return element;
       }
@@ -1557,44 +1570,20 @@ function ensureStylesInDocument(doc: Document): void {
   const style = doc.createElement("style");
   style.id = "staktrak-highlight-styles";
   style.textContent = `
-    /* Use much higher specificity and inline-style fallbacks */
-    .staktrak-text-highlight,
-    *[data-staktrak-highlight="true"] {
-      background: #3b82f6 !important;
+    .staktrak-text-highlight {
+      background-color: #3b82f6 !important;
       color: white !important;
       padding: 2px 4px !important;
       border-radius: 3px !important;
       font-weight: bold !important;
       box-shadow: 0 0 8px rgba(59, 130, 246, 0.6) !important;
       animation: staktrak-text-pulse 2s ease-in-out !important;
-      position: relative !important;
-      z-index: 999999 !important;
-    }
-
-    /* Element border highlighting as fallback */
-    .staktrak-element-highlight {
-      outline: 3px solid #3b82f6 !important;
-      outline-offset: 2px !important;
-      background-color: rgba(59, 130, 246, 0.1) !important;
-      animation: staktrak-element-pulse 2s ease-in-out !important;
-      position: relative !important;
-      z-index: 999998 !important;
     }
 
     @keyframes staktrak-text-pulse {
-      0%, 100% { 
-        background-color: #3b82f6 !important; 
-        box-shadow: 0 0 8px rgba(59, 130, 246, 0.6) !important; 
-      }
-      50% { 
-        background-color: #1d4ed8 !important; 
-        box-shadow: 0 0 15px rgba(29, 78, 216, 0.8) !important; 
-      }
-    }
-
-    @keyframes staktrak-element-pulse {
-      0%, 100% { outline-color: #3b82f6 !important; }
-      50% { outline-color: #1d4ed8 !important; }
+      0% { background-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
+      50% { background-color: #1d4ed8; box-shadow: 0 0 15px rgba(29, 78, 216, 0.8); }
+      100% { background-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
     }
   `;
 
@@ -1605,196 +1594,83 @@ function highlightElement(element: Element, matchedText?: string): void {
   try {
     ensureStylesInDocument(document);
 
-    // element.scrollIntoView({
-    //   behavior: "smooth",
-    //   block: "center",
-    //   inline: "center",
-    // });
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "center",
+    });
 
     const textToHighlight =
       matchedText || (element as any).__stakTrakMatchedText;
 
-    // Try text highlighting first
-    let textHighlighted = false;
     if (textToHighlight) {
-      textHighlighted = highlightTextInElement(element, textToHighlight);
-    }
-
-    // Fallback to element highlighting if text highlighting failed
-    if (!textHighlighted) {
-      highlightElementBorder(element);
+      highlightTextInElement(element, textToHighlight);
     }
   } catch (error) {
     console.warn("Error highlighting element:", error);
-    // Final fallback
-    highlightElementBorder(element);
   }
 }
 
 function highlightTextInElement(
   element: Element,
   textToHighlight: string
-): boolean {
+): void {
   try {
     ensureStylesInDocument(document);
 
-    let highlightApplied = false;
-
-    // Create a mutation observer to prevent framework interference
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.removedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const el = node as Element;
-            if (el.classList?.contains("staktrak-text-highlight")) {
-              // Re-apply highlighting if removed
-              setTimeout(
-                () => highlightTextInElement(element, textToHighlight),
-                100
-              );
-            }
-          }
-        });
-      });
-    });
-
-    function wrapTextNodes(node: Node): boolean {
+    function wrapTextNodes(node: Node): void {
       if (node.nodeType === Node.TEXT_NODE) {
         const textContent = node.textContent || "";
-        if (textContent.trim() && textContent.includes(textToHighlight)) {
+        if (textContent.includes(textToHighlight)) {
           const parent = node.parentNode;
           if (parent) {
-            try {
-              // Create highlight span with both class and inline styles
-              const highlightSpan = document.createElement("span");
-              highlightSpan.className = "staktrak-text-highlight";
-              highlightSpan.setAttribute("data-staktrak-highlight", "true");
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = textContent.replace(
+              new RegExp(
+                `(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+                "gi"
+              ),
+              '<span class="staktrak-text-highlight">$1</span>'
+            );
 
-              // Add inline styles as backup
-              highlightSpan.style.cssText = `
-                background: #3b82f6 !important;
-                color: white !important;
-                padding: 2px 4px !important;
-                border-radius: 3px !important;
-                font-weight: bold !important;
-                box-shadow: 0 0 8px rgba(59, 130, 246, 0.6) !important;
-                position: relative !important;
-                z-index: 999999 !important;
-              `;
-
-              const parts = textContent.split(textToHighlight);
-              const fragment = document.createDocumentFragment();
-
-              for (let i = 0; i < parts.length; i++) {
-                if (parts[i]) {
-                  fragment.appendChild(document.createTextNode(parts[i]));
-                }
-                if (i < parts.length - 1) {
-                  const span = highlightSpan.cloneNode(true) as HTMLElement;
-                  span.textContent = textToHighlight;
-                  fragment.appendChild(span);
-                  highlightApplied = true;
-                }
-              }
-
-              parent.replaceChild(fragment, node);
-              return true;
-            } catch (e) {
-              console.warn("Failed to wrap text node:", e);
-              return false;
+            while (tempDiv.firstChild) {
+              parent.insertBefore(tempDiv.firstChild, node);
             }
+            parent.removeChild(node);
           }
         }
       } else if (
         node.nodeType === Node.ELEMENT_NODE &&
-        !(node as Element).classList?.contains("staktrak-text-highlight") &&
-        !(node as Element).hasAttribute("data-staktrak-highlight")
+        !(node as Element).classList?.contains("staktrak-text-highlight")
       ) {
         const children = Array.from(node.childNodes);
-        let childHighlighted = false;
-        children.forEach((child) => {
-          if (wrapTextNodes(child)) {
-            childHighlighted = true;
-          }
-        });
-        return childHighlighted;
+        children.forEach((child) => wrapTextNodes(child));
       }
-      return false;
     }
 
-    const success = wrapTextNodes(element);
+    wrapTextNodes(element);
 
-    if (success) {
-      // Start observing for changes
-      observer.observe(element, {
-        childList: true,
-        subtree: true,
+    element.setAttribute("data-staktrak-processed", "true");
+
+    setTimeout(() => {
+      const highlights = element.querySelectorAll(".staktrak-text-highlight");
+      highlights.forEach((highlight) => {
+        const parent = highlight.parentNode;
+        if (parent) {
+          parent.insertBefore(
+            document.createTextNode(highlight.textContent || ""),
+            highlight
+          );
+          parent.removeChild(highlight);
+        }
       });
 
-      // Clean up after highlighting period
-      setTimeout(() => {
-        observer.disconnect();
-        cleanupHighlights(element);
-      }, 3000);
-    }
+      element.removeAttribute("data-staktrak-processed");
 
-    return success || highlightApplied;
-  } catch (error) {
-    console.warn("Error highlighting text:", error);
-    return false;
-  }
-}
-
-function highlightElementBorder(element: Element): void {
-  try {
-    const htmlElement = element as HTMLElement;
-
-    // Store original styles
-    const originalOutline = htmlElement.style.outline;
-    const originalOutlineOffset = htmlElement.style.outlineOffset;
-    const originalBackground = htmlElement.style.backgroundColor;
-    const originalZIndex = htmlElement.style.zIndex;
-
-    // Apply highlight styles
-    htmlElement.classList.add("staktrak-element-highlight");
-    htmlElement.style.outline = "3px solid #3b82f6";
-    htmlElement.style.outlineOffset = "2px";
-    htmlElement.style.backgroundColor = "rgba(59, 130, 246, 0.1)";
-    htmlElement.style.zIndex = "999998";
-
-    // Remove highlighting after delay
-    setTimeout(() => {
-      htmlElement.classList.remove("staktrak-element-highlight");
-      htmlElement.style.outline = originalOutline;
-      htmlElement.style.outlineOffset = originalOutlineOffset;
-      htmlElement.style.backgroundColor = originalBackground;
-      htmlElement.style.zIndex = originalZIndex;
+      element.normalize();
     }, 3000);
   } catch (error) {
-    console.warn("Error applying element border highlight:", error);
-  }
-}
-
-function cleanupHighlights(element: Element): void {
-  try {
-    const highlights = element.querySelectorAll(
-      '.staktrak-text-highlight, [data-staktrak-highlight="true"]'
-    );
-    highlights.forEach((highlight) => {
-      const parent = highlight.parentNode;
-      if (parent) {
-        parent.insertBefore(
-          document.createTextNode(highlight.textContent || ""),
-          highlight
-        );
-        parent.removeChild(highlight);
-      }
-    });
-
-    element.removeAttribute("data-staktrak-processed");
-    element.normalize();
-  } catch (error) {
-    console.warn("Error cleaning up highlights:", error);
+    console.warn("Error highlighting text:", error);
   }
 }
 
@@ -1810,10 +1686,7 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     case "toContainText":
-      const textElement = await waitForElement(
-        action.selector,
-        String(action.value)
-      );
+      const textElement = await waitForElement(action.selector);
       if (
         !textElement ||
         !textElement.textContent?.includes(String(action.value || ""))
@@ -1825,10 +1698,7 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     case "toHaveText":
-      const exactTextElement = await waitForElement(
-        action.selector,
-        String(action.value)
-      );
+      const exactTextElement = await waitForElement(action.selector);
       if (
         !exactTextElement ||
         exactTextElement.textContent?.trim() !== String(action.value || "")
