@@ -1,5 +1,9 @@
 import { generateText, tool, hasToolCall } from "ai";
-import { getModel } from "../../aieo/src/provider.js";
+import {
+  getModel,
+  getApiKeyForProvider,
+  Provider,
+} from "../../aieo/src/provider.js";
 import { EXPLORER } from "./prompts.js";
 import { z } from "zod";
 import * as G from "../../graph/graph.js";
@@ -9,8 +13,9 @@ curl "http://localhost:3000/explore?prompt=how%20does%20auth%20work%20in%20the%2
 */
 
 export async function get_context(prompt: string): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  const model = await getModel("anthropic", apiKey as string);
+  const provider = process.env.LLM_PROVIDER || "anthropic";
+  const apiKey = getApiKeyForProvider(provider);
+  const model = await getModel(provider as Provider, apiKey as string);
   // console.log("call claude:");
   const tools = {
     repo_overview: tool({
