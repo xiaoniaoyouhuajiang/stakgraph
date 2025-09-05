@@ -102,7 +102,7 @@ export async function understanding(req: Request, res: Response) {
     let reused = false;
     if (Array.isArray(existing) && existing.length > 0) {
       const top: any = existing[0];
-      if (top.score && top.score >= similarityThreshold) {
+      if (top.properties.score && top.properties.score >= similarityThreshold) {
         res.json({
           question,
           answer: top.properties.body,
