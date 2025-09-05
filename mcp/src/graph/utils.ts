@@ -36,6 +36,9 @@ export function toReturnNode(node: Neo4jNode): ReturnNode {
   if (IS_TEST && properties.date_added_to_graph) {
     delete properties.date_added_to_graph;
   }
+  if (node.score) {
+    properties.score = node.score;
+  }
   return {
     node_type: rightLabel(node),
     ref_id,
