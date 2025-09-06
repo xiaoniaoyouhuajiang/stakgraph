@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.6",
+    "@ai-sdk/openai": "^2.0.24",
     "@anthropic-ai/sdk": "^0.37.0",
     "@browserbasehq/stagehand": "^2.4.3",
     "@microsoft/tiktokenizer": "^1.0.9",
