@@ -192,6 +192,7 @@ impl Stack for ReactTs {
                     return_type: (type_annotation)? @{RETURN_TYPES}
                 )
             ) @{FUNCTION_DEFINITION}
+             
             (export_statement
                 (lexical_declaration
                     (variable_declarator
@@ -203,6 +204,7 @@ impl Stack for ReactTs {
                     )
                 )
             ) @{FUNCTION_DEFINITION}
+
             (export_statement
                 (lexical_declaration
                     (variable_declarator
@@ -216,36 +218,55 @@ impl Stack for ReactTs {
                     )
                 )
             ) @{FUNCTION_DEFINITION}
-            (function_declaration
-                name: (identifier) @{FUNCTION_NAME}
-                parameters: (formal_parameters)? @{ARGUMENTS}
-                return_type: (type_annotation)? @{RETURN_TYPES}
-            ) @{FUNCTION_DEFINITION}
-            (lexical_declaration
-                (variable_declarator
+
+            (program
+                (function_declaration
                     name: (identifier) @{FUNCTION_NAME}
-                    value: (arrow_function
-                        parameters: (formal_parameters)? @{ARGUMENTS}
-                        return_type: (type_annotation)? @{RETURN_TYPES}
-                    )
-                )
-            ) @{FUNCTION_DEFINITION}
-            (lexical_declaration
-                (variable_declarator
+                    parameters: (formal_parameters)? @{ARGUMENTS}
+                    return_type: (type_annotation)? @{RETURN_TYPES}
+                ) @{FUNCTION_DEFINITION}
+            )
+
+            (statement_block
+                (function_declaration
                     name: (identifier) @{FUNCTION_NAME}
-                    value: (call_expression
-                        function: (member_expression
-                            object: (identifier) @styled-object (#eq? @styled-object "styled")
-                            property: (property_identifier) @styled-method
+                    parameters: (formal_parameters)? @{ARGUMENTS}
+                    return_type: (type_annotation)? @{RETURN_TYPES}
+                ) @{FUNCTION_DEFINITION}
+            )
+
+            (program
+                (lexical_declaration
+                    (variable_declarator
+                        name: (identifier) @{FUNCTION_NAME}
+                        value: (arrow_function
+                            parameters: (formal_parameters)? @{ARGUMENTS}
+                            return_type: (type_annotation)? @{RETURN_TYPES}
                         )
                     )
-                )
-            ) @{FUNCTION_DEFINITION}
+                ) @{FUNCTION_DEFINITION}
+            )
+
+            (program
+                (lexical_declaration
+                    (variable_declarator
+                        name: (identifier) @{FUNCTION_NAME}
+                        value: (call_expression
+                            function: (member_expression
+                                object: (identifier) @styled-object (#eq? @styled-object "styled")
+                                property: (property_identifier) @styled-method
+                            )
+                        )
+                    )
+                ) @{FUNCTION_DEFINITION}
+            )
+
             (method_definition
                 name: (property_identifier) @{FUNCTION_NAME} (#not-eq? @{FUNCTION_NAME} "render")
                 parameters: (formal_parameters)? @{ARGUMENTS}
                 return_type: (type_annotation)? @{RETURN_TYPES}
             ) @{FUNCTION_DEFINITION}
+
             (variable_declarator
                 name: (identifier) @{FUNCTION_NAME}
                 value: (arrow_function
@@ -253,6 +274,7 @@ impl Stack for ReactTs {
                     return_type: (type_annotation)? @{RETURN_TYPES}
                 )
             ) @{FUNCTION_DEFINITION}
+             
             (expression_statement
                 (assignment_expression
                     left: (identifier) @{FUNCTION_NAME}
@@ -262,6 +284,7 @@ impl Stack for ReactTs {
                     )
                 )
             ) @{FUNCTION_DEFINITION}
+
             (public_field_definition
                 name: (property_identifier) @{FUNCTION_NAME}
                 value: [
@@ -275,6 +298,7 @@ impl Stack for ReactTs {
                     )
                 ]
             ) @{FUNCTION_DEFINITION}
+
             (pair
                 key: (property_identifier) @{FUNCTION_NAME}
                 value: [
@@ -288,6 +312,7 @@ impl Stack for ReactTs {
                     )
                 ]
             ) @{FUNCTION_DEFINITION}
+
             (variable_declarator
                 name: (identifier) @{FUNCTION_NAME}
                 value: (call_expression
@@ -310,6 +335,7 @@ impl Stack for ReactTs {
                     )
                 )
             ) @{FUNCTION_DEFINITION}
+
             (class_declaration
                 name: (type_identifier) @{FUNCTION_NAME}
                 (class_heritage
