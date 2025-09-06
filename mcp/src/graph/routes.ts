@@ -85,7 +85,8 @@ export async function explore(req: Request, res: Response) {
 export async function understanding(req: Request, res: Response) {
   try {
     const question = req.query.question as string;
-    const similarityThreshold = req.query.threshold || 0.9;
+    const similarityThreshold =
+      parseFloat(req.query.threshold as string) || 0.9;
     if (!question) {
       res.status(400).json({ error: "Missing question" });
       return;
