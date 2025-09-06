@@ -2,17 +2,19 @@ import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
 import {
-  Node,
-  Edge,
+  NodeType,
+  all_node_types,
   Neo4jNode,
   Neo4jEdge,
-  NodeType,
   EdgeType,
-  all_node_types,
+  Node,
+  Edge,
+  HintExtraction,
 } from "./types.js";
 import {
   create_node_key,
   deser_node,
+  clean_node,
   getExtensionsForLanguage,
 } from "./utils.js";
 import * as Q from "./queries.js";
@@ -22,16 +24,6 @@ import { getApiKeyForProvider, Provider } from "../aieo/src/provider.js";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { createByModelName } from "@microsoft/tiktokenizer";
-
-const HINT_REFERENCE_NODE_TYPES: Set<string> = new Set([
-  "Function",
-  "Class",
-  "File",
-  "Page",
-  "Endpoint",
-  "Request",
-  "Datamodel",
-]);
 
 export type Direction = "up" | "down" | "both";
 
@@ -563,6 +555,7 @@ class Db {
     if (!answer) return { edges_added: 0, linked_ref_ids: [] };
     const provider = llm_provider ? llm_provider : "anthropic";
     const apiKey = getApiKeyForProvider(provider);
+    if (!apiKey) return { edges_added: 0, linked_ref_ids: [] };
 
     const extracted = await this.extractHintReferences(
       answer,
@@ -570,103 +563,104 @@ class Db {
       apiKey
     );
 
-    const items = this.normalizeAndFilterExtracted(extracted);
-    if (items.length === 0 || !apiKey)
-      return { edges_added: 0, linked_ref_ids: [] };
+    const foundNodes = await this.findNodesFromExtraction(extracted);
+    const refIds = foundNodes
+      .map((n) => n.ref_id || n.properties.ref_id)
+      .filter(Boolean);
 
-    const grouped = this.groupReferencesByType(items);
-    return await this.mergeHintEdges(hint_ref_id, grouped);
+    if (refIds.length === 0) return { edges_added: 0, linked_ref_ids: [] };
+
+    return await this.createEdgesDirectly(hint_ref_id, refIds);
   }
 
   private async extractHintReferences(
     answer: string,
     provider: Provider,
     apiKey: string
-  ): Promise<{ nodes: { node_type: string; name: string; file: string }[] }> {
+  ): Promise<HintExtraction> {
     const truncated = answer.slice(0, 8000);
     const schema = z.object({
-      nodes: z
-        .array(
-          z.object({
-            node_type: z.string(),
-            name: z.string(),
-            file: z.string(),
-          })
-        )
-        .default([]),
+      function_names: z.array(z.string()).describe("functions or react components"),
+      file_names: z.array(z.string()).describe("file names or file paths"),
+      datamodel_names: z.array(z.string()).describe("database models, schemas, or data structures"),
+      endpoint_names: z.array(z.string()).describe("API endpoints, routes, or URLs"),
+      page_names: z.array(z.string()).describe("web pages, components, or views"),
     });
     try {
       return await callGenerateObject({
         provider,
         apiKey,
-        prompt: `Extract exact code nodes referenced. Return JSON only. Use empty list if none.\n\n${truncated}`,
+        prompt: `Extract exact code nodes referenced. Return JSON only. Use empty arrays if none.\n\n${truncated}`,
         schema,
       });
     } catch (_) {
-      return { nodes: [] };
+      return { 
+        function_names: [], 
+        file_names: [], 
+        datamodel_names: [], 
+        endpoint_names: [], 
+        page_names: [] 
+      };
     }
   }
 
-  private normalizeAndFilterExtracted(extracted: {
-    nodes: { node_type: string; name: string; file: string }[];
-  }): { node_type: string; name: string; file: string }[] {
-    const seen = new Set<string>();
-    return (extracted.nodes || [])
-      .filter(
-        (n) => n && n.name && n.file && n.node_type && n.node_type !== "Hint"
-      )
-      .map((n) => ({
-        node_type: n.node_type as string,
-        name: n.name.trim(),
-        file: n.file.trim(),
-      }))
-      .filter((n) => n.name.length < 256 && n.file.length < 512)
-      .filter((n) => {
-        const k = `${n.node_type}|${n.name}|${n.file}`;
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      })
-      .slice(0, 100);
-  }
-
-  private groupReferencesByType(
-    items: { node_type: string; name: string; file: string }[]
-  ): Record<string, { name: string; file: string }[]> {
-    const grouped: Record<string, { name: string; file: string }[]> = {};
-    for (const it of items) {
-      if (!HINT_REFERENCE_NODE_TYPES.has(it.node_type)) continue;
-      if (!grouped[it.node_type]) grouped[it.node_type] = [];
-      grouped[it.node_type].push({ name: it.name, file: it.file });
-    }
-    return grouped;
-  }
-
-  private async mergeHintEdges(
-    hint_ref_id: string,
-    grouped: Record<string, { name: string; file: string }[]>
+  private async createEdgesDirectly(
+    hint_ref_id: string, 
+    refIds: string[]
   ): Promise<{ edges_added: number; linked_ref_ids: string[] }> {
-    let edges_added = 0;
-    const linked_ref_ids: string[] = [];
-    for (const [label, pairs] of Object.entries(grouped)) {
-      const session = this.driver.session();
-      try {
-        const query = Q.HINT_EDGE_QUERY.replace("{LABEL}", label);
-        const r = await session.run(query, { hint_ref_id, pairs });
-        if (r.records.length > 0) {
-          const refs = r.records[0].get("refs") || [];
-          for (const ref of refs) {
-            if (ref && !linked_ref_ids.includes(ref)) linked_ref_ids.push(ref);
-          }
-          edges_added += refs.length;
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.CREATE_HINT_EDGES_BY_REF_IDS_QUERY, { 
+        hint_ref_id, 
+        ref_ids: refIds 
+      });
+      
+      if (result.records.length > 0) {
+        const linkedRefs = result.records[0].get('refs') || [];
+        return { 
+          edges_added: linkedRefs.length, 
+          linked_ref_ids: linkedRefs 
+        };
+      }
+      
+      return { edges_added: 0, linked_ref_ids: [] };
+    } finally {
+      await session.close();
+    }
+  }
+
+  private async findNodesFromExtraction(extracted: HintExtraction): Promise<Neo4jNode[]> {
+    const foundNodes: Neo4jNode[] = [];
+    const typeMapping = {
+      function_names: 'Function',
+      file_names: 'File',
+      datamodel_names: 'Datamodel',
+      endpoint_names: 'Endpoint',
+      page_names: 'Page',
+    };
+
+    for (const [key, nodeType] of Object.entries(typeMapping)) {
+      const names = extracted[key as keyof HintExtraction] || [];
+      for (const name of names) {
+        if (name && name.trim()) {
+          const nodes = await this.findNodesByName(name.trim(), nodeType);
+          foundNodes.push(...nodes);
         }
-      } catch (e) {
-        console.error("Error merging hint edges for label", label, e);
-      } finally {
-        await session.close();
       }
     }
-    return { edges_added, linked_ref_ids };
+
+    return foundNodes;
+  }
+
+  private async findNodesByName(name: string, nodeType: string): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const query = Q.FIND_NODES_BY_NAME_QUERY.replace('{LABEL}', nodeType);
+      const result = await session.run(query, { name });
+      return result.records.map(record => clean_node(record.get('n')));
+    } finally {
+      await session.close();
+    }
   }
 
   async createIndexes(): Promise<void> {

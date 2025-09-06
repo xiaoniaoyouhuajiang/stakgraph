@@ -81,6 +81,15 @@ export interface Neo4jEdge {
   target: string;
   properties: Record<string, any>;
 }
+
+export interface HintExtraction {
+  function_names: string[];
+  file_names: string[];
+  datamodel_names: string[];
+  endpoint_names: string[];
+  page_names: string[];
+}
+
 export interface GraphResponse {
   nodes: any[];
   edges: any[];

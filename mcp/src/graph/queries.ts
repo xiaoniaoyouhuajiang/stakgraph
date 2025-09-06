@@ -94,12 +94,20 @@ export const GET_HINT_QUERY = `
 MATCH (n:Hint {node_key: $node_key}) RETURN n
 `;
 
-export const HINT_EDGE_QUERY = `UNWIND $pairs AS p
+export const FIND_NODES_BY_NAME_QUERY = `
+MATCH (n:{LABEL})
+WHERE n.name = $name
+RETURN n
+LIMIT 5
+`;
+
+export const CREATE_HINT_EDGES_BY_REF_IDS_QUERY = `
 MATCH (h:Hint {ref_id: $hint_ref_id})
-MATCH (t:{LABEL} {name: p.name, file: p.file})
-WITH h, t
+UNWIND $ref_ids AS ref_id
+MATCH (t {ref_id: ref_id})
 MERGE (h)-[:USES]->(t)
-RETURN collect(distinct t.ref_id) as refs`;
+RETURN collect(distinct t.ref_id) as refs
+`;
 
 export const PKGS_QUERY = `
 MATCH (file:File)
