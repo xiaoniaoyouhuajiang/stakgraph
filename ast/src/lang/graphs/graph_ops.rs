@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::time::Duration;
 
 use crate::lang::embedding::{vectorize_code_document, vectorize_query};
@@ -518,143 +518,27 @@ impl GraphOps {
         &mut self,
         node_type: NodeType,
         with_usage: bool,
-    offset: usize,
+        offset: usize,
         limit: usize,
         root: Option<&str>,
         tests_filter: Option<&str>,
     ) -> Result<(Vec<(NodeData, usize)>, Vec<(NodeData, usize)>)> {
         self.graph.ensure_connected().await?;
-        let in_scope = |n: &NodeData| root.map_or(true, |r| n.file.starts_with(r));
 
-        let mut covered_function_keys = HashSet::new();
-        let sources = tests_sources(tests_filter);
-        for source_nt in sources {
-            let pairs = self
-                .graph
-                .find_nodes_with_edge_type_async(
-                    source_nt.clone(),
-                    NodeType::Function,
-                    EdgeType::Calls,
-                )
-                .await;
-            for (_src, target) in pairs.into_iter() {
-                if in_scope(&target) {
-                    covered_function_keys
-                        .insert(create_node_key(&Node::new(NodeType::Function, target)));
-                }
-            }
+        let results = self.graph.find_uncovered_nodes_paginated_async(
+            node_type.clone(),
+            with_usage,
+            offset,
+            limit,
+            root,
+            tests_filter,
+        ).await;
+
+        match node_type {
+            NodeType::Function => Ok((results, vec![])),
+            NodeType::Endpoint => Ok((vec![], results)),
+            _ => Ok((vec![], vec![])),
         }
-
-        if node_type == NodeType::Function {
-            let functions = self
-                .graph
-                .find_nodes_by_type_async(NodeType::Function)
-                .await
-                .into_iter()
-                .filter(|f| in_scope(f))
-                .collect::<Vec<_>>();
-            let function_calls = self
-                .graph
-                .find_nodes_with_edge_type_async(
-                    NodeType::Function,
-                    NodeType::Function,
-                    EdgeType::Calls,
-                )
-                .await;
-            let mut degree: HashMap<String, usize> = HashMap::new();
-            for (_src, dst) in function_calls {
-                *degree
-                    .entry(create_node_key(&Node::new(NodeType::Function, dst)))
-                    .or_insert(0) += 1;
-            }
-            let mut uncovered: Vec<(NodeData, usize)> = functions
-                .into_iter()
-                .filter(|f| {
-                    !covered_function_keys
-                        .contains(&create_node_key(&Node::new(NodeType::Function, f.clone())))
-                })
-                .map(|f| {
-                    let score = if with_usage {
-                        *degree
-                            .get(&create_node_key(&Node::new(NodeType::Function, f.clone())))
-                            .unwrap_or(&0)
-                    } else {
-                        0
-                    };
-                    (f, score)
-                })
-                .collect();
-            if with_usage {
-                uncovered.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.name.cmp(&b.0.name)));
-            } else {
-                uncovered.sort_by(|a, b| a.0.name.cmp(&b.0.name));
-            }
-            let start = std::cmp::min(offset, uncovered.len());
-            let end = std::cmp::min(start + limit, uncovered.len());
-            let result: Vec<(NodeData, usize)> = uncovered[start..end].to_vec();
-            return Ok((result, vec![]));
-        }
-
-        if node_type == NodeType::Endpoint {
-            let endpoints = self
-                .graph
-                .find_nodes_by_type_async(NodeType::Endpoint)
-                .await
-                .into_iter()
-                .filter(|e| in_scope(e))
-                .collect::<Vec<_>>();
-            let req_calls = self
-                .graph
-                .find_nodes_with_edge_type_async(
-                    NodeType::Request,
-                    NodeType::Endpoint,
-                    EdgeType::Calls,
-                )
-                .await;
-            let mut degree: HashMap<String, usize> = HashMap::new();
-            for (_src, dst) in req_calls {
-                *degree
-                    .entry(create_node_key(&Node::new(NodeType::Endpoint, dst)))
-                    .or_insert(0) += 1;
-            }
-            let mut res: Vec<(NodeData, usize)> = Vec::new();
-            for e in endpoints {
-                let handlers = self.graph.find_handlers_for_endpoint_async(&e).await;
-                let mut covered = false;
-                for h in handlers {
-                    if !in_scope(&h) {
-                        continue;
-                    }
-                    if covered_function_keys
-                        .contains(&create_node_key(&Node::new(NodeType::Function, h)))
-                    {
-                        covered = true;
-                        break;
-                    }
-                }
-                if !covered {
-                    let score = if with_usage {
-                        *degree
-                            .get(&create_node_key(&Node::new(NodeType::Endpoint, e.clone())))
-                            .unwrap_or(&0)
-                    } else {
-                        0
-                    };
-                    res.push((e, score));
-                }
-            }
-            if with_usage {
-                res.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.name.cmp(&b.0.name)));
-            } else {
-                res.sort_by(|a, b| a.0.name.cmp(&b.0.name));
-            }
-            let start = std::cmp::min(offset, res.len());
-            let end = std::cmp::min(start + limit, res.len());
-            let result: Vec<(NodeData, usize)> = res[start..end].to_vec();
-            return Ok((vec![], result));
-        }
-
-        Ok((vec![], vec![]))
     }
 
     pub async fn has_coverage(
