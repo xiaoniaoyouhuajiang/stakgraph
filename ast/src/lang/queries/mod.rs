@@ -300,14 +300,6 @@ pub trait Stack {
     ) -> Vec<NodeData> {
         Vec::new()
     }
-    fn function_interface(
-        &self,
-        _func: &NodeData,
-        _raw_args: Option<&str>,
-        _raw_return: Option<&str>,
-    ) -> Option<String> {
-        None
-    }
 }
 
 pub fn treesitter_from_lsp_language(ll: LspLanguage) -> tree_sitter::Language {

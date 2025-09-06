@@ -468,6 +468,9 @@ impl Lang {
         let mut comments = Vec::new();
         let mut raw_args: Option<String> = None;
         let mut raw_return: Option<String> = None;
+        let mut def_start_byte: Option<usize> = None;
+        let mut args_end_byte: Option<usize> = None;
+        let mut return_end_byte: Option<usize> = None;
 
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == PARENT_TYPE {
@@ -481,6 +484,7 @@ impl Lang {
                 func.body = body;
                 func.start = node.start_position().row;
                 func.end = node.end_position().row;
+                def_start_byte = Some(node.start_byte());
                 // parent
                 parent = self.lang.find_function_parent(
                     node,
@@ -613,8 +617,10 @@ impl Lang {
                 }
             } else if o == ARGUMENTS {
                 raw_args = Some(body.clone());
+                args_end_byte = Some(node.end_byte());
             } else if o == RETURN_TYPES {
                 raw_return = Some(body.clone());
+                return_end_byte = Some(node.end_byte());
                 if let Some(lsp) = lsp_tx {
                     for (name, pos) in self.find_type_identifiers(node, code, file)? {
                         if is_capitalized(&name) {
@@ -655,15 +661,21 @@ impl Lang {
             let titled_name = !func.name.is_empty() && func.name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
             let body = func.body.as_str();
             let has_jsx = body.contains("<>") || body.contains("</") || body.contains("/>") || body.contains("<Fragment") || body.contains("<fragment");
-            //styled components
             let is_styled = body.contains("styled.");
             if (titled_name && has_jsx) || is_styled {
                 func.add_component();
             }
-        }
-
-        if let Some(iface) = self.lang.function_interface(&func, raw_args.as_deref(), raw_return.as_deref()) {
-            func.add_interface(&iface);
+            if let Some(start) = def_start_byte {
+                let end_byte = return_end_byte.or(args_end_byte);
+                if let Some(end) = end_byte {
+                    if end > start && end <= code.len() {
+                        let interface = code[start..end].trim();
+                        if !interface.is_empty() {
+                            func.add_interface(interface);
+                        }
+                    }
+                }
+            }
         }
 
         let mut return_types = Vec::new();
