@@ -89,7 +89,7 @@ export async function understanding(req: Request, res: Response) {
       res.status(400).json({ error: "Missing question" });
       return;
     }
-    const similarityThreshold = 0.75;
+    const similarityThreshold = 0.9;
     const existing = await G.search(
       question,
       5,

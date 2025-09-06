@@ -125,6 +125,14 @@ export async function get_context(prompt: string): Promise<string> {
     },
   });
   let final = "";
+  let lastText = "";
+  for (const step of steps) {
+    for (const item of step.content) {
+      if (item.type === "text" && item.text && item.text.trim().length > 0) {
+        lastText = item.text.trim();
+      }
+    }
+  }
   steps.reverse();
   for (const step of steps) {
     // console.log("step", JSON.stringify(step.content, null, 2));
@@ -134,6 +142,12 @@ export async function get_context(prompt: string): Promise<string> {
     if (finalAnswer) {
       final = (finalAnswer as any).output;
     }
+  }
+  if (!final && lastText) {
+    console.warn(
+      "No finalAnswer tool call detected; falling back to last reasoning text."
+    );
+    final = `${lastText}\n\n(Note: Model did not invoke finalAnswer tool; using last reasoning text as answer.)`;
   }
   // console.log("FINAL", final);
   return final;
