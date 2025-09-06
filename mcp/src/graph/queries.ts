@@ -100,6 +100,12 @@ WHERE n.name = $name
 RETURN n
 LIMIT 5
 `;
+export const FIND_FILE_NODES_BY_PATH_QUERY = `
+MATCH (n:File)
+WHERE n.file ENDS WITH $file_path
+RETURN n
+LIMIT 5
+`;
 
 export const CREATE_HINT_EDGES_BY_REF_IDS_QUERY = `
 MATCH (h:Hint {ref_id: $hint_ref_id})
