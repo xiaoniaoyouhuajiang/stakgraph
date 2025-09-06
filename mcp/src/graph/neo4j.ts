@@ -565,7 +565,7 @@ class Db {
 
     const foundNodes = await this.findNodesFromExtraction(extracted);
     const refIds = foundNodes
-      .map(n => n.properties.ref_id || n.ref_id)
+      .map((n) => n.ref_id || n.properties.ref_id)
       .filter(Boolean);
 
     if (refIds.length === 0) return { edges_added: 0, linked_ref_ids: [] };
