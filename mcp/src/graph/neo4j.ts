@@ -582,17 +582,29 @@ class Db {
     const schema = z.object({
       function_names: z
         .array(z.string())
-        .describe("functions or react components"),
-      file_names: z.array(z.string()).describe("complete file path"),
+        .describe(
+          "functions or react components name e.g `getUser`, `handleClick`, `deleteSwarm`,"
+        ),
+      file_names: z
+        .array(z.string())
+        .describe(
+          "complete file path e.g `src/app/page.tsx`, `lib/utils/api.go`"
+        ),
       datamodel_names: z
         .array(z.string())
-        .describe("database models, schemas, or data structures"),
+        .describe(
+          "database models, schemas, or data structures, e.g `User`, `Product`, `Order`"
+        ),
       endpoint_names: z
         .array(z.string())
-        .describe("API endpoint name e.g /api/person"),
+        .describe(
+          "API endpoint name e.g `/api/person`, `/api/v1/data/{id}`, etc"
+        ),
       page_names: z
         .array(z.string())
-        .describe("web pages, components, or views"),
+        .describe(
+          "web pages, components, or views name e.g `HomePage`, `settings` , `name: [...taskParams]` , `name: code-graph`, etc"
+        ),
     });
     try {
       return await callGenerateObject({
@@ -663,9 +675,16 @@ class Db {
   private async findNodesByName(name: string, nodeType: string): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
-      const query = Q.FIND_NODES_BY_NAME_QUERY.replace('{LABEL}', nodeType);
-      const result = await session.run(query, { name });
-      return result.records.map(record => clean_node(record.get('n')));
+
+      if (nodeType !== "File") {
+        const query = Q.FIND_NODES_BY_NAME_QUERY.replace("{LABEL}", nodeType);
+        const result = await session.run(query, { name });
+        return result.records.map((record) => clean_node(record.get("n")));
+      } else {
+        const query = Q.FIND_FILE_NODES_BY_PATH_QUERY;
+        const result = await session.run(query, { file_path: name });
+        return result.records.map((record) => clean_node(record.get("n")));
+      }
     } finally {
       await session.close();
     }

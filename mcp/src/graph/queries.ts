@@ -96,7 +96,13 @@ MATCH (n:Hint {node_key: $node_key}) RETURN n
 
 export const FIND_NODES_BY_NAME_QUERY = `
 MATCH (n:{LABEL})
-WHERE n.name ENDS WITH $name
+WHERE n.name = $name
+RETURN n
+LIMIT 5
+`;
+export const FIND_FILE_NODES_BY_PATH_QUERY = `
+MATCH (n:File)
+WHERE n.file ENDS WITH $file_path
 RETURN n
 LIMIT 5
 `;

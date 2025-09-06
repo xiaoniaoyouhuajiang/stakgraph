@@ -85,11 +85,11 @@ export async function explore(req: Request, res: Response) {
 export async function understanding(req: Request, res: Response) {
   try {
     const question = req.query.question as string;
+    const similarityThreshold = req.query.threshold || 0.9;
     if (!question) {
       res.status(400).json({ error: "Missing question" });
       return;
     }
-    const similarityThreshold = 0.9;
     const existing = await G.search(
       question,
       5,
