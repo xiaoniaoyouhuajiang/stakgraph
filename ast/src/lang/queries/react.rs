@@ -270,7 +270,7 @@ impl Stack for ReactTs {
                     function: (_)
                     arguments: (arguments
                         (arrow_function
-                            parameters: (formal_parameters)
+                            parameters: (formal_parameters)? @{ARGUMENTS}
                             return_type: (type_annotation)? @{RETURN_TYPES}
                             body: (statement_block
                                 (return_statement
@@ -833,8 +833,60 @@ impl Stack for ReactTs {
             false
         }
     }
-}
+    fn function_interface(
+        &self,
+        func: &NodeData,
+        raw_args: Option<&str>,
+        raw_return: Option<&str>,
+    ) -> Option<String> {
+    if func.name.is_empty() {
+        return None;
+    }
+    let body = func.body.as_str();
+    let mut end = body.len();
 
+    if let Some(i) = body.find('{') { 
+        end = end.min(i); 
+    }
+    if let Some(i) = body.find("=>") {
+        end = end.min(i);
+    }
+    if let Some(i) = body.find('\n') {
+        end = end.min(i);
+    }
+    let header = body[..end].trim();
+
+    let has_export_default = header.starts_with("export default ") || header.contains(" export default ");
+    let has_export = !has_export_default && (header.starts_with("export ") || header.contains(" export "));
+    let has_async = header.contains("async ");
+    let has_function_kw = header.contains("function ");
+    let args = raw_args.unwrap_or("()");
+    let mut iface = String::new();
+
+    if has_export_default {
+        iface.push_str("export default ");
+    } else if has_export {
+        iface.push_str("export ");
+    }
+    if has_async {
+        iface.push_str("async ");
+    }
+    if has_function_kw {
+        iface.push_str("function ");
+    }
+    iface.push_str(&func.name);
+    iface.push_str(args);
+    if let Some(rt) = raw_return { 
+        iface.push_str(rt);
+     }
+    let cleaned = iface.trim();
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned.to_string())
+    }
+}
+}
 pub fn endpoint_name_from_file(file: &str) -> String {
     let path = file.replace('\\', "/");
     let route_path = if let Some(idx) = path.find("/api/") {

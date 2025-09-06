@@ -466,6 +466,8 @@ impl Lang {
         let mut name_pos = None;
         let mut return_type_data_models = Vec::new();
         let mut comments = Vec::new();
+        let mut raw_args: Option<String> = None;
+        let mut raw_return: Option<String> = None;
 
         Self::loop_captures(q, &m, code, |body, node, o| {
             if o == PARENT_TYPE {
@@ -610,8 +612,9 @@ impl Lang {
                     }
                 }
             } else if o == ARGUMENTS {
-                // skipping args
+                raw_args = Some(body.clone());
             } else if o == RETURN_TYPES {
+                raw_return = Some(body.clone());
                 if let Some(lsp) = lsp_tx {
                     for (name, pos) in self.find_type_identifiers(node, code, file)? {
                         if is_capitalized(&name) {
@@ -647,6 +650,7 @@ impl Lang {
             func.docs = Some(self.clean_and_combine_comments(&comments));
         }
 
+
         if matches!(self.kind, Language::React) {
             let titled_name = !func.name.is_empty() && func.name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
             let body = func.body.as_str();
@@ -656,6 +660,10 @@ impl Lang {
             if (titled_name && has_jsx) || is_styled {
                 func.add_component();
             }
+        }
+
+        if let Some(iface) = self.lang.function_interface(&func, raw_args.as_deref(), raw_return.as_deref()) {
+            func.add_interface(&iface);
         }
 
         let mut return_types = Vec::new();
