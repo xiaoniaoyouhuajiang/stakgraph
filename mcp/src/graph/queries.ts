@@ -109,9 +109,10 @@ LIMIT 5
 
 export const CREATE_HINT_EDGES_BY_REF_IDS_QUERY = `
 MATCH (h:Hint {ref_id: $hint_ref_id})
-UNWIND $ref_ids AS ref_id
-MATCH (t {ref_id: ref_id})
-MERGE (h)-[:USES]->(t)
+UNWIND $weighted_ref_ids AS weighted_ref
+MATCH (t {ref_id: weighted_ref.ref_id})
+MERGE (h)-[r:USES]->(t)
+SET r.relevancy = weighted_ref.relevancy
 RETURN collect(distinct t.ref_id) as refs
 `;
 
