@@ -5,8 +5,7 @@ var stakReplay = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
   var __export = (target, all) => {
-      for (var name in all)
-        __defProp(target, name, { get: all[name], enumerable: !0 });
+      for (var name in all) __defProp(target, name, { get: all[name], enumerable: !0 });
     },
     __copyProps = (to, from, except, desc) => {
       if ((from && typeof from == "object") || typeof from == "function")
@@ -15,13 +14,11 @@ var stakReplay = (() => {
             key !== except &&
             __defProp(to, key, {
               get: () => from[key],
-              enumerable:
-                !(desc = __getOwnPropDesc(from, key)) || desc.enumerable,
+              enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable,
             });
       return to;
     };
-  var __toCommonJS = (mod) =>
-    __copyProps(__defProp({}, "__esModule", { value: !0 }), mod);
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: !0 }), mod);
   var replay_exports = {};
   __export(replay_exports, {
     DEFAULT_SPEED: () => DEFAULT_SPEED,
@@ -72,12 +69,9 @@ var stakReplay = (() => {
           tagName = tagMatch ? tagMatch[1] : "*",
           elements = Array.from(document.querySelectorAll(tagName));
         for (let element of elements)
-          if (
-            ((_a = element.textContent) == null ? void 0 : _a.trim()) === text
-          ) {
+          if (((_a = element.textContent) == null ? void 0 : _a.trim()) === text) {
             let uniqueSelector = createUniqueSelector(element);
-            if (uniqueSelector && isValidSelector(uniqueSelector))
-              return uniqueSelector;
+            if (uniqueSelector && isValidSelector(uniqueSelector)) return uniqueSelector;
           }
         return tagName;
       }
@@ -93,8 +87,7 @@ var stakReplay = (() => {
     let { selectors } = clickDetail;
     if (selectors.primary) {
       let convertedPrimary = convertToBrowserSelector(selectors.primary);
-      if (convertedPrimary && isValidSelector(convertedPrimary))
-        return convertedPrimary;
+      if (convertedPrimary && isValidSelector(convertedPrimary)) return convertedPrimary;
     }
     if (
       selectors.text &&
@@ -103,10 +96,7 @@ var stakReplay = (() => {
         selectors.role === "button" ||
         selectors.role === "link")
     ) {
-      let textBasedSelector = findElementByText(
-        selectors.tagName,
-        selectors.text,
-      );
+      let textBasedSelector = findElementByText(selectors.tagName, selectors.text);
       if (textBasedSelector) return textBasedSelector;
     }
     if (selectors.ariaLabel) {
@@ -115,23 +105,17 @@ var stakReplay = (() => {
     }
     for (let fallback of selectors.fallbacks) {
       let convertedFallback = convertToBrowserSelector(fallback);
-      if (convertedFallback && isValidSelector(convertedFallback))
-        return convertedFallback;
+      if (convertedFallback && isValidSelector(convertedFallback)) return convertedFallback;
     }
     if (selectors.role) {
       let roleSelector = `[role="${selectors.role}"]`;
       if (isValidSelector(roleSelector)) return roleSelector;
     }
     if (clickDetail.elementInfo) {
-      let fromElementInfo = createSelectorFromElementInfo(
-        clickDetail.elementInfo,
-      );
-      if (fromElementInfo && isValidSelector(fromElementInfo))
-        return fromElementInfo;
+      let fromElementInfo = createSelectorFromElementInfo(clickDetail.elementInfo);
+      if (fromElementInfo && isValidSelector(fromElementInfo)) return fromElementInfo;
     }
-    return selectors.tagName && isValidSelector(selectors.tagName)
-      ? selectors.tagName
-      : null;
+    return selectors.tagName && isValidSelector(selectors.tagName) ? selectors.tagName : null;
   }
   function createSelectorFromElementInfo(elementInfo) {
     let { tagName, id, className, attributes } = elementInfo;
@@ -162,10 +146,7 @@ var stakReplay = (() => {
       for (let attr of priorityAttrs)
         if (attributes[attr]) {
           let attrSelector = `${tagName}[${attr}="${attributes[attr]}"]`;
-          if (
-            isValidSelector(attrSelector) &&
-            document.querySelectorAll(attrSelector).length <= 3
-          )
+          if (isValidSelector(attrSelector) && document.querySelectorAll(attrSelector).length <= 3)
             return attrSelector;
         }
     }
@@ -183,8 +164,7 @@ var stakReplay = (() => {
       }
     if (!matchingElement)
       for (let element of elements) {
-        let elementText =
-          (_b = element.textContent) == null ? void 0 : _b.trim();
+        let elementText = (_b = element.textContent) == null ? void 0 : _b.trim();
         if (elementText && elementText.includes(text)) {
           matchingElement = element;
           break;
@@ -194,11 +174,7 @@ var stakReplay = (() => {
     let uniqueSelector = createUniqueSelector(matchingElement);
     if (uniqueSelector && isValidSelector(uniqueSelector)) {
       let foundElement = document.querySelector(uniqueSelector);
-      if (
-        foundElement &&
-        (_c = foundElement.textContent) != null &&
-        _c.trim().includes(text)
-      )
+      if (foundElement && (_c = foundElement.textContent) != null && _c.trim().includes(text))
         return uniqueSelector;
     }
     return null;
@@ -224,22 +200,17 @@ var stakReplay = (() => {
         let element = strategy();
         if (element)
           return (
-            console.log(
-              `Found element using fallback strategy for selector: ${selector}`,
-            ),
+            console.log(`Found element using fallback strategy for selector: ${selector}`),
             element
           );
       } catch (error) {
         console.warn(`Strategy failed for selector ${selector}:`, error);
       }
-    return (
-      console.warn(`Could not find element for selector: ${selector}`),
-      null
-    );
+    return (console.warn(`Could not find element for selector: ${selector}`), null);
   }
   function findByCoordinates(selector) {
     let clickableElements = document.querySelectorAll(
-      'button, a, input, select, [role="button"], [onclick]',
+      'button, a, input, select, [role="button"], [onclick]'
     );
     return clickableElements.length > 0 ? clickableElements[0] : null;
   }
@@ -262,10 +233,7 @@ var stakReplay = (() => {
     let elements = Array.from(document.querySelectorAll(tagName));
     for (let element of elements) {
       let elementText = (_a = element.textContent) == null ? void 0 : _a.trim();
-      if (
-        elementText === text ||
-        (elementText != null && elementText.includes(text))
-      )
+      if (elementText === text || (elementText != null && elementText.includes(text)))
         return element;
     }
     return null;
@@ -279,14 +247,12 @@ var stakReplay = (() => {
     let testId = (_a = element.dataset) == null ? void 0 : _a.testid;
     if (testId) {
       let testIdSelector = `[data-testid="${testId}"]`;
-      if (document.querySelectorAll(testIdSelector).length === 1)
-        return testIdSelector;
+      if (document.querySelectorAll(testIdSelector).length === 1) return testIdSelector;
     }
     let ariaLabel = element.getAttribute("aria-label");
     if (ariaLabel) {
       let ariaSelector = `[aria-label="${ariaLabel}"]`;
-      if (document.querySelectorAll(ariaSelector).length === 1)
-        return ariaSelector;
+      if (document.querySelectorAll(ariaSelector).length === 1) return ariaSelector;
     }
     let tagName = element.tagName.toLowerCase(),
       classes = Array.from(element.classList).filter(
@@ -295,15 +261,12 @@ var stakReplay = (() => {
           !cls.includes("emotion-") &&
           !cls.includes("css-") &&
           !cls.includes("module__") &&
-          cls.length < 30,
+          cls.length < 30
       );
     if (classes.length > 0)
       for (let i = 1; i <= Math.min(classes.length, 3); i++) {
         let classSelector = `${tagName}.${classes.slice(0, i).join(".")}`;
-        if (
-          isValidSelector(classSelector) &&
-          document.querySelectorAll(classSelector).length === 1
-        )
+        if (isValidSelector(classSelector) && document.querySelectorAll(classSelector).length === 1)
           return classSelector;
       }
     let attributes = ["type", "name", "role", "title"];
@@ -311,10 +274,7 @@ var stakReplay = (() => {
       let value = element.getAttribute(attr);
       if (value) {
         let attrSelector = `${tagName}[${attr}="${value}"]`;
-        if (
-          isValidSelector(attrSelector) &&
-          document.querySelectorAll(attrSelector).length === 1
-        )
+        if (isValidSelector(attrSelector) && document.querySelectorAll(attrSelector).length === 1)
           return attrSelector;
       }
     }
@@ -338,10 +298,7 @@ var stakReplay = (() => {
   function convertToReplayActions(trackingData) {
     var _a;
     if (!trackingData)
-      return (
-        console.error("No tracking data provided to convertToReplayActions"),
-        []
-      );
+      return (console.error("No tracking data provided to convertToReplayActions"), []);
     console.log("Converting tracking data to replay actions:", trackingData);
     let actions = [];
     try {
@@ -353,16 +310,10 @@ var stakReplay = (() => {
             bestSelector = findBestSelector(detail);
           if (!bestSelector) {
             if (
-              (console.warn(
-                "Could not find valid selector for click detail:",
-                detail,
-              ),
+              (console.warn("Could not find valid selector for click detail:", detail),
               detail.selectors.text)
             ) {
-              let textElement = findElementByText(
-                detail.selectors.tagName,
-                detail.selectors.text,
-              );
+              let textElement = findElementByText(detail.selectors.tagName, detail.selectors.text);
               textElement && (bestSelector = textElement);
             }
             bestSelector || (bestSelector = detail.selectors.tagName || "div");
@@ -385,9 +336,7 @@ var stakReplay = (() => {
                 !change.elementSelector.includes('type="checkbox"') &&
                 !change.elementSelector.includes('type="radio"')
               ) {
-                let validSelector = validateAndFixSelector(
-                  change.elementSelector,
-                );
+                let validSelector = validateAndFixSelector(change.elementSelector);
                 validSelector &&
                   actions.push({
                     type: "input",
@@ -421,8 +370,7 @@ var stakReplay = (() => {
     } catch (e) {
       console.error("Error processing tracking data", e);
     }
-    (actions.length === 0 &&
-      console.warn("No actions extracted from tracking data"),
+    (actions.length === 0 && console.warn("No actions extracted from tracking data"),
       actions.sort((a, b) => a.timestamp - b.timestamp));
     for (let i = 1; i < actions.length; i++)
       actions[i].timestamp - actions[i - 1].timestamp < 250 &&
@@ -440,12 +388,10 @@ var stakReplay = (() => {
     );
   }
   function validateAndFixSelector(selector) {
-    if (!selector || selector === "undefined" || selector === "null")
-      return null;
+    if (!selector || selector === "undefined" || selector === "null") return null;
     let cleanSelector = selector.trim(),
       browserSelector = convertToBrowserSelector(cleanSelector);
-    if (browserSelector && isValidSelector(browserSelector))
-      return browserSelector;
+    if (browserSelector && isValidSelector(browserSelector)) return browserSelector;
     console.warn(`Invalid selector: ${cleanSelector}. Attempting to fix.`);
     let fixStrategies = [
       () => fixDataTestIdSelector(cleanSelector),
@@ -457,10 +403,7 @@ var stakReplay = (() => {
     for (let strategy of fixStrategies) {
       let fixedSelector = strategy();
       if (fixedSelector && isValidSelector(fixedSelector))
-        return (
-          console.log(`Fixed selector: ${cleanSelector} -> ${fixedSelector}`),
-          fixedSelector
-        );
+        return (console.log(`Fixed selector: ${cleanSelector} -> ${fixedSelector}`), fixedSelector);
     }
     return (console.error(`Could not fix selector: ${cleanSelector}`), null);
   }
@@ -474,12 +417,9 @@ var stakReplay = (() => {
           tagName = tagMatch[1],
           elements = Array.from(document.querySelectorAll(tagName));
         for (let element of elements)
-          if (
-            ((_a = element.textContent) == null ? void 0 : _a.trim()) === text
-          ) {
+          if (((_a = element.textContent) == null ? void 0 : _a.trim()) === text) {
             let uniqueSelector = createUniqueSelector(element);
-            if (uniqueSelector && isValidSelector(uniqueSelector))
-              return uniqueSelector;
+            if (uniqueSelector && isValidSelector(uniqueSelector)) return uniqueSelector;
           }
         return tagName;
       }
@@ -489,9 +429,7 @@ var stakReplay = (() => {
   function fixDataTestIdSelector(selector) {
     if (!selector.includes("data-testid=")) return null;
     let testIdMatch = selector.match(/data-testid="([^"]+)"/);
-    return testIdMatch && testIdMatch[1]
-      ? `[data-testid="${testIdMatch[1]}"]`
-      : null;
+    return testIdMatch && testIdMatch[1] ? `[data-testid="${testIdMatch[1]}"]` : null;
   }
   function fixClassSelector(selector) {
     if (!selector.includes("class=")) return null;
@@ -522,8 +460,7 @@ var stakReplay = (() => {
   function findByDataTestId(selector) {
     var _a;
     if (!selector.includes("data-testid")) return null;
-    let testId =
-      (_a = selector.match(/data-testid="([^"]+)"/)) == null ? void 0 : _a[1];
+    let testId = (_a = selector.match(/data-testid="([^"]+)"/)) == null ? void 0 : _a[1];
     return testId ? document.querySelector(`[data-testid="${testId}"]`) : null;
   }
   function findByClass(selector) {
@@ -546,15 +483,11 @@ var stakReplay = (() => {
   }
   function findByAriaLabel(selector) {
     let ariaMatch = selector.match(/\[aria-label="([^"]+)"\]/);
-    return ariaMatch
-      ? document.querySelector(`[aria-label="${ariaMatch[1]}"]`)
-      : null;
+    return ariaMatch ? document.querySelector(`[aria-label="${ariaMatch[1]}"]`) : null;
   }
   function findByRole(selector) {
     let roleMatch = selector.match(/\[role="([^"]+)"\]/);
-    return roleMatch
-      ? document.querySelector(`[role="${roleMatch[1]}"]`)
-      : null;
+    return roleMatch ? document.querySelector(`[role="${roleMatch[1]}"]`) : null;
   }
   function createCursor() {
     let cursor = document.createElement("div");
@@ -625,8 +558,7 @@ var stakReplay = (() => {
       (cursorRef2.current.style.transform = "translate(-50%, -50%) scale(0.8)"),
       setTimeout(() => {
         cursorRef2.current &&
-          (cursorRef2.current.style.transform =
-            "translate(-50%, -50%) scale(1)");
+          (cursorRef2.current.style.transform = "translate(-50%, -50%) scale(1)");
       }, 200),
       setTimeout(() => {
         ripple.parentNode && ripple.parentNode.removeChild(ripple);
@@ -657,14 +589,7 @@ var stakReplay = (() => {
         }, 150));
     });
   }
-  function typeText(
-    element,
-    value,
-    speedRef2,
-    statusRef2,
-    isTypingRef2,
-    registerTimeout2,
-  ) {
+  function typeText(element, value, speedRef2, statusRef2, isTypingRef2, registerTimeout2) {
     return new Promise((resolve) => {
       if (statusRef2.current !== "playing") {
         resolve();
@@ -689,13 +614,7 @@ var stakReplay = (() => {
       typeChar();
     });
   }
-  function selectOption(
-    element,
-    value,
-    speedRef2,
-    statusRef2,
-    registerTimeout2,
-  ) {
+  function selectOption(element, value, speedRef2, statusRef2, registerTimeout2) {
     return new Promise((resolve) => {
       if (statusRef2.current !== "playing") {
         resolve();
@@ -708,7 +627,7 @@ var stakReplay = (() => {
               ((element.value = value),
               element.dispatchEvent(new Event("change", { bubbles: !0 }))),
               resolve());
-          }, 50 / speedRef2.current),
+          }, 50 / speedRef2.current)
         ));
     });
   }
@@ -722,18 +641,15 @@ var stakReplay = (() => {
     registerTimeout2,
     setCurrentActionIndex,
     setStatus,
-    timeoutRef2,
+    timeoutRef2
   ) {
     if (statusRef2.current !== "playing") return;
     if (index >= actionsRef2.current.length) {
       (setCurrentActionIndex(actionsRef2.current.length - 1),
         setStatus("completed"),
         window.parent.postMessage(
-          {
-            type: "staktrak-replay-completed",
-            totalActions: actionsRef2.current.length,
-          },
-          "*",
+          { type: "staktrak-replay-completed", totalActions: actionsRef2.current.length },
+          "*"
         ),
         setTimeout(() => {
           window.parent.postMessage({ type: "staktrak-replay-fadeout" }, "*");
@@ -758,7 +674,7 @@ var stakReplay = (() => {
       }
       if (!element) {
         (console.warn(
-          `Could not find element for action ${index}: ${action.type} on ${action.selector} after ${maxAttempts} attempts`,
+          `Could not find element for action ${index}: ${action.type} on ${action.selector} after ${maxAttempts} attempts`
         ),
           setCurrentActionIndex(index + 1),
           executeAction(
@@ -771,7 +687,7 @@ var stakReplay = (() => {
             registerTimeout2,
             setCurrentActionIndex,
             setStatus,
-            timeoutRef2,
+            timeoutRef2
           ));
         return;
       }
@@ -784,7 +700,7 @@ var stakReplay = (() => {
             totalActions: actionsRef2.current.length,
             action,
           },
-          "*",
+          "*"
         ),
         await moveCursorToElement(element, cursorRef2, statusRef2),
         statusRef2.current !== "playing")
@@ -802,28 +718,16 @@ var stakReplay = (() => {
           }
           try {
             (element.dispatchEvent(
-              new MouseEvent("mousedown", {
-                bubbles: !0,
-                cancelable: !0,
-                view: window,
-              }),
+              new MouseEvent("mousedown", { bubbles: !0, cancelable: !0, view: window })
             ),
               await new Promise((resolve) => setTimeout(resolve, 10)),
               element.dispatchEvent(
-                new MouseEvent("mouseup", {
-                  bubbles: !0,
-                  cancelable: !0,
-                  view: window,
-                }),
+                new MouseEvent("mouseup", { bubbles: !0, cancelable: !0, view: window })
               ),
               await new Promise((resolve) => setTimeout(resolve, 10)),
               element.click(),
               element.dispatchEvent(
-                new MouseEvent("click", {
-                  bubbles: !0,
-                  cancelable: !0,
-                  view: window,
-                }),
+                new MouseEvent("click", { bubbles: !0, cancelable: !0, view: window })
               ));
           } catch (clickError) {
             console.error("Error during click operation:", clickError);
@@ -837,25 +741,17 @@ var stakReplay = (() => {
             speedRef2,
             statusRef2,
             isTypingRef2,
-            registerTimeout2,
+            registerTimeout2
           );
           break;
         case "select":
-          await selectOption(
-            element,
-            action.value || "",
-            speedRef2,
-            statusRef2,
-            registerTimeout2,
-          );
+          await selectOption(element, action.value || "", speedRef2, statusRef2, registerTimeout2);
           break;
         case "check":
-          ((element.checked = !0),
-            element.dispatchEvent(new Event("change", { bubbles: !0 })));
+          ((element.checked = !0), element.dispatchEvent(new Event("change", { bubbles: !0 })));
           break;
         case "uncheck":
-          ((element.checked = !1),
-            element.dispatchEvent(new Event("change", { bubbles: !0 })));
+          ((element.checked = !1), element.dispatchEvent(new Event("change", { bubbles: !0 })));
           break;
       }
       if (statusRef2.current !== "playing") return;
@@ -863,10 +759,7 @@ var stakReplay = (() => {
         delay = 500;
       if (nextAction && action.timestamp && nextAction.timestamp) {
         let timeDiff = nextAction.timestamp - action.timestamp;
-        delay = Math.min(
-          MAX_DELAY,
-          Math.max(MIN_DELAY, timeDiff / speedRef2.current),
-        );
+        delay = Math.min(MAX_DELAY, Math.max(MIN_DELAY, timeDiff / speedRef2.current));
       }
       timeoutRef2.current = registerTimeout2(
         setTimeout(() => {
@@ -882,18 +775,16 @@ var stakReplay = (() => {
                 registerTimeout2,
                 setCurrentActionIndex,
                 setStatus,
-                timeoutRef2,
+                timeoutRef2
               ))
-            : console.warn(
-                `Not moving to next action because status is ${statusRef2.current}`,
-              );
-        }, delay),
+            : console.warn(`Not moving to next action because status is ${statusRef2.current}`);
+        }, delay)
       );
     } catch (error) {
       (console.error("Error executing action:", error),
         window.parent.postMessage(
           { type: "staktrak-replay-error", error: error.message, action },
-          "*",
+          "*"
         ),
         statusRef2.current === "playing" &&
           (timeoutRef2.current = registerTimeout2(
@@ -909,9 +800,9 @@ var stakReplay = (() => {
                   registerTimeout2,
                   setCurrentActionIndex,
                   setStatus,
-                  timeoutRef2,
+                  timeoutRef2
                 ));
-            }, 2e3),
+            }, 2e3)
           )));
     }
   }
@@ -937,7 +828,7 @@ var stakReplay = (() => {
         (status) => {
           statusRef.current = status;
         },
-        timeoutRef,
+        timeoutRef
       ),
       window.parent.postMessage({ type: "staktrak-replay-resumed" }, "*"));
   }
@@ -981,8 +872,7 @@ var stakReplay = (() => {
                 (statusRef.current = "playing"),
                 (currentActionIndexRef.current = 0),
                 (speedRef.current = data.speed || DEFAULT_SPEED),
-                cursorRef.current &&
-                  (cursorRef.current.style.display = "block"),
+                cursorRef.current && (cursorRef.current.style.display = "block"),
                 setTimeout(() => {
                   executeAction(
                     0,
@@ -998,7 +888,7 @@ var stakReplay = (() => {
                     (status) => {
                       statusRef.current = status;
                     },
-                    timeoutRef,
+                    timeoutRef
                   );
                 }, INITIAL_DELAY / speedRef.current));
               break;

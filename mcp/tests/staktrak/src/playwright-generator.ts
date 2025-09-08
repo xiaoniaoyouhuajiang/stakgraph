@@ -79,69 +79,123 @@ interface TrackingData {
   formElementChanges?: FormElementChange[];
 }
 
+// Stability detection patterns for cross-system compatibility
+const UNSTABLE_PATTERNS = [
+  /\d{4,}/,              // Long numbers (IDs, phone numbers)
+  /\d{4}-\d{2}-\d{2}/,   // Dates
+  /@[\w.]+/,             // Email addresses
+  /\$[\d,]+\.?\d*/,      // Currency amounts
+  /\d+ (item|result|user|order)s?/i,  // Dynamic counts
+  /welcome .+/i,         // Personal greetings
+  /(order|invoice|ticket) #?\d+/i,    // Transaction IDs
+];
+
+function isStableContent(text: string): boolean {
+  if (!text || text.length < 2) return false;
+  return !UNSTABLE_PATTERNS.some(pattern => pattern.test(text));
+}
+
+// Extract testid from data-testid selector
+function extractTestId(selector: string): string | null {
+  const match = selector.match(/\[data-testid=["']([^"']+)["']\]/);
+  return match ? match[1] : null;
+}
+
 function convertToPlaywrightSelector(clickDetail: ClickDetail): string {
   const { selectors } = clickDetail;
 
-  // Strategy 1: data-testid (highest priority)
-  if (selectors.primary.includes("[data-testid=")) {
-    return selectors.primary;
+  // Strategy 1: getByTestId() - Most resilient to changes
+  const testId = extractTestId(selectors.primary);
+  if (testId) {
+    return `page.getByTestId('${testId}')`;
   }
 
-  // Strategy 2: ID selectors
+  // Strategy 2: Stable ID selectors - Enhanced validation
   if (selectors.primary.startsWith("#")) {
-    return selectors.primary;
+    const id = selectors.primary.substring(1);
+    if (isStableContent(id)) {
+      return `page.locator('#${id}')`;
+    }
   }
 
-  // Strategy 3: Text-based selectors for interactive elements
-  if (
-    selectors.text &&
-    (selectors.tagName === "button" ||
-      selectors.tagName === "a" ||
-      selectors.role === "button")
-  ) {
+  // Strategy 3: getByRole() with stable name - Semantic + resilient
+  if (selectors.role && selectors.text && isStableContent(selectors.text)) {
     const cleanText = selectors.text.trim();
     if (cleanText.length > 0 && cleanText.length <= 50) {
-      return `text=${escapeTextForAssertion(cleanText)}`;
+      return `page.getByRole('${selectors.role}', { name: '${escapeTextForAssertion(cleanText)}' })`;
     }
   }
 
-  // Strategy 4: aria-label
-  if (selectors.ariaLabel) {
-    return `[aria-label="${escapeTextForAssertion(selectors.ariaLabel)}"]`;
+  // Strategy 4: getByLabel() - Forms with stable labels
+  if (selectors.ariaLabel && isStableContent(selectors.ariaLabel)) {
+    return `page.getByLabel('${escapeTextForAssertion(selectors.ariaLabel)}')`;
   }
 
-  // Strategy 5: Try fallback selectors
-  for (const fallback of selectors.fallbacks) {
-    if (isValidCSSSelector(fallback)) {
-      return fallback;
-    }
-  }
-
-  // Strategy 6: Use primary selector if it's valid
-  if (isValidCSSSelector(selectors.primary)) {
-    return selectors.primary;
-  }
-
-  // Strategy 7: Role-based selector
-  if (selectors.role) {
-    return `[role="${selectors.role}"]`;
-  }
-
-  // Strategy 8: Tag name with attributes
+  // Strategy 5: Form-specific attributes - Enhanced current approach
   if (selectors.tagName === "input") {
     const type = clickDetail.elementInfo.attributes.type;
     const name = clickDetail.elementInfo.attributes.name;
-    if (type) return `input[type="${type}"]`;
-    if (name) return `input[name="${name}"]`;
+    if (type) return `page.locator('[type="${type}"]')`;
+    if (name) return `page.locator('[name="${name}"]')`;
   }
 
-  // Strategy 9: XPath as last resort
-  if (selectors.xpath) {
-    return `xpath=${selectors.xpath}`;
+  // Strategy 6: getByRole() with position - Semantic without fragile text
+  if (selectors.role) {
+    // For buttons, links, and other interactive elements without stable text
+    if (['button', 'link', 'textbox', 'checkbox', 'radio'].includes(selectors.role)) {
+      return `page.getByRole('${selectors.role}').first()`;
+    }
   }
 
-  // Final fallback
-  return selectors.tagName;
+  // Strategy 7: Contextual CSS selectors - Never bare tags, always with context
+  if (selectors.tagName) {
+    const classes = clickDetail.elementInfo.className
+      ?.split(' ')
+      .filter(c => c && !c.includes('hover') && !c.includes('active'))
+      .slice(0, 2)
+      .join('.');
+    
+    const stableText = selectors.text && isStableContent(selectors.text) 
+      ? selectors.text.slice(0, 30) 
+      : null;
+    
+    if (classes && stableText) {
+      return `page.locator('${selectors.tagName}.${classes}').filter({ hasText: '${escapeTextForAssertion(stableText)}' })`;
+    }
+    if (classes) {
+      return `page.locator('${selectors.tagName}.${classes}')`;
+    }
+    if (stableText) {
+      return `page.locator('${selectors.tagName}').filter({ hasText: '${escapeTextForAssertion(stableText)}' })`;
+    }
+  }
+
+  // Strategy 8: getByText() for UI chrome only - Static interface elements
+  if (selectors.text && isStableContent(selectors.text)) {
+    const cleanText = selectors.text.trim();
+    if (cleanText.length > 2 && cleanText.length <= 30) {
+      // Only for truly static UI text
+      const staticUIPatterns = /^(save|cancel|submit|login|logout|home|back|next|prev|close|ok|yes|no)$/i;
+      if (staticUIPatterns.test(cleanText)) {
+        return `page.getByText('${escapeTextForAssertion(cleanText)}')`;
+      }
+    }
+  }
+
+  // Strategy 9: Enhanced fallback selectors with validation
+  for (const fallback of selectors.fallbacks) {
+    if (isValidCSSSelector(fallback) && !fallback.match(/^[a-zA-Z]+$/)) { // Avoid bare tags
+      return `page.locator('${fallback}')`;
+    }
+  }
+
+  // Strategy 10: Last resort - position-based with tag context
+  if (selectors.tagName) {
+    return `page.locator('${selectors.tagName}').first()`;
+  }
+
+  // Should never reach here, but better than undefined
+  return `page.locator('body')`;
 }
 
 function isValidCSSSelector(selector: string): boolean {
@@ -176,45 +230,45 @@ function generatePlaywrightTest(
   }
 
   return `import { test, expect } from '@playwright/test';
-    
-  test('User interaction replay', async ({ page }) => {
-    // Navigate to the page
-    await page.goto('${url}');
-    
-    // Wait for page to load
-    await page.waitForLoadState('networkidle');
-    
-    // Set viewport size to match recorded session
-    await page.setViewportSize({ 
-      width: ${userInfo.windowSize[0]}, 
-      height: ${userInfo.windowSize[1]} 
-    });
+
+test('User interaction replay', async ({ page }) => {
+  // Navigate to the page
+  await page.goto('${url}');
   
-  ${generateUserInteractions(
+  // Wait for page to load
+  await page.waitForLoadState('networkidle');
+  
+  // Set viewport size to match recorded session
+  await page.setViewportSize({ 
+    width: ${userInfo.windowSize[0]}, 
+    height: ${userInfo.windowSize[1]} 
+  });
+
+${generateUserInteractions(
     clicks,
     inputChanges,
     trackingData.focusChanges,
     assertions,
     formElementChanges
   )}
-  
-    await page.waitForTimeout(432);
-  });`;
+
+  await page.waitForTimeout(432);
+});`;
 }
 
 function generateEmptyTest(url: string): string {
   return `import { test, expect } from '@playwright/test';
+
+test('Empty test template', async ({ page }) => {
+  // Navigate to the page
+  await page.goto('${url}');
   
-  test('Empty test template', async ({ page }) => {
-    // Navigate to the page
-    await page.goto('${url}');
-    
-    // Wait for page to load
-    await page.waitForLoadState('networkidle');
-    
-    // No interactions were recorded
-    console.log('No user interactions to replay');
-  });`;
+  // Wait for page to load
+  await page.waitForLoadState('networkidle');
+  
+  // No interactions were recorded
+  console.log('No user interactions to replay');
+});`;
 }
 
 function generateUserInteractions(
@@ -450,14 +504,26 @@ function generateClickCode(event: InteractionEvent): string {
     : event.selector;
 
   let code = `  // Click on ${selectorComment}\n`;
-  code += `  await page.click('${event.selector}');\n\n`;
+  
+  // Handle new Playwright API format vs legacy selectors
+  if (event.selector?.startsWith('page.')) {
+    code += `  await ${event.selector}.click();\n\n`;
+  } else {
+    code += `  await page.click('${event.selector}');\n\n`;
+  }
   return code;
 }
 
 function generateInputCode(event: InteractionEvent): string {
   const escapedValue = escapeTextForAssertion(event.value!);
   let code = `  // Fill input: ${event.selector}\n`;
-  code += `  await page.fill('${event.selector}', '${escapedValue}');\n\n`;
+  
+  // Handle new Playwright API format vs legacy selectors
+  if (event.selector?.startsWith('page.')) {
+    code += `  await ${event.selector}.fill('${escapedValue}');\n\n`;
+  } else {
+    code += `  await page.fill('${event.selector}', '${escapedValue}');\n\n`;
+  }
   return code;
 }
 
