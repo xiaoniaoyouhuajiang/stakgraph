@@ -7,6 +7,7 @@ use shared::{Error, Result};
 use tiktoken_rs::{get_bpe_from_model, CoreBPE};
 use tracing::{debug, error, info};
 use lsp::language::Language;
+use std::str::FromStr;
 use super::*;
 
 lazy_static! {
@@ -351,6 +352,35 @@ pub async fn execute_node_query(
             Vec::new()
         }
     }
+}
+
+pub async fn execute_uncovered_nodes_query(
+    conn: &Neo4jConnection,
+    query_str: String,
+    params: BoltMap,
+) -> Vec<(NodeData, usize)> {
+    let mut query_obj = query(&query_str);
+    for (key, value) in params.value.iter() {
+        query_obj = query_obj.param(key.value.as_str(), value.clone());
+    }
+    
+    let mut results = Vec::new();
+    match conn.execute(query_obj).await {
+        Ok(mut result) => {
+            while let Ok(Some(row)) = result.next().await {
+                if let Ok(node) = row.get::<neo4rs::Node>("n") {
+                    if let Ok(node_data) = NodeData::try_from(&node) {
+                        let usage_count: i64 = row.get("usage_count").unwrap_or(0);
+                        results.push((node_data, usage_count as usize));
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            debug!("Error executing uncovered nodes query: {}", e);
+        }
+    }
+    results
 }
 
 pub fn count_nodes_edges_query() -> String {
@@ -1163,6 +1193,98 @@ pub fn vector_search_query(
         ORDER BY score DESC
         LIMIT toInteger($limit)
     "#.to_string();
+
+    (query, params)
+}
+
+pub fn find_uncovered_nodes_paginated_query(
+    node_type: &NodeType,
+    with_usage: bool,
+    offset: usize,
+    limit: usize,
+    root: Option<&str>,
+    tests_filter: Option<&str>,
+) -> (String, BoltMap) {
+    let mut params = BoltMap::new();
+    boltmap_insert_str(&mut params, "node_type", &node_type.to_string());
+    boltmap_insert_int(&mut params, "offset", offset as i64);
+    boltmap_insert_int(&mut params, "limit", limit as i64);
+    
+    if let Some(r) = root {
+        boltmap_insert_str(&mut params, "root", r);
+    }
+
+    let test_types = crate::lang::graphs::utils::tests_sources(tests_filter);
+    let test_labels = test_types.iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>()
+        .join(":");
+
+    let root_filter = if root.is_some() {
+        "AND n.file STARTS WITH $root"
+    } else {
+        ""
+    };
+
+    let coverage_check = match node_type {
+        NodeType::Function => format!(
+            "EXISTS {{ MATCH (test)-[:Calls]->(n) WHERE test:{} }}",
+            test_labels
+        ),
+        NodeType::Endpoint => format!(
+            "EXISTS {{ 
+                MATCH (n)-[:HandledBy]->(handler:Function)
+                MATCH (test)-[:Calls]->(handler) 
+                WHERE test:{}
+            }}",
+            test_labels
+        ),
+        _ => "false".to_string()
+    };
+
+    let usage_match = if with_usage {
+        match node_type {
+            NodeType::Function => "OPTIONAL MATCH (caller:Function)-[:Calls]->(n)",
+            NodeType::Endpoint => "OPTIONAL MATCH (req:Request)-[:Calls]->(n)",
+            _ => ""
+        }
+    } else {
+        ""
+    };
+
+    let usage_count = if with_usage {
+        match node_type {
+            NodeType::Function => "count(caller)",
+            NodeType::Endpoint => "count(req)",
+            _ => "0"
+        }
+    } else {
+        "0"
+    };
+
+    let order_clause = if with_usage {
+        "ORDER BY usage_count DESC, n.name ASC"
+    } else {
+        "ORDER BY n.name ASC"
+    };
+
+    let query = format!(
+        "MATCH (n:{}) 
+         WHERE true {}
+         WITH n, NOT ({}) AS is_uncovered
+         WHERE is_uncovered = true
+         {}
+         WITH n, {} AS usage_count
+         {}
+         SKIP $offset LIMIT $limit
+         RETURN n, usage_count",
+        node_type.to_string(),
+        root_filter,
+        coverage_check,
+        usage_match,
+        usage_count,
+        order_clause
+    );
 
     (query, params)
 }

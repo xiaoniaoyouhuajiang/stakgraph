@@ -708,6 +708,7 @@ pub async fn uncovered_handler(Query(params): Query<UncoveredParams>) -> Result<
         .unwrap_or("usage")
         .eq_ignore_ascii_case("usage");
     let limit = params.limit.unwrap_or(50);
+    let offset = params.offset.unwrap_or(0);
     let output = params.output.as_deref().unwrap_or("json");
     let concise = params.concise.unwrap_or(false);
 
@@ -723,6 +724,7 @@ pub async fn uncovered_handler(Query(params): Query<UncoveredParams>) -> Result<
         .list_uncovered(
             node_type,
             with_usage,
+            offset,
             limit,
             params.root.as_deref(),
             params.tests.as_deref(),

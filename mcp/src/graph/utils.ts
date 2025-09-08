@@ -36,6 +36,9 @@ export function toReturnNode(node: Neo4jNode): ReturnNode {
   if (IS_TEST && properties.date_added_to_graph) {
     delete properties.date_added_to_graph;
   }
+  if (node.score) {
+    properties.score = node.score;
+  }
   return {
     node_type: rightLabel(node),
     ref_id,
@@ -76,7 +79,7 @@ export function getNodeSummaryLabel(node: Neo4jNode) {
   if (label === "Import" || label === "Datamodel" || label === "Request") {
     return `${label}: \n${node.properties.body}`;
   }
-  // first 5 lines of body
+  // first 10 lines of body
   if (label === "Function" || label == "Var" || label === "Endpoint") {
     const lines =
       node.properties.start != node.properties.end
@@ -85,7 +88,10 @@ export function getNodeSummaryLabel(node: Neo4jNode) {
     let lab = `${label}: ${node.properties.name} (${lines})`;
     const bod = node.properties.body?.split("\n").slice(0, 10).join("\n");
     if (bod) {
-      lab += `\n${bod}`;
+      lab += `\n\`\`\`${bod}\`\`\``;
+    }
+    if (node.properties.docs) {
+      lab += `\nDocs: ${node.properties.docs}`;
     }
     return lab;
   }

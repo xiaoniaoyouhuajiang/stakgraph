@@ -121,6 +121,7 @@ pub struct Coverage {
 pub struct UncoveredParams {
     pub node_type: String,
     pub limit: Option<usize>,
+    pub offset: Option<usize>,
     pub sort: Option<String>,
     pub root: Option<String>,
     pub concise: Option<bool>,

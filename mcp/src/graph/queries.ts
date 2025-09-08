@@ -83,6 +83,38 @@ MATCH (n:${Data_Bank} {node_key: $node_key})
 SET n.token_count = $token_count
 `;
 
+export const CREATE_HINT_QUERY = `
+MERGE (n:Hint:${Data_Bank} {node_key: $node_key})
+ON CREATE SET n.ref_id = randomUUID(), n.date_added_to_graph = $ts
+SET n.name = $name, n.file = $file, n.body = $body, n.start = 0, n.end = 0, n.question = $question, n.embeddings = $embeddings
+RETURN n
+`;
+
+export const GET_HINT_QUERY = `
+MATCH (n:Hint {node_key: $node_key}) RETURN n
+`;
+
+export const FIND_NODES_BY_NAME_QUERY = `
+MATCH (n:{LABEL})
+WHERE n.name = $name
+RETURN n
+LIMIT 5
+`;
+export const FIND_FILE_NODES_BY_PATH_QUERY = `
+MATCH (n:File)
+WHERE n.file ENDS WITH $file_path
+RETURN n
+LIMIT 5
+`;
+
+export const CREATE_HINT_EDGES_BY_REF_IDS_QUERY = `
+MATCH (h:Hint {ref_id: $hint_ref_id})
+UNWIND $ref_ids AS ref_id
+MATCH (t {ref_id: ref_id})
+MERGE (h)-[:USES]->(t)
+RETURN collect(distinct t.ref_id) as refs
+`;
+
 export const PKGS_QUERY = `
 MATCH (file:File)
 WHERE file.name ENDS WITH 'Cargo.toml'

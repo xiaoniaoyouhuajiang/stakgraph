@@ -1118,6 +1118,25 @@ impl Neo4jGraph {
         }
         Ok(triples)
     }
+
+    pub(super) async fn find_uncovered_nodes_paginated_async(
+        &self,
+        node_type: NodeType,
+        with_usage: bool,
+        offset: usize,
+        limit: usize,
+        root: Option<&str>,
+        tests_filter: Option<&str>,
+    ) -> Vec<(NodeData, usize)> {
+        let Ok(connection) = self.ensure_connected().await else {
+            warn!("Failed to connect to Neo4j in find_uncovered_nodes_paginated_async");
+            return vec![];
+        };
+        let (query, params) = find_uncovered_nodes_paginated_query(
+            &node_type, with_usage, offset, limit, root, tests_filter
+        );
+        execute_uncovered_nodes_query(&connection, query, params).await
+    }
 }
 
 impl Graph for Neo4jGraph {

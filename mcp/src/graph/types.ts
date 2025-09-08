@@ -52,7 +52,8 @@ export type NodeType =
   | "Var"
   | "Message"
   | "Person"
-  | "Video";
+  | "Video"
+  | "Hint";
 
 export type EdgeType =
   | "CALLS"
@@ -80,6 +81,15 @@ export interface Neo4jEdge {
   target: string;
   properties: Record<string, any>;
 }
+
+export interface HintExtraction {
+  function_names: string[];
+  file_names: string[];
+  datamodel_names: string[];
+  endpoint_names: string[];
+  page_names: string[];
+}
+
 export interface GraphResponse {
   nodes: any[];
   edges: any[];
@@ -101,6 +111,7 @@ export function relevant_node_types(): NodeType[] {
     "Message",
     "Person",
     "Video",
+  "Hint",
   ];
 }
 
@@ -126,6 +137,7 @@ export function all_node_types(): NodeType[] {
     "Message",
     "Person",
     "Video",
+  "Hint",
   ];
 }
 
@@ -177,6 +189,7 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
       "A message in a conversation between developers, projects managers, or other stakeholders.",
     Person: "A person working on the project.",
     Video: "A recorded video conversation between stakeholders.",
+  Hint: "A question and answer pair generated from exploring the codebase to capture contextual understanding.",
   };
 }
 

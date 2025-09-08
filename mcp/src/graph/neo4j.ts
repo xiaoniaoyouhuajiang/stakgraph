@@ -2,21 +2,26 @@ import neo4j, { Driver, Session } from "neo4j-driver";
 import fs from "fs";
 import readline from "readline";
 import {
-  Node,
-  Edge,
+  NodeType,
+  all_node_types,
   Neo4jNode,
   Neo4jEdge,
-  NodeType,
   EdgeType,
-  all_node_types,
+  Node,
+  Edge,
+  HintExtraction,
 } from "./types.js";
 import {
   create_node_key,
   deser_node,
+  clean_node,
   getExtensionsForLanguage,
 } from "./utils.js";
 import * as Q from "./queries.js";
 import { vectorizeCodeDocument, vectorizeQuery } from "../vector/index.js";
+import { callGenerateObject } from "../aieo/src/stream.js";
+import { getApiKeyForProvider, Provider } from "../aieo/src/provider.js";
+import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { createByModelName } from "@microsoft/tiktokenizer";
 
@@ -509,6 +514,179 @@ class Db {
       if (session) {
         await session.close();
       }
+    }
+  }
+
+  async create_hint(question: string, answer: string, embeddings: number[]) {
+    const session = this.driver.session();
+    const name = question.slice(0, 80);
+    const node_key = create_node_key({
+      node_type: "Hint",
+      node_data: {
+        name,
+        file: "hint://generated",
+        start: 0,
+      },
+    } as Node);
+    try {
+      await session.run(Q.CREATE_HINT_QUERY, {
+        node_key,
+        name,
+        file: "hint://generated",
+        body: answer,
+        question,
+        embeddings,
+        ts: Date.now() / 1000,
+      });
+      const r = await session.run(Q.GET_HINT_QUERY, { node_key });
+      const record = r.records[0];
+      const n = record.get("n");
+      return { ref_id: n.properties.ref_id, node_key };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async create_hint_edges_llm(
+    hint_ref_id: string,
+    answer: string,
+    llm_provider?: Provider | string
+  ): Promise<{ edges_added: number; linked_ref_ids: string[] }> {
+    if (!answer) return { edges_added: 0, linked_ref_ids: [] };
+    const provider = llm_provider ? llm_provider : "anthropic";
+    const apiKey = getApiKeyForProvider(provider);
+    if (!apiKey) return { edges_added: 0, linked_ref_ids: [] };
+
+    const extracted = await this.extractHintReferences(
+      answer,
+      provider as Provider,
+      apiKey
+    );
+
+    const foundNodes = await this.findNodesFromExtraction(extracted);
+    const refIds = foundNodes
+      .map((n) => n.ref_id || n.properties.ref_id)
+      .filter(Boolean);
+
+    if (refIds.length === 0) return { edges_added: 0, linked_ref_ids: [] };
+
+    return await this.createEdgesDirectly(hint_ref_id, refIds);
+  }
+
+  private async extractHintReferences(
+    answer: string,
+    provider: Provider,
+    apiKey: string
+  ): Promise<HintExtraction> {
+    const truncated = answer.slice(0, 8000);
+    const schema = z.object({
+      function_names: z
+        .array(z.string())
+        .describe(
+          "functions or react components name e.g `getUser`, `handleClick`, `deleteSwarm`,"
+        ),
+      file_names: z
+        .array(z.string())
+        .describe(
+          "complete file path e.g `src/app/page.tsx`, `lib/utils/api.go`"
+        ),
+      datamodel_names: z
+        .array(z.string())
+        .describe(
+          "database models, schemas, or data structures, e.g `User`, `Product`, `Order`"
+        ),
+      endpoint_names: z
+        .array(z.string())
+        .describe(
+          "API endpoint name e.g `/api/person`, `/api/v1/data/{id}`, etc"
+        ),
+      page_names: z
+        .array(z.string())
+        .describe(
+          "web pages, components, or views name e.g `HomePage`, `settings` , `name: [...taskParams]` , `name: code-graph`, etc"
+        ),
+    });
+    try {
+      return await callGenerateObject({
+        provider,
+        apiKey,
+        prompt: `Extract exact code nodes referenced. Return JSON only. Use empty arrays if none.\n\n${truncated}`,
+        schema,
+      });
+    } catch (_) {
+      return { 
+        function_names: [], 
+        file_names: [], 
+        datamodel_names: [], 
+        endpoint_names: [], 
+        page_names: [] 
+      };
+    }
+  }
+
+  private async createEdgesDirectly(
+    hint_ref_id: string, 
+    refIds: string[]
+  ): Promise<{ edges_added: number; linked_ref_ids: string[] }> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.CREATE_HINT_EDGES_BY_REF_IDS_QUERY, { 
+        hint_ref_id, 
+        ref_ids: refIds 
+      });
+      
+      if (result.records.length > 0) {
+        const linkedRefs = result.records[0].get('refs') || [];
+        return { 
+          edges_added: linkedRefs.length, 
+          linked_ref_ids: linkedRefs 
+        };
+      }
+      
+      return { edges_added: 0, linked_ref_ids: [] };
+    } finally {
+      await session.close();
+    }
+  }
+
+  private async findNodesFromExtraction(extracted: HintExtraction): Promise<Neo4jNode[]> {
+    const foundNodes: Neo4jNode[] = [];
+    const typeMapping = {
+      function_names: 'Function',
+      file_names: 'File',
+      datamodel_names: 'Datamodel',
+      endpoint_names: 'Endpoint',
+      page_names: 'Page',
+    };
+
+    for (const [key, nodeType] of Object.entries(typeMapping)) {
+      const names = extracted[key as keyof HintExtraction] || [];
+      for (const name of names) {
+        if (name && name.trim()) {
+          const nodes = await this.findNodesByName(name.trim(), nodeType);
+          foundNodes.push(...nodes);
+        }
+      }
+    }
+
+    return foundNodes;
+  }
+
+  private async findNodesByName(name: string, nodeType: string): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+
+      if (nodeType !== "File") {
+        const query = Q.FIND_NODES_BY_NAME_QUERY.replace("{LABEL}", nodeType);
+        const result = await session.run(query, { name });
+        return result.records.map((record) => clean_node(record.get("n")));
+      } else {
+        const query = Q.FIND_FILE_NODES_BY_PATH_QUERY;
+        const result = await session.run(query, { file_path: name });
+        return result.records.map((record) => clean_node(record.get("n")));
+      }
+    } finally {
+      await session.close();
     }
   }
 
