@@ -1,4 +1,8 @@
-export function PROMPT(user_query: string) {
+import { getApiKeyForProvider, Provider } from "../../aieo/src/provider.js";
+import { callGenerateObject } from "../../aieo/src/index.js";
+import { z } from "zod";
+
+function PROMPT(user_query: string) {
   return `
 You are a technical requirements analyst. Given a user request, your task is to:
 
@@ -10,10 +14,10 @@ You are a technical requirements analyst. Given a user request, your task is to:
 Please provide:
 
 ## A. Task Breakdown
-Decompose the request into 2-7 specific implementation tasks, ordered by dependency/priority.
+Decompose the request into 1-5 specific implementation tasks, ordered by dependency/priority.
 
 ## B. Search Questions
-Generate 3-10 targeted questions that would help find relevant information in a code knowledge base. Focus on:
+Generate 1-5 targeted questions that would help find relevant information in a code knowledge base. Focus on:
 
 **Technical Implementation:**
 - How to implement [specific feature]?
@@ -59,4 +63,26 @@ PLEASE OUTPUT IN JSON FORMAT:
   ]
 }
 `;
+}
+
+interface DecomposedQuestion {
+  tasks: string[];
+  questions: string[];
+}
+export async function decompose_question(
+  question: string,
+  llm_provider?: string
+): Promise<DecomposedQuestion> {
+  const provider = llm_provider ? llm_provider : "anthropic";
+  const apiKey = getApiKeyForProvider(provider);
+  const schema = z.object({
+    tasks: z.array(z.string()),
+    questions: z.array(z.string()),
+  });
+  return await callGenerateObject({
+    provider: provider as Provider,
+    apiKey,
+    prompt: PROMPT(question),
+    schema,
+  });
 }

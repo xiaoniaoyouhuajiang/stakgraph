@@ -29,6 +29,7 @@ import { parseServiceFile, extractContainersFromCompose } from "./service.js";
 import * as path from "path";
 import { get_context } from "../tools/explore/tool.js";
 import { ask_question, QUESTIONS } from "../tools/intelligence/index.js";
+import { decompose_question } from "../tools/intelligence/ask.js";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -106,7 +107,7 @@ export async function seed_understanding(req: Request, res: Response) {
 
     // Sequential processing - one at a time
     for (const question of QUESTIONS) {
-      const answer = await ask_question(question, 0.8);
+      const answer = await ask_question(question, 0.85);
       if (!answer.reused) {
         console.log("ANSWERED question:", question);
       }
@@ -117,6 +118,29 @@ export async function seed_understanding(req: Request, res: Response) {
   } catch (e: any) {
     console.error(e);
     res.status(500).json({ error: "Failed" });
+  }
+}
+
+export async function ask(req: Request, res: Response) {
+  const question = req.query.question as string;
+  if (!question) {
+    res.status(400).json({ error: "Missing question" });
+    return;
+  }
+  try {
+    const answers = [];
+    const dq = await decompose_question(question);
+    for (const q of dq.questions) {
+      const answer = await ask_question(q, 0.75);
+      if (answer.reused) {
+        console.log("REUSED question:", q, answer.reused_question);
+      }
+      answers.push(answer);
+    }
+    res.json(answers);
+  } catch (error) {
+    console.error("Ask Error:", error);
+    res.status(500).send("Internal Server Error");
   }
 }
 

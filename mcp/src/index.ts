@@ -71,6 +71,7 @@ app.get("/services", r.get_services);
 app.get("/explore", r.explore);
 app.get("/understand", r.understand);
 app.post("/seed_understanding", r.seed_understanding);
+app.get("/ask", r.ask);
 
 app.get("/_cache/info", cacheInfo);
 app.post("/_cache/clear", (req: Request, res: Response): void => {

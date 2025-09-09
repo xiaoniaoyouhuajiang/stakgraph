@@ -12,6 +12,7 @@ export interface Answer {
   answer: string;
   hint_ref_id: string;
   reused: boolean;
+  reused_question?: string;
   edges_added: number;
   linked_ref_ids: string[];
 }
@@ -39,6 +40,7 @@ export async function ask_question(
         answer: top.properties.body,
         hint_ref_id: top.ref_id,
         reused: true,
+        reused_question: top.properties.question,
         edges_added: 0,
         linked_ref_ids: [],
       };
