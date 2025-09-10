@@ -7,14 +7,15 @@ import { decompose_question } from "./ask.js";
 
 export async function decomposeAndAsk(
   prompt: string,
-  threshold: number
+  threshold: number,
+  provider?: string
 ): Promise<Answer[]> {
   const answers = [];
   const dq = await decompose_question(prompt);
   for (const q of dq.questions) {
-    const answer = await ask_question(q, threshold || 0.75);
+    const answer = await ask_question(q, threshold || 0.75, provider);
     if (answer.reused) {
-      console.log("REUSED question:", q, answer.reused_question);
+      console.log("REUSED question:", q, ">>", answer.reused_question);
     }
     answers.push(answer);
   }

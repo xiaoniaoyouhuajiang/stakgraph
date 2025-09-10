@@ -128,8 +128,14 @@ export async function ask(req: Request, res: Response) {
     return;
   }
   const similarityThreshold = parseFloat(req.query.threshold as string) || 0.9;
+  const provider = req.query.provider as string | undefined;
+
   try {
-    const answers = await decomposeAndAsk(question, similarityThreshold);
+    const answers = await decomposeAndAsk(
+      question,
+      similarityThreshold,
+      provider
+    );
     res.json(answers);
   } catch (error) {
     console.error("Ask Error:", error);

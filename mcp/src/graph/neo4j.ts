@@ -174,7 +174,7 @@ class Db {
     direction: Direction,
     trim: string[]
   ) {
-    const disclude: NodeType[] = ["File", "Directory", "Repository"];
+    const disclude: NodeType[] = ["File", "Directory", "Repository", "Library"];
     if (include_tests === false) {
       disclude.push("UnitTest", "IntegrationTest", "E2etest");
     }

@@ -1,6 +1,7 @@
 import { getApiKeyForProvider, Provider } from "../../aieo/src/provider.js";
 import { callGenerateObject } from "../../aieo/src/index.js";
 import { z } from "zod";
+import { Answer } from "./questions.js";
 
 function PROMPT(user_query: string) {
   return `
@@ -85,4 +86,8 @@ export async function decompose_question(
     prompt: PROMPT(question),
     schema,
   });
+}
+
+export function recompose_answers(answers: Answer[]): string {
+  return "";
 }

@@ -70,54 +70,33 @@ export async function extractHintReferences(
   apiKey: string
 ): Promise<HintExtraction> {
   const truncated = answer.slice(0, 8000);
+  const item = z.object({
+    name: z.string(),
+    relevancy: z.number().min(0).max(1),
+  });
   const schema = z.object({
     function_names: z
-      .array(
-        z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1),
-        })
-      )
+      .array(item)
       .describe(
         "functions or react components with relevancy scores (0.0-1.0). e.g [{name: 'getUser', relevancy: 0.9}, {name: 'handleClick', relevancy: 0.6}]"
       ),
     file_names: z
-      .array(
-        z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1),
-        })
-      )
+      .array(item)
       .describe(
         "complete file paths with relevancy scores (0.0-1.0). e.g [{name: 'src/app/page.tsx', relevancy: 0.8}]"
       ),
     datamodel_names: z
-      .array(
-        z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1),
-        })
-      )
+      .array(item)
       .describe(
         "database models, schemas, or data structures with relevancy scores (0.0-1.0). e.g [{name: 'User', relevancy: 0.9}]"
       ),
     endpoint_names: z
-      .array(
-        z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1),
-        })
-      )
+      .array(item)
       .describe(
         "API endpoints with relevancy scores (0.0-1.0). e.g [{name: '/api/person', relevancy: 0.7}]"
       ),
     page_names: z
-      .array(
-        z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1),
-        })
-      )
+      .array(item)
       .describe(
         "web pages, components, or views with relevancy scores (0.0-1.0). e.g [{name: 'HomePage', relevancy: 0.8}]"
       ),

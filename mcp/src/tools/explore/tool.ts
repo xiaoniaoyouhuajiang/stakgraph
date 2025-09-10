@@ -12,6 +12,12 @@ import * as G from "../../graph/graph.js";
 curl "http://localhost:3000/explore?prompt=how%20does%20auth%20work%20in%20the%20repo"
 */
 
+async function hihi() {
+  const re = await G.get_file_map("package.json");
+  console.log(re);
+}
+hihi();
+
 export async function get_context(prompt: string): Promise<string> {
   const provider = process.env.LLM_PROVIDER || "anthropic";
   const apiKey = getApiKeyForProvider(provider);
