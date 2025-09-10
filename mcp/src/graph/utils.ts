@@ -93,6 +93,19 @@ export function getNodeSummaryLabelInner(node: Neo4jNode): string {
   }
   let label = rightLabel(node);
 
+  // return full package file if found
+  if (label === "File") {
+    for (const fns of Object.values(LANGUAGE_PACKAGE_FILES)) {
+      for (const filename of fns) {
+        if (node.properties.file.endsWith(filename)) {
+          let lab = `${label}: ${node.properties.name}`;
+          lab += `\n\`\`\`\n${node.properties.body}\n\`\`\``;
+          return lab;
+        }
+      }
+    }
+  }
+
   // entire body
   if (label === "Import" || label === "Datamodel" || label === "Request") {
     return `${label}: \n${node.properties.body}`;

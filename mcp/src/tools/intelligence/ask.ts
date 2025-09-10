@@ -2,6 +2,10 @@ import { getApiKeyForProvider, Provider } from "../../aieo/src/provider.js";
 import { callGenerateObject } from "../../aieo/src/index.js";
 import { z } from "zod";
 
+/*
+curl "http://localhost:3000/ask?question=how%20does%20auth%20work%20in%20the%20repo"
+*/
+
 function PROMPT(user_query: string) {
   return `
 You are a technical requirements analyst. Given a user request, your task is to:
@@ -69,7 +73,7 @@ interface DecomposedQuestion {
   tasks: string[];
   questions: string[];
 }
-export async function decompose_question(
+export async function decomposeQuestion(
   question: string,
   llm_provider?: string
 ): Promise<DecomposedQuestion> {
