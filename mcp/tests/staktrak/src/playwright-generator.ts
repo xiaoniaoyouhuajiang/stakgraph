@@ -170,15 +170,12 @@ function convertToPlaywrightSelector(clickDetail: ClickDetail): string {
     }
   }
 
-  // Strategy 8: getByText() for UI chrome only - Static interface elements
+  // Strategy 8: getByText() for stable UI text - Allow any stable text
   if (selectors.text && isStableContent(selectors.text)) {
     const cleanText = selectors.text.trim();
     if (cleanText.length > 2 && cleanText.length <= 30) {
-      // Only for truly static UI text
-      const staticUIPatterns = /^(save|cancel|submit|login|logout|home|back|next|prev|close|ok|yes|no)$/i;
-      if (staticUIPatterns.test(cleanText)) {
-        return `page.getByText('${escapeTextForAssertion(cleanText)}')`;
-      }
+      // Any text that passes stability validation can be used
+      return `page.getByText('${escapeTextForAssertion(cleanText)}')`;
     }
   }
 

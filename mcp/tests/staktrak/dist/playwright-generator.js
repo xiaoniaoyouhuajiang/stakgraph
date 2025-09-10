@@ -75,10 +75,7 @@ function convertToPlaywrightSelector(clickDetail) {
   if (selectors.text && isStableContent(selectors.text)) {
     const cleanText = selectors.text.trim();
     if (cleanText.length > 2 && cleanText.length <= 30) {
-      const staticUIPatterns = /^(save|cancel|submit|login|logout|home|back|next|prev|close|ok|yes|no)$/i;
-      if (staticUIPatterns.test(cleanText)) {
-        return `page.getByText('${escapeTextForAssertion(cleanText)}')`;
-      }
+      return `page.getByText('${escapeTextForAssertion(cleanText)}')`;
     }
   }
   for (const fallback of selectors.fallbacks) {

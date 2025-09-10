@@ -43,6 +43,53 @@ var userBehaviour = (() => {
 
   // src/utils.ts
   var getTimeStamp = () => Date.now();
+  var getElementRole = (element) => {
+    const explicit = element.getAttribute("role");
+    if (explicit)
+      return explicit;
+    const tag = element.tagName.toLowerCase();
+    if (tag === "button")
+      return "button";
+    if (tag === "a" && element.hasAttribute("href"))
+      return "link";
+    if (tag === "input") {
+      const type = element.getAttribute("type");
+      if (["button", "submit", "reset"].includes(type || "text"))
+        return "button";
+      return "textbox";
+    }
+    if (tag === "nav")
+      return "navigation";
+    if (tag === "main")
+      return "main";
+    if (tag === "header")
+      return "banner";
+    if (tag === "footer")
+      return "contentinfo";
+    if (tag === "aside")
+      return "complementary";
+    if (tag === "section")
+      return "region";
+    return null;
+  };
+  var getEnhancedElementText = (element) => {
+    var _a;
+    const ariaLabel = element.getAttribute("aria-label");
+    if (ariaLabel)
+      return ariaLabel;
+    const tag = element.tagName.toLowerCase();
+    if (tag === "button" || tag === "a" && element.hasAttribute("href")) {
+      const text = (_a = element.textContent) == null ? void 0 : _a.trim();
+      if (text && text.length > 0 && text.length < 100) {
+        return text;
+      }
+    }
+    if (tag === "input") {
+      const input = element;
+      return input.value || input.placeholder || input.getAttribute("title") || null;
+    }
+    return element.getAttribute("title") || null;
+  };
   var isInputOrTextarea = (element) => element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable;
   var generateSelectorStrategies = (element) => {
     var _a;
@@ -73,8 +120,9 @@ var userBehaviour = (() => {
         role: htmlEl.getAttribute("role") || void 0
       };
     }
-    const text = getElementText(element);
-    if (text && (tagName === "button" || tagName === "a" || htmlEl.getAttribute("role") === "button")) {
+    const text = getEnhancedElementText(htmlEl);
+    const role = getElementRole(htmlEl);
+    if (text && (tagName === "button" || tagName === "a" || role === "button")) {
       const textSelector = generateTextBasedSelector(element, text);
       if (textSelector) {
         fallbacks.push(textSelector);
@@ -84,7 +132,6 @@ var userBehaviour = (() => {
     if (ariaLabel) {
       fallbacks.push(`[aria-label="${ariaLabel}"]`);
     }
-    const role = htmlEl.getAttribute("role");
     if (role && text) {
       fallbacks.push(`[role="${role}"]`);
     }
@@ -119,19 +166,8 @@ var userBehaviour = (() => {
     };
   };
   var getElementText = (element) => {
-    var _a;
     const htmlEl = element;
-    if (element.tagName === "BUTTON" || element.tagName === "A") {
-      const text = (_a = htmlEl.textContent) == null ? void 0 : _a.trim();
-      if (text && text.length > 0 && text.length < 100) {
-        return text;
-      }
-    }
-    if (element.tagName === "INPUT") {
-      const input = element;
-      return input.placeholder || input.value || void 0;
-    }
-    return void 0;
+    return getEnhancedElementText(htmlEl) || void 0;
   };
   var generateTextBasedSelector = (element, text) => {
     const tagName = element.tagName.toLowerCase();

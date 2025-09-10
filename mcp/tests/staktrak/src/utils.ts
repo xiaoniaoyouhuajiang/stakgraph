@@ -3,6 +3,67 @@ import { Results, Assertion, Config, ClickDetail } from "./types";
 
 export const getTimeStamp = (): number => Date.now();
 
+/**
+ * Get ARIA role for an element, including implicit roles for semantic HTML
+ */
+export const getElementRole = (element: HTMLElement): string | null => {
+  // 1. Check explicit role first (highest priority)
+  const explicit = element.getAttribute('role');
+  if (explicit) return explicit;
+  
+  // 2. Handle basic implicit roles that are commonly failing
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'button') return 'button';
+  if (tag === 'a' && element.hasAttribute('href')) return 'link';
+  if (tag === 'input') {
+    const type = element.getAttribute('type');
+    if (['button', 'submit', 'reset'].includes(type || 'text')) return 'button';
+    return 'textbox';
+  }
+  if (tag === 'nav') return 'navigation';
+  if (tag === 'main') return 'main';
+  if (tag === 'header') return 'banner';
+  if (tag === 'footer') return 'contentinfo';
+  if (tag === 'aside') return 'complementary';
+  if (tag === 'section') return 'region';
+  
+  return null;
+};
+
+/**
+ * Enhanced text extraction for interactive elements, especially buttons
+ */
+export const getEnhancedElementText = (element: HTMLElement): string | null => {
+  // Priority order for getting accessible name:
+  // 1. aria-label
+  // 2. textContent (for buttons, links)
+  // 3. title attribute
+  // 4. value (for input buttons)
+  // 5. placeholder (for inputs)
+  
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel) return ariaLabel;
+  
+  const tag = element.tagName.toLowerCase();
+  
+  // For buttons and links, get the visible text
+  if (tag === 'button' || (tag === 'a' && element.hasAttribute('href'))) {
+    const text = element.textContent?.trim();
+    if (text && text.length > 0 && text.length < 100) {
+      return text;
+    }
+  }
+  
+  // For inputs, get value, placeholder, or title
+  if (tag === 'input') {
+    const input = element as HTMLInputElement;
+    return input.value || input.placeholder || input.getAttribute('title') || null;
+  }
+  
+  // Fallbacks
+  return element.getAttribute('title') || null;
+};
+
 export const isInputOrTextarea = (element: Element): boolean =>
   element.tagName === "INPUT" ||
   element.tagName === "TEXTAREA" ||
@@ -56,12 +117,13 @@ export const generateSelectorStrategies = (
   }
 
   // Strategy 3: For interactive elements, try text-based selectors
-  const text = getElementText(element);
+  const text = getEnhancedElementText(htmlEl);
+  const role = getElementRole(htmlEl);
   if (
     text &&
     (tagName === "button" ||
       tagName === "a" ||
-      htmlEl.getAttribute("role") === "button")
+      role === "button")
   ) {
     const textSelector = generateTextBasedSelector(element, text);
     if (textSelector) {
@@ -76,7 +138,6 @@ export const generateSelectorStrategies = (
   }
 
   // Strategy 5: role + accessible name
-  const role = htmlEl.getAttribute("role");
   if (role && text) {
     fallbacks.push(`[role="${role}"]`);
   }
@@ -120,26 +181,11 @@ export const generateSelectorStrategies = (
 };
 
 /**
- * Get clean text content from element
+ * Get clean text content from element (legacy function - use getEnhancedElementText for better results)
  */
 export const getElementText = (element: Element): string | undefined => {
   const htmlEl = element as HTMLElement;
-
-  // For buttons and links, get the visible text
-  if (element.tagName === "BUTTON" || element.tagName === "A") {
-    const text = htmlEl.textContent?.trim();
-    if (text && text.length > 0 && text.length < 100) {
-      return text;
-    }
-  }
-
-  // For inputs, get placeholder or value
-  if (element.tagName === "INPUT") {
-    const input = element as HTMLInputElement;
-    return input.placeholder || input.value || undefined;
-  }
-
-  return undefined;
+  return getEnhancedElementText(htmlEl) || undefined;
 };
 
 /**
