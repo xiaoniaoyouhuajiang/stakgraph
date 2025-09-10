@@ -1,7 +1,10 @@
 import { getApiKeyForProvider, Provider } from "../../aieo/src/provider.js";
 import { callGenerateObject } from "../../aieo/src/index.js";
 import { z } from "zod";
-import { Answer } from "./questions.js";
+
+/*
+curl "http://localhost:3000/ask?question=how%20does%20auth%20work%20in%20the%20repo"
+*/
 
 function PROMPT(user_query: string) {
   return `
@@ -86,8 +89,4 @@ export async function decompose_question(
     prompt: PROMPT(question),
     schema,
   });
-}
-
-export function recompose_answers(answers: Answer[]): string {
-  return "";
 }

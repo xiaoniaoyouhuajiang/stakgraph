@@ -30,6 +30,7 @@ import * as path from "path";
 import { get_context } from "../tools/explore/tool.js";
 import { ask_question, QUESTIONS } from "../tools/intelligence/index.js";
 import { decomposeAndAsk } from "../tools/intelligence/questions.js";
+import { recompose_answer } from "../tools/intelligence/answer.js";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -136,7 +137,8 @@ export async function ask(req: Request, res: Response) {
       similarityThreshold,
       provider
     );
-    res.json(answers);
+    const answer = await recompose_answer(question, answers, provider);
+    res.json({ answer });
   } catch (error) {
     console.error("Ask Error:", error);
     res.status(500).send("Internal Server Error");
