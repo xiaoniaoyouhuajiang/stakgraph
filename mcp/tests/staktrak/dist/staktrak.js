@@ -105,7 +105,7 @@ var userBehaviour = (() => {
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
-        role: htmlEl.getAttribute("role") || void 0
+        role: getElementRole(htmlEl) || void 0
       };
     }
     const id = htmlEl.id;
@@ -117,7 +117,7 @@ var userBehaviour = (() => {
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
-        role: htmlEl.getAttribute("role") || void 0
+        role: getElementRole(htmlEl) || void 0
       };
     }
     const text = getEnhancedElementText(htmlEl);
@@ -174,7 +174,7 @@ var userBehaviour = (() => {
     const cleanText = text.replace(/"/g, '\\"').trim();
     if (cleanText.length === 0 || cleanText.length > 50)
       return null;
-    if (tagName === "button" || tagName === "a" || element.getAttribute("role") === "button") {
+    if (tagName === "button" || tagName === "a" || getElementRole(element) === "button") {
       return `text=${cleanText}`;
     }
     return null;

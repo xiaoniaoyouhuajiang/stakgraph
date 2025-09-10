@@ -98,7 +98,7 @@ export const generateSelectorStrategies = (
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
-      role: htmlEl.getAttribute("role") || undefined,
+      role: getElementRole(htmlEl) || undefined,
     };
   }
 
@@ -112,7 +112,7 @@ export const generateSelectorStrategies = (
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
-      role: htmlEl.getAttribute("role") || undefined,
+      role: getElementRole(htmlEl) || undefined,
     };
   }
 
@@ -202,7 +202,7 @@ export const generateTextBasedSelector = (
   if (cleanText.length === 0 || cleanText.length > 50) return null;
 
   if (tagName === "button" || tagName === "a" || 
-      (element as HTMLElement).getAttribute("role") === "button") {
+      getElementRole(element as HTMLElement) === "button") {
     return `text=${cleanText}`;
   }
 
