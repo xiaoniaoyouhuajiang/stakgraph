@@ -286,485 +286,249 @@ async function waitForElements(
 }
 
 function findElements(selector: string): Element[] {
-  return findElementsInContext(selector, document);
+  const element = findElementWithFallbacks(selector);
+  return element ? [element] : [];
 }
 
-function findElementsInContext(
-  selector: string,
-  searchContext: Document
-): Element[] {
-  if (selector.includes(" >> ")) {
-    const parts = selector.split(" >> ");
-    let elements = findElementsInContext(parts[0], searchContext);
+function findElementWithFallbacks(selector: string): Element | null {
+  if (!selector || selector.trim() === "") return null;
 
-    for (let i = 1; i < parts.length; i++) {
-      const newElements: Element[] = [];
-      for (const element of elements) {
-        const subElements = findElementsInContext(
-          parts[i],
-          element.ownerDocument || document
-        );
-        newElements.push(...subElements.filter((el) => element.contains(el)));
+  const browserSelector = convertToBrowserSelector(selector);
+
+  if (browserSelector && isValidSelector(browserSelector)) {
+    const element = document.querySelector(browserSelector);
+    if (element) return element;
+  }
+
+  const strategies = [
+    () => findByDataTestId(selector),
+    () => findByClass(selector),
+    () => findById(selector),
+    () => findByAriaLabel(selector),
+    () => findByRole(selector),
+    () => findByTextContent(selector),
+    () => findByCoordinates(selector),
+  ];
+
+  for (const strategy of strategies) {
+    try {
+      const element = strategy();
+      if (element) {
+        return element;
       }
-      elements = newElements;
-    }
-    return elements;
-  }
-
-  if (selector.includes(":filter-text(")) {
-    const match = selector.match(/^(.+?):filter-text\("(.+?)"\)$/);
-    if (match) {
-      const [, baseSelector, filterText] = match;
-      const baseElements = findElementsInContext(baseSelector, searchContext);
-
-      return baseElements.filter((el) => {
-        const elementText = el.textContent?.trim() || "";
-        return elementText.includes(filterText);
-      });
+    } catch (error) {
+      console.warn(`Strategy failed for ${selector}:`, error);
     }
   }
 
-  if (selector.includes(":filter-regex(")) {
-    const match = selector.match(
-      /^(.+?):filter-regex\("\/(.+?)\/([gimuy]*)"\)$/
-    );
-    if (match) {
-      const [, baseSelector, pattern, flags] = match;
-      const regex = new RegExp(pattern, flags);
-      const baseElements = findElementsInContext(baseSelector, searchContext);
+  return null;
+}
 
-      return baseElements.filter((el) => {
-        const elementText = el.textContent?.trim() || "";
-        return regex.test(elementText);
-      });
-    }
-  }
+function convertToBrowserSelector(selector: string): string {
+  if (!selector) return selector;
 
-  if (selector.includes(":filter-has(")) {
-    const match = selector.match(/^(.+?):filter-has\("(.+?)"\)$/);
-    if (match) {
-      const [, baseSelector, hasSelector] = match;
-      const baseElements = findElementsInContext(baseSelector, searchContext);
-
-      return baseElements.filter((el) => {
-        const childElements = findElementsInContext(
-          hasSelector,
-          el.ownerDocument || document
-        );
-        return childElements.some((child) => el.contains(child));
-      });
-    }
-  }
-
-  if (selector.includes(":filter-has-not(")) {
-    const match = selector.match(/^(.+?):filter-has-not\("(.+?)"\)$/);
-    if (match) {
-      const [, baseSelector, hasNotSelector] = match;
-      const baseElements = findElementsInContext(baseSelector, searchContext);
-
-      return baseElements.filter((el) => {
-        const childElements = findElementsInContext(
-          hasNotSelector,
-          el.ownerDocument || document
-        );
-        return !childElements.some((child) => el.contains(child));
-      });
-    }
-  }
-
-  if (selector.includes(":first")) {
-    const baseSelector = selector.replace(":first", "");
-    const elements = findElementsInContext(baseSelector, searchContext);
-    return elements.length > 0 ? [elements[0]] : [];
-  }
-
-  if (selector.includes(":last")) {
-    const baseSelector = selector.replace(":last", "");
-    const elements = findElementsInContext(baseSelector, searchContext);
-    return elements.length > 0 ? [elements[elements.length - 1]] : [];
-  }
-
-  const nthMatch = selector.match(/^(.+?):nth\((\d+)\)$/);
-  if (nthMatch) {
-    const [, baseSelector, index] = nthMatch;
-    const elements = findElementsInContext(baseSelector, searchContext);
-    const idx = parseInt(index);
-    return idx < elements.length ? [elements[idx]] : [];
-  }
-
-  if (selector.includes(":and(")) {
-    const match = selector.match(/^(.+?):and\("(.+?)"\)$/);
-    if (match) {
-      const [, baseSelector, andSelector] = match;
-      const baseElements = findElementsInContext(baseSelector, searchContext);
-      const andElements = findElementsInContext(andSelector, searchContext);
-
-      return baseElements.filter((el) => andElements.includes(el));
-    }
-  }
-
-  if (selector.includes(":or(")) {
-    const match = selector.match(/^(.+?):or\("(.+?)"\)$/);
-    if (match) {
-      const [, baseSelector, orSelector] = match;
-      const baseElements = findElementsInContext(baseSelector, searchContext);
-      const orElements = findElementsInContext(orSelector, searchContext);
-
-      const allElements = [...baseElements, ...orElements];
-      return Array.from(new Set(allElements));
-    }
-  }
-
-  if (selector.startsWith("getByText:")) {
-    const parts = selector.substring(10).split(":");
-    const text = parts[0];
-    const exact = parts[1] === "exact";
-    const allElements = searchContext.querySelectorAll("*");
-
-    const matches: Element[] = [];
-
-    for (const el of Array.from(allElements)) {
-      const elementText = el.textContent?.trim() || "";
-      const elementOwnText =
-        el.childNodes.length === 1 &&
-        el.childNodes[0].nodeType === Node.TEXT_NODE
-          ? el.childNodes[0].textContent?.trim() || ""
-          : elementText;
-
-      const matchesText = exact
-        ? elementOwnText === text.trim() || elementText === text.trim()
-        : elementOwnText.includes(text.trim()) ||
-          elementText.includes(text.trim());
-
-      if (matchesText) {
-        matches.push(el);
-        (el as any).__stakTrakMatchedText = text.trim();
-      }
-    }
-
-    return matches.sort(
-      (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
-    );
-  } else if (selector.startsWith("getByText-regex:")) {
-    const regexPattern = selector.substring(16);
-    const regexMatch = regexPattern.match(/^\/(.+?)\/([gimuy]*)$/);
-    if (regexMatch) {
-      const [, pattern, flags] = regexMatch;
-      const regex = new RegExp(pattern, flags);
-      const allElements = searchContext.querySelectorAll("*");
-
-      const matches: Element[] = [];
-      for (const el of Array.from(allElements)) {
-        const elementText = el.textContent?.trim() || "";
-        if (regex.test(elementText)) {
-          matches.push(el);
-          (el as any).__stakTrakMatchedText = elementText;
-        }
-      }
-      return matches.sort(
-        (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
-      );
-    }
-  } else if (selector.startsWith("role:")) {
-    const roleRegexMatch = selector.match(
-      /^role:(\w+)\[name-regex="\/(.+?)\/([gimuy]*)"\]$/
-    );
-    if (roleRegexMatch) {
-      const [, role, pattern, flags] = roleRegexMatch;
-      const regex = new RegExp(pattern, flags);
-      const roleElements = searchContext.querySelectorAll(
-        `[role="${role}"], ${getRoleSelector(role)}`
-      );
-
-      const matches: Element[] = [];
-      for (const el of Array.from(roleElements)) {
-        const elementText = el.textContent?.trim() || "";
-        const ariaLabel = el.getAttribute("aria-label") || "";
-        if (regex.test(elementText) || regex.test(ariaLabel)) {
-          matches.push(el);
-        }
-      }
-      return matches;
-    }
-
-    const roleMatch = selector.match(/^role:(\w+)(?:\[name="([^"]+)"\])?$/);
-    if (roleMatch) {
-      const [, role, name] = roleMatch;
-      const roleElements = searchContext.querySelectorAll(
-        `[role="${role}"], ${getRoleSelector(role)}`
-      );
-
-      const matches: Element[] = [];
-      for (const el of Array.from(roleElements)) {
-        if (name) {
-          const elementText = el.textContent?.trim() || "";
-          const ariaLabel = el.getAttribute("aria-label") || "";
-          if (elementText.includes(name) || ariaLabel.includes(name)) {
-            matches.push(el);
-          }
-        } else {
-          matches.push(el);
-        }
-      }
-      return matches;
-    }
-  } else if (selector.includes(":has-text(")) {
-    const match =
-      selector.match(/^(.+?):has-text\("(.+?)"\)$/) ||
-      selector.match(/^(.+?):has-text\((.+?)\)$/);
-    if (match) {
-      const [, baseSelector, text] = match;
-      const elements = searchContext.querySelectorAll(baseSelector);
-
-      const matches: Element[] = [];
-
-      for (const el of Array.from(elements)) {
-        const elementText = el.textContent?.trim() || "";
-        const elementOwnText =
-          el.childNodes.length === 1 &&
-          el.childNodes[0].nodeType === Node.TEXT_NODE
-            ? el.childNodes[0].textContent?.trim() || ""
-            : elementText;
-
-        if (
-          elementOwnText.includes(text.trim()) ||
-          elementText.includes(text.trim())
-        ) {
-          matches.push(el);
-          (el as any).__stakTrakMatchedText = text.trim();
-        }
-      }
-
-      return matches.sort(
-        (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
-      );
-    }
-  } else if (selector.startsWith("getByLabel:")) {
-    const labelText = selector.substring(11);
-    const labels = searchContext.querySelectorAll("label");
-
-    const matches: Element[] = [];
-    for (const label of Array.from(labels)) {
-      if (label.textContent?.includes(labelText)) {
-        const forAttr = label.getAttribute("for");
-        let element: Element | null = null;
-        if (forAttr) {
-          element = searchContext.querySelector(`#${forAttr}`);
-        } else {
-          element = label.querySelector("input, textarea, select");
-        }
-        if (element) matches.push(element);
-      }
-    }
-    return matches;
-  } else if (selector.startsWith("getByPlaceholder:")) {
-    const placeholder = selector.substring(17);
-    return Array.from(
-      searchContext.querySelectorAll(`[placeholder*="${placeholder}"]`)
-    );
-  } else if (selector.startsWith("getByTestId:")) {
-    const testId = selector.substring(12);
-    return Array.from(
-      searchContext.querySelectorAll(`[data-testid="${testId}"]`)
-    );
-  } else if (selector.startsWith("getByTitle:")) {
-    const title = selector.substring(11);
-    return Array.from(searchContext.querySelectorAll(`[title*="${title}"]`));
-  } else if (selector.startsWith("getByAltText:")) {
-    const altText = selector.substring(13);
-    return Array.from(searchContext.querySelectorAll(`[alt*="${altText}"]`));
-  } else if (selector.startsWith("variable:")) {
-    return [];
-  } else if (selector.startsWith("text=")) {
-    const regexMatch = selector.match(/^text=\/(.+?)\/([gimuy]*)$/);
-    if (regexMatch) {
-      const [, pattern, flags] = regexMatch;
-      const regex = new RegExp(pattern, flags);
-      const allElements = searchContext.querySelectorAll("*");
-      const matches: Element[] = [];
-      for (const el of Array.from(allElements)) {
-        const elementText = el.textContent?.trim() || "";
-        if (regex.test(elementText)) {
-          matches.push(el);
-        }
-      }
-      return matches;
-    }
-
-    const exactMatch = selector.match(/^text="([^"]+)"$/);
-    if (exactMatch) {
-      const text = exactMatch[1];
-      const allElements = searchContext.querySelectorAll("*");
-      const matches: Element[] = [];
-      for (const el of Array.from(allElements)) {
-        const elementOwnText =
-          el.childNodes.length === 1 &&
-          el.childNodes[0].nodeType === Node.TEXT_NODE
-            ? el.childNodes[0].textContent?.trim() || ""
-            : "";
-        if (elementOwnText === text.trim()) {
-          matches.push(el);
-        }
-      }
-      return matches;
-    }
-
-    const textMatch = selector.match(/text=["']?([^"']+)["']?/);
+  if (selector.includes(":has-text(")) {
+    const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
     if (textMatch) {
       const text = textMatch[1];
-      const allElements = searchContext.querySelectorAll("*");
-      const matches: Element[] = [];
-      for (const el of Array.from(allElements)) {
-        const elementText = el.textContent?.trim() || "";
-        if (elementText.includes(text.trim())) {
-          matches.push(el);
-        }
-      }
-      return matches.sort(
-        (a, b) => (a.textContent?.length || 0) - (b.textContent?.length || 0)
-      );
-    }
-  } else if (selector.startsWith("id=")) {
-    const id = selector.substring(3);
-    return Array.from(searchContext.querySelectorAll(`#${id}`));
-  } else if (selector.startsWith("data-testid=")) {
-    const testId = selector.substring(13);
-    return Array.from(
-      searchContext.querySelectorAll(`[data-testid="${testId}"]`)
-    );
-  } else if (selector.startsWith("data-test-id=")) {
-    const testId = selector.substring(14);
-    return Array.from(
-      searchContext.querySelectorAll(`[data-test-id="${testId}"]`)
-    );
-  } else if (selector.startsWith("data-test=")) {
-    const test = selector.substring(11);
-    return Array.from(searchContext.querySelectorAll(`[data-test="${test}"]`));
-  } else if (selector.startsWith("xpath=")) {
-    const xpath = selector.substring(6);
-    const result = searchContext.evaluate(
-      xpath,
-      searchContext,
-      null,
-      XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-      null
-    );
-    const matches: Element[] = [];
-    for (let i = 0; i < result.snapshotLength; i++) {
-      const node = result.snapshotItem(i);
-      if (node && node.nodeType === Node.ELEMENT_NODE) {
-        matches.push(node as Element);
-      }
-    }
-    return matches;
-  } else if (selector.includes(",")) {
-    const selectors = selector.split(",").map((s) => s.trim());
-    const allMatches: Element[] = [];
+      const tagMatch = selector.match(/^([a-zA-Z]+)/);
+      const tagName = tagMatch ? tagMatch[1] : "*";
 
-    for (const sel of selectors) {
-      const matches = findElementsInContext(sel, searchContext);
-      allMatches.push(...matches);
-    }
-
-    return Array.from(new Set(allMatches));
-  } else if (selector.includes(":visible")) {
-    const baseSelector = selector.replace(":visible", "");
-    const elements = baseSelector
-      ? Array.from(searchContext.querySelectorAll(baseSelector))
-      : [];
-
-    return elements.filter((el) => {
-      const style = window.getComputedStyle(el);
-      return (
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        style.opacity !== "0" &&
-        el.getBoundingClientRect().width > 0 &&
-        el.getBoundingClientRect().height > 0
-      );
-    });
-  } else if (selector.includes(":has(")) {
-    const match = selector.match(/^(.+?):has\((.+?)\)$/);
-    if (match) {
-      const [, baseSelector, hasSelector] = match;
-      const baseElements = baseSelector
-        ? Array.from(searchContext.querySelectorAll(baseSelector))
-        : [];
-
-      return baseElements.filter((el) => {
-        const childElements = Array.from(el.querySelectorAll(hasSelector));
-        return childElements.length > 0;
-      });
-    }
-  } else if (selector.includes(":nth-match(")) {
-    const match = selector.match(/^:nth-match\((.+?),\s*(\d+)\)$/);
-    if (match) {
-      const [, innerSelector, nthStr] = match;
-      const nth = parseInt(nthStr);
-      const elements = findElementsInContext(innerSelector, searchContext);
-      return nth <= elements.length ? [elements[nth - 1]] : [];
-    }
-  } else if (selector.includes(":text(")) {
-    const match =
-      selector.match(/^(.+?):text\("([^"]+)"\)$/) ||
-      selector.match(/^(.+?):text\(([^)]+)\)$/);
-    if (match) {
-      const [, baseSelector, text] = match;
-      const baseElements = baseSelector
-        ? Array.from(searchContext.querySelectorAll(baseSelector))
-        : Array.from(searchContext.querySelectorAll("*"));
-
-      let shortestMatch: Element | null = null;
-      let shortestLength = Infinity;
-
-      for (const el of baseElements) {
-        const elementText = el.textContent?.trim() || "";
-        if (elementText.includes(text.trim())) {
-          if (elementText.length < shortestLength) {
-            shortestMatch = el;
-            shortestLength = elementText.length;
+      const elements = Array.from(document.querySelectorAll(tagName));
+      for (const element of elements) {
+        if (element.textContent?.trim() === text) {
+          const uniqueSelector = createUniqueSelector(element);
+          if (uniqueSelector && isValidSelector(uniqueSelector)) {
+            return uniqueSelector;
           }
         }
       }
-
-      return shortestMatch ? [shortestMatch] : [];
-    }
-  } else if (selector.includes(":text-is(")) {
-    const match =
-      selector.match(/^(.+?):text-is\("([^"]+)"\)$/) ||
-      selector.match(/^(.+?):text-is\(([^)]+)\)$/);
-    if (match) {
-      const [, baseSelector, text] = match;
-      const baseElements = baseSelector
-        ? Array.from(searchContext.querySelectorAll(baseSelector))
-        : Array.from(searchContext.querySelectorAll("*"));
-
-      return baseElements.filter((el) => {
-        const elementOwnText =
-          el.childNodes.length === 1 &&
-          el.childNodes[0].nodeType === Node.TEXT_NODE
-            ? el.childNodes[0].textContent?.trim() || ""
-            : "";
-        return elementOwnText === text.trim();
-      });
-    }
-  } else if (
-    selector.includes(":right-of(") ||
-    selector.includes(":left-of(") ||
-    selector.includes(":above(") ||
-    selector.includes(":below(") ||
-    selector.includes(":near(")
-  ) {
-    return [];
-  } else {
-    try {
-      return Array.from(searchContext.querySelectorAll(selector));
-    } catch (error) {
-      return [];
+      return tagName;
     }
   }
 
-  return [];
+  selector = selector.replace(/:visible/g, "");
+  selector = selector.replace(/:enabled/g, "");
+  selector = selector.replace(/>>.*$/g, "");
+
+  return selector.trim();
+}
+
+function isValidSelector(selector: string): boolean {
+  if (!selector || selector.trim() === "") return false;
+  try {
+    document.querySelector(selector);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function findByDataTestId(selector: string): Element | null {
+  if (!selector.includes("data-testid")) return null;
+  const testId = selector.match(/data-testid="([^"]+)"/)?.[1];
+  if (testId) {
+    return document.querySelector(`[data-testid="${testId}"]`);
+  }
+  return null;
+}
+
+function findByClass(selector: string): Element | null {
+  if (!selector.includes(".")) return null;
+  const classes = selector.match(/\.([^\s.#\[\]]+)/g);
+  if (classes && classes.length > 0) {
+    const className = classes[0].substring(1);
+    return document.querySelector(`.${className}`);
+  }
+  return null;
+}
+
+function findById(selector: string): Element | null {
+  if (!selector.includes("#")) return null;
+  const ids = selector.match(/#([^\s.#\[\]]+)/g);
+  if (ids && ids.length > 0) {
+    const id = ids[0].substring(1);
+    return document.querySelector(`#${id}`);
+  }
+  return null;
+}
+
+function findByAriaLabel(selector: string): Element | null {
+  const ariaMatch = selector.match(/\[aria-label="([^"]+)"\]/);
+  if (!ariaMatch) return null;
+  return document.querySelector(`[aria-label="${ariaMatch[1]}"]`);
+}
+
+function findByRole(selector: string): Element | null {
+  const roleMatch = selector.match(/\[role="([^"]+)"\]/);
+  if (!roleMatch) return null;
+  return document.querySelector(`[role="${roleMatch[1]}"]`);
+}
+
+function findByTextContent(selector: string): Element | null {
+  let text: string | null = null;
+  let tagName = "*";
+
+  if (selector.includes('text="')) {
+    const textMatch = selector.match(/text="([^"]+)"/);
+    text = textMatch ? textMatch[1] : null;
+  } else if (selector.includes('textContent="')) {
+    const textMatch = selector.match(/textContent="([^"]+)"/);
+    text = textMatch ? textMatch[1] : null;
+  } else if (selector.includes(":has-text(")) {
+    const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
+    text = textMatch ? textMatch[1] : null;
+  }
+
+  const tagMatch = selector.match(/^([a-zA-Z]+)/);
+  if (tagMatch) {
+    tagName = tagMatch[1];
+  }
+
+  if (!text) return null;
+
+  const elements = Array.from(document.querySelectorAll(tagName));
+  for (const element of elements) {
+    const elementText = element.textContent?.trim();
+    if (elementText === text || elementText?.includes(text)) {
+      return element;
+    }
+  }
+  return null;
+}
+
+function findByCoordinates(selector: string): Element | null {
+  const clickableElements = document.querySelectorAll(
+    'button, a, input, select, [role="button"], [onclick]'
+  );
+  return clickableElements.length > 0 ? clickableElements[0] : null;
+}
+
+function createUniqueSelector(element: Element): string | null {
+  if (element.id && /^[a-zA-Z][\w-]*$/.test(element.id)) {
+    const idSelector = `#${element.id}`;
+    if (document.querySelectorAll(idSelector).length === 1) {
+      return idSelector;
+    }
+  }
+
+  const testId = (element as HTMLElement).dataset?.testid;
+  if (testId) {
+    const testIdSelector = `[data-testid="${testId}"]`;
+    if (document.querySelectorAll(testIdSelector).length === 1) {
+      return testIdSelector;
+    }
+  }
+
+  const ariaLabel = element.getAttribute("aria-label");
+  if (ariaLabel) {
+    const ariaSelector = `[aria-label="${ariaLabel}"]`;
+    if (document.querySelectorAll(ariaSelector).length === 1) {
+      return ariaSelector;
+    }
+  }
+
+  const tagName = element.tagName.toLowerCase();
+  const classes = Array.from(element.classList).filter((cls) => {
+    return (
+      !cls.match(/^[a-zA-Z0-9_-]*[0-9a-f]{6,}/) &&
+      !cls.includes("emotion-") &&
+      !cls.includes("css-") &&
+      !cls.includes("module__") &&
+      cls.length < 30
+    );
+  });
+
+  if (classes.length > 0) {
+    for (let i = 1; i <= Math.min(classes.length, 3); i++) {
+      const classSelector = `${tagName}.${classes.slice(0, i).join(".")}`;
+      if (isValidSelector(classSelector)) {
+        const matches = document.querySelectorAll(classSelector);
+        if (matches.length === 1) {
+          return classSelector;
+        }
+      }
+    }
+  }
+
+  const attributes = ["type", "name", "role", "title"];
+  for (const attr of attributes) {
+    const value = element.getAttribute(attr);
+    if (value) {
+      const attrSelector = `${tagName}[${attr}="${value}"]`;
+      if (isValidSelector(attrSelector)) {
+        const matches = document.querySelectorAll(attrSelector);
+        if (matches.length === 1) {
+          return attrSelector;
+        }
+      }
+    }
+  }
+
+  const parent = element.parentElement;
+  if (parent) {
+    const siblings = Array.from(parent.children);
+    const index = siblings.indexOf(element);
+    if (index >= 0) {
+      const nthSelector = `${tagName}:nth-child(${index + 1})`;
+      if (isValidSelector(nthSelector)) {
+        return nthSelector;
+      }
+    }
+
+    const typeSiblings = Array.from(parent.children).filter(
+      (child) => child.tagName === element.tagName
+    );
+    const typeIndex = typeSiblings.indexOf(element);
+    if (typeIndex >= 0) {
+      const nthTypeSelector = `${tagName}:nth-of-type(${typeIndex + 1})`;
+      if (isValidSelector(nthTypeSelector)) {
+        return nthTypeSelector;
+      }
+    }
+  }
+
+  return tagName;
 }
 
 async function waitForElement(
