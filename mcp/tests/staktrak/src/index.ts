@@ -771,4 +771,7 @@ document.readyState === "loading"
   ? document.addEventListener("DOMContentLoaded", initializeStakTrak)
   : initializeStakTrak();
 
+// Add utility functions to the userBehaviour object for testing
+(userBehaviour as any).createClickDetail = createClickDetail;
+
 export default userBehaviour;

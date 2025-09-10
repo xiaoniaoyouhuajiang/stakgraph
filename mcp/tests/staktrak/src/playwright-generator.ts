@@ -139,12 +139,29 @@ function convertToPlaywrightSelector(clickDetail: ClickDetail): string {
     if (name) return `page.locator('[name="${name}"]')`;
   }
 
-  // Strategy 6: getByRole() with position - Semantic without fragile text
-  if (selectors.role) {
-    // For buttons, links, and other interactive elements without stable text
-    if (['button', 'link', 'textbox', 'checkbox', 'radio'].includes(selectors.role)) {
-      return `page.getByRole('${selectors.role}').first()`;
+  // Strategy 6: Enhanced contextual selection for elements without text
+  if (selectors.role && ['button', 'link', 'textbox', 'checkbox', 'radio'].includes(selectors.role)) {
+    // Try to get contextual information for better specificity
+    const semanticParent = clickDetail.elementInfo.attributes?.semanticParent;
+    const iconContent = clickDetail.elementInfo.attributes?.iconContent;
+    
+    // Strategy 6a: Use semantic parent context if available
+    if (semanticParent) {
+      return `page.locator('${semanticParent}').getByRole('${selectors.role}').first()`;
     }
+    
+    // Strategy 6b: Use icon-based filtering if icon detected
+    if (iconContent) {
+      return `page.getByRole('${selectors.role}').filter({ has: page.locator('${iconContent}') })`;
+    }
+    
+    // Strategy 6c: Use aria attributes for filtering if present
+    if (clickDetail.elementInfo.attributes?.['aria-expanded'] !== undefined) {
+      return `page.getByRole('${selectors.role}').filter({ has: page.locator('[aria-expanded]') })`;
+    }
+    
+    // Strategy 6d: Fall back to global role with position (last resort for this strategy)
+    return `page.getByRole('${selectors.role}').first()`;
   }
 
   // Strategy 7: Contextual CSS selectors - Never bare tags, always with context
@@ -186,8 +203,28 @@ function convertToPlaywrightSelector(clickDetail: ClickDetail): string {
     }
   }
 
-  // Strategy 10: Last resort - position-based with tag context
+  // Strategy 10: Smart fallback hierarchy - progressive degradation
   if (selectors.tagName) {
+    // Try contextual selection first
+    const semanticParent = clickDetail.elementInfo.attributes?.semanticParent;
+    if (semanticParent) {
+      return `page.locator('${semanticParent} ${selectors.tagName}').first()`;
+    }
+    
+    // Try with a semantic class if available
+    const classes = clickDetail.elementInfo.className?.split(' ')
+      .filter(c => c && !c.includes('hover') && !c.includes('active') && c.length < 20);
+    if (classes && classes.length > 0) {
+      const semanticClass = classes.find(c => 
+        c.includes('btn') || c.includes('button') || c.includes('link') || 
+        c.includes('menu') || c.includes('nav') || c.includes('toolbar')
+      );
+      if (semanticClass) {
+        return `page.locator('${selectors.tagName}.${semanticClass}').first()`;
+      }
+    }
+    
+    // Last resort: global position
     return `page.locator('${selectors.tagName}').first()`;
   }
 

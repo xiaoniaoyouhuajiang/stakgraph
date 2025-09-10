@@ -25,7 +25,7 @@ function extractTestId(selector) {
   return match ? match[1] : null;
 }
 function convertToPlaywrightSelector(clickDetail) {
-  var _a;
+  var _a, _b, _c, _d, _e, _f;
   const { selectors } = clickDetail;
   const testId = extractTestId(selectors.primary);
   if (testId) {
@@ -54,13 +54,22 @@ function convertToPlaywrightSelector(clickDetail) {
     if (name)
       return `page.locator('[name="${name}"]')`;
   }
-  if (selectors.role) {
-    if (["button", "link", "textbox", "checkbox", "radio"].includes(selectors.role)) {
-      return `page.getByRole('${selectors.role}').first()`;
+  if (selectors.role && ["button", "link", "textbox", "checkbox", "radio"].includes(selectors.role)) {
+    const semanticParent = (_a = clickDetail.elementInfo.attributes) == null ? void 0 : _a.semanticParent;
+    const iconContent = (_b = clickDetail.elementInfo.attributes) == null ? void 0 : _b.iconContent;
+    if (semanticParent) {
+      return `page.locator('${semanticParent}').getByRole('${selectors.role}').first()`;
     }
+    if (iconContent) {
+      return `page.getByRole('${selectors.role}').filter({ has: page.locator('${iconContent}') })`;
+    }
+    if (((_c = clickDetail.elementInfo.attributes) == null ? void 0 : _c["aria-expanded"]) !== void 0) {
+      return `page.getByRole('${selectors.role}').filter({ has: page.locator('[aria-expanded]') })`;
+    }
+    return `page.getByRole('${selectors.role}').first()`;
   }
   if (selectors.tagName) {
-    const classes = (_a = clickDetail.elementInfo.className) == null ? void 0 : _a.split(" ").filter((c) => c && !c.includes("hover") && !c.includes("active")).slice(0, 2).join(".");
+    const classes = (_d = clickDetail.elementInfo.className) == null ? void 0 : _d.split(" ").filter((c) => c && !c.includes("hover") && !c.includes("active")).slice(0, 2).join(".");
     const stableText = selectors.text && isStableContent(selectors.text) ? selectors.text.slice(0, 30) : null;
     if (classes && stableText) {
       return `page.locator('${selectors.tagName}.${classes}').filter({ hasText: '${escapeTextForAssertion(stableText)}' })`;
@@ -84,6 +93,19 @@ function convertToPlaywrightSelector(clickDetail) {
     }
   }
   if (selectors.tagName) {
+    const semanticParent = (_e = clickDetail.elementInfo.attributes) == null ? void 0 : _e.semanticParent;
+    if (semanticParent) {
+      return `page.locator('${semanticParent} ${selectors.tagName}').first()`;
+    }
+    const classes = (_f = clickDetail.elementInfo.className) == null ? void 0 : _f.split(" ").filter((c) => c && !c.includes("hover") && !c.includes("active") && c.length < 20);
+    if (classes && classes.length > 0) {
+      const semanticClass = classes.find(
+        (c) => c.includes("btn") || c.includes("button") || c.includes("link") || c.includes("menu") || c.includes("nav") || c.includes("toolbar")
+      );
+      if (semanticClass) {
+        return `page.locator('${selectors.tagName}.${semanticClass}').first()`;
+      }
+    }
     return `page.locator('${selectors.tagName}').first()`;
   }
   return `page.locator('body')`;

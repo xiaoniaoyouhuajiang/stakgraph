@@ -77,6 +77,9 @@ var userBehaviour = (() => {
     const ariaLabel = element.getAttribute("aria-label");
     if (ariaLabel)
       return ariaLabel;
+    const resolvedLabel = resolveAriaLabelledBy(element);
+    if (resolvedLabel)
+      return resolvedLabel;
     const tag = element.tagName.toLowerCase();
     if (tag === "button" || tag === "a" && element.hasAttribute("href")) {
       const text = (_a = element.textContent) == null ? void 0 : _a.trim();
@@ -89,6 +92,75 @@ var userBehaviour = (() => {
       return input.value || input.placeholder || input.getAttribute("title") || null;
     }
     return element.getAttribute("title") || null;
+  };
+  var getSemanticParent = (element) => {
+    const semanticTags = ["header", "nav", "main", "footer", "aside", "section", "article", "form", "dialog"];
+    let parent = element.parentElement;
+    while (parent) {
+      const tag = parent.tagName.toLowerCase();
+      if (semanticTags.includes(tag)) {
+        return parent;
+      }
+      const role = parent.getAttribute("role");
+      if (role && ["navigation", "banner", "main", "contentinfo", "complementary", "form", "search"].includes(role)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  };
+  var detectIconContent = (element) => {
+    var _a;
+    const svg = element.querySelector("svg");
+    if (svg) {
+      if (svg.getAttribute("data-icon")) {
+        return { type: "svg", selector: `[data-icon="${svg.getAttribute("data-icon")}"]` };
+      }
+      if (svg.classList.length > 0) {
+        const iconClass = Array.from(svg.classList).find((cls) => cls.includes("icon"));
+        if (iconClass) {
+          return { type: "svg", selector: `.${iconClass}` };
+        }
+      }
+      return { type: "svg", selector: "svg" };
+    }
+    const iconElement = element.querySelector('[class*="icon"], [class*="fa-"], [class*="material-icons"]');
+    if (iconElement) {
+      const iconClasses = Array.from(iconElement.classList).filter(
+        (cls) => cls.includes("icon") || cls.includes("fa-") || cls.includes("material")
+      );
+      if (iconClasses.length > 0) {
+        return { type: "icon-font", selector: `.${iconClasses[0]}` };
+      }
+    }
+    const text = (_a = element.textContent) == null ? void 0 : _a.trim();
+    if (text && text.length <= 2 && /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(text)) {
+      return { type: "emoji", selector: `text="${text}"` };
+    }
+    return null;
+  };
+  var resolveAriaLabelledBy = (element) => {
+    var _a;
+    const labelledBy = element.getAttribute("aria-labelledby");
+    if (!labelledBy)
+      return null;
+    const ids = labelledBy.split(" ").filter((id) => id.trim());
+    const texts = [];
+    for (const id of ids) {
+      const referencedEl = findElementById(element.ownerDocument || document, id);
+      if (referencedEl) {
+        const text = (_a = referencedEl.textContent) == null ? void 0 : _a.trim();
+        if (text)
+          texts.push(text);
+      }
+    }
+    return texts.length > 0 ? texts.join(" ") : null;
+  };
+  var findElementById = (doc, id) => {
+    if (typeof doc.getElementById === "function") {
+      return doc.getElementById(id);
+    }
+    return doc.querySelector(`#${CSS.escape(id)}`);
   };
   var isInputOrTextarea = (element) => element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable;
   var generateSelectorStrategies = (element) => {
@@ -157,7 +229,7 @@ var userBehaviour = (() => {
       primary,
       fallbacks: fallbacks.slice(1),
       // Remove primary from fallbacks
-      text,
+      text: text || void 0,
       ariaLabel: ariaLabel || void 0,
       title: htmlEl.getAttribute("title") || void 0,
       role: role || void 0,
@@ -266,6 +338,9 @@ var userBehaviour = (() => {
       "name",
       "role",
       "aria-label",
+      "aria-labelledby",
+      "aria-expanded",
+      "aria-haspopup",
       "title",
       "placeholder",
       "value"
@@ -275,6 +350,18 @@ var userBehaviour = (() => {
       if (value)
         attrs[attr] = value;
     });
+    const semanticParent = getSemanticParent(htmlEl);
+    if (semanticParent) {
+      attrs.semanticParent = semanticParent.tagName.toLowerCase();
+    }
+    const iconInfo = detectIconContent(htmlEl);
+    if (iconInfo) {
+      attrs.iconContent = iconInfo.selector;
+    }
+    const resolvedLabel = resolveAriaLabelledBy(htmlEl);
+    if (resolvedLabel) {
+      attrs.resolvedAriaLabel = resolvedLabel;
+    }
     return attrs;
   };
   var getElementSelector = (element) => {
@@ -2892,6 +2979,7 @@ var userBehaviour = (() => {
     initPlaywrightReplay();
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
+  userBehaviour.createClickDetail = createClickDetail;
   var src_default = userBehaviour;
   return __toCommonJS(src_exports);
 })();
