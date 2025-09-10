@@ -28,9 +28,13 @@ import { db } from "./neo4j.js";
 import { parseServiceFile, extractContainersFromCompose } from "./service.js";
 import * as path from "path";
 import { get_context } from "../tools/explore/tool.js";
-import { ask_question, QUESTIONS } from "../tools/intelligence/index.js";
-import { decomposeAndAsk } from "../tools/intelligence/questions.js";
-import { recompose_answer } from "../tools/intelligence/answer.js";
+import {
+  ask_question,
+  QUESTIONS,
+  decomposeAndAsk,
+  recomposeAnswer,
+  LEARN_HTML,
+} from "../tools/intelligence/index.js";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -128,21 +132,49 @@ export async function ask(req: Request, res: Response) {
     res.status(400).json({ error: "Missing question" });
     return;
   }
-  const similarityThreshold = parseFloat(req.query.threshold as string) || 0.9;
+  const similarityThreshold = parseFloat(req.query.threshold as string) || 0.81;
   const provider = req.query.provider as string | undefined;
 
+  // first get a 0.95 match
+  const existing = await G.search(
+    question,
+    5,
+    ["Hint"],
+    false,
+    100000,
+    "vector",
+    "json"
+  );
+  if (Array.isArray(existing) && existing.length > 0) {
+    const top: any = existing[0];
+    if (top.properties.score && top.properties.score >= 0.95) {
+      res.json({
+        answer: top.properties.body,
+        sub_questions: [],
+      });
+      return;
+    }
+  }
+
+  // then decompose and ask
   try {
     const answers = await decomposeAndAsk(
       question,
       similarityThreshold,
       provider
     );
-    const answer = await recompose_answer(question, answers, provider);
-    res.json({ answer });
+    const answer = await recomposeAnswer(question, answers, provider);
+    res.json(answer);
   } catch (error) {
     console.error("Ask Error:", error);
     res.status(500).send("Internal Server Error");
   }
+}
+
+export function learn(req: Request, res: Response) {
+  const html = LEARN_HTML;
+  res.setHeader("Content-Type", "text/html");
+  res.send(html);
 }
 
 export async function get_nodes(req: Request, res: Response) {

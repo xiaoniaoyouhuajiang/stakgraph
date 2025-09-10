@@ -1,6 +1,15 @@
 import { QUESTIONS, ask_question } from "./questions.js";
+import { decomposeAndAsk } from "./questions.js";
+import { recomposeAnswer } from "./answer.js";
+import { LEARN_HTML } from "./learn.js";
 
-export { QUESTIONS, ask_question };
+export {
+  QUESTIONS,
+  ask_question,
+  decomposeAndAsk,
+  recomposeAnswer,
+  LEARN_HTML,
+};
 
 /*
 

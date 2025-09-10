@@ -73,7 +73,7 @@ interface DecomposedQuestion {
   tasks: string[];
   questions: string[];
 }
-export async function decompose_question(
+export async function decomposeQuestion(
   question: string,
   llm_provider?: string
 ): Promise<DecomposedQuestion> {

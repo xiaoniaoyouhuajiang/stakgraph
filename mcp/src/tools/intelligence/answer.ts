@@ -50,11 +50,16 @@ Please synthesize the information and provide the structured response.
 `;
 }
 
-export async function recompose_answer(
+export interface RecomposedAnswer {
+  answer: string;
+  sub_questions: string[];
+}
+
+export async function recomposeAnswer(
   user_query: string,
   answers: Answer[],
   llm_provider?: string
-): Promise<string> {
+): Promise<RecomposedAnswer> {
   let qas = "";
   for (const answer of answers) {
     qas +=
@@ -69,5 +74,8 @@ export async function recompose_answer(
     apiKey,
     messages,
   });
-  return answer;
+  return {
+    answer: answer,
+    sub_questions: answers.map((answer) => answer.question),
+  };
 }

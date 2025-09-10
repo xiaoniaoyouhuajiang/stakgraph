@@ -3,7 +3,7 @@ import * as G from "../../graph/graph.js";
 import { get_context } from "../explore/tool.js";
 import { vectorizeQuery } from "../../vector/index.js";
 import { create_hint_edges_llm } from "./seed.js";
-import { decompose_question } from "./ask.js";
+import { decomposeQuestion } from "./ask.js";
 
 export async function decomposeAndAsk(
   prompt: string,
@@ -11,7 +11,7 @@ export async function decomposeAndAsk(
   provider?: string
 ): Promise<Answer[]> {
   const answers = [];
-  const dq = await decompose_question(prompt);
+  const dq = await decomposeQuestion(prompt);
   for (const q of dq.questions) {
     const answer = await ask_question(q, threshold || 0.75, provider);
     if (answer.reused) {
