@@ -3,6 +3,171 @@ import { Results, Assertion, Config, ClickDetail } from "./types";
 
 export const getTimeStamp = (): number => Date.now();
 
+/**
+ * Get ARIA role for an element, including implicit roles for semantic HTML
+ */
+export const getElementRole = (element: HTMLElement): string | null => {
+  // 1. Check explicit role first (highest priority)
+  const explicit = element.getAttribute('role');
+  if (explicit) return explicit;
+  
+  // 2. Handle basic implicit roles that are commonly failing
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'button') return 'button';
+  if (tag === 'a' && element.hasAttribute('href')) return 'link';
+  if (tag === 'input') {
+    const type = element.getAttribute('type');
+    if (['button', 'submit', 'reset'].includes(type || 'text')) return 'button';
+    return 'textbox';
+  }
+  if (tag === 'nav') return 'navigation';
+  if (tag === 'main') return 'main';
+  if (tag === 'header') return 'banner';
+  if (tag === 'footer') return 'contentinfo';
+  if (tag === 'aside') return 'complementary';
+  if (tag === 'section') return 'region';
+  
+  return null;
+};
+
+/**
+ * Enhanced text extraction for interactive elements, especially buttons
+ */
+export const getEnhancedElementText = (element: HTMLElement): string | null => {
+  // Priority order for getting accessible name:
+  // 1. aria-label
+  // 2. aria-labelledby (resolved)
+  // 3. textContent (for buttons, links)
+  // 4. title attribute
+  // 5. value (for input buttons)
+  // 6. placeholder (for inputs)
+  
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel) return ariaLabel;
+  
+  // Try to resolve aria-labelledby
+  const resolvedLabel = resolveAriaLabelledBy(element);
+  if (resolvedLabel) return resolvedLabel;
+  
+  const tag = element.tagName.toLowerCase();
+  
+  // For buttons and links, get the visible text
+  if (tag === 'button' || (tag === 'a' && element.hasAttribute('href'))) {
+    const text = element.textContent?.trim();
+    if (text && text.length > 0 && text.length < 100) {
+      return text;
+    }
+  }
+  
+  // For inputs, get value, placeholder, or title
+  if (tag === 'input') {
+    const input = element as HTMLInputElement;
+    return input.value || input.placeholder || input.getAttribute('title') || null;
+  }
+  
+  // Fallbacks
+  return element.getAttribute('title') || null;
+};
+
+/**
+ * Get the closest semantic parent element for contextual selection
+ */
+export const getSemanticParent = (element: HTMLElement): HTMLElement | null => {
+  const semanticTags = ['header', 'nav', 'main', 'footer', 'aside', 'section', 'article', 'form', 'dialog'];
+  
+  let parent = element.parentElement;
+  while (parent) {
+    const tag = parent.tagName.toLowerCase();
+    if (semanticTags.includes(tag)) {
+      return parent;
+    }
+    // Also check for elements with landmark roles
+    const role = parent.getAttribute('role');
+    if (role && ['navigation', 'banner', 'main', 'contentinfo', 'complementary', 'form', 'search'].includes(role)) {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  
+  return null;
+};
+
+/**
+ * Detect icon content within an element
+ */
+export const detectIconContent = (element: HTMLElement): { type: string; selector: string } | null => {
+  // Check for SVG icons
+  const svg = element.querySelector('svg');
+  if (svg) {
+    // Check for common icon attributes
+    if (svg.getAttribute('data-icon')) {
+      return { type: 'svg', selector: `[data-icon="${svg.getAttribute('data-icon')}"]` };
+    }
+    if (svg.classList.length > 0) {
+      const iconClass = Array.from(svg.classList).find(cls => cls.includes('icon'));
+      if (iconClass) {
+        return { type: 'svg', selector: `.${iconClass}` };
+      }
+    }
+    return { type: 'svg', selector: 'svg' };
+  }
+  
+  // Check for icon fonts (FontAwesome, Material Icons, etc.)
+  const iconElement = element.querySelector('[class*="icon"], [class*="fa-"], [class*="material-icons"]');
+  if (iconElement) {
+    const iconClasses = Array.from(iconElement.classList).filter(cls => 
+      cls.includes('icon') || cls.includes('fa-') || cls.includes('material')
+    );
+    if (iconClasses.length > 0) {
+      return { type: 'icon-font', selector: `.${iconClasses[0]}` };
+    }
+  }
+  
+  // Check for emoji or unicode icons
+  const text = element.textContent?.trim();
+  if (text && text.length <= 2 && /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(text)) {
+    return { type: 'emoji', selector: `text="${text}"` };
+  }
+  
+  return null;
+};
+
+/**
+ * Resolve aria-labelledby to get the actual text
+ */
+export const resolveAriaLabelledBy = (element: HTMLElement): string | null => {
+  const labelledBy = element.getAttribute('aria-labelledby');
+  if (!labelledBy) return null;
+  
+  // Handle multiple IDs
+  const ids = labelledBy.split(' ').filter(id => id.trim());
+  const texts: string[] = [];
+  
+  for (const id of ids) {
+    // Note: In browser context, we'd use document.getElementById
+    // In this context, we need to traverse the DOM tree
+    const referencedEl = findElementById(element.ownerDocument || document, id);
+    if (referencedEl) {
+      const text = referencedEl.textContent?.trim();
+      if (text) texts.push(text);
+    }
+  }
+  
+  return texts.length > 0 ? texts.join(' ') : null;
+};
+
+/**
+ * Helper to find element by ID (for aria-labelledby resolution)
+ */
+const findElementById = (doc: Document, id: string): Element | null => {
+  // In a real browser environment, this would just be document.getElementById
+  // This is a fallback implementation for compatibility
+  if (typeof doc.getElementById === 'function') {
+    return doc.getElementById(id);
+  }
+  return doc.querySelector(`#${CSS.escape(id)}`);
+};
+
 export const isInputOrTextarea = (element: Element): boolean =>
   element.tagName === "INPUT" ||
   element.tagName === "TEXTAREA" ||
@@ -37,7 +202,7 @@ export const generateSelectorStrategies = (
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
-      role: htmlEl.getAttribute("role") || undefined,
+      role: getElementRole(htmlEl) || undefined,
     };
   }
 
@@ -51,17 +216,18 @@ export const generateSelectorStrategies = (
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
-      role: htmlEl.getAttribute("role") || undefined,
+      role: getElementRole(htmlEl) || undefined,
     };
   }
 
   // Strategy 3: For interactive elements, try text-based selectors
-  const text = getElementText(element);
+  const text = getEnhancedElementText(htmlEl);
+  const role = getElementRole(htmlEl);
   if (
     text &&
     (tagName === "button" ||
       tagName === "a" ||
-      htmlEl.getAttribute("role") === "button")
+      role === "button")
   ) {
     const textSelector = generateTextBasedSelector(element, text);
     if (textSelector) {
@@ -76,7 +242,6 @@ export const generateSelectorStrategies = (
   }
 
   // Strategy 5: role + accessible name
-  const role = htmlEl.getAttribute("role");
   if (role && text) {
     fallbacks.push(`[role="${role}"]`);
   }
@@ -110,7 +275,7 @@ export const generateSelectorStrategies = (
   return {
     primary,
     fallbacks: fallbacks.slice(1), // Remove primary from fallbacks
-    text,
+    text: text || undefined,
     ariaLabel: ariaLabel || undefined,
     title: htmlEl.getAttribute("title") || undefined,
     role: role || undefined,
@@ -120,26 +285,11 @@ export const generateSelectorStrategies = (
 };
 
 /**
- * Get clean text content from element
+ * Get clean text content from element (legacy function - use getEnhancedElementText for better results)
  */
 export const getElementText = (element: Element): string | undefined => {
   const htmlEl = element as HTMLElement;
-
-  // For buttons and links, get the visible text
-  if (element.tagName === "BUTTON" || element.tagName === "A") {
-    const text = htmlEl.textContent?.trim();
-    if (text && text.length > 0 && text.length < 100) {
-      return text;
-    }
-  }
-
-  // For inputs, get placeholder or value
-  if (element.tagName === "INPUT") {
-    const input = element as HTMLInputElement;
-    return input.placeholder || input.value || undefined;
-  }
-
-  return undefined;
+  return getEnhancedElementText(htmlEl) || undefined;
 };
 
 /**
@@ -156,7 +306,7 @@ export const generateTextBasedSelector = (
   if (cleanText.length === 0 || cleanText.length > 50) return null;
 
   if (tagName === "button" || tagName === "a" || 
-      (element as HTMLElement).getAttribute("role") === "button") {
+      getElementRole(element as HTMLElement) === "button") {
     return `text=${cleanText}`;
   }
 
@@ -293,6 +443,9 @@ export const getElementAttributes = (
     "name",
     "role",
     "aria-label",
+    "aria-labelledby",
+    "aria-expanded",
+    "aria-haspopup",
     "title",
     "placeholder",
     "value",
@@ -302,6 +455,24 @@ export const getElementAttributes = (
     const value = htmlEl.getAttribute(attr);
     if (value) attrs[attr] = value;
   });
+
+  // Add contextual information for Phase 2 improvements
+  const semanticParent = getSemanticParent(htmlEl);
+  if (semanticParent) {
+    attrs.semanticParent = semanticParent.tagName.toLowerCase();
+  }
+
+  // Add icon detection information
+  const iconInfo = detectIconContent(htmlEl);
+  if (iconInfo) {
+    attrs.iconContent = iconInfo.selector;
+  }
+
+  // Try to resolve aria-labelledby for better accessible name
+  const resolvedLabel = resolveAriaLabelledBy(htmlEl);
+  if (resolvedLabel) {
+    attrs.resolvedAriaLabel = resolvedLabel;
+  }
 
   return attrs;
 };

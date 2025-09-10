@@ -80,20 +80,20 @@ export async function runPlaywrightTest(
     if (test === "all") {
       testPath = ".";
     } else if (test.includes("*")) {
-      testPath = test;
+      testPath = `../${test}`;
     } else {
       // If it's a specific test file, ensure it has proper extension
       testPath =
         test.endsWith(".spec.js") || test.endsWith(".spec.ts")
-          ? `tests/${test}`
-          : `tests/${test}.spec.js`;
+          ? `../generated_tests/${test}`
+          : `../generated_tests/${test}.spec.js`;
     }
 
-    const command = `npx playwright test --config=tests/playwright.config.js ${testPath}`;
+    const command = `npx playwright test --config=playwright.config.js ${testPath}`;
 
     // Set timeout for the command
     const { stdout, stderr } = await execAsync(command, {
-      cwd: getBaseDir(),
+      cwd: path.join(getBaseDir(), "tests"),
       timeout: 60000,
       env: { ...process.env, CI: "true" }, // Set CI mode for consistent output
     });

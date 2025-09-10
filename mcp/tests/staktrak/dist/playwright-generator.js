@@ -1,44 +1,114 @@
 // src/playwright-generator.ts
+var UNSTABLE_PATTERNS = [
+  /\d{4,}/,
+  // Long numbers (IDs, phone numbers)
+  /\d{4}-\d{2}-\d{2}/,
+  // Dates
+  /@[\w.]+/,
+  // Email addresses
+  /\$[\d,]+\.?\d*/,
+  // Currency amounts
+  /\d+ (item|result|user|order)s?/i,
+  // Dynamic counts
+  /welcome .+/i,
+  // Personal greetings
+  /(order|invoice|ticket) #?\d+/i
+  // Transaction IDs
+];
+function isStableContent(text) {
+  if (!text || text.length < 2)
+    return false;
+  return !UNSTABLE_PATTERNS.some((pattern) => pattern.test(text));
+}
+function extractTestId(selector) {
+  const match = selector.match(/\[data-testid=["']([^"']+)["']\]/);
+  return match ? match[1] : null;
+}
 function convertToPlaywrightSelector(clickDetail) {
+  var _a, _b, _c, _d, _e, _f;
   const { selectors } = clickDetail;
-  if (selectors.primary.includes("[data-testid=")) {
-    return selectors.primary;
+  const testId = extractTestId(selectors.primary);
+  if (testId) {
+    return `page.getByTestId('${testId}')`;
   }
   if (selectors.primary.startsWith("#")) {
-    return selectors.primary;
+    const id = selectors.primary.substring(1);
+    if (isStableContent(id)) {
+      return `page.locator('#${id}')`;
+    }
   }
-  if (selectors.text && (selectors.tagName === "button" || selectors.tagName === "a" || selectors.role === "button")) {
+  if (selectors.role && selectors.text && isStableContent(selectors.text)) {
     const cleanText = selectors.text.trim();
     if (cleanText.length > 0 && cleanText.length <= 50) {
-      return `text=${escapeTextForAssertion(cleanText)}`;
+      return `page.getByRole('${selectors.role}', { name: '${escapeTextForAssertion(cleanText)}' })`;
     }
   }
-  if (selectors.ariaLabel) {
-    return `[aria-label="${escapeTextForAssertion(selectors.ariaLabel)}"]`;
-  }
-  for (const fallback of selectors.fallbacks) {
-    if (isValidCSSSelector(fallback)) {
-      return fallback;
-    }
-  }
-  if (isValidCSSSelector(selectors.primary)) {
-    return selectors.primary;
-  }
-  if (selectors.role) {
-    return `[role="${selectors.role}"]`;
+  if (selectors.ariaLabel && isStableContent(selectors.ariaLabel)) {
+    return `page.getByLabel('${escapeTextForAssertion(selectors.ariaLabel)}')`;
   }
   if (selectors.tagName === "input") {
     const type = clickDetail.elementInfo.attributes.type;
     const name = clickDetail.elementInfo.attributes.name;
     if (type)
-      return `input[type="${type}"]`;
+      return `page.locator('[type="${type}"]')`;
     if (name)
-      return `input[name="${name}"]`;
+      return `page.locator('[name="${name}"]')`;
   }
-  if (selectors.xpath) {
-    return `xpath=${selectors.xpath}`;
+  if (selectors.role && ["button", "link", "textbox", "checkbox", "radio"].includes(selectors.role)) {
+    const semanticParent = (_a = clickDetail.elementInfo.attributes) == null ? void 0 : _a.semanticParent;
+    const iconContent = (_b = clickDetail.elementInfo.attributes) == null ? void 0 : _b.iconContent;
+    if (semanticParent) {
+      return `page.locator('${semanticParent}').getByRole('${selectors.role}').first()`;
+    }
+    if (iconContent) {
+      return `page.getByRole('${selectors.role}').filter({ has: page.locator('${iconContent}') })`;
+    }
+    if (((_c = clickDetail.elementInfo.attributes) == null ? void 0 : _c["aria-expanded"]) !== void 0) {
+      return `page.getByRole('${selectors.role}').filter({ has: page.locator('[aria-expanded]') })`;
+    }
+    return `page.getByRole('${selectors.role}').first()`;
   }
-  return selectors.tagName;
+  if (selectors.tagName) {
+    const classes = (_d = clickDetail.elementInfo.className) == null ? void 0 : _d.split(" ").filter((c) => c && !c.includes("hover") && !c.includes("active")).slice(0, 2).join(".");
+    const stableText = selectors.text && isStableContent(selectors.text) ? selectors.text.slice(0, 30) : null;
+    if (classes && stableText) {
+      return `page.locator('${selectors.tagName}.${classes}').filter({ hasText: '${escapeTextForAssertion(stableText)}' })`;
+    }
+    if (classes) {
+      return `page.locator('${selectors.tagName}.${classes}')`;
+    }
+    if (stableText) {
+      return `page.locator('${selectors.tagName}').filter({ hasText: '${escapeTextForAssertion(stableText)}' })`;
+    }
+  }
+  if (selectors.text && isStableContent(selectors.text)) {
+    const cleanText = selectors.text.trim();
+    if (cleanText.length > 2 && cleanText.length <= 30) {
+      return `page.getByText('${escapeTextForAssertion(cleanText)}')`;
+    }
+  }
+  for (const fallback of selectors.fallbacks) {
+    if (isValidCSSSelector(fallback) && !fallback.match(/^[a-zA-Z]+$/)) {
+      return `page.locator('${fallback}')`;
+    }
+  }
+  if (selectors.tagName) {
+    const semanticParent = (_e = clickDetail.elementInfo.attributes) == null ? void 0 : _e.semanticParent;
+    if (semanticParent) {
+      return `page.locator('${semanticParent} ${selectors.tagName}').first()`;
+    }
+    const classes = (_f = clickDetail.elementInfo.className) == null ? void 0 : _f.split(" ").filter((c) => c && !c.includes("hover") && !c.includes("active") && c.length < 20);
+    if (classes && classes.length > 0) {
+      const semanticClass = classes.find(
+        (c) => c.includes("btn") || c.includes("button") || c.includes("link") || c.includes("menu") || c.includes("nav") || c.includes("toolbar")
+      );
+      if (semanticClass) {
+        return `page.locator('${selectors.tagName}.${semanticClass}').first()`;
+      }
+    }
+    return `page.locator('${selectors.tagName}').first()`;
+  }
+  return `page.locator('body')`;
 }
 function isValidCSSSelector(selector) {
   if (!selector || selector.trim() === "")
@@ -61,44 +131,44 @@ function generatePlaywrightTest(url, trackingData) {
     return generateEmptyTest(url);
   }
   return `import { test, expect } from '@playwright/test';
-    
-  test('User interaction replay', async ({ page }) => {
-    // Navigate to the page
-    await page.goto('${url}');
-    
-    // Wait for page to load
-    await page.waitForLoadState('networkidle');
-    
-    // Set viewport size to match recorded session
-    await page.setViewportSize({ 
-      width: ${userInfo.windowSize[0]}, 
-      height: ${userInfo.windowSize[1]} 
-    });
+
+test('User interaction replay', async ({ page }) => {
+  // Navigate to the page
+  await page.goto('${url}');
   
-  ${generateUserInteractions(
+  // Wait for page to load
+  await page.waitForLoadState('networkidle');
+  
+  // Set viewport size to match recorded session
+  await page.setViewportSize({ 
+    width: ${userInfo.windowSize[0]}, 
+    height: ${userInfo.windowSize[1]} 
+  });
+
+${generateUserInteractions(
     clicks,
     inputChanges,
     trackingData.focusChanges,
     assertions,
     formElementChanges
   )}
-  
-    await page.waitForTimeout(432);
-  });`;
+
+  await page.waitForTimeout(432);
+});`;
 }
 function generateEmptyTest(url) {
   return `import { test, expect } from '@playwright/test';
+
+test('Empty test template', async ({ page }) => {
+  // Navigate to the page
+  await page.goto('${url}');
   
-  test('Empty test template', async ({ page }) => {
-    // Navigate to the page
-    await page.goto('${url}');
-    
-    // Wait for page to load
-    await page.waitForLoadState('networkidle');
-    
-    // No interactions were recorded
-    console.log('No user interactions to replay');
-  });`;
+  // Wait for page to load
+  await page.waitForLoadState('networkidle');
+  
+  // No interactions were recorded
+  console.log('No user interactions to replay');
+});`;
 }
 function generateUserInteractions(clicks, inputChanges, focusChanges, assertions = [], formElementChanges = []) {
   var _a;
@@ -270,21 +340,35 @@ function generateUserInteractions(clicks, inputChanges, focusChanges, assertions
   return code;
 }
 function generateClickCode(event) {
+  var _a;
   const selectorComment = event.clickDetail ? `${event.clickDetail.selectors.tagName}${event.clickDetail.selectors.text ? ` "${event.clickDetail.selectors.text}"` : ""}` : event.selector;
   let code = `  // Click on ${selectorComment}
 `;
-  code += `  await page.click('${event.selector}');
+  if ((_a = event.selector) == null ? void 0 : _a.startsWith("page.")) {
+    code += `  await ${event.selector}.click();
 
 `;
+  } else {
+    code += `  await page.click('${event.selector}');
+
+`;
+  }
   return code;
 }
 function generateInputCode(event) {
+  var _a;
   const escapedValue = escapeTextForAssertion(event.value);
   let code = `  // Fill input: ${event.selector}
 `;
-  code += `  await page.fill('${event.selector}', '${escapedValue}');
+  if ((_a = event.selector) == null ? void 0 : _a.startsWith("page.")) {
+    code += `  await ${event.selector}.fill('${escapedValue}');
 
 `;
+  } else {
+    code += `  await page.fill('${event.selector}', '${escapedValue}');
+
+`;
+  }
   return code;
 }
 function generateFormCode(event) {

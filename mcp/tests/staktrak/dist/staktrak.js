@@ -43,6 +43,125 @@ var userBehaviour = (() => {
 
   // src/utils.ts
   var getTimeStamp = () => Date.now();
+  var getElementRole = (element) => {
+    const explicit = element.getAttribute("role");
+    if (explicit)
+      return explicit;
+    const tag = element.tagName.toLowerCase();
+    if (tag === "button")
+      return "button";
+    if (tag === "a" && element.hasAttribute("href"))
+      return "link";
+    if (tag === "input") {
+      const type = element.getAttribute("type");
+      if (["button", "submit", "reset"].includes(type || "text"))
+        return "button";
+      return "textbox";
+    }
+    if (tag === "nav")
+      return "navigation";
+    if (tag === "main")
+      return "main";
+    if (tag === "header")
+      return "banner";
+    if (tag === "footer")
+      return "contentinfo";
+    if (tag === "aside")
+      return "complementary";
+    if (tag === "section")
+      return "region";
+    return null;
+  };
+  var getEnhancedElementText = (element) => {
+    var _a;
+    const ariaLabel = element.getAttribute("aria-label");
+    if (ariaLabel)
+      return ariaLabel;
+    const resolvedLabel = resolveAriaLabelledBy(element);
+    if (resolvedLabel)
+      return resolvedLabel;
+    const tag = element.tagName.toLowerCase();
+    if (tag === "button" || tag === "a" && element.hasAttribute("href")) {
+      const text = (_a = element.textContent) == null ? void 0 : _a.trim();
+      if (text && text.length > 0 && text.length < 100) {
+        return text;
+      }
+    }
+    if (tag === "input") {
+      const input = element;
+      return input.value || input.placeholder || input.getAttribute("title") || null;
+    }
+    return element.getAttribute("title") || null;
+  };
+  var getSemanticParent = (element) => {
+    const semanticTags = ["header", "nav", "main", "footer", "aside", "section", "article", "form", "dialog"];
+    let parent = element.parentElement;
+    while (parent) {
+      const tag = parent.tagName.toLowerCase();
+      if (semanticTags.includes(tag)) {
+        return parent;
+      }
+      const role = parent.getAttribute("role");
+      if (role && ["navigation", "banner", "main", "contentinfo", "complementary", "form", "search"].includes(role)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  };
+  var detectIconContent = (element) => {
+    var _a;
+    const svg = element.querySelector("svg");
+    if (svg) {
+      if (svg.getAttribute("data-icon")) {
+        return { type: "svg", selector: `[data-icon="${svg.getAttribute("data-icon")}"]` };
+      }
+      if (svg.classList.length > 0) {
+        const iconClass = Array.from(svg.classList).find((cls) => cls.includes("icon"));
+        if (iconClass) {
+          return { type: "svg", selector: `.${iconClass}` };
+        }
+      }
+      return { type: "svg", selector: "svg" };
+    }
+    const iconElement = element.querySelector('[class*="icon"], [class*="fa-"], [class*="material-icons"]');
+    if (iconElement) {
+      const iconClasses = Array.from(iconElement.classList).filter(
+        (cls) => cls.includes("icon") || cls.includes("fa-") || cls.includes("material")
+      );
+      if (iconClasses.length > 0) {
+        return { type: "icon-font", selector: `.${iconClasses[0]}` };
+      }
+    }
+    const text = (_a = element.textContent) == null ? void 0 : _a.trim();
+    if (text && text.length <= 2 && /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(text)) {
+      return { type: "emoji", selector: `text="${text}"` };
+    }
+    return null;
+  };
+  var resolveAriaLabelledBy = (element) => {
+    var _a;
+    const labelledBy = element.getAttribute("aria-labelledby");
+    if (!labelledBy)
+      return null;
+    const ids = labelledBy.split(" ").filter((id) => id.trim());
+    const texts = [];
+    for (const id of ids) {
+      const referencedEl = findElementById(element.ownerDocument || document, id);
+      if (referencedEl) {
+        const text = (_a = referencedEl.textContent) == null ? void 0 : _a.trim();
+        if (text)
+          texts.push(text);
+      }
+    }
+    return texts.length > 0 ? texts.join(" ") : null;
+  };
+  var findElementById = (doc, id) => {
+    if (typeof doc.getElementById === "function") {
+      return doc.getElementById(id);
+    }
+    return doc.querySelector(`#${CSS.escape(id)}`);
+  };
   var isInputOrTextarea = (element) => element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable;
   var generateSelectorStrategies = (element) => {
     var _a;
@@ -58,7 +177,7 @@ var userBehaviour = (() => {
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
-        role: htmlEl.getAttribute("role") || void 0
+        role: getElementRole(htmlEl) || void 0
       };
     }
     const id = htmlEl.id;
@@ -70,11 +189,12 @@ var userBehaviour = (() => {
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
-        role: htmlEl.getAttribute("role") || void 0
+        role: getElementRole(htmlEl) || void 0
       };
     }
-    const text = getElementText(element);
-    if (text && (tagName === "button" || tagName === "a" || htmlEl.getAttribute("role") === "button")) {
+    const text = getEnhancedElementText(htmlEl);
+    const role = getElementRole(htmlEl);
+    if (text && (tagName === "button" || tagName === "a" || role === "button")) {
       const textSelector = generateTextBasedSelector(element, text);
       if (textSelector) {
         fallbacks.push(textSelector);
@@ -84,7 +204,6 @@ var userBehaviour = (() => {
     if (ariaLabel) {
       fallbacks.push(`[aria-label="${ariaLabel}"]`);
     }
-    const role = htmlEl.getAttribute("role");
     if (role && text) {
       fallbacks.push(`[role="${role}"]`);
     }
@@ -110,7 +229,7 @@ var userBehaviour = (() => {
       primary,
       fallbacks: fallbacks.slice(1),
       // Remove primary from fallbacks
-      text,
+      text: text || void 0,
       ariaLabel: ariaLabel || void 0,
       title: htmlEl.getAttribute("title") || void 0,
       role: role || void 0,
@@ -119,26 +238,15 @@ var userBehaviour = (() => {
     };
   };
   var getElementText = (element) => {
-    var _a;
     const htmlEl = element;
-    if (element.tagName === "BUTTON" || element.tagName === "A") {
-      const text = (_a = htmlEl.textContent) == null ? void 0 : _a.trim();
-      if (text && text.length > 0 && text.length < 100) {
-        return text;
-      }
-    }
-    if (element.tagName === "INPUT") {
-      const input = element;
-      return input.placeholder || input.value || void 0;
-    }
-    return void 0;
+    return getEnhancedElementText(htmlEl) || void 0;
   };
   var generateTextBasedSelector = (element, text) => {
     const tagName = element.tagName.toLowerCase();
     const cleanText = text.replace(/"/g, '\\"').trim();
     if (cleanText.length === 0 || cleanText.length > 50)
       return null;
-    if (tagName === "button" || tagName === "a" || element.getAttribute("role") === "button") {
+    if (tagName === "button" || tagName === "a" || getElementRole(element) === "button") {
       return `text=${cleanText}`;
     }
     return null;
@@ -230,6 +338,9 @@ var userBehaviour = (() => {
       "name",
       "role",
       "aria-label",
+      "aria-labelledby",
+      "aria-expanded",
+      "aria-haspopup",
       "title",
       "placeholder",
       "value"
@@ -239,6 +350,18 @@ var userBehaviour = (() => {
       if (value)
         attrs[attr] = value;
     });
+    const semanticParent = getSemanticParent(htmlEl);
+    if (semanticParent) {
+      attrs.semanticParent = semanticParent.tagName.toLowerCase();
+    }
+    const iconInfo = detectIconContent(htmlEl);
+    if (iconInfo) {
+      attrs.iconContent = iconInfo.selector;
+    }
+    const resolvedLabel = resolveAriaLabelledBy(htmlEl);
+    if (resolvedLabel) {
+      attrs.resolvedAriaLabel = resolvedLabel;
+    }
     return attrs;
   };
   var getElementSelector = (element) => {
@@ -2273,7 +2396,8 @@ var userBehaviour = (() => {
         mutationObserver: null,
         mouseInterval: null,
         listeners: [],
-        alwaysListeners: []
+        alwaysListeners: [],
+        healthCheckInterval: null
       };
       this.isRunning = false;
     }
@@ -2309,7 +2433,28 @@ var userBehaviour = (() => {
       this.resetResults();
       this.setupEventListeners();
       this.isRunning = true;
+      this.startHealthCheck();
+      this.saveSessionState();
+      console.log("\u{1F50D} STAKTRAK: Recording state saved to sessionStorage");
       return this;
+    }
+    saveSessionState() {
+      try {
+        const sessionData = {
+          isRecording: true,
+          startTime: Date.now(),
+          lastSaved: Date.now(),
+          results: this.results,
+          memory: {
+            assertions: this.memory.assertions,
+            selectionMode: this.memory.selectionMode
+          },
+          version: "1.0"
+        };
+        sessionStorage.setItem("stakTrakActiveRecording", JSON.stringify(sessionData));
+      } catch (error) {
+        console.warn("\u{1F50D} STAKTRAK: Failed to save session state:", error);
+      }
     }
     resetResults() {
       this.memory.assertions = [];
@@ -2341,6 +2486,10 @@ var userBehaviour = (() => {
         clearInterval(this.memory.mouseInterval);
         this.memory.mouseInterval = null;
       }
+      if (this.memory.healthCheckInterval) {
+        clearInterval(this.memory.healthCheckInterval);
+        this.memory.healthCheckInterval = null;
+      }
       Object.values(this.memory.inputDebounceTimers).forEach(
         (timer) => clearTimeout(timer)
       );
@@ -2354,6 +2503,7 @@ var userBehaviour = (() => {
       }
     }
     setupEventListeners() {
+      console.log("\u{1F50D} STAKTRAK: Setting up event listeners", { isRunning: this.isRunning });
       if (this.config.clicks) {
         const clickHandler = (e) => {
           this.results.clicks.clickCount++;
@@ -2369,6 +2519,7 @@ var userBehaviour = (() => {
               timestamp: getTimeStamp()
             });
           }
+          this.saveSessionState();
         };
         document.addEventListener("click", clickHandler);
         this.memory.listeners.push(
@@ -2490,6 +2641,7 @@ var userBehaviour = (() => {
                   timestamp: getTimeStamp()
                 });
               }
+              this.saveSessionState();
             };
             htmlEl.addEventListener("change", changeHandler);
           } else {
@@ -2507,6 +2659,7 @@ var userBehaviour = (() => {
                   action: "complete"
                 });
                 delete this.memory.inputDebounceTimers[elementId];
+                this.saveSessionState();
               }, this.config.inputDebounceDelay);
               this.results.inputChanges.push({
                 elementSelector: selector,
@@ -2630,6 +2783,9 @@ var userBehaviour = (() => {
               messageId: event.data.messageId,
               coordinates: event.data.coordinates
             });
+            break;
+          case "staktrak-recover":
+            this.recoverRecording();
         }
       };
       window.addEventListener("message", messageHandler);
@@ -2717,6 +2873,8 @@ var userBehaviour = (() => {
       this.cleanup();
       this.processResults();
       this.isRunning = false;
+      sessionStorage.removeItem("stakTrakActiveRecording");
+      console.log("\u{1F50D} STAKTRAK: Recording state cleared from sessionStorage");
       return this;
     }
     result() {
@@ -2733,15 +2891,95 @@ var userBehaviour = (() => {
         timestamp: getTimeStamp()
       });
     }
+    attemptSessionRestoration() {
+      try {
+        const activeRecording = sessionStorage.getItem("stakTrakActiveRecording");
+        if (!activeRecording) {
+          console.log("\u{1F50D} STAKTRAK: No previous session to restore");
+          return;
+        }
+        const recordingData = JSON.parse(activeRecording);
+        console.log("\u{1F50D} STAKTRAK: Found previous session data in sessionStorage");
+        if (recordingData && recordingData.isRecording && recordingData.version === "1.0") {
+          console.log("\u{1F50D} STAKTRAK: Attempting session restoration...");
+          const timeSinceLastSave = Date.now() - (recordingData.lastSaved || 0);
+          const isLikelyIframeReload = timeSinceLastSave < 1e4;
+          if (isLikelyIframeReload) {
+            console.log("\u{1F50D} STAKTRAK: Detected iframe reload, restoring recording state");
+            if (recordingData.results) {
+              this.results = __spreadValues(__spreadValues({}, this.createEmptyResults()), recordingData.results);
+            }
+            if (recordingData.memory) {
+              this.memory.assertions = recordingData.memory.assertions || [];
+              this.memory.selectionMode = recordingData.memory.selectionMode || false;
+            }
+            this.isRunning = true;
+            this.setupEventListeners();
+            this.startHealthCheck();
+            console.log("\u{1F50D} STAKTRAK: Session restored successfully", {
+              clicks: this.results.clicks.clickCount,
+              inputs: this.results.inputChanges.length,
+              assertions: this.memory.assertions.length
+            });
+            this.verifyEventListeners();
+            window.parent.postMessage({ type: "staktrak-replay-ready" }, "*");
+          } else {
+            console.log("\u{1F50D} STAKTRAK: Session data is too old, starting fresh");
+            sessionStorage.removeItem("stakTrakActiveRecording");
+          }
+        } else {
+          console.log("\u{1F50D} STAKTRAK: Invalid session data, starting fresh");
+          sessionStorage.removeItem("stakTrakActiveRecording");
+        }
+      } catch (error) {
+        console.warn("\u{1F50D} STAKTRAK: Session restoration failed:", error);
+        sessionStorage.removeItem("stakTrakActiveRecording");
+      }
+    }
+    verifyEventListeners() {
+      console.log("\u{1F50D} STAKTRAK: Verifying event listeners", {
+        isRunning: this.isRunning,
+        listenersCount: this.memory.listeners.length,
+        mutationObserver: !!this.memory.mutationObserver
+      });
+      if (this.isRunning && this.memory.listeners.length === 0) {
+        console.warn("\u{1F50D} STAKTRAK: No listeners found, re-establishing...");
+        this.setupEventListeners();
+      }
+    }
+    recoverRecording() {
+      console.log("\u{1F50D} STAKTRAK: Attempting recording recovery");
+      if (!this.isRunning) {
+        console.log("\u{1F50D} STAKTRAK: Recording was not active, starting fresh");
+        return;
+      }
+      this.verifyEventListeners();
+      this.saveSessionState();
+      console.log("\u{1F50D} STAKTRAK: Recording recovery completed");
+    }
+    startHealthCheck() {
+      this.memory.healthCheckInterval = setInterval(() => {
+        if (this.isRunning) {
+          if (this.memory.listeners.length === 0) {
+            console.warn("\u{1F50D} STAKTRAK: Health check failed - no listeners, attempting recovery");
+            this.recoverRecording();
+          }
+          this.saveSessionState();
+        }
+      }, 5e3);
+      console.log("\u{1F50D} STAKTRAK: Health check started");
+    }
   };
   var userBehaviour = new UserBehaviorTracker();
   var initializeStakTrak = () => {
     userBehaviour.makeConfig({
       processData: (results) => console.log("StakTrak recording processed:", results)
     }).listen();
+    userBehaviour.attemptSessionRestoration();
     initPlaywrightReplay();
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
+  userBehaviour.createClickDetail = createClickDetail;
   var src_default = userBehaviour;
   return __toCommonJS(src_exports);
 })();
