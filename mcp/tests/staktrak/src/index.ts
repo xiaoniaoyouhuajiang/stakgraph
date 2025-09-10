@@ -32,8 +32,8 @@ const defaultConfig: Config = {
 
 class UserBehaviorTracker {
   private config: Config = defaultConfig;
-  private results: Results = this.createEmptyResults();
-  private memory: Memory = {
+  public results: Results = this.createEmptyResults();
+  public memory: Memory = {
     mousePosition: [0, 0, 0],
     inputDebounceTimers: {},
     selectionMode: false,
@@ -83,6 +83,18 @@ class UserBehaviorTracker {
     this.resetResults();
     this.setupEventListeners();
     this.isRunning = true;
+
+    // Persist recording state to survive script reloads
+    sessionStorage.setItem('stakTrakActiveRecording', JSON.stringify({
+      isRecording: true,
+      startTime: Date.now(),
+      results: this.results,
+      memory: {
+        assertions: this.memory.assertions,
+        selectionMode: this.memory.selectionMode
+      }
+    }));
+    console.log("🔍 STAKTRAK: Recording state saved to sessionStorage");
 
     return this;
   }
@@ -568,6 +580,10 @@ class UserBehaviorTracker {
     this.processResults();
     this.isRunning = false;
 
+    // Clear persisted state after successful stop
+    sessionStorage.removeItem('stakTrakActiveRecording');
+    console.log("🔍 STAKTRAK: Recording state cleared from sessionStorage");
+
     return this;
   }
 
@@ -589,8 +605,28 @@ class UserBehaviorTracker {
   }
 }
 
-// Create global instance
-const userBehaviour = new UserBehaviorTracker();
+// Cross-reload state protection using sessionStorage
+const activeRecording = sessionStorage.getItem('stakTrakActiveRecording');
+const recordingData = activeRecording ? JSON.parse(activeRecording) : null;
+
+let userBehaviour: UserBehaviorTracker;
+
+if (recordingData && recordingData.isRecording) {
+  console.log("🔍 STAKTRAK: Restoring recording session from sessionStorage");
+  userBehaviour = new UserBehaviorTracker();
+  
+  // Restore previous recording state
+  if (recordingData.results) {
+    userBehaviour.results = recordingData.results;
+  }
+  if (recordingData.memory) {
+    userBehaviour.memory = { ...userBehaviour.memory, ...recordingData.memory };
+  }
+  userBehaviour.isRunning = true;
+} else {
+  console.log("🔍 STAKTRAK: Creating new instance");
+  userBehaviour = new UserBehaviorTracker();
+}
 
 // Auto-start when DOM is ready
 const initializeStakTrak = () => {

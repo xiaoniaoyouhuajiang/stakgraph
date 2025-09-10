@@ -2345,6 +2345,16 @@ var userBehaviour = (() => {
       this.resetResults();
       this.setupEventListeners();
       this.isRunning = true;
+      sessionStorage.setItem("stakTrakActiveRecording", JSON.stringify({
+        isRecording: true,
+        startTime: Date.now(),
+        results: this.results,
+        memory: {
+          assertions: this.memory.assertions,
+          selectionMode: this.memory.selectionMode
+        }
+      }));
+      console.log("\u{1F50D} STAKTRAK: Recording state saved to sessionStorage");
       return this;
     }
     resetResults() {
@@ -2753,6 +2763,8 @@ var userBehaviour = (() => {
       this.cleanup();
       this.processResults();
       this.isRunning = false;
+      sessionStorage.removeItem("stakTrakActiveRecording");
+      console.log("\u{1F50D} STAKTRAK: Recording state cleared from sessionStorage");
       return this;
     }
     result() {
@@ -2770,7 +2782,23 @@ var userBehaviour = (() => {
       });
     }
   };
-  var userBehaviour = new UserBehaviorTracker();
+  var activeRecording = sessionStorage.getItem("stakTrakActiveRecording");
+  var recordingData = activeRecording ? JSON.parse(activeRecording) : null;
+  var userBehaviour;
+  if (recordingData && recordingData.isRecording) {
+    console.log("\u{1F50D} STAKTRAK: Restoring recording session from sessionStorage");
+    userBehaviour = new UserBehaviorTracker();
+    if (recordingData.results) {
+      userBehaviour.results = recordingData.results;
+    }
+    if (recordingData.memory) {
+      userBehaviour.memory = __spreadValues(__spreadValues({}, userBehaviour.memory), recordingData.memory);
+    }
+    userBehaviour.isRunning = true;
+  } else {
+    console.log("\u{1F50D} STAKTRAK: Creating new instance");
+    userBehaviour = new UserBehaviorTracker();
+  }
   var initializeStakTrak = () => {
     userBehaviour.makeConfig({
       processData: (results) => console.log("StakTrak recording processed:", results)
