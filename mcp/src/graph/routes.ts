@@ -28,7 +28,8 @@ import { db } from "./neo4j.js";
 import { parseServiceFile, extractContainersFromCompose } from "./service.js";
 import * as path from "path";
 import { get_context } from "../tools/explore/tool.js";
-import { vectorizeQuery } from "../vector/index.js";
+import { ask_question, QUESTIONS } from "../tools/intelligence/index.js";
+import { decomposeAndAsk } from "../tools/intelligence/questions.js";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -82,7 +83,7 @@ export async function explore(req: Request, res: Response) {
   }
 }
 
-export async function understanding(req: Request, res: Response) {
+export async function understand(req: Request, res: Response) {
   try {
     const question = req.query.question as string;
     const similarityThreshold =
@@ -91,59 +92,48 @@ export async function understanding(req: Request, res: Response) {
       res.status(400).json({ error: "Missing question" });
       return;
     }
-    const existing = await G.search(
-      question,
-      5,
-      ["Hint" as any],
-      false,
-      100000,
-      "vector",
-      "json"
-    );
-    let reused = false;
-    if (Array.isArray(existing) && existing.length > 0) {
-      const top: any = existing[0];
-      if (top.properties.score && top.properties.score >= similarityThreshold) {
-        res.json({
-          question,
-          answer: top.properties.body,
-          hint_ref_id: top.ref_id,
-          reused: true,
-          edges_added: 0,
-          linked_ref_ids: [],
-        });
-        return;
-      }
-    }
-    const ctx = await get_context(question);
-    const answer = ctx;
-    const embeddings = await vectorizeQuery(question);
-    const created = await db.create_hint(question, answer, embeddings);
-    let edges_added = 0;
-    let linked_ref_ids: string[] = [];
-    try {
-      const provider = (req.query.provider as string) || undefined;
-      const r = await db.create_hint_edges_llm(
-        created.ref_id,
-        answer,
-        provider
-      );
-      edges_added = r.edges_added;
-      linked_ref_ids = r.linked_ref_ids;
-    } catch (e) {
-      console.error("Failed to create edges from hint", e);
-    }
-    res.json({
-      question,
-      answer,
-      hint_ref_id: created.ref_id,
-      reused,
-      edges_added,
-      linked_ref_ids,
-    });
+    const provider = req.query.provider as string | undefined;
+    const answer = await ask_question(question, similarityThreshold, provider);
+    res.json(answer);
   } catch (e: any) {
     console.error(e);
     res.status(500).json({ error: "Failed" });
+  }
+}
+
+export async function seed_understanding(req: Request, res: Response) {
+  try {
+    const answers = [];
+
+    // Sequential processing - one at a time
+    for (const question of QUESTIONS) {
+      const answer = await ask_question(question, 0.85);
+      if (!answer.reused) {
+        console.log("ANSWERED question:", question);
+      }
+      answers.push(answer);
+    }
+
+    res.json(answers);
+  } catch (e: any) {
+    console.error(e);
+    res.status(500).json({ error: "Failed" });
+  }
+}
+
+export async function ask(req: Request, res: Response) {
+  const question = req.query.question as string;
+  if (!question) {
+    res.status(400).json({ error: "Missing question" });
+    return;
+  }
+  const similarityThreshold = parseFloat(req.query.threshold as string) || 0.9;
+  try {
+    const answers = await decomposeAndAsk(question, similarityThreshold);
+    res.json(answers);
+  } catch (error) {
+    console.error("Ask Error:", error);
+    res.status(500).send("Internal Server Error");
   }
 }
 

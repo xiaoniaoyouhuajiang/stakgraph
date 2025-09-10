@@ -32,7 +32,7 @@ export async function get_context(prompt: string): Promise<string> {
     }),
     file_summary: tool({
       description:
-        "Get a summary of what a specific file contains and its role in the codebase. Use this when you have identified a potentially relevant file and need to understand: 1) What functions/components it exports, 2) What its main responsibility is, 3) Whether it's worth exploring further for the user's question. Functions and top-level variables will be returned with their name and first 10 lines of code. Call this with a hypothesis like 'This file probably handles user authentication' or 'This looks like the main dashboard component'. Don't call this to browse random files.",
+        "Get a summary of what a specific file contains and its role in the codebase. Use this when you have identified a potentially relevant file and need to understand: 1) What functions/components it exports, 2) What its main responsibility is, 3) Whether it's worth exploring further for the user's question. Functions, imports, and top-level variables will be returned with their name and first 10 lines of code. If a summary can't be generated, the first 40 lines of the file will be returned. Call this with a hypothesis like 'This file probably handles user authentication' or 'This looks like the main dashboard component'. Don't call this to browse random files.",
       inputSchema: z.object({
         file_path: z.string().describe("Path to the file to summarize"),
         hypothesis: z
@@ -109,7 +109,7 @@ export async function get_context(prompt: string): Promise<string> {
     finalAnswer: tool({
       // Define a tool that signals the end of the process
       description:
-        "Provide the final answer to the user. ALWAYS include relevant files or function names in the answer. These hints will be used by the next model to actually build the feature.",
+        "Provide the final answer to the user. ALWAYS include relevant files or function names in the answer. DO NOT include long lists of irrelevant file names like migration files. This answer will be used by the next model to actually build the feature, so try to give clues for locating core functionality to the issue at hand. YOU **MUST** CALL THIS TOOL AT THE END OF YOUR EXPLORATION.",
       inputSchema: z.object({ answer: z.string() }),
       execute: async ({ answer }: { answer: string }) => answer,
     }),

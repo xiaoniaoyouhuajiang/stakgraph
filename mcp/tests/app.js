@@ -149,9 +149,9 @@ const Staktrak = () => {
       if (testCodeInput.trim()) {
         const currentTestCode = testCodeInput;
         
-        if (iframeRef.current) {
-          iframeRef.current.src = iframeRef.current.src;
-        }
+        // if (iframeRef.current) {
+        //   iframeRef.current.src = iframeRef.current.src;
+        // }
         
         setTimeout(() => {
           startPlaywrightReplay(currentTestCode);

@@ -547,155 +547,34 @@ class Db {
     }
   }
 
-  async create_hint_edges_llm(
+  async createEdgesDirectly(
     hint_ref_id: string,
-    answer: string,
-    llm_provider?: Provider | string
-  ): Promise<{ edges_added: number; linked_ref_ids: string[] }> {
-    if (!answer) return { edges_added: 0, linked_ref_ids: [] };
-    const provider = llm_provider ? llm_provider : "anthropic";
-    const apiKey = getApiKeyForProvider(provider);
-    if (!apiKey) return { edges_added: 0, linked_ref_ids: [] };
-
-    const extracted = await this.extractHintReferences(
-      answer,
-      provider as Provider,
-      apiKey
-    );
-
-    const foundNodes = await this.findNodesFromExtraction(extracted);
-    const weightedRefIds = foundNodes
-      .map((item) => ({
-        ref_id: item.node.ref_id || item.node.properties.ref_id,
-        relevancy: item.relevancy
-      }))
-      .filter(item => item.ref_id);
-
-    if (weightedRefIds.length === 0) return { edges_added: 0, linked_ref_ids: [] };
-
-    return await this.createEdgesDirectly(hint_ref_id, weightedRefIds);
-  }
-
-  private async extractHintReferences(
-    answer: string,
-    provider: Provider,
-    apiKey: string
-  ): Promise<HintExtraction> {
-    const truncated = answer.slice(0, 8000);
-    const schema = z.object({
-      function_names: z
-        .array(z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1)
-        }))
-        .describe(
-          "functions or react components with relevancy scores (0.0-1.0). e.g [{name: 'getUser', relevancy: 0.9}, {name: 'handleClick', relevancy: 0.6}]"
-        ),
-      file_names: z
-        .array(z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1)
-        }))
-        .describe(
-          "complete file paths with relevancy scores (0.0-1.0). e.g [{name: 'src/app/page.tsx', relevancy: 0.8}]"
-        ),
-      datamodel_names: z
-        .array(z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1)
-        }))
-        .describe(
-          "database models, schemas, or data structures with relevancy scores (0.0-1.0). e.g [{name: 'User', relevancy: 0.9}]"
-        ),
-      endpoint_names: z
-        .array(z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1)
-        }))
-        .describe(
-          "API endpoints with relevancy scores (0.0-1.0). e.g [{name: '/api/person', relevancy: 0.7}]"
-        ),
-      page_names: z
-        .array(z.object({
-          name: z.string(),
-          relevancy: z.number().min(0).max(1)
-        }))
-        .describe(
-          "web pages, components, or views with relevancy scores (0.0-1.0). e.g [{name: 'HomePage', relevancy: 0.8}]"
-        ),
-    });
-    try {
-      return await callGenerateObject({
-        provider,
-        apiKey,
-        prompt: `Extract exact code nodes referenced with relevancy scores (0.0-1.0). Higher scores for more central/important nodes. Return JSON only. Use empty arrays if none.\n\n${truncated}`,
-        schema,
-      });
-    } catch (_) {
-      return { 
-        function_names: [], 
-        file_names: [], 
-        datamodel_names: [], 
-        endpoint_names: [], 
-        page_names: [] 
-      };
-    }
-  }
-
-  private async createEdgesDirectly(
-    hint_ref_id: string, 
-    weightedRefIds: {ref_id: string, relevancy: number}[]
+    weightedRefIds: { ref_id: string; relevancy: number }[]
   ): Promise<{ edges_added: number; linked_ref_ids: string[] }> {
     const session = this.driver.session();
     try {
-      const result = await session.run(Q.CREATE_HINT_EDGES_BY_REF_IDS_QUERY, { 
-        hint_ref_id, 
-        weighted_ref_ids: weightedRefIds 
+      const result = await session.run(Q.CREATE_HINT_EDGES_BY_REF_IDS_QUERY, {
+        hint_ref_id,
+        weighted_ref_ids: weightedRefIds,
       });
-      
+
       if (result.records.length > 0) {
-        const linkedRefs = result.records[0].get('refs') || [];
-        return { 
-          edges_added: linkedRefs.length, 
-          linked_ref_ids: linkedRefs 
+        const linkedRefs = result.records[0].get("refs") || [];
+        return {
+          edges_added: linkedRefs.length,
+          linked_ref_ids: linkedRefs,
         };
       }
-      
+
       return { edges_added: 0, linked_ref_ids: [] };
     } finally {
       await session.close();
     }
   }
 
-  private async findNodesFromExtraction(extracted: HintExtraction): Promise<{node: Neo4jNode, relevancy: number}[]> {
-    const foundNodes: {node: Neo4jNode, relevancy: number}[] = [];
-    const typeMapping = {
-      function_names: 'Function',
-      file_names: 'File',
-      datamodel_names: 'Datamodel',
-      endpoint_names: 'Endpoint',
-      page_names: 'Page',
-    };
-
-    for (const [key, nodeType] of Object.entries(typeMapping)) {
-      const weightedNodes = extracted[key as keyof HintExtraction] || [];
-      for (const weightedNode of weightedNodes) {
-        if (weightedNode.name && weightedNode.name.trim()) {
-          const nodes = await this.findNodesByName(weightedNode.name.trim(), nodeType);
-          for (const node of nodes) {
-            foundNodes.push({node, relevancy: weightedNode.relevancy});
-          }
-        }
-      }
-    }
-
-    return foundNodes;
-  }
-
-  private async findNodesByName(name: string, nodeType: string): Promise<Neo4jNode[]> {
+  async findNodesByName(name: string, nodeType: string): Promise<Neo4jNode[]> {
     const session = this.driver.session();
     try {
-
       if (nodeType !== "File") {
         const query = Q.FIND_NODES_BY_NAME_QUERY.replace("{LABEL}", nodeType);
         const result = await session.run(query, { name });
