@@ -7,7 +7,8 @@ import {
   filterClickDetails,
 } from "./utils";
 import { debugMsg, isReactDevModeActive } from "./debug";
-import { initPlaywrightReplay } from "./playwright-replay";
+import { initPlaywrightReplay } from "./playwright-replay/index";
+
 
 const defaultConfig: Config = {
   userInfo: true,

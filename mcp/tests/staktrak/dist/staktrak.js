@@ -36,50 +36,38 @@ var userBehaviour = (() => {
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
   // src/index.ts
-  var src_exports = {};
-  __export(src_exports, {
-    default: () => src_default
+  var index_exports = {};
+  __export(index_exports, {
+    default: () => index_default
   });
 
   // src/utils.ts
   var getTimeStamp = () => Date.now();
   var getElementRole = (element) => {
     const explicit = element.getAttribute("role");
-    if (explicit)
-      return explicit;
+    if (explicit) return explicit;
     const tag = element.tagName.toLowerCase();
-    if (tag === "button")
-      return "button";
-    if (tag === "a" && element.hasAttribute("href"))
-      return "link";
+    if (tag === "button") return "button";
+    if (tag === "a" && element.hasAttribute("href")) return "link";
     if (tag === "input") {
       const type = element.getAttribute("type");
-      if (["button", "submit", "reset"].includes(type || "text"))
-        return "button";
+      if (["button", "submit", "reset"].includes(type || "text")) return "button";
       return "textbox";
     }
-    if (tag === "nav")
-      return "navigation";
-    if (tag === "main")
-      return "main";
-    if (tag === "header")
-      return "banner";
-    if (tag === "footer")
-      return "contentinfo";
-    if (tag === "aside")
-      return "complementary";
-    if (tag === "section")
-      return "region";
+    if (tag === "nav") return "navigation";
+    if (tag === "main") return "main";
+    if (tag === "header") return "banner";
+    if (tag === "footer") return "contentinfo";
+    if (tag === "aside") return "complementary";
+    if (tag === "section") return "region";
     return null;
   };
   var getEnhancedElementText = (element) => {
     var _a;
     const ariaLabel = element.getAttribute("aria-label");
-    if (ariaLabel)
-      return ariaLabel;
+    if (ariaLabel) return ariaLabel;
     const resolvedLabel = resolveAriaLabelledBy(element);
-    if (resolvedLabel)
-      return resolvedLabel;
+    if (resolvedLabel) return resolvedLabel;
     const tag = element.tagName.toLowerCase();
     if (tag === "button" || tag === "a" && element.hasAttribute("href")) {
       const text = (_a = element.textContent) == null ? void 0 : _a.trim();
@@ -142,16 +130,14 @@ var userBehaviour = (() => {
   var resolveAriaLabelledBy = (element) => {
     var _a;
     const labelledBy = element.getAttribute("aria-labelledby");
-    if (!labelledBy)
-      return null;
+    if (!labelledBy) return null;
     const ids = labelledBy.split(" ").filter((id) => id.trim());
     const texts = [];
     for (const id of ids) {
       const referencedEl = findElementById(element.ownerDocument || document, id);
       if (referencedEl) {
         const text = (_a = referencedEl.textContent) == null ? void 0 : _a.trim();
-        if (text)
-          texts.push(text);
+        if (text) texts.push(text);
       }
     }
     return texts.length > 0 ? texts.join(" ") : null;
@@ -214,10 +200,8 @@ var userBehaviour = (() => {
     if (tagName === "input") {
       const type = element.type;
       const name = element.name;
-      if (type)
-        fallbacks.push(`input[type="${type}"]`);
-      if (name)
-        fallbacks.push(`input[name="${name}"]`);
+      if (type) fallbacks.push(`input[type="${type}"]`);
+      if (name) fallbacks.push(`input[name="${name}"]`);
     }
     const contextualSelector = generateContextualSelector(element);
     if (contextualSelector) {
@@ -244,8 +228,7 @@ var userBehaviour = (() => {
   var generateTextBasedSelector = (element, text) => {
     const tagName = element.tagName.toLowerCase();
     const cleanText = text.replace(/"/g, '\\"').trim();
-    if (cleanText.length === 0 || cleanText.length > 50)
-      return null;
+    if (cleanText.length === 0 || cleanText.length > 50) return null;
     if (tagName === "button" || tagName === "a" || getElementRole(element) === "button") {
       return `text=${cleanText}`;
     }
@@ -254,31 +237,23 @@ var userBehaviour = (() => {
   var generateClassBasedSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const classList = element.classList;
-    if (!classList.length)
-      return tagName;
+    if (!classList.length) return tagName;
     const safeClasses = Array.from(classList).filter((cls) => {
-      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/))
-        return false;
-      if (cls.includes("module__"))
-        return false;
-      if (cls.includes("emotion-"))
-        return false;
-      if (cls.includes("css-"))
-        return false;
-      if (cls.length > 30)
-        return false;
+      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/)) return false;
+      if (cls.includes("module__")) return false;
+      if (cls.includes("emotion-")) return false;
+      if (cls.includes("css-")) return false;
+      if (cls.length > 30) return false;
       return /^[a-zA-Z][a-zA-Z0-9-]*$/.test(cls);
     });
-    if (safeClasses.length === 0)
-      return tagName;
+    if (safeClasses.length === 0) return tagName;
     const limitedClasses = safeClasses.slice(0, 3);
     return `${tagName}.${limitedClasses.join(".")}`;
   };
   var generateContextualSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const parent = element.parentElement;
-    if (!parent)
-      return null;
+    if (!parent) return null;
     if (tagName === "button" && parent.tagName === "NAV") {
       return "nav button";
     }
@@ -309,8 +284,7 @@ var userBehaviour = (() => {
       const part = index > 1 ? `${tagName}[${index}]` : tagName;
       parts.unshift(part);
       current = current.parentElement;
-      if (parts.length > 10)
-        break;
+      if (parts.length > 10) break;
     }
     return "/" + parts.join("/");
   };
@@ -347,8 +321,7 @@ var userBehaviour = (() => {
     ];
     importantAttrs.forEach((attr) => {
       const value = htmlEl.getAttribute(attr);
-      if (value)
-        attrs[attr] = value;
+      if (value) attrs[attr] = value;
     });
     const semanticParent = getSemanticParent(htmlEl);
     if (semanticParent) {
@@ -369,8 +342,7 @@ var userBehaviour = (() => {
     return strategies.primary;
   };
   var filterClickDetails = (clickDetails, assertions, config) => {
-    if (!clickDetails.length)
-      return [];
+    if (!clickDetails.length) return [];
     let filtered = config.filterAssertionClicks ? clickDetails.filter(
       (click) => !assertions.some(
         (assertion) => Math.abs(click.timestamp - assertion.timestamp) < 1e3 && (click.selectors.primary.includes(assertion.selector) || assertion.selector.includes(click.selectors.primary) || click.selectors.fallbacks.some(
@@ -381,8 +353,7 @@ var userBehaviour = (() => {
     const clicksBySelector = {};
     filtered.forEach((click) => {
       const key = click.selectors.primary;
-      if (!clicksBySelector[key])
-        clicksBySelector[key] = [];
+      if (!clicksBySelector[key]) clicksBySelector[key] = [];
       clicksBySelector[key].push(click);
     });
     const result = [];
@@ -486,8 +457,7 @@ var userBehaviour = (() => {
       let level = 0;
       const maxTraversalDepth = Number((_a = window.STAKTRAK_CONFIG) == null ? void 0 : _a.maxTraversalDepth) || 10;
       const extractSource = (source) => {
-        if (!source)
-          return null;
+        if (!source) return null;
         return {
           fileName: source.fileName,
           lineNumber: source.lineNumber,
@@ -596,8 +566,7 @@ var userBehaviour = (() => {
         file.lines.sort((a, b) => a - b);
       });
       const formatComponentsForChat = (components) => {
-        if (components.length === 0)
-          return void 0;
+        if (components.length === 0) return void 0;
         const sortedComponents = components.sort((a, b) => a.level - b.level).slice(0, 3);
         const componentLines = sortedComponents.map((c) => {
           const nameToUse = c.name || "Unknown";
@@ -658,10 +627,7 @@ var userBehaviour = (() => {
     }
   }
 
-  // src/playwright-replay.ts
-  var playwrightReplayRef = {
-    current: null
-  };
+  // src/playwright-replay/parser.ts
   function parsePlaywrightTest(testCode) {
     const actions = [];
     const lines = testCode.split("\n");
@@ -1159,25 +1125,19 @@ var userBehaviour = (() => {
       }
     }
     const labelMatch = locatorCall.match(/getByLabel\(['"](.*?)['"]\)/);
-    if (labelMatch)
-      return `getByLabel:${labelMatch[1]}`;
+    if (labelMatch) return `getByLabel:${labelMatch[1]}`;
     const placeholderMatch = locatorCall.match(
       /getByPlaceholder\(['"](.*?)['"]\)/
     );
-    if (placeholderMatch)
-      return `getByPlaceholder:${placeholderMatch[1]}`;
+    if (placeholderMatch) return `getByPlaceholder:${placeholderMatch[1]}`;
     const testIdMatch = locatorCall.match(/getByTestId\(['"](.*?)['"]\)/);
-    if (testIdMatch)
-      return `getByTestId:${testIdMatch[1]}`;
+    if (testIdMatch) return `getByTestId:${testIdMatch[1]}`;
     const titleMatch = locatorCall.match(/getByTitle\(['"](.*?)['"]\)/);
-    if (titleMatch)
-      return `getByTitle:${titleMatch[1]}`;
+    if (titleMatch) return `getByTitle:${titleMatch[1]}`;
     const altMatch = locatorCall.match(/getByAltText\(['"](.*?)['"]\)/);
-    if (altMatch)
-      return `getByAltText:${altMatch[1]}`;
+    if (altMatch) return `getByAltText:${altMatch[1]}`;
     const locatorMatch = locatorCall.match(/locator\(['"](.*?)['"]\)/);
-    if (locatorMatch)
-      return locatorMatch[1];
+    if (locatorMatch) return locatorMatch[1];
     const locatorWithOptionsMatch = locatorCall.match(
       /locator\(['"](.*?)['"],\s*\{\s*hasText:\s*['"](.*?)['"]\s*\}/
     );
@@ -1212,13 +1172,10 @@ var userBehaviour = (() => {
       const innerSelector = parseLocatorCall(filterHasNotMatch[1]);
       return `${baseSelector}:filter-has-not("${innerSelector}")`;
     }
-    if (chainCall.includes("first()"))
-      return `${baseSelector}:first`;
-    if (chainCall.includes("last()"))
-      return `${baseSelector}:last`;
+    if (chainCall.includes("first()")) return `${baseSelector}:first`;
+    if (chainCall.includes("last()")) return `${baseSelector}:last`;
     const nthMatch = chainCall.match(/nth\((\d+)\)/);
-    if (nthMatch)
-      return `${baseSelector}:nth(${nthMatch[1]})`;
+    if (nthMatch) return `${baseSelector}:nth(${nthMatch[1]})`;
     const andMatch = chainCall.match(/and\(page\.(.+?)\)/);
     if (andMatch) {
       const otherSelector = parseLocatorCall(andMatch[1]);
@@ -1235,8 +1192,7 @@ var userBehaviour = (() => {
       return `${baseSelector} >> ${innerSelector}`;
     }
     const locatorChainMatch = chainCall.match(/^locator\(['"](.*?)['"]\)/);
-    if (locatorChainMatch)
-      return `${baseSelector} >> ${locatorChainMatch[1]}`;
+    if (locatorChainMatch) return `${baseSelector} >> ${locatorChainMatch[1]}`;
     return `${baseSelector}:${chainCall}`;
   }
   function extractSelectorFromArg(selectorArg) {
@@ -1349,6 +1305,8 @@ var userBehaviour = (() => {
     }
     return null;
   }
+
+  // src/playwright-replay/executor.ts
   function getRoleSelector(role) {
     const roleMap = {
       button: 'button, [role="button"], input[type="button"], input[type="submit"]',
@@ -1815,8 +1773,7 @@ var userBehaviour = (() => {
           } else {
             element = label.querySelector("input, textarea, select");
           }
-          if (element)
-            matches.push(element);
+          if (element) matches.push(element);
         }
       }
       return matches;
@@ -2012,8 +1969,7 @@ var userBehaviour = (() => {
     return null;
   }
   function ensureStylesInDocument(doc) {
-    if (doc.querySelector("#staktrak-highlight-styles"))
-      return;
+    if (doc.querySelector("#staktrak-highlight-styles")) return;
     const style = doc.createElement("style");
     style.id = "staktrak-highlight-styles";
     style.textContent = `
@@ -2099,8 +2055,7 @@ var userBehaviour = (() => {
   }
   async function verifyExpectation(action) {
     var _a, _b;
-    if (!action.selector)
-      return;
+    if (!action.selector) return;
     switch (action.expectation) {
       case "toBeVisible":
         const element = await waitForElement(action.selector);
@@ -2109,7 +2064,10 @@ var userBehaviour = (() => {
         }
         break;
       case "toContainText":
-        const textElement = await waitForElement(action.selector, action.value);
+        const textElement = await waitForElement(
+          action.selector,
+          String(action.value)
+        );
         if (!textElement || !((_a = textElement.textContent) == null ? void 0 : _a.includes(String(action.value || "")))) {
           throw new Error(
             `Element does not contain text "${action.value}": ${action.selector}`
@@ -2119,7 +2077,7 @@ var userBehaviour = (() => {
       case "toHaveText":
         const exactTextElement = await waitForElement(
           action.selector,
-          action.value
+          String(action.value)
         );
         if (!exactTextElement || ((_b = exactTextElement.textContent) == null ? void 0 : _b.trim()) !== String(action.value || "")) {
           throw new Error(
@@ -2198,6 +2156,11 @@ var userBehaviour = (() => {
         return `Execute ${action.type}`;
     }
   }
+
+  // src/playwright-replay/index.ts
+  var playwrightReplayRef = {
+    current: null
+  };
   function startPlaywrightReplay(testCode) {
     try {
       const actions = parsePlaywrightTest(testCode);
@@ -2318,8 +2281,7 @@ var userBehaviour = (() => {
   }
   function getPlaywrightReplayState() {
     const state = playwrightReplayRef.current;
-    if (!state)
-      return null;
+    if (!state) return null;
     return {
       actions: state.actions,
       status: state.status,
@@ -2331,8 +2293,7 @@ var userBehaviour = (() => {
   function initPlaywrightReplay() {
     window.addEventListener("message", (event) => {
       const { data } = event;
-      if (!data || !data.type)
-        return;
+      if (!data || !data.type) return;
       switch (data.type) {
         case "staktrak-playwright-replay-start":
           if (data.testCode) {
@@ -2748,12 +2709,10 @@ var userBehaviour = (() => {
       );
     }
     setupMessageHandling() {
-      if (this.memory.alwaysListeners.length > 0)
-        return;
+      if (this.memory.alwaysListeners.length > 0) return;
       const messageHandler = (event) => {
         var _a;
-        if (!((_a = event.data) == null ? void 0 : _a.type))
-          return;
+        if (!((_a = event.data) == null ? void 0 : _a.type)) return;
         switch (event.data.type) {
           case "staktrak-start":
             this.resetResults();
@@ -2980,6 +2939,6 @@ var userBehaviour = (() => {
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
   userBehaviour.createClickDetail = createClickDetail;
-  var src_default = userBehaviour;
-  return __toCommonJS(src_exports);
+  var index_default = userBehaviour;
+  return __toCommonJS(index_exports);
 })();
