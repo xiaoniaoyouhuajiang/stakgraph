@@ -116,6 +116,7 @@ export interface Memory {
   mouseInterval: NodeJS.Timeout | null;
   listeners: Array<() => void>;
   alwaysListeners: Array<() => void>;
+  healthCheckInterval: NodeJS.Timeout | null;
 }
 
 export enum ActionType {

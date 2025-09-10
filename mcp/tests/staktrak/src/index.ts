@@ -43,6 +43,7 @@ class UserBehaviorTracker {
     mouseInterval: null,
     listeners: [],
     alwaysListeners: [],
+    healthCheckInterval: null,
   };
   private isRunning = false;
 
@@ -84,19 +85,33 @@ class UserBehaviorTracker {
     this.setupEventListeners();
     this.isRunning = true;
 
+    // Start health check
+    this.startHealthCheck();
+
     // Persist recording state to survive script reloads
-    sessionStorage.setItem('stakTrakActiveRecording', JSON.stringify({
-      isRecording: true,
-      startTime: Date.now(),
-      results: this.results,
-      memory: {
-        assertions: this.memory.assertions,
-        selectionMode: this.memory.selectionMode
-      }
-    }));
+    this.saveSessionState();
     console.log("🔍 STAKTRAK: Recording state saved to sessionStorage");
 
     return this;
+  }
+
+  private saveSessionState() {
+    try {
+      const sessionData = {
+        isRecording: true,
+        startTime: Date.now(),
+        lastSaved: Date.now(),
+        results: this.results,
+        memory: {
+          assertions: this.memory.assertions,
+          selectionMode: this.memory.selectionMode
+        },
+        version: "1.0"
+      };
+      sessionStorage.setItem('stakTrakActiveRecording', JSON.stringify(sessionData));
+    } catch (error) {
+      console.warn("🔍 STAKTRAK: Failed to save session state:", error);
+    }
   }
 
   private resetResults() {
@@ -138,6 +153,12 @@ class UserBehaviorTracker {
       this.memory.mouseInterval = null;
     }
 
+    // Clean up health check
+    if (this.memory.healthCheckInterval) {
+      clearInterval(this.memory.healthCheckInterval);
+      this.memory.healthCheckInterval = null;
+    }
+
     // Clean up debounce timers
     Object.values(this.memory.inputDebounceTimers).forEach((timer) =>
       clearTimeout(timer)
@@ -156,7 +177,9 @@ class UserBehaviorTracker {
     }
   }
 
-  private setupEventListeners() {
+  public setupEventListeners() {
+    console.log("🔍 STAKTRAK: Setting up event listeners", { isRunning: this.isRunning });
+    
     if (this.config.clicks) {
       const clickHandler = (e: MouseEvent) => {
         this.results.clicks.clickCount++;
@@ -177,6 +200,9 @@ class UserBehaviorTracker {
             timestamp: getTimeStamp(),
           });
         }
+
+        // Save state after each click for iframe reload persistence
+        this.saveSessionState();
       };
       document.addEventListener("click", clickHandler);
       this.memory.listeners.push(() =>
@@ -316,6 +342,8 @@ class UserBehaviorTracker {
                 timestamp: getTimeStamp(),
               });
             }
+            // Save state after form element changes
+            this.saveSessionState();
           };
           htmlEl.addEventListener("change", changeHandler);
         } else {
@@ -335,6 +363,8 @@ class UserBehaviorTracker {
                 action: "complete",
               });
               delete this.memory.inputDebounceTimers[elementId];
+              // Save state after input completion
+              this.saveSessionState();
             }, this.config.inputDebounceDelay);
 
             this.results.inputChanges.push({
@@ -478,6 +508,9 @@ class UserBehaviorTracker {
             messageId: event.data.messageId,
             coordinates: event.data.coordinates,
           });
+          break;
+        case "staktrak-recover":
+          this.recoverRecording();
       }
     };
     window.addEventListener("message", messageHandler);
@@ -603,30 +636,121 @@ class UserBehaviorTracker {
       timestamp: getTimeStamp(),
     });
   }
+
+  public attemptSessionRestoration() {
+    try {
+      const activeRecording = sessionStorage.getItem('stakTrakActiveRecording');
+      if (!activeRecording) {
+        console.log("🔍 STAKTRAK: No previous session to restore");
+        return;
+      }
+
+      const recordingData = JSON.parse(activeRecording);
+      console.log("🔍 STAKTRAK: Found previous session data in sessionStorage");
+
+      // Simple validation: if session data exists and claims to be recording, restore it
+      if (recordingData && recordingData.isRecording && recordingData.version === "1.0") {
+        console.log("🔍 STAKTRAK: Attempting session restoration...");
+
+        // Detect if this is an iframe reload (page loaded recently after session was saved)
+        const timeSinceLastSave = Date.now() - (recordingData.lastSaved || 0);
+        const isLikelyIframeReload = timeSinceLastSave < 10000; // Within 10 seconds
+
+        if (isLikelyIframeReload) {
+          console.log("🔍 STAKTRAK: Detected iframe reload, restoring recording state");
+          
+          // Restore state
+          if (recordingData.results) {
+            this.results = { ...this.createEmptyResults(), ...recordingData.results };
+          }
+          if (recordingData.memory) {
+            this.memory.assertions = recordingData.memory.assertions || [];
+            this.memory.selectionMode = recordingData.memory.selectionMode || false;
+          }
+
+          // Reactivate recording
+          this.isRunning = true;
+          this.setupEventListeners();
+          
+          // Start health check for restored session
+          this.startHealthCheck();
+          
+          console.log("🔍 STAKTRAK: Session restored successfully", {
+            clicks: this.results.clicks.clickCount,
+            inputs: this.results.inputChanges.length,
+            assertions: this.memory.assertions.length
+          });
+
+          // Verify event listeners are working
+          this.verifyEventListeners();
+
+          // Notify parent that recording is active again
+          window.parent.postMessage({ type: "staktrak-replay-ready" }, "*");
+        } else {
+          console.log("🔍 STAKTRAK: Session data is too old, starting fresh");
+          sessionStorage.removeItem('stakTrakActiveRecording');
+        }
+      } else {
+        console.log("🔍 STAKTRAK: Invalid session data, starting fresh");
+        sessionStorage.removeItem('stakTrakActiveRecording');
+      }
+    } catch (error) {
+      console.warn("🔍 STAKTRAK: Session restoration failed:", error);
+      sessionStorage.removeItem('stakTrakActiveRecording');
+    }
+  }
+
+  private verifyEventListeners() {
+    console.log("🔍 STAKTRAK: Verifying event listeners", {
+      isRunning: this.isRunning,
+      listenersCount: this.memory.listeners.length,
+      mutationObserver: !!this.memory.mutationObserver
+    });
+    
+    // If we have fewer listeners than expected, re-setup
+    if (this.isRunning && this.memory.listeners.length === 0) {
+      console.warn("🔍 STAKTRAK: No listeners found, re-establishing...");
+      this.setupEventListeners();
+    }
+  }
+
+  public recoverRecording() {
+    console.log("🔍 STAKTRAK: Attempting recording recovery");
+    if (!this.isRunning) {
+      console.log("🔍 STAKTRAK: Recording was not active, starting fresh");
+      return;
+    }
+    
+    // Ensure event listeners are active
+    this.verifyEventListeners();
+    
+    // Save current state
+    this.saveSessionState();
+    
+    console.log("🔍 STAKTRAK: Recording recovery completed");
+  }
+
+  private startHealthCheck() {
+    // Health check every 5 seconds to ensure recording stays active
+    this.memory.healthCheckInterval = setInterval(() => {
+      if (this.isRunning) {
+        // Verify listeners are still active
+        if (this.memory.listeners.length === 0) {
+          console.warn("🔍 STAKTRAK: Health check failed - no listeners, attempting recovery");
+          this.recoverRecording();
+        }
+        
+        // Save state periodically in case of unexpected iframe reloads
+        this.saveSessionState();
+      }
+    }, 5000);
+    
+    console.log("🔍 STAKTRAK: Health check started");
+  }
 }
 
-// Cross-reload state protection using sessionStorage
-const activeRecording = sessionStorage.getItem('stakTrakActiveRecording');
-const recordingData = activeRecording ? JSON.parse(activeRecording) : null;
-
-let userBehaviour: UserBehaviorTracker;
-
-if (recordingData && recordingData.isRecording) {
-  console.log("🔍 STAKTRAK: Restoring recording session from sessionStorage");
-  userBehaviour = new UserBehaviorTracker();
-  
-  // Restore previous recording state
-  if (recordingData.results) {
-    userBehaviour.results = recordingData.results;
-  }
-  if (recordingData.memory) {
-    userBehaviour.memory = { ...userBehaviour.memory, ...recordingData.memory };
-  }
-  userBehaviour.isRunning = true;
-} else {
-  console.log("🔍 STAKTRAK: Creating new instance");
-  userBehaviour = new UserBehaviorTracker();
-}
+// Create global instance (simple, always works)
+const userBehaviour = new UserBehaviorTracker();
 
 // Auto-start when DOM is ready
 const initializeStakTrak = () => {
@@ -636,6 +760,9 @@ const initializeStakTrak = () => {
         console.log("StakTrak recording processed:", results),
     })
     .listen();
+  
+  // Enhanced session restoration with iframe reload detection
+  userBehaviour.attemptSessionRestoration();
   
   initPlaywrightReplay();
 };

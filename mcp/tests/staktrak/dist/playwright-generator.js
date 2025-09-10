@@ -76,6 +76,7 @@ function convertToPlaywrightSelector(clickDetail) {
     const cleanText = selectors.text.trim();
     if (cleanText.length > 2 && cleanText.length <= 30) {
       return `page.getByText('${escapeTextForAssertion(cleanText)}')`;
+
     }
   }
   for (const fallback of selectors.fallbacks) {
@@ -113,14 +114,14 @@ function generatePlaywrightTest(url, trackingData) {
 test('User interaction replay', async ({ page }) => {
   // Navigate to the page
   await page.goto('${url}');
-  
+
   // Wait for page to load
   await page.waitForLoadState('networkidle');
-  
+
   // Set viewport size to match recorded session
-  await page.setViewportSize({ 
-    width: ${userInfo.windowSize[0]}, 
-    height: ${userInfo.windowSize[1]} 
+  await page.setViewportSize({
+    width: ${userInfo.windowSize[0]},
+    height: ${userInfo.windowSize[1]}
   });
 
 ${generateUserInteractions(
@@ -140,10 +141,10 @@ function generateEmptyTest(url) {
 test('Empty test template', async ({ page }) => {
   // Navigate to the page
   await page.goto('${url}');
-  
+
   // Wait for page to load
   await page.waitForLoadState('networkidle');
-  
+
   // No interactions were recorded
   console.log('No user interactions to replay');
 });`;

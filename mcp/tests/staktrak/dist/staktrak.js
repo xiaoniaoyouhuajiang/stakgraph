@@ -2309,7 +2309,8 @@ var userBehaviour = (() => {
         mutationObserver: null,
         mouseInterval: null,
         listeners: [],
-        alwaysListeners: []
+        alwaysListeners: [],
+        healthCheckInterval: null
       };
       this.isRunning = false;
     }
@@ -2345,17 +2346,28 @@ var userBehaviour = (() => {
       this.resetResults();
       this.setupEventListeners();
       this.isRunning = true;
-      sessionStorage.setItem("stakTrakActiveRecording", JSON.stringify({
-        isRecording: true,
-        startTime: Date.now(),
-        results: this.results,
-        memory: {
-          assertions: this.memory.assertions,
-          selectionMode: this.memory.selectionMode
-        }
-      }));
+      this.startHealthCheck();
+      this.saveSessionState();
       console.log("\u{1F50D} STAKTRAK: Recording state saved to sessionStorage");
       return this;
+    }
+    saveSessionState() {
+      try {
+        const sessionData = {
+          isRecording: true,
+          startTime: Date.now(),
+          lastSaved: Date.now(),
+          results: this.results,
+          memory: {
+            assertions: this.memory.assertions,
+            selectionMode: this.memory.selectionMode
+          },
+          version: "1.0"
+        };
+        sessionStorage.setItem("stakTrakActiveRecording", JSON.stringify(sessionData));
+      } catch (error) {
+        console.warn("\u{1F50D} STAKTRAK: Failed to save session state:", error);
+      }
     }
     resetResults() {
       this.memory.assertions = [];
@@ -2387,6 +2399,10 @@ var userBehaviour = (() => {
         clearInterval(this.memory.mouseInterval);
         this.memory.mouseInterval = null;
       }
+      if (this.memory.healthCheckInterval) {
+        clearInterval(this.memory.healthCheckInterval);
+        this.memory.healthCheckInterval = null;
+      }
       Object.values(this.memory.inputDebounceTimers).forEach(
         (timer) => clearTimeout(timer)
       );
@@ -2400,6 +2416,7 @@ var userBehaviour = (() => {
       }
     }
     setupEventListeners() {
+      console.log("\u{1F50D} STAKTRAK: Setting up event listeners", { isRunning: this.isRunning });
       if (this.config.clicks) {
         const clickHandler = (e) => {
           this.results.clicks.clickCount++;
@@ -2415,6 +2432,7 @@ var userBehaviour = (() => {
               timestamp: getTimeStamp()
             });
           }
+          this.saveSessionState();
         };
         document.addEventListener("click", clickHandler);
         this.memory.listeners.push(
@@ -2536,6 +2554,7 @@ var userBehaviour = (() => {
                   timestamp: getTimeStamp()
                 });
               }
+              this.saveSessionState();
             };
             htmlEl.addEventListener("change", changeHandler);
           } else {
@@ -2553,6 +2572,7 @@ var userBehaviour = (() => {
                   action: "complete"
                 });
                 delete this.memory.inputDebounceTimers[elementId];
+                this.saveSessionState();
               }, this.config.inputDebounceDelay);
               this.results.inputChanges.push({
                 elementSelector: selector,
@@ -2676,6 +2696,9 @@ var userBehaviour = (() => {
               messageId: event.data.messageId,
               coordinates: event.data.coordinates
             });
+            break;
+          case "staktrak-recover":
+            this.recoverRecording();
         }
       };
       window.addEventListener("message", messageHandler);
@@ -2781,28 +2804,91 @@ var userBehaviour = (() => {
         timestamp: getTimeStamp()
       });
     }
+    attemptSessionRestoration() {
+      try {
+        const activeRecording = sessionStorage.getItem("stakTrakActiveRecording");
+        if (!activeRecording) {
+          console.log("\u{1F50D} STAKTRAK: No previous session to restore");
+          return;
+        }
+        const recordingData = JSON.parse(activeRecording);
+        console.log("\u{1F50D} STAKTRAK: Found previous session data in sessionStorage");
+        if (recordingData && recordingData.isRecording && recordingData.version === "1.0") {
+          console.log("\u{1F50D} STAKTRAK: Attempting session restoration...");
+          const timeSinceLastSave = Date.now() - (recordingData.lastSaved || 0);
+          const isLikelyIframeReload = timeSinceLastSave < 1e4;
+          if (isLikelyIframeReload) {
+            console.log("\u{1F50D} STAKTRAK: Detected iframe reload, restoring recording state");
+            if (recordingData.results) {
+              this.results = __spreadValues(__spreadValues({}, this.createEmptyResults()), recordingData.results);
+            }
+            if (recordingData.memory) {
+              this.memory.assertions = recordingData.memory.assertions || [];
+              this.memory.selectionMode = recordingData.memory.selectionMode || false;
+            }
+            this.isRunning = true;
+            this.setupEventListeners();
+            this.startHealthCheck();
+            console.log("\u{1F50D} STAKTRAK: Session restored successfully", {
+              clicks: this.results.clicks.clickCount,
+              inputs: this.results.inputChanges.length,
+              assertions: this.memory.assertions.length
+            });
+            this.verifyEventListeners();
+            window.parent.postMessage({ type: "staktrak-replay-ready" }, "*");
+          } else {
+            console.log("\u{1F50D} STAKTRAK: Session data is too old, starting fresh");
+            sessionStorage.removeItem("stakTrakActiveRecording");
+          }
+        } else {
+          console.log("\u{1F50D} STAKTRAK: Invalid session data, starting fresh");
+          sessionStorage.removeItem("stakTrakActiveRecording");
+        }
+      } catch (error) {
+        console.warn("\u{1F50D} STAKTRAK: Session restoration failed:", error);
+        sessionStorage.removeItem("stakTrakActiveRecording");
+      }
+    }
+    verifyEventListeners() {
+      console.log("\u{1F50D} STAKTRAK: Verifying event listeners", {
+        isRunning: this.isRunning,
+        listenersCount: this.memory.listeners.length,
+        mutationObserver: !!this.memory.mutationObserver
+      });
+      if (this.isRunning && this.memory.listeners.length === 0) {
+        console.warn("\u{1F50D} STAKTRAK: No listeners found, re-establishing...");
+        this.setupEventListeners();
+      }
+    }
+    recoverRecording() {
+      console.log("\u{1F50D} STAKTRAK: Attempting recording recovery");
+      if (!this.isRunning) {
+        console.log("\u{1F50D} STAKTRAK: Recording was not active, starting fresh");
+        return;
+      }
+      this.verifyEventListeners();
+      this.saveSessionState();
+      console.log("\u{1F50D} STAKTRAK: Recording recovery completed");
+    }
+    startHealthCheck() {
+      this.memory.healthCheckInterval = setInterval(() => {
+        if (this.isRunning) {
+          if (this.memory.listeners.length === 0) {
+            console.warn("\u{1F50D} STAKTRAK: Health check failed - no listeners, attempting recovery");
+            this.recoverRecording();
+          }
+          this.saveSessionState();
+        }
+      }, 5e3);
+      console.log("\u{1F50D} STAKTRAK: Health check started");
+    }
   };
-  var activeRecording = sessionStorage.getItem("stakTrakActiveRecording");
-  var recordingData = activeRecording ? JSON.parse(activeRecording) : null;
-  var userBehaviour;
-  if (recordingData && recordingData.isRecording) {
-    console.log("\u{1F50D} STAKTRAK: Restoring recording session from sessionStorage");
-    userBehaviour = new UserBehaviorTracker();
-    if (recordingData.results) {
-      userBehaviour.results = recordingData.results;
-    }
-    if (recordingData.memory) {
-      userBehaviour.memory = __spreadValues(__spreadValues({}, userBehaviour.memory), recordingData.memory);
-    }
-    userBehaviour.isRunning = true;
-  } else {
-    console.log("\u{1F50D} STAKTRAK: Creating new instance");
-    userBehaviour = new UserBehaviorTracker();
-  }
+  var userBehaviour = new UserBehaviorTracker();
   var initializeStakTrak = () => {
     userBehaviour.makeConfig({
       processData: (results) => console.log("StakTrak recording processed:", results)
     }).listen();
+    userBehaviour.attemptSessionRestoration();
     initPlaywrightReplay();
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
