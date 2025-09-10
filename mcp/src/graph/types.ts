@@ -82,12 +82,17 @@ export interface Neo4jEdge {
   properties: Record<string, any>;
 }
 
+export interface WeightedNode {
+  name: string;
+  relevancy: number;
+}
+
 export interface HintExtraction {
-  function_names: string[];
-  file_names: string[];
-  datamodel_names: string[];
-  endpoint_names: string[];
-  page_names: string[];
+  function_names: WeightedNode[];
+  file_names: WeightedNode[];
+  datamodel_names: WeightedNode[];
+  endpoint_names: WeightedNode[];
+  page_names: WeightedNode[];
 }
 
 export interface GraphResponse {

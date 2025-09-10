@@ -68,7 +68,25 @@ export function getNodeLabel(node: any) {
   }
 }
 
-export function getNodeSummaryLabel(node: Neo4jNode) {
+export function firstLines(str?: string, n = 40, maxLineLen = 200): string {
+  if (!str) return "";
+  return str
+    .split("\n")
+    .slice(0, n)
+    .map((line) => line.slice(0, maxLineLen))
+    .join("\n");
+}
+
+export function getNodeSummaryLabel(node: Neo4jNode): string {
+  const inner = getNodeSummaryLabelInner(node);
+  const newlineCount = (inner.match(/\n/g) || []).length;
+  if (newlineCount === 0) {
+    return `${inner}\n\`\`\`\n${firstLines(node.properties.body)}\n\`\`\``;
+  }
+  return inner;
+}
+
+export function getNodeSummaryLabelInner(node: Neo4jNode): string {
   if (!node.labels) {
     console.log("Node has no labels:", node);
     throw new Error("Node has no labels");
@@ -86,13 +104,14 @@ export function getNodeSummaryLabel(node: Neo4jNode) {
         ? `lines ${node.properties.start} - ${node.properties.end}`
         : `line ${node.properties.start}`;
     let lab = `${label}: ${node.properties.name} (${lines})`;
-    const bod = node.properties.body?.split("\n").slice(0, 10).join("\n");
+    const bod = firstLines(node.properties.body, 10);
     if (bod) {
-      lab += `\n\`\`\`${bod}\`\`\``;
+      lab += `\n\`\`\`\n${bod}\n\`\`\``;
     }
     if (node.properties.docs) {
       lab += `\nDocs: ${node.properties.docs}`;
     }
+
     return lab;
   }
 
