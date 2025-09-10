@@ -29,7 +29,7 @@ import { parseServiceFile, extractContainersFromCompose } from "./service.js";
 import * as path from "path";
 import { get_context } from "../tools/explore/tool.js";
 import { ask_question, QUESTIONS } from "../tools/intelligence/index.js";
-import { decompose_question } from "../tools/intelligence/ask.js";
+import { decomposeAndAsk } from "../tools/intelligence/questions.js";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -127,16 +127,9 @@ export async function ask(req: Request, res: Response) {
     res.status(400).json({ error: "Missing question" });
     return;
   }
+  const similarityThreshold = parseFloat(req.query.threshold as string) || 0.9;
   try {
-    const answers = [];
-    const dq = await decompose_question(question);
-    for (const q of dq.questions) {
-      const answer = await ask_question(q, 0.75);
-      if (answer.reused) {
-        console.log("REUSED question:", q, answer.reused_question);
-      }
-      answers.push(answer);
-    }
+    const answers = await decomposeAndAsk(question, similarityThreshold);
     res.json(answers);
   } catch (error) {
     console.error("Ask Error:", error);

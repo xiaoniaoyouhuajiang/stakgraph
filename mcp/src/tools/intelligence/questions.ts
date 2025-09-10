@@ -1,3 +1,88 @@
+import { db } from "../../graph/neo4j.js";
+import * as G from "../../graph/graph.js";
+import { get_context } from "../explore/tool.js";
+import { vectorizeQuery } from "../../vector/index.js";
+import { create_hint_edges_llm } from "./seed.js";
+import { decompose_question } from "./ask.js";
+
+export async function decomposeAndAsk(
+  prompt: string,
+  threshold: number
+): Promise<Answer[]> {
+  const answers = [];
+  const dq = await decompose_question(prompt);
+  for (const q of dq.questions) {
+    const answer = await ask_question(q, threshold || 0.75);
+    if (answer.reused) {
+      console.log("REUSED question:", q, answer.reused_question);
+    }
+    answers.push(answer);
+  }
+  return answers;
+}
+
+export interface Answer {
+  question: string;
+  answer: string;
+  hint_ref_id: string;
+  reused: boolean;
+  reused_question?: string;
+  edges_added: number;
+  linked_ref_ids: string[];
+}
+
+export async function ask_question(
+  question: string,
+  similarityThreshold: number,
+  provider?: string
+): Promise<Answer> {
+  const existing = await G.search(
+    question,
+    5,
+    ["Hint" as any],
+    false,
+    100000,
+    "vector",
+    "json"
+  );
+  let reused = false;
+  if (Array.isArray(existing) && existing.length > 0) {
+    const top: any = existing[0];
+    if (top.properties.score && top.properties.score >= similarityThreshold) {
+      return {
+        question,
+        answer: top.properties.body,
+        hint_ref_id: top.ref_id,
+        reused: true,
+        reused_question: top.properties.question,
+        edges_added: 0,
+        linked_ref_ids: [],
+      };
+    }
+  }
+  const ctx = await get_context(question);
+  const answer = ctx;
+  const embeddings = await vectorizeQuery(question);
+  const created = await db.create_hint(question, answer, embeddings);
+  let edges_added = 0;
+  let linked_ref_ids: string[] = [];
+  try {
+    const r = await create_hint_edges_llm(created.ref_id, answer, provider);
+    edges_added = r.edges_added;
+    linked_ref_ids = r.linked_ref_ids;
+  } catch (e) {
+    console.error("Failed to create edges from hint", e);
+  }
+  return {
+    question,
+    answer,
+    hint_ref_id: created.ref_id,
+    reused,
+    edges_added,
+    linked_ref_ids,
+  };
+}
+
 export const QUESTIONS = [
   "What is the overall architecture of this application (monolithic, microservices, serverless)?",
   "How does authentication work in this repo?",

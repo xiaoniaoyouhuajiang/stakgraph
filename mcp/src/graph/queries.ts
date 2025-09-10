@@ -324,7 +324,7 @@ CALL {
         relationshipFilter: "RENDERS>|CALLS>|CONTAINS>|HANDLER>|<OPERAND",
         uniqueness: "NODE_PATH",
         minLevel: 1,
-        maxLevel: includeDown * depth, // Will be 0 if not including down paths
+        maxLevel: includeDown * depth,
         labelFilter: labelFilter
     })
     YIELD path
@@ -342,42 +342,75 @@ CALL {
         relationshipFilter: "<RENDERS|<CALLS|<CONTAINS|<HANDLER|<OPERAND",
         uniqueness: "NODE_PATH",
         minLevel: 1,
-        maxLevel: includeUp * depth, // Will be 0 if not including up paths
+        maxLevel: includeUp * depth,
         labelFilter: labelFilter
     })
     YIELD path
     RETURN collect(path) AS upwardPaths
 }
 
-// Combine the paths
+// Combine the paths and ALWAYS include the start node
 WITH f AS startNode, 
      downwardPaths + upwardPaths AS paths,
      trim
 
-// Rest of query remains the same
-UNWIND paths AS path
-WITH startNode, path, trim
-WHERE NONE(n IN nodes(path) WHERE n.name IN trim)
-
-WITH startNode,
-     COLLECT(DISTINCT path) AS filteredPaths,
+// Handle the case where no paths exist (isolated node)
+WITH startNode, 
+     CASE 
+       WHEN size(paths) = 0 THEN []
+       ELSE paths
+     END AS filteredPaths,
      trim
 
-UNWIND filteredPaths AS path
-UNWIND nodes(path) AS node
-WITH startNode, filteredPaths, trim, COLLECT(DISTINCT node) AS allNodes
+// Always include the start node in allNodes
+WITH startNode,
+     filteredPaths,
+     trim,
+     // Extract all nodes from paths, but always include startNode
+     CASE 
+       WHEN size(filteredPaths) = 0 THEN [startNode]
+       ELSE [startNode] + REDUCE(nodes = [], path IN filteredPaths | nodes + nodes(path))
+     END AS pathNodes
 
-UNWIND filteredPaths AS path
-UNWIND relationships(path) AS rel
-WITH startNode, allNodes, COLLECT(DISTINCT {
-    source: id(startNode(rel)),
-    target: id(endNode(rel)),
-    type: type(rel),
-    properties: properties(rel)
-}) AS relationships, trim
+// Remove duplicates and apply trim filter
+WITH startNode,
+     filteredPaths,
+     trim,
+     [node IN pathNodes WHERE NOT (node.name IN trim) | node] AS filteredNodes
+
+WITH startNode,
+     filteredPaths,
+     trim,
+     REDUCE(uniqueNodes = [], node IN filteredNodes | 
+       CASE WHEN node IN uniqueNodes THEN uniqueNodes ELSE uniqueNodes + [node] END
+     ) AS allNodes
+
+// Extract relationships (will be empty if no paths)
+WITH startNode, 
+     allNodes, 
+     REDUCE(allRels = [], path IN filteredPaths | allRels + relationships(path)) AS pathRels,
+     trim
+
+WITH startNode, 
+     allNodes, 
+     REDUCE(uniqueRels = [], rel IN pathRels | 
+       CASE WHEN rel IN uniqueRels THEN uniqueRels ELSE uniqueRels + [rel] END
+     ) AS uniqueRels,
+     trim
+
+WITH startNode, 
+     allNodes, 
+     [rel IN uniqueRels | {
+       source: id(startNode(rel)),
+       target: id(endNode(rel)),
+       type: type(rel),
+       properties: properties(rel)
+     }] AS relationships,
+     trim
 
 WITH startNode, allNodes, relationships,
      [node IN allNodes WHERE node.file IS NOT NULL | node.file] AS fileNames
+
 OPTIONAL MATCH (file:File)-[:CONTAINS]->(import:Import)
 WHERE file.file IN fileNames
 

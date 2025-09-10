@@ -1,4 +1,3 @@
-import { QUESTIONS } from "./questions.js";
-import { ask_question } from "./seed.js";
+import { QUESTIONS, ask_question } from "./questions.js";
 
 export { QUESTIONS, ask_question };
