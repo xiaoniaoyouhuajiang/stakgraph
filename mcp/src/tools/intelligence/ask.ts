@@ -39,6 +39,12 @@ export async function ask_question(
   if (Array.isArray(existing) && existing.length > 0) {
     const top: any = existing[0];
     if (top.properties.score && top.properties.score >= similarityThreshold) {
+      console.log(
+        ">> REUSED question:",
+        question,
+        ">>",
+        top.properties.question
+      );
       return {
         question,
         answer: top.properties.body,
@@ -50,6 +56,7 @@ export async function ask_question(
       };
     }
   }
+  console.log(">> NEW question:", question);
   const ctx = await get_context(question);
   const answer = ctx;
   const embeddings = await vectorizeQuery(question);
@@ -87,7 +94,8 @@ You are bridging business requirements to technical implementation. Given a user
 Identify the core business functionality and user workflows involved.
 
 ## Step 2: Implementation Questions
-Generate 3-7 specific questions that developers would need to answer. Make each question:
+Generate 1-5 specific questions that developers would need to answer. Make each question:
+- **Short and concise**
 - **Specific enough** to match existing cached answers
 - **Business-focused** but technically actionable  
 - **Workflow-oriented** (following user journeys)
@@ -105,6 +113,9 @@ Generate 3-7 specific questions that developers would need to answer. Make each 
 - Use business terminology first, technical second
 - Include context: "In the context of [workflow], how does..."
 - Be specific: Instead of "How to implement auth" → "How does user password reset workflow work with email verification?"
+
+**IMPORTANT:**
+MAKE YOUR QUESTIONS SHORT AND CONCISE. DO NOT ASSUME THINGS ABOUT THE CODEBASE THAT YOU DON'T KNOW.
 
 **EXPECTED OUTPUT FORMAT:**
 {

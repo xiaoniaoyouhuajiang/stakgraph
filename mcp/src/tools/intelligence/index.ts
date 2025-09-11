@@ -17,7 +17,7 @@ export {
 export async function ask_prompt(
   prompt: string,
   provider?: string,
-  similarityThreshold: number = 0.85
+  similarityThreshold: number = 0.8
 ): Promise<RecomposedAnswer> {
   // first get a 0.95 match
   const existing = await G.search(
@@ -29,13 +29,31 @@ export async function ask_prompt(
     "vector",
     "json"
   );
+  if (Array.isArray(existing)) {
+    console.log(">> existing:");
+    existing.forEach((e: any) =>
+      console.log(e.properties.question, e.properties.score, e.node_type)
+    );
+  }
   if (Array.isArray(existing) && existing.length > 0) {
     const top: any = existing[0];
-    // THIS threshold is hardcoded to 0.95 because we want to reuse the answer if it's very similar to the prompt
-    if (top.properties.score && top.properties.score >= 0.95) {
+    // THIS threshold is hardcoded because we want to reuse the answer if it's very similar to the prompt
+    if (top.properties.score && top.properties.score >= 0.88) {
+      // Fetch connected hints (sub_answers) for this existing prompt
+      const connected_hints = await db.get_connected_hints(top.ref_id);
+      const sub_answers = connected_hints.map((hint: any) => ({
+        question: hint.properties.question || hint.properties.name,
+        answer: hint.properties.body || "",
+        hint_ref_id: hint.ref_id || hint.properties.ref_id,
+        reused: true,
+        reused_question: hint.properties.question || hint.properties.name,
+        edges_added: 0,
+        linked_ref_ids: [],
+      }));
+
       return {
         answer: top.properties.body,
-        sub_answers: [],
+        sub_answers,
       };
     }
   }
@@ -54,6 +72,11 @@ export async function ask_prompt(
 
     for (const sub_answer of answer.sub_answers) {
       // Create edge from main prompt to sub answer hint
+      console.log(
+        ">> creating edge from main prompt to sub answer hint",
+        created.ref_id,
+        sub_answer.hint_ref_id
+      );
       await db.createEdgesDirectly(created.ref_id, [
         {
           ref_id: sub_answer.hint_ref_id,

@@ -242,9 +242,15 @@ export const LEARN_HTML = `
         submitBtn.addEventListener('click', askQuestion);
         
         questionInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                askQuestion();
+            if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                    // Allow Shift+Enter to create new line (default behavior)
+                    return;
+                } else {
+                    // Enter alone submits the question
+                    e.preventDefault();
+                    askQuestion();
+                }
             }
         });
         

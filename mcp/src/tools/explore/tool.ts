@@ -12,12 +12,22 @@ import * as G from "../../graph/graph.js";
 curl "http://localhost:3000/explore?prompt=how%20does%20auth%20work%20in%20the%20repo"
 */
 
-function logStep(content: any) {
-  if (content.type === "tool-call") {
-    console.log("TOOL CALL:", content.toolName, ":", content.input);
-  }
-  if (content.type === "tool-result") {
-    // console.log("TOOL RESULT", content.toolName, content.output);
+function logStep(contents: any) {
+  if (!Array.isArray(contents)) return;
+  for (const content of contents) {
+    if (content.type === "tool-call") {
+      if (content.toolName === "finalAnswer") {
+        console.log("FINAL ANSWER:", content.input.answer);
+      } else {
+        console.log("TOOL CALL:", content.toolName, ":", content.input);
+      }
+    }
+    if (content.type === "tool-result") {
+      if (content.toolName !== "repo_overview") {
+        console.log(content.output);
+      }
+      // console.log("TOOL RESULT", content.toolName, content.output);
+    }
   }
 }
 
@@ -118,7 +128,7 @@ export async function get_context(prompt: string): Promise<string> {
     finalAnswer: tool({
       // Define a tool that signals the end of the process
       description:
-        "Provide the final answer to the user. ALWAYS include relevant files or function names in the answer. DO NOT include long lists of irrelevant file names like migration files. This answer will be used by the next model to actually build the feature, so try to give clues for locating core functionality to the issue at hand. YOU **MUST** CALL THIS TOOL AT THE END OF YOUR EXPLORATION.",
+        "Provide the final answer to the user. ALWAYS include relevant files or function names in the answer (and a quick note about why this piece of code is relevant to the issue at hand). DO NOT include long lists of irrelevant file names like migration files. This answer will be used by the next model to actually build the feature, so try to give clues for locating core functionality to the issue at hand. You don't need to be super verbose.YOU **MUST** CALL THIS TOOL AT THE END OF YOUR EXPLORATION.",
       inputSchema: z.object({ answer: z.string() }),
       execute: async ({ answer }: { answer: string }) => answer,
     }),

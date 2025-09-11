@@ -235,7 +235,7 @@ class Db {
       );
     }
     const session = this.driver.session();
-    console.log("get_repo_subtree", name, ref_id, this.skip_string(disclude));
+    // console.log("get_repo_subtree", name, ref_id, this.skip_string(disclude));
     try {
       return await session.run(Q.REPO_SUBGRAPH_QUERY, {
         node_label: node_type,
@@ -542,6 +542,18 @@ class Db {
       const record = r.records[0];
       const n = record.get("n");
       return { ref_id: n.properties.ref_id, node_key };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_connected_hints(prompt_ref_id: string) {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.GET_CONNECTED_HINTS_QUERY, {
+        prompt_ref_id,
+      });
+      return result.records.map((record) => clean_node(record.get("h")));
     } finally {
       await session.close();
     }

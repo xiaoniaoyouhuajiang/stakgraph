@@ -10,9 +10,6 @@ export async function decomposeAndAsk(
   const dq = await decomposeQuestion(prompt);
   for (const q of dq.questions) {
     const answer = await ask_question(q, threshold || 0.75, provider);
-    if (answer.reused) {
-      console.log("REUSED question:", q, ">>", answer.reused_question);
-    }
     answers.push(answer);
   }
   return answers;

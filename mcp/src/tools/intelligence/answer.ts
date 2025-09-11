@@ -47,6 +47,10 @@ Create a comprehensive response that:
 - Maintain the technical depth appropriate for the user's request
 
 Please synthesize the information and provide the structured response.
+
+**IMPORTANT:**
+IF YOU ARE ASKED TO BUILD A FEATURE IN THE Original User Request, DONT WORRY ABOUT ACTUALLY WRITING CODE.
+YOUR JOB IS TO GENERATE CONCISE INSIGHTS, GUIDANCE, AND POINTERS TO RELEVANTS PARTS OF THE CODEBASE.
 `;
 }
 
