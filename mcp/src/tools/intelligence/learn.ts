@@ -172,9 +172,9 @@ export const LEARN_HTML = `
         <div id="answerContainer" style="display: none;">
             <div id="questionDisplay" class="question-display"></div>
             <div id="answerText" class="answer-text"></div>
-            <div id="subQuestionsContainer" class="sub-questions-container" style="display: none;">
+            <div id="subAnswersContainer" class="sub-questions-container" style="display: none;">
                 <div class="sub-questions-title">Related Questions:</div>
-                <div id="subQuestionsList" class="sub-questions-list"></div>
+                <div id="subAnswersList" class="sub-questions-list"></div>
             </div>
         </div>
     </div>
@@ -185,8 +185,8 @@ export const LEARN_HTML = `
         const answerContainer = document.getElementById('answerContainer');
         const questionDisplay = document.getElementById('questionDisplay');
         const answerText = document.getElementById('answerText');
-        const subQuestionsContainer = document.getElementById('subQuestionsContainer');
-        const subQuestionsList = document.getElementById('subQuestionsList');
+        const subAnswersContainer = document.getElementById('subAnswersContainer');
+        const subAnswersList = document.getElementById('subAnswersList');
         
         async function askQuestion() {
             const question = questionInput.value.trim();
@@ -208,31 +208,31 @@ export const LEARN_HTML = `
                     answerText.className = 'answer-text';
                     
                     // Display sub-questions if they exist
-                    if (data.sub_questions && data.sub_questions.length > 0) {
-                        subQuestionsList.innerHTML = '';
-                        data.sub_questions.forEach(subQuestion => {
+                    if (data.sub_answers && data.sub_answers.length > 0) {
+                        subAnswersList.innerHTML = '';
+                        data.sub_answers.forEach(subAnswer => {
                             const pill = document.createElement('div');
                             pill.className = 'sub-question-pill';
-                            pill.textContent = subQuestion;
+                            pill.textContent = subAnswer.question;
                             pill.addEventListener('click', () => {
-                                questionInput.value = subQuestion;
-                                askQuestion();
+                                questionInput.value = subAnswer.question;
+                                // askQuestion();
                             });
-                            subQuestionsList.appendChild(pill);
+                            subAnswersList.appendChild(pill);
                         });
-                        subQuestionsContainer.style.display = 'block';
+                        subAnswersContainer.style.display = 'block';
                     } else {
-                        subQuestionsContainer.style.display = 'none';
+                        subAnswersContainer.style.display = 'none';
                     }
                 } else {
                     answerText.innerHTML = \`Error: \${data.error || 'Unknown error'}\`;
                     answerText.className = 'answer-text error';
-                    subQuestionsContainer.style.display = 'none';
+                    subAnswersContainer.style.display = 'none';
                 }
             } catch (error) {
                 answerText.innerHTML = \`Error: \${error.message}\`;
                 answerText.className = 'answer-text error';
-                subQuestionsContainer.style.display = 'none';
+                subAnswersContainer.style.display = 'none';
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Ask Question';

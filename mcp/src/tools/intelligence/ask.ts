@@ -77,7 +77,7 @@ export async function ask_question(
 DECOMPOSE QUESTION into business context and specific implementation questions
 */
 
-function PROMPT(user_query: string) {
+function DECOMPOSE_PROMPT(user_query: string) {
   return `
 You are bridging business requirements to technical implementation. Given a user request:
 
@@ -135,7 +135,7 @@ export async function decomposeQuestion(
   return await callGenerateObject({
     provider: provider as Provider,
     apiKey,
-    prompt: PROMPT(question),
+    prompt: DECOMPOSE_PROMPT(question),
     schema,
   });
 }

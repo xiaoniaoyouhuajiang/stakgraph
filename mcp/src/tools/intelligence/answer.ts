@@ -6,7 +6,7 @@ import {
 } from "../../aieo/src/index.js";
 import { Answer } from "./ask.js";
 
-function PROMPT(user_query: string, qas: string): string {
+function RECOMPOSE_PROMPT(user_query: string, qas: string): string {
   return `
 You are a technical documentation synthesizer. Your task is to combine fragmented search results into a comprehensive, actionable response while identifying the most important technical references.
 
@@ -52,7 +52,7 @@ Please synthesize the information and provide the structured response.
 
 export interface RecomposedAnswer {
   answer: string;
-  sub_questions: string[];
+  sub_answers: Answer[];
 }
 
 export async function recomposeAnswer(
@@ -65,7 +65,7 @@ export async function recomposeAnswer(
     qas +=
       "Question: " + answer.question + "\n" + "Answer: " + answer.answer + "\n";
   }
-  const content = PROMPT(user_query, qas);
+  const content = RECOMPOSE_PROMPT(user_query, qas);
   const provider = llm_provider || "anthropic";
   const apiKey = getApiKeyForProvider(provider as Provider);
   const messages: ModelMessage[] = [{ role: "user", content }];
@@ -76,6 +76,6 @@ export async function recomposeAnswer(
   });
   return {
     answer: answer,
-    sub_questions: answers.map((answer) => answer.question),
+    sub_answers: answers,
   };
 }

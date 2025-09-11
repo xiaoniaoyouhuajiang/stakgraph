@@ -35,7 +35,7 @@ export async function ask_prompt(
     if (top.properties.score && top.properties.score >= 0.95) {
       return {
         answer: top.properties.body,
-        sub_questions: [],
+        sub_answers: [],
       };
     }
   }
@@ -52,8 +52,14 @@ export async function ask_prompt(
     const embeddings = await vectorizeQuery(prompt);
     const created = await db.create_prompt(prompt, answer.answer, embeddings);
 
-    for (const sub_question of answer.sub_questions) {
-      // TODO: sub questions are "hints". please make edges
+    for (const sub_answer of answer.sub_answers) {
+      // Create edge from main prompt to sub answer hint
+      await db.createEdgesDirectly(created.ref_id, [
+        {
+          ref_id: sub_answer.hint_ref_id,
+          relevancy: 0.8, // Sub answers are highly relevant to the main prompt
+        },
+      ]);
     }
 
     return answer;
