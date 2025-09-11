@@ -12,6 +12,15 @@ import * as G from "../../graph/graph.js";
 curl "http://localhost:3000/explore?prompt=how%20does%20auth%20work%20in%20the%20repo"
 */
 
+function logStep(content: any) {
+  if (content.type === "tool-call") {
+    console.log("TOOL CALL:", content.toolName, ":", content.input);
+  }
+  if (content.type === "tool-result") {
+    // console.log("TOOL RESULT", content.toolName, content.output);
+  }
+}
+
 export async function get_context(prompt: string): Promise<string> {
   const provider = process.env.LLM_PROVIDER || "anthropic";
   const apiKey = getApiKeyForProvider(provider);
@@ -121,7 +130,8 @@ export async function get_context(prompt: string): Promise<string> {
     system: EXPLORER,
     stopWhen: hasToolCall("finalAnswer"),
     onStepFinish: (sf) => {
-      console.log("step", JSON.stringify(sf.content, null, 2));
+      // console.log("step", JSON.stringify(sf.content, null, 2));
+      logStep(sf.content);
     },
   });
   let final = "";

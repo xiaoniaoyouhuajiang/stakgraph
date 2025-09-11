@@ -94,6 +94,17 @@ export const GET_HINT_QUERY = `
 MATCH (n:Hint {node_key: $node_key}) RETURN n
 `;
 
+export const CREATE_PROMPT_QUERY = `
+MERGE (n:Prompt:${Data_Bank} {node_key: $node_key})
+ON CREATE SET n.ref_id = randomUUID(), n.date_added_to_graph = $ts
+SET n.name = $name, n.file = $file, n.body = $body, n.start = 0, n.end = 0, n.question = $question, n.embeddings = $embeddings
+RETURN n
+`;
+
+export const GET_PROMPT_QUERY = `
+MATCH (n:Prompt {node_key: $node_key}) RETURN n
+`;
+
 export const FIND_NODES_BY_NAME_QUERY = `
 MATCH (n:{LABEL})
 WHERE n.name = $name

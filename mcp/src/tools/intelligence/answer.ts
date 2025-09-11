@@ -4,7 +4,7 @@ import {
   ModelMessage,
   Provider,
 } from "../../aieo/src/index.js";
-import { Answer } from "./questions.js";
+import { Answer } from "./ask.js";
 
 function PROMPT(user_query: string, qas: string): string {
   return `

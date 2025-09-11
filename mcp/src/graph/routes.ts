@@ -34,6 +34,7 @@ import {
   decomposeAndAsk,
   recomposeAnswer,
   LEARN_HTML,
+  ask_prompt,
 } from "../tools/intelligence/index.js";
 
 export function schema(_req: Request, res: Response) {
@@ -132,38 +133,11 @@ export async function ask(req: Request, res: Response) {
     res.status(400).json({ error: "Missing question" });
     return;
   }
-  const similarityThreshold = parseFloat(req.query.threshold as string) || 0.81;
+  const similarityThreshold = parseFloat(req.query.threshold as string) || 0.85;
   const provider = req.query.provider as string | undefined;
 
-  // first get a 0.95 match
-  const existing = await G.search(
-    question,
-    5,
-    ["Hint"],
-    false,
-    100000,
-    "vector",
-    "json"
-  );
-  if (Array.isArray(existing) && existing.length > 0) {
-    const top: any = existing[0];
-    if (top.properties.score && top.properties.score >= 0.95) {
-      res.json({
-        answer: top.properties.body,
-        sub_questions: [],
-      });
-      return;
-    }
-  }
-
-  // then decompose and ask
   try {
-    const answers = await decomposeAndAsk(
-      question,
-      similarityThreshold,
-      provider
-    );
-    const answer = await recomposeAnswer(question, answers, provider);
+    const answer = await ask_prompt(question, provider, similarityThreshold);
     res.json(answer);
   } catch (error) {
     console.error("Ask Error:", error);

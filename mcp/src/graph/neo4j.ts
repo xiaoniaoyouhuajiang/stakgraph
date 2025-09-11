@@ -547,6 +547,36 @@ class Db {
     }
   }
 
+  async create_prompt(question: string, answer: string, embeddings: number[]) {
+    const session = this.driver.session();
+    const name = question.slice(0, 80);
+    const node_key = create_node_key({
+      node_type: "Prompt",
+      node_data: {
+        name,
+        file: "prompt://generated",
+        start: 0,
+      },
+    } as Node);
+    try {
+      await session.run(Q.CREATE_PROMPT_QUERY, {
+        node_key,
+        name,
+        file: "prompt://generated",
+        body: answer,
+        question,
+        embeddings,
+        ts: Date.now() / 1000,
+      });
+      const r = await session.run(Q.GET_PROMPT_QUERY, { node_key });
+      const record = r.records[0];
+      const n = record.get("n");
+      return { ref_id: n.properties.ref_id, node_key };
+    } finally {
+      await session.close();
+    }
+  }
+
   async createEdgesDirectly(
     hint_ref_id: string,
     weightedRefIds: { ref_id: string; relevancy: number }[]
