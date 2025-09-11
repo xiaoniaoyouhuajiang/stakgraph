@@ -1,10 +1,10 @@
-import { generateText, tool, hasToolCall } from "ai";
+import { generateText, tool, hasToolCall, ModelMessage } from "ai";
 import {
   getModel,
   getApiKeyForProvider,
   Provider,
 } from "../../aieo/src/provider.js";
-import { EXPLORER } from "./prompts.js";
+import { EXPLORER, RE_EXPLORER } from "./prompts.js";
 import { z } from "zod";
 import * as G from "../../graph/graph.js";
 
@@ -31,7 +31,10 @@ function logStep(contents: any) {
   }
 }
 
-export async function get_context(prompt: string): Promise<string> {
+export async function get_context(
+  prompt: string | ModelMessage[],
+  re_explore: boolean = false
+): Promise<string> {
   const provider = process.env.LLM_PROVIDER || "anthropic";
   const apiKey = getApiKeyForProvider(provider);
   const model = await getModel(provider as Provider, apiKey as string);
@@ -133,11 +136,12 @@ export async function get_context(prompt: string): Promise<string> {
       execute: async ({ answer }: { answer: string }) => answer,
     }),
   };
+  const system = re_explore ? RE_EXPLORER : EXPLORER;
   const { steps } = await generateText({
     model,
     tools,
     prompt,
-    system: EXPLORER,
+    system,
     stopWhen: hasToolCall("finalAnswer"),
     onStepFinish: (sf) => {
       // console.log("step", JSON.stringify(sf.content, null, 2));

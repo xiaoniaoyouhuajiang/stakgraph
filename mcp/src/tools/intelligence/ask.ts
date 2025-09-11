@@ -7,124 +7,11 @@ import { vectorizeQuery } from "../../vector/index.js";
 import { create_hint_edges_llm } from "./seed.js";
 import * as G from "../../graph/graph.js";
 import { filterAnswers } from "./filter.js";
+import { Neo4jNode } from "../../graph/types.js";
 
 /*
 curl "http://localhost:3000/ask?question=how%20does%20auth%20work%20in%20the%20repo"
 */
-
-export interface Answer {
-  question: string;
-  answer: string;
-  hint_ref_id: string;
-  reused: boolean;
-  reused_question?: string;
-  edges_added: number;
-  linked_ref_ids: string[];
-}
-
-async function filter_by_relevance_from_cache(
-  question: string,
-  similarityThreshold: number,
-  provider?: string,
-  originalPrompt?: string
-): Promise<Answer | undefined> {
-  const existingAll = await G.search(
-    question,
-    5,
-    ["Hint"],
-    false,
-    100000,
-    "vector",
-    "json"
-  );
-  if (!Array.isArray(existingAll)) {
-    return;
-  }
-  const existing = existingAll.filter(
-    (e: any) => e.properties.score && e.properties.score >= similarityThreshold
-  );
-  if (Array.isArray(existingAll) && existingAll.length > 0) {
-    if (originalPrompt) {
-      let qas = "";
-      existing.forEach((e: any) => {
-        qas += `**Question:** ${e.properties.question}\n**Answer:** ${e.properties.body}\n\n`;
-      });
-      const filtered = await filterAnswers(qas, originalPrompt, provider);
-      if (filtered !== "NO_MATCH") {
-        const top: any = existing.find(
-          (e: any) => e.properties.question === filtered
-        );
-        if (top) {
-          console.log(
-            ">> REUSED RELEVANT question!!!:",
-            question,
-            ">>",
-            top.properties.question
-          );
-          return {
-            question,
-            answer: top.properties.body,
-            hint_ref_id: top.ref_id,
-            reused: true,
-            reused_question: top.properties.question,
-            edges_added: 0,
-            linked_ref_ids: [],
-          };
-        }
-      }
-    }
-    const top: any = existing[0];
-    console.log(">> REUSED question:", question, ">>", top.properties.question);
-    return {
-      question,
-      answer: top.properties.body,
-      hint_ref_id: top.ref_id,
-      reused: true,
-      reused_question: top.properties.question,
-      edges_added: 0,
-      linked_ref_ids: [],
-    };
-  }
-}
-
-export async function ask_question(
-  question: string,
-  similarityThreshold: number,
-  provider?: string,
-  originalPrompt?: string
-): Promise<Answer> {
-  const cachedAnswer = await filter_by_relevance_from_cache(
-    question,
-    similarityThreshold,
-    provider,
-    originalPrompt
-  );
-  if (cachedAnswer) {
-    return cachedAnswer;
-  }
-  console.log(">> NEW question:", question);
-  const ctx = await get_context(question);
-  const answer = ctx;
-  const embeddings = await vectorizeQuery(question);
-  const created = await db.create_hint(question, answer, embeddings);
-  let edges_added = 0;
-  let linked_ref_ids: string[] = [];
-  try {
-    const r = await create_hint_edges_llm(created.ref_id, answer, provider);
-    edges_added = r.edges_added;
-    linked_ref_ids = r.linked_ref_ids;
-  } catch (e) {
-    console.error("Failed to create edges from hint", e);
-  }
-  return {
-    question,
-    answer,
-    hint_ref_id: created.ref_id,
-    reused: false,
-    edges_added,
-    linked_ref_ids,
-  };
-}
 
 /*
 DECOMPOSE QUESTION into business context and specific implementation questions
@@ -173,6 +60,116 @@ MAKE YOUR QUESTIONS SHORT AND CONCISE. DO NOT ASSUME THINGS ABOUT THE CODEBASE T
   ]
 }
 `;
+}
+
+export interface Answer {
+  question: string;
+  answer: string;
+  hint_ref_id: string;
+  reused: boolean;
+  reused_question?: string;
+  edges_added: number;
+  linked_ref_ids: string[];
+}
+
+function cached_answer(question: string, e: Neo4jNode): Answer {
+  return {
+    question,
+    answer: e.properties.body,
+    hint_ref_id: e.ref_id as string,
+    reused: true,
+    reused_question: e.properties.question,
+    edges_added: 0,
+    linked_ref_ids: [],
+  };
+}
+
+async function filter_by_relevance_from_cache(
+  question: string,
+  similarityThreshold: number,
+  provider?: string,
+  originalPrompt?: string
+): Promise<Answer | undefined> {
+  const existingAll = await G.search(
+    question,
+    5,
+    ["Hint"],
+    false,
+    100000,
+    "vector",
+    "json"
+  );
+  if (!Array.isArray(existingAll)) {
+    return;
+  }
+  const existing = existingAll.filter(
+    (e: any) => e.properties.score && e.properties.score >= similarityThreshold
+  );
+  if (Array.isArray(existingAll) && existingAll.length > 0) {
+    if (originalPrompt) {
+      let qas = "";
+      existing.forEach((e: any) => {
+        qas += `**Question:** ${e.properties.question}\n**Answer:** ${e.properties.body}\n\n`;
+      });
+      const filtered = await filterAnswers(qas, originalPrompt, provider);
+      if (filtered !== "NO_MATCH") {
+        const top: any = existing.find(
+          (e: any) => e.properties.question === filtered
+        );
+        if (top) {
+          console.log(
+            ">> REUSED RELEVANT question!!!:",
+            question,
+            ">>",
+            top.properties.question
+          );
+          return cached_answer(question, top);
+        }
+      }
+    }
+    const top: any = existing[0];
+    console.log(">> REUSED question:", question, ">>", top.properties.question);
+    return cached_answer(question, top);
+  }
+}
+
+export async function ask_question(
+  question: string,
+  similarityThreshold: number,
+  provider?: string,
+  originalPrompt?: string
+): Promise<Answer> {
+  const cachedAnswer = await filter_by_relevance_from_cache(
+    question,
+    similarityThreshold,
+    provider,
+    originalPrompt
+  );
+  if (cachedAnswer) {
+    return cachedAnswer;
+  }
+  console.log(">> NEW question:", question);
+  const ctx = await get_context(question);
+  const answer = ctx;
+  const embeddings = await vectorizeQuery(question);
+  const created = await db.create_hint(question, answer, embeddings);
+  let edges_added = 0;
+  let linked_ref_ids: string[] = [];
+  try {
+    const r = await create_hint_edges_llm(created.ref_id, answer, provider);
+    edges_added = r.edges_added;
+    linked_ref_ids = r.linked_ref_ids;
+  } catch (e) {
+    console.error("Failed to create edges from hint", e);
+  }
+  return {
+    question,
+    answer,
+    hint_ref_id: created.ref_id,
+    reused: false,
+    edges_added,
+    linked_ref_ids,
+  };
 }
 
 interface DecomposedQuestion {
