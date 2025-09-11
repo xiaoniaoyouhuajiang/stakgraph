@@ -208,14 +208,14 @@ export const LEARN_HTML = `
                     answerText.className = 'answer-text';
                     
                     // Display sub-questions if they exist
-                    if (data.sub_answers && data.sub_answers.length > 0) {
+                    if (data.hints && data.hints.length > 0) {
                         subAnswersList.innerHTML = '';
-                        data.sub_answers.forEach(subAnswer => {
+                        data.hints.forEach(hint => {
                             const pill = document.createElement('div');
                             pill.className = 'sub-question-pill';
-                            pill.textContent = subAnswer.question;
+                            pill.textContent = hint.question;
                             pill.addEventListener('click', () => {
-                                questionInput.value = subAnswer.question;
+                                questionInput.value = hint.question;
                                 // askQuestion();
                             });
                             subAnswersList.appendChild(pill);

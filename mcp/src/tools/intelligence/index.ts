@@ -14,10 +14,13 @@ export {
   LEARN_HTML,
 };
 
+const PROMPT_SIMILARITY_THRESHOLD = 0.9;
+const QUESTION_SIMILARITY_THRESHOLD = 0.75;
+
 export async function ask_prompt(
   prompt: string,
   provider?: string,
-  similarityThreshold: number = 0.8
+  similarityThreshold: number = QUESTION_SIMILARITY_THRESHOLD
 ): Promise<RecomposedAnswer> {
   // first get a 0.95 match
   const existing = await G.search(
@@ -30,7 +33,7 @@ export async function ask_prompt(
     "json"
   );
   if (Array.isArray(existing)) {
-    console.log(">> existing:");
+    console.log(">> existing prompts and hints::");
     existing.forEach((e: any) =>
       console.log(e.properties.question, e.properties.score, e.node_type)
     );
@@ -38,10 +41,13 @@ export async function ask_prompt(
   if (Array.isArray(existing) && existing.length > 0) {
     const top: any = existing[0];
     // THIS threshold is hardcoded because we want to reuse the answer if it's very similar to the prompt
-    if (top.properties.score && top.properties.score >= 0.88) {
+    if (
+      top.properties.score &&
+      top.properties.score >= PROMPT_SIMILARITY_THRESHOLD
+    ) {
       // Fetch connected hints (sub_answers) for this existing prompt
       const connected_hints = await db.get_connected_hints(top.ref_id);
-      const sub_answers = connected_hints.map((hint: any) => ({
+      const hints = connected_hints.map((hint: any) => ({
         question: hint.properties.question || hint.properties.name,
         answer: hint.properties.body || "",
         hint_ref_id: hint.ref_id || hint.properties.ref_id,
@@ -53,7 +59,7 @@ export async function ask_prompt(
 
       return {
         answer: top.properties.body,
-        sub_answers,
+        hints,
       };
     }
   }
@@ -70,16 +76,16 @@ export async function ask_prompt(
     const embeddings = await vectorizeQuery(prompt);
     const created = await db.create_prompt(prompt, answer.answer, embeddings);
 
-    for (const sub_answer of answer.sub_answers) {
+    for (const hint of answer.hints) {
       // Create edge from main prompt to sub answer hint
       console.log(
-        ">> creating edge from main prompt to sub answer hint",
+        ">> creating edge from main prompt to hint",
         created.ref_id,
-        sub_answer.hint_ref_id
+        hint.hint_ref_id
       );
       await db.createEdgesDirectly(created.ref_id, [
         {
-          ref_id: sub_answer.hint_ref_id,
+          ref_id: hint.hint_ref_id,
           relevancy: 0.8, // Sub answers are highly relevant to the main prompt
         },
       ]);

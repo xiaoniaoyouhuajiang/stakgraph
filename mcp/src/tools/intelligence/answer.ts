@@ -56,7 +56,7 @@ YOUR JOB IS TO GENERATE CONCISE INSIGHTS, GUIDANCE, AND POINTERS TO RELEVANTS PA
 
 export interface RecomposedAnswer {
   answer: string;
-  sub_answers: Answer[];
+  hints: Answer[];
 }
 
 export async function recomposeAnswer(
@@ -80,6 +80,6 @@ export async function recomposeAnswer(
   });
   return {
     answer: answer,
-    sub_answers: answers,
+    hints: answers,
   };
 }

@@ -6,10 +6,14 @@ export async function decomposeAndAsk(
   threshold: number,
   provider?: string
 ): Promise<Answer[]> {
-  const answers = [];
+  const answers: Answer[] = [];
   const dq = await decomposeQuestion(prompt);
+
   for (const q of dq.questions) {
-    const answer = await ask_question(q, threshold || 0.75, provider);
+    const answer = await ask_question(q, threshold, provider, prompt);
+    if (answers.find((a) => a.hint_ref_id === answer.hint_ref_id)) {
+      continue;
+    }
     answers.push(answer);
   }
   return answers;

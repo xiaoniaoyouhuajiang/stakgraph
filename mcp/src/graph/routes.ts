@@ -93,7 +93,7 @@ export async function understand(req: Request, res: Response) {
   try {
     const question = req.query.question as string;
     const similarityThreshold =
-      parseFloat(req.query.threshold as string) || 0.9;
+      parseFloat(req.query.threshold as string) || 0.88;
     if (!question) {
       res.status(400).json({ error: "Missing question" });
       return;
@@ -133,7 +133,8 @@ export async function ask(req: Request, res: Response) {
     res.status(400).json({ error: "Missing question" });
     return;
   }
-  const similarityThreshold = parseFloat(req.query.threshold as string) || 0.85;
+  const similarityThreshold =
+    parseFloat(req.query.threshold as string) || undefined;
   const provider = req.query.provider as string | undefined;
 
   try {

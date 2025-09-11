@@ -6,6 +6,7 @@ import { get_context } from "../explore/tool.js";
 import { vectorizeQuery } from "../../vector/index.js";
 import { create_hint_edges_llm } from "./seed.js";
 import * as G from "../../graph/graph.js";
+import { filterAnswers } from "./filter.js";
 
 /*
 curl "http://localhost:3000/ask?question=how%20does%20auth%20work%20in%20the%20repo"
@@ -21,12 +22,13 @@ export interface Answer {
   linked_ref_ids: string[];
 }
 
-export async function ask_question(
+async function filter_by_relevance_from_cache(
   question: string,
   similarityThreshold: number,
-  provider?: string
-): Promise<Answer> {
-  const existing = await G.search(
+  provider?: string,
+  originalPrompt?: string
+): Promise<Answer | undefined> {
+  const existingAll = await G.search(
     question,
     5,
     ["Hint"],
@@ -35,26 +37,70 @@ export async function ask_question(
     "vector",
     "json"
   );
-  let reused = false;
-  if (Array.isArray(existing) && existing.length > 0) {
-    const top: any = existing[0];
-    if (top.properties.score && top.properties.score >= similarityThreshold) {
-      console.log(
-        ">> REUSED question:",
-        question,
-        ">>",
-        top.properties.question
-      );
-      return {
-        question,
-        answer: top.properties.body,
-        hint_ref_id: top.ref_id,
-        reused: true,
-        reused_question: top.properties.question,
-        edges_added: 0,
-        linked_ref_ids: [],
-      };
+  if (!Array.isArray(existingAll)) {
+    return;
+  }
+  const existing = existingAll.filter(
+    (e: any) => e.properties.score && e.properties.score >= similarityThreshold
+  );
+  if (Array.isArray(existingAll) && existingAll.length > 0) {
+    if (originalPrompt) {
+      let qas = "";
+      existing.forEach((e: any) => {
+        qas += `**Question:** ${e.properties.question}\n**Answer:** ${e.properties.body}\n\n`;
+      });
+      const filtered = await filterAnswers(qas, originalPrompt, provider);
+      if (filtered !== "NO_MATCH") {
+        const top: any = existing.find(
+          (e: any) => e.properties.question === filtered
+        );
+        if (top) {
+          console.log(
+            ">> REUSED RELEVANT question!!!:",
+            question,
+            ">>",
+            top.properties.question
+          );
+          return {
+            question,
+            answer: top.properties.body,
+            hint_ref_id: top.ref_id,
+            reused: true,
+            reused_question: top.properties.question,
+            edges_added: 0,
+            linked_ref_ids: [],
+          };
+        }
+      }
     }
+    const top: any = existing[0];
+    console.log(">> REUSED question:", question, ">>", top.properties.question);
+    return {
+      question,
+      answer: top.properties.body,
+      hint_ref_id: top.ref_id,
+      reused: true,
+      reused_question: top.properties.question,
+      edges_added: 0,
+      linked_ref_ids: [],
+    };
+  }
+}
+
+export async function ask_question(
+  question: string,
+  similarityThreshold: number,
+  provider?: string,
+  originalPrompt?: string
+): Promise<Answer> {
+  const cachedAnswer = await filter_by_relevance_from_cache(
+    question,
+    similarityThreshold,
+    provider,
+    originalPrompt
+  );
+  if (cachedAnswer) {
+    return cachedAnswer;
   }
   console.log(">> NEW question:", question);
   const ctx = await get_context(question);
@@ -74,7 +120,7 @@ export async function ask_question(
     question,
     answer,
     hint_ref_id: created.ref_id,
-    reused,
+    reused: false,
     edges_added,
     linked_ref_ids,
   };
