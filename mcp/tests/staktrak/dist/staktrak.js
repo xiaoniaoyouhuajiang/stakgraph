@@ -36,50 +36,38 @@ var userBehaviour = (() => {
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
   // src/index.ts
-  var src_exports = {};
-  __export(src_exports, {
-    default: () => src_default
+  var index_exports = {};
+  __export(index_exports, {
+    default: () => index_default
   });
 
   // src/utils.ts
   var getTimeStamp = () => Date.now();
   var getElementRole = (element) => {
     const explicit = element.getAttribute("role");
-    if (explicit)
-      return explicit;
+    if (explicit) return explicit;
     const tag = element.tagName.toLowerCase();
-    if (tag === "button")
-      return "button";
-    if (tag === "a" && element.hasAttribute("href"))
-      return "link";
+    if (tag === "button") return "button";
+    if (tag === "a" && element.hasAttribute("href")) return "link";
     if (tag === "input") {
       const type = element.getAttribute("type");
-      if (["button", "submit", "reset"].includes(type || "text"))
-        return "button";
+      if (["button", "submit", "reset"].includes(type || "text")) return "button";
       return "textbox";
     }
-    if (tag === "nav")
-      return "navigation";
-    if (tag === "main")
-      return "main";
-    if (tag === "header")
-      return "banner";
-    if (tag === "footer")
-      return "contentinfo";
-    if (tag === "aside")
-      return "complementary";
-    if (tag === "section")
-      return "region";
+    if (tag === "nav") return "navigation";
+    if (tag === "main") return "main";
+    if (tag === "header") return "banner";
+    if (tag === "footer") return "contentinfo";
+    if (tag === "aside") return "complementary";
+    if (tag === "section") return "region";
     return null;
   };
   var getEnhancedElementText = (element) => {
     var _a;
     const ariaLabel = element.getAttribute("aria-label");
-    if (ariaLabel)
-      return ariaLabel;
+    if (ariaLabel) return ariaLabel;
     const resolvedLabel = resolveAriaLabelledBy(element);
-    if (resolvedLabel)
-      return resolvedLabel;
+    if (resolvedLabel) return resolvedLabel;
     const tag = element.tagName.toLowerCase();
     if (tag === "button" || tag === "a" && element.hasAttribute("href")) {
       const text = (_a = element.textContent) == null ? void 0 : _a.trim();
@@ -142,16 +130,14 @@ var userBehaviour = (() => {
   var resolveAriaLabelledBy = (element) => {
     var _a;
     const labelledBy = element.getAttribute("aria-labelledby");
-    if (!labelledBy)
-      return null;
+    if (!labelledBy) return null;
     const ids = labelledBy.split(" ").filter((id) => id.trim());
     const texts = [];
     for (const id of ids) {
       const referencedEl = findElementById(element.ownerDocument || document, id);
       if (referencedEl) {
         const text = (_a = referencedEl.textContent) == null ? void 0 : _a.trim();
-        if (text)
-          texts.push(text);
+        if (text) texts.push(text);
       }
     }
     return texts.length > 0 ? texts.join(" ") : null;
@@ -214,10 +200,8 @@ var userBehaviour = (() => {
     if (tagName === "input") {
       const type = element.type;
       const name = element.name;
-      if (type)
-        fallbacks.push(`input[type="${type}"]`);
-      if (name)
-        fallbacks.push(`input[name="${name}"]`);
+      if (type) fallbacks.push(`input[type="${type}"]`);
+      if (name) fallbacks.push(`input[name="${name}"]`);
     }
     const contextualSelector = generateContextualSelector(element);
     if (contextualSelector) {
@@ -244,8 +228,7 @@ var userBehaviour = (() => {
   var generateTextBasedSelector = (element, text) => {
     const tagName = element.tagName.toLowerCase();
     const cleanText = text.replace(/"/g, '\\"').trim();
-    if (cleanText.length === 0 || cleanText.length > 50)
-      return null;
+    if (cleanText.length === 0 || cleanText.length > 50) return null;
     if (tagName === "button" || tagName === "a" || getElementRole(element) === "button") {
       return `text=${cleanText}`;
     }
@@ -254,31 +237,23 @@ var userBehaviour = (() => {
   var generateClassBasedSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const classList = element.classList;
-    if (!classList.length)
-      return tagName;
+    if (!classList.length) return tagName;
     const safeClasses = Array.from(classList).filter((cls) => {
-      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/))
-        return false;
-      if (cls.includes("module__"))
-        return false;
-      if (cls.includes("emotion-"))
-        return false;
-      if (cls.includes("css-"))
-        return false;
-      if (cls.length > 30)
-        return false;
+      if (cls.includes("_") && cls.match(/[0-9a-f]{6}/)) return false;
+      if (cls.includes("module__")) return false;
+      if (cls.includes("emotion-")) return false;
+      if (cls.includes("css-")) return false;
+      if (cls.length > 30) return false;
       return /^[a-zA-Z][a-zA-Z0-9-]*$/.test(cls);
     });
-    if (safeClasses.length === 0)
-      return tagName;
+    if (safeClasses.length === 0) return tagName;
     const limitedClasses = safeClasses.slice(0, 3);
     return `${tagName}.${limitedClasses.join(".")}`;
   };
   var generateContextualSelector = (element) => {
     const tagName = element.tagName.toLowerCase();
     const parent = element.parentElement;
-    if (!parent)
-      return null;
+    if (!parent) return null;
     if (tagName === "button" && parent.tagName === "NAV") {
       return "nav button";
     }
@@ -309,8 +284,7 @@ var userBehaviour = (() => {
       const part = index > 1 ? `${tagName}[${index}]` : tagName;
       parts.unshift(part);
       current = current.parentElement;
-      if (parts.length > 10)
-        break;
+      if (parts.length > 10) break;
     }
     return "/" + parts.join("/");
   };
@@ -347,8 +321,7 @@ var userBehaviour = (() => {
     ];
     importantAttrs.forEach((attr) => {
       const value = htmlEl.getAttribute(attr);
-      if (value)
-        attrs[attr] = value;
+      if (value) attrs[attr] = value;
     });
     const semanticParent = getSemanticParent(htmlEl);
     if (semanticParent) {
@@ -369,8 +342,7 @@ var userBehaviour = (() => {
     return strategies.primary;
   };
   var filterClickDetails = (clickDetails, assertions, config) => {
-    if (!clickDetails.length)
-      return [];
+    if (!clickDetails.length) return [];
     let filtered = config.filterAssertionClicks ? clickDetails.filter(
       (click) => !assertions.some(
         (assertion) => Math.abs(click.timestamp - assertion.timestamp) < 1e3 && (click.selectors.primary.includes(assertion.selector) || assertion.selector.includes(click.selectors.primary) || click.selectors.fallbacks.some(
@@ -381,8 +353,7 @@ var userBehaviour = (() => {
     const clicksBySelector = {};
     filtered.forEach((click) => {
       const key = click.selectors.primary;
-      if (!clicksBySelector[key])
-        clicksBySelector[key] = [];
+      if (!clicksBySelector[key]) clicksBySelector[key] = [];
       clicksBySelector[key].push(click);
     });
     const result = [];
@@ -486,8 +457,7 @@ var userBehaviour = (() => {
       let level = 0;
       const maxTraversalDepth = Number((_a = window.STAKTRAK_CONFIG) == null ? void 0 : _a.maxTraversalDepth) || 10;
       const extractSource = (source) => {
-        if (!source)
-          return null;
+        if (!source) return null;
         return {
           fileName: source.fileName,
           lineNumber: source.lineNumber,
@@ -596,8 +566,7 @@ var userBehaviour = (() => {
         file.lines.sort((a, b) => a - b);
       });
       const formatComponentsForChat = (components) => {
-        if (components.length === 0)
-          return void 0;
+        if (components.length === 0) return void 0;
         const sortedComponents = components.sort((a, b) => a.level - b.level).slice(0, 3);
         const componentLines = sortedComponents.map((c) => {
           const nameToUse = c.name || "Unknown";
@@ -658,10 +627,7 @@ var userBehaviour = (() => {
     }
   }
 
-  // src/playwright-replay.ts
-  var playwrightReplayRef = {
-    current: null
-  };
+  // src/playwright-replay/parser.ts
   function parsePlaywrightTest(testCode) {
     const actions = [];
     const lines = testCode.split("\n");
@@ -1159,25 +1125,19 @@ var userBehaviour = (() => {
       }
     }
     const labelMatch = locatorCall.match(/getByLabel\(['"](.*?)['"]\)/);
-    if (labelMatch)
-      return `getByLabel:${labelMatch[1]}`;
+    if (labelMatch) return `getByLabel:${labelMatch[1]}`;
     const placeholderMatch = locatorCall.match(
       /getByPlaceholder\(['"](.*?)['"]\)/
     );
-    if (placeholderMatch)
-      return `getByPlaceholder:${placeholderMatch[1]}`;
+    if (placeholderMatch) return `getByPlaceholder:${placeholderMatch[1]}`;
     const testIdMatch = locatorCall.match(/getByTestId\(['"](.*?)['"]\)/);
-    if (testIdMatch)
-      return `getByTestId:${testIdMatch[1]}`;
+    if (testIdMatch) return `getByTestId:${testIdMatch[1]}`;
     const titleMatch = locatorCall.match(/getByTitle\(['"](.*?)['"]\)/);
-    if (titleMatch)
-      return `getByTitle:${titleMatch[1]}`;
+    if (titleMatch) return `getByTitle:${titleMatch[1]}`;
     const altMatch = locatorCall.match(/getByAltText\(['"](.*?)['"]\)/);
-    if (altMatch)
-      return `getByAltText:${altMatch[1]}`;
+    if (altMatch) return `getByAltText:${altMatch[1]}`;
     const locatorMatch = locatorCall.match(/locator\(['"](.*?)['"]\)/);
-    if (locatorMatch)
-      return locatorMatch[1];
+    if (locatorMatch) return locatorMatch[1];
     const locatorWithOptionsMatch = locatorCall.match(
       /locator\(['"](.*?)['"],\s*\{\s*hasText:\s*['"](.*?)['"]\s*\}/
     );
@@ -1212,13 +1172,10 @@ var userBehaviour = (() => {
       const innerSelector = parseLocatorCall(filterHasNotMatch[1]);
       return `${baseSelector}:filter-has-not("${innerSelector}")`;
     }
-    if (chainCall.includes("first()"))
-      return `${baseSelector}:first`;
-    if (chainCall.includes("last()"))
-      return `${baseSelector}:last`;
+    if (chainCall.includes("first()")) return `${baseSelector}:first`;
+    if (chainCall.includes("last()")) return `${baseSelector}:last`;
     const nthMatch = chainCall.match(/nth\((\d+)\)/);
-    if (nthMatch)
-      return `${baseSelector}:nth(${nthMatch[1]})`;
+    if (nthMatch) return `${baseSelector}:nth(${nthMatch[1]})`;
     const andMatch = chainCall.match(/and\(page\.(.+?)\)/);
     if (andMatch) {
       const otherSelector = parseLocatorCall(andMatch[1]);
@@ -1235,8 +1192,7 @@ var userBehaviour = (() => {
       return `${baseSelector} >> ${innerSelector}`;
     }
     const locatorChainMatch = chainCall.match(/^locator\(['"](.*?)['"]\)/);
-    if (locatorChainMatch)
-      return `${baseSelector} >> ${locatorChainMatch[1]}`;
+    if (locatorChainMatch) return `${baseSelector} >> ${locatorChainMatch[1]}`;
     return `${baseSelector}:${chainCall}`;
   }
   function extractSelectorFromArg(selectorArg) {
@@ -1349,29 +1305,8 @@ var userBehaviour = (() => {
     }
     return null;
   }
-  function getRoleSelector(role) {
-    const roleMap = {
-      button: 'button, [role="button"], input[type="button"], input[type="submit"]',
-      heading: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
-      link: 'a, [role="link"]',
-      textbox: 'input[type="text"], input[type="email"], input[type="password"], textarea, [role="textbox"]',
-      checkbox: 'input[type="checkbox"], [role="checkbox"]',
-      radio: 'input[type="radio"], [role="radio"]',
-      listitem: 'li, [role="listitem"]',
-      list: 'ul, ol, [role="list"]',
-      img: 'img, [role="img"]',
-      table: 'table, [role="table"]',
-      row: 'tr, [role="row"]',
-      cell: 'td, th, [role="cell"], [role="gridcell"]',
-      menu: '[role="menu"]',
-      menuitem: '[role="menuitem"]',
-      dialog: '[role="dialog"]',
-      alert: '[role="alert"]',
-      tab: '[role="tab"]',
-      tabpanel: '[role="tabpanel"]'
-    };
-    return roleMap[role] || `[role="${role}"]`;
-  }
+
+  // src/playwright-replay/executor.ts
   async function executePlaywrightAction(action) {
     var _a;
     try {
@@ -1587,408 +1522,215 @@ var userBehaviour = (() => {
     return [];
   }
   function findElements(selector) {
-    return findElementsInContext(selector, document);
+    const element = findElementWithFallbacks(selector);
+    return element ? [element] : [];
   }
-  function findElementsInContext(selector, searchContext) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
-    if (selector.includes(" >> ")) {
-      const parts = selector.split(" >> ");
-      let elements = findElementsInContext(parts[0], searchContext);
-      for (let i = 1; i < parts.length; i++) {
-        const newElements = [];
-        for (const element of elements) {
-          const subElements = findElementsInContext(
-            parts[i],
-            element.ownerDocument || document
-          );
-          newElements.push(...subElements.filter((el) => element.contains(el)));
-        }
-        elements = newElements;
-      }
-      return elements;
+  function findElementWithFallbacks(selector) {
+    if (!selector || selector.trim() === "") return null;
+    const browserSelector = convertToBrowserSelector(selector);
+    if (browserSelector && isValidSelector(browserSelector)) {
+      const element = document.querySelector(browserSelector);
+      if (element) return element;
     }
-    if (selector.includes(":filter-text(")) {
-      const match = selector.match(/^(.+?):filter-text\("(.+?)"\)$/);
-      if (match) {
-        const [, baseSelector, filterText] = match;
-        const baseElements = findElementsInContext(baseSelector, searchContext);
-        return baseElements.filter((el) => {
-          var _a2;
-          const elementText = ((_a2 = el.textContent) == null ? void 0 : _a2.trim()) || "";
-          return elementText.includes(filterText);
-        });
+    const strategies = [
+      () => findByDataTestId(selector),
+      () => findByClass(selector),
+      () => findById(selector),
+      () => findByAriaLabel(selector),
+      () => findByRole(selector),
+      () => findByTextContent(selector),
+      () => findByCoordinates(selector)
+    ];
+    for (const strategy of strategies) {
+      try {
+        const element = strategy();
+        if (element) {
+          return element;
+        }
+      } catch (error) {
+        console.warn(`Strategy failed for ${selector}:`, error);
       }
     }
-    if (selector.includes(":filter-regex(")) {
-      const match = selector.match(
-        /^(.+?):filter-regex\("\/(.+?)\/([gimuy]*)"\)$/
-      );
-      if (match) {
-        const [, baseSelector, pattern, flags] = match;
-        const regex = new RegExp(pattern, flags);
-        const baseElements = findElementsInContext(baseSelector, searchContext);
-        return baseElements.filter((el) => {
-          var _a2;
-          const elementText = ((_a2 = el.textContent) == null ? void 0 : _a2.trim()) || "";
-          return regex.test(elementText);
-        });
-      }
-    }
-    if (selector.includes(":filter-has(")) {
-      const match = selector.match(/^(.+?):filter-has\("(.+?)"\)$/);
-      if (match) {
-        const [, baseSelector, hasSelector] = match;
-        const baseElements = findElementsInContext(baseSelector, searchContext);
-        return baseElements.filter((el) => {
-          const childElements = findElementsInContext(
-            hasSelector,
-            el.ownerDocument || document
-          );
-          return childElements.some((child) => el.contains(child));
-        });
-      }
-    }
-    if (selector.includes(":filter-has-not(")) {
-      const match = selector.match(/^(.+?):filter-has-not\("(.+?)"\)$/);
-      if (match) {
-        const [, baseSelector, hasNotSelector] = match;
-        const baseElements = findElementsInContext(baseSelector, searchContext);
-        return baseElements.filter((el) => {
-          const childElements = findElementsInContext(
-            hasNotSelector,
-            el.ownerDocument || document
-          );
-          return !childElements.some((child) => el.contains(child));
-        });
-      }
-    }
-    if (selector.includes(":first")) {
-      const baseSelector = selector.replace(":first", "");
-      const elements = findElementsInContext(baseSelector, searchContext);
-      return elements.length > 0 ? [elements[0]] : [];
-    }
-    if (selector.includes(":last")) {
-      const baseSelector = selector.replace(":last", "");
-      const elements = findElementsInContext(baseSelector, searchContext);
-      return elements.length > 0 ? [elements[elements.length - 1]] : [];
-    }
-    const nthMatch = selector.match(/^(.+?):nth\((\d+)\)$/);
-    if (nthMatch) {
-      const [, baseSelector, index] = nthMatch;
-      const elements = findElementsInContext(baseSelector, searchContext);
-      const idx = parseInt(index);
-      return idx < elements.length ? [elements[idx]] : [];
-    }
-    if (selector.includes(":and(")) {
-      const match = selector.match(/^(.+?):and\("(.+?)"\)$/);
-      if (match) {
-        const [, baseSelector, andSelector] = match;
-        const baseElements = findElementsInContext(baseSelector, searchContext);
-        const andElements = findElementsInContext(andSelector, searchContext);
-        return baseElements.filter((el) => andElements.includes(el));
-      }
-    }
-    if (selector.includes(":or(")) {
-      const match = selector.match(/^(.+?):or\("(.+?)"\)$/);
-      if (match) {
-        const [, baseSelector, orSelector] = match;
-        const baseElements = findElementsInContext(baseSelector, searchContext);
-        const orElements = findElementsInContext(orSelector, searchContext);
-        const allElements = [...baseElements, ...orElements];
-        return Array.from(new Set(allElements));
-      }
-    }
-    if (selector.startsWith("getByText:")) {
-      const parts = selector.substring(10).split(":");
-      const text = parts[0];
-      const exact = parts[1] === "exact";
-      const allElements = searchContext.querySelectorAll("*");
-      const matches = [];
-      for (const el of Array.from(allElements)) {
-        const elementText = ((_a = el.textContent) == null ? void 0 : _a.trim()) || "";
-        const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE ? ((_b = el.childNodes[0].textContent) == null ? void 0 : _b.trim()) || "" : elementText;
-        const matchesText = exact ? elementOwnText === text.trim() || elementText === text.trim() : elementOwnText.includes(text.trim()) || elementText.includes(text.trim());
-        if (matchesText) {
-          matches.push(el);
-          el.__stakTrakMatchedText = text.trim();
-        }
-      }
-      return matches.sort(
-        (a, b) => {
-          var _a2, _b2;
-          return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-        }
-      );
-    } else if (selector.startsWith("getByText-regex:")) {
-      const regexPattern = selector.substring(16);
-      const regexMatch = regexPattern.match(/^\/(.+?)\/([gimuy]*)$/);
-      if (regexMatch) {
-        const [, pattern, flags] = regexMatch;
-        const regex = new RegExp(pattern, flags);
-        const allElements = searchContext.querySelectorAll("*");
-        const matches = [];
-        for (const el of Array.from(allElements)) {
-          const elementText = ((_c = el.textContent) == null ? void 0 : _c.trim()) || "";
-          if (regex.test(elementText)) {
-            matches.push(el);
-            el.__stakTrakMatchedText = elementText;
-          }
-        }
-        return matches.sort(
-          (a, b) => {
-            var _a2, _b2;
-            return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-          }
-        );
-      }
-    } else if (selector.startsWith("role:")) {
-      const roleRegexMatch = selector.match(
-        /^role:(\w+)\[name-regex="\/(.+?)\/([gimuy]*)"\]$/
-      );
-      if (roleRegexMatch) {
-        const [, role, pattern, flags] = roleRegexMatch;
-        const regex = new RegExp(pattern, flags);
-        const roleElements = searchContext.querySelectorAll(
-          `[role="${role}"], ${getRoleSelector(role)}`
-        );
-        const matches = [];
-        for (const el of Array.from(roleElements)) {
-          const elementText = ((_d = el.textContent) == null ? void 0 : _d.trim()) || "";
-          const ariaLabel = el.getAttribute("aria-label") || "";
-          if (regex.test(elementText) || regex.test(ariaLabel)) {
-            matches.push(el);
-          }
-        }
-        return matches;
-      }
-      const roleMatch = selector.match(/^role:(\w+)(?:\[name="([^"]+)"\])?$/);
-      if (roleMatch) {
-        const [, role, name] = roleMatch;
-        const roleElements = searchContext.querySelectorAll(
-          `[role="${role}"], ${getRoleSelector(role)}`
-        );
-        const matches = [];
-        for (const el of Array.from(roleElements)) {
-          if (name) {
-            const elementText = ((_e = el.textContent) == null ? void 0 : _e.trim()) || "";
-            const ariaLabel = el.getAttribute("aria-label") || "";
-            if (elementText.includes(name) || ariaLabel.includes(name)) {
-              matches.push(el);
-            }
-          } else {
-            matches.push(el);
-          }
-        }
-        return matches;
-      }
-    } else if (selector.includes(":has-text(")) {
-      const match = selector.match(/^(.+?):has-text\("(.+?)"\)$/) || selector.match(/^(.+?):has-text\((.+?)\)$/);
-      if (match) {
-        const [, baseSelector, text] = match;
-        const elements = searchContext.querySelectorAll(baseSelector);
-        const matches = [];
-        for (const el of Array.from(elements)) {
-          const elementText = ((_f = el.textContent) == null ? void 0 : _f.trim()) || "";
-          const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE ? ((_g = el.childNodes[0].textContent) == null ? void 0 : _g.trim()) || "" : elementText;
-          if (elementOwnText.includes(text.trim()) || elementText.includes(text.trim())) {
-            matches.push(el);
-            el.__stakTrakMatchedText = text.trim();
-          }
-        }
-        return matches.sort(
-          (a, b) => {
-            var _a2, _b2;
-            return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-          }
-        );
-      }
-    } else if (selector.startsWith("getByLabel:")) {
-      const labelText = selector.substring(11);
-      const labels = searchContext.querySelectorAll("label");
-      const matches = [];
-      for (const label of Array.from(labels)) {
-        if ((_h = label.textContent) == null ? void 0 : _h.includes(labelText)) {
-          const forAttr = label.getAttribute("for");
-          let element = null;
-          if (forAttr) {
-            element = searchContext.querySelector(`#${forAttr}`);
-          } else {
-            element = label.querySelector("input, textarea, select");
-          }
-          if (element)
-            matches.push(element);
-        }
-      }
-      return matches;
-    } else if (selector.startsWith("getByPlaceholder:")) {
-      const placeholder = selector.substring(17);
-      return Array.from(
-        searchContext.querySelectorAll(`[placeholder*="${placeholder}"]`)
-      );
-    } else if (selector.startsWith("getByTestId:")) {
-      const testId = selector.substring(12);
-      return Array.from(
-        searchContext.querySelectorAll(`[data-testid="${testId}"]`)
-      );
-    } else if (selector.startsWith("getByTitle:")) {
-      const title = selector.substring(11);
-      return Array.from(searchContext.querySelectorAll(`[title*="${title}"]`));
-    } else if (selector.startsWith("getByAltText:")) {
-      const altText = selector.substring(13);
-      return Array.from(searchContext.querySelectorAll(`[alt*="${altText}"]`));
-    } else if (selector.startsWith("variable:")) {
-      return [];
-    } else if (selector.startsWith("text=")) {
-      const regexMatch = selector.match(/^text=\/(.+?)\/([gimuy]*)$/);
-      if (regexMatch) {
-        const [, pattern, flags] = regexMatch;
-        const regex = new RegExp(pattern, flags);
-        const allElements = searchContext.querySelectorAll("*");
-        const matches = [];
-        for (const el of Array.from(allElements)) {
-          const elementText = ((_i = el.textContent) == null ? void 0 : _i.trim()) || "";
-          if (regex.test(elementText)) {
-            matches.push(el);
-          }
-        }
-        return matches;
-      }
-      const exactMatch = selector.match(/^text="([^"]+)"$/);
-      if (exactMatch) {
-        const text = exactMatch[1];
-        const allElements = searchContext.querySelectorAll("*");
-        const matches = [];
-        for (const el of Array.from(allElements)) {
-          const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE ? ((_j = el.childNodes[0].textContent) == null ? void 0 : _j.trim()) || "" : "";
-          if (elementOwnText === text.trim()) {
-            matches.push(el);
-          }
-        }
-        return matches;
-      }
-      const textMatch = selector.match(/text=["']?([^"']+)["']?/);
+    return null;
+  }
+  function convertToBrowserSelector(selector) {
+    var _a;
+    if (!selector) return selector;
+    if (selector.includes(":has-text(")) {
+      const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
       if (textMatch) {
         const text = textMatch[1];
-        const allElements = searchContext.querySelectorAll("*");
-        const matches = [];
-        for (const el of Array.from(allElements)) {
-          const elementText = ((_k = el.textContent) == null ? void 0 : _k.trim()) || "";
-          if (elementText.includes(text.trim())) {
-            matches.push(el);
-          }
-        }
-        return matches.sort(
-          (a, b) => {
-            var _a2, _b2;
-            return (((_a2 = a.textContent) == null ? void 0 : _a2.length) || 0) - (((_b2 = b.textContent) == null ? void 0 : _b2.length) || 0);
-          }
-        );
-      }
-    } else if (selector.startsWith("id=")) {
-      const id = selector.substring(3);
-      return Array.from(searchContext.querySelectorAll(`#${id}`));
-    } else if (selector.startsWith("data-testid=")) {
-      const testId = selector.substring(13);
-      return Array.from(
-        searchContext.querySelectorAll(`[data-testid="${testId}"]`)
-      );
-    } else if (selector.startsWith("data-test-id=")) {
-      const testId = selector.substring(14);
-      return Array.from(
-        searchContext.querySelectorAll(`[data-test-id="${testId}"]`)
-      );
-    } else if (selector.startsWith("data-test=")) {
-      const test = selector.substring(11);
-      return Array.from(searchContext.querySelectorAll(`[data-test="${test}"]`));
-    } else if (selector.startsWith("xpath=")) {
-      const xpath = selector.substring(6);
-      const result = searchContext.evaluate(
-        xpath,
-        searchContext,
-        null,
-        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-        null
-      );
-      const matches = [];
-      for (let i = 0; i < result.snapshotLength; i++) {
-        const node = result.snapshotItem(i);
-        if (node && node.nodeType === Node.ELEMENT_NODE) {
-          matches.push(node);
-        }
-      }
-      return matches;
-    } else if (selector.includes(",")) {
-      const selectors = selector.split(",").map((s) => s.trim());
-      const allMatches = [];
-      for (const sel of selectors) {
-        const matches = findElementsInContext(sel, searchContext);
-        allMatches.push(...matches);
-      }
-      return Array.from(new Set(allMatches));
-    } else if (selector.includes(":visible")) {
-      const baseSelector = selector.replace(":visible", "");
-      const elements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : [];
-      return elements.filter((el) => {
-        const style = window.getComputedStyle(el);
-        return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
-      });
-    } else if (selector.includes(":has(")) {
-      const match = selector.match(/^(.+?):has\((.+?)\)$/);
-      if (match) {
-        const [, baseSelector, hasSelector] = match;
-        const baseElements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : [];
-        return baseElements.filter((el) => {
-          const childElements = Array.from(el.querySelectorAll(hasSelector));
-          return childElements.length > 0;
-        });
-      }
-    } else if (selector.includes(":nth-match(")) {
-      const match = selector.match(/^:nth-match\((.+?),\s*(\d+)\)$/);
-      if (match) {
-        const [, innerSelector, nthStr] = match;
-        const nth = parseInt(nthStr);
-        const elements = findElementsInContext(innerSelector, searchContext);
-        return nth <= elements.length ? [elements[nth - 1]] : [];
-      }
-    } else if (selector.includes(":text(")) {
-      const match = selector.match(/^(.+?):text\("([^"]+)"\)$/) || selector.match(/^(.+?):text\(([^)]+)\)$/);
-      if (match) {
-        const [, baseSelector, text] = match;
-        const baseElements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : Array.from(searchContext.querySelectorAll("*"));
-        let shortestMatch = null;
-        let shortestLength = Infinity;
-        for (const el of baseElements) {
-          const elementText = ((_l = el.textContent) == null ? void 0 : _l.trim()) || "";
-          if (elementText.includes(text.trim())) {
-            if (elementText.length < shortestLength) {
-              shortestMatch = el;
-              shortestLength = elementText.length;
+        const tagMatch = selector.match(/^([a-zA-Z]+)/);
+        const tagName = tagMatch ? tagMatch[1] : "*";
+        const elements = Array.from(document.querySelectorAll(tagName));
+        for (const element of elements) {
+          if (((_a = element.textContent) == null ? void 0 : _a.trim()) === text) {
+            const uniqueSelector = createUniqueSelector(element);
+            if (uniqueSelector && isValidSelector(uniqueSelector)) {
+              return uniqueSelector;
             }
           }
         }
-        return shortestMatch ? [shortestMatch] : [];
-      }
-    } else if (selector.includes(":text-is(")) {
-      const match = selector.match(/^(.+?):text-is\("([^"]+)"\)$/) || selector.match(/^(.+?):text-is\(([^)]+)\)$/);
-      if (match) {
-        const [, baseSelector, text] = match;
-        const baseElements = baseSelector ? Array.from(searchContext.querySelectorAll(baseSelector)) : Array.from(searchContext.querySelectorAll("*"));
-        return baseElements.filter((el) => {
-          var _a2;
-          const elementOwnText = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE ? ((_a2 = el.childNodes[0].textContent) == null ? void 0 : _a2.trim()) || "" : "";
-          return elementOwnText === text.trim();
-        });
-      }
-    } else if (selector.includes(":right-of(") || selector.includes(":left-of(") || selector.includes(":above(") || selector.includes(":below(") || selector.includes(":near(")) {
-      return [];
-    } else {
-      try {
-        return Array.from(searchContext.querySelectorAll(selector));
-      } catch (error) {
-        return [];
+        return tagName;
       }
     }
-    return [];
+    selector = selector.replace(/:visible/g, "");
+    selector = selector.replace(/:enabled/g, "");
+    selector = selector.replace(/>>.*$/g, "");
+    return selector.trim();
+  }
+  function isValidSelector(selector) {
+    if (!selector || selector.trim() === "") return false;
+    try {
+      document.querySelector(selector);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  function findByDataTestId(selector) {
+    var _a;
+    if (!selector.includes("data-testid")) return null;
+    const testId = (_a = selector.match(/data-testid="([^"]+)"/)) == null ? void 0 : _a[1];
+    if (testId) {
+      return document.querySelector(`[data-testid="${testId}"]`);
+    }
+    return null;
+  }
+  function findByClass(selector) {
+    if (!selector.includes(".")) return null;
+    const classes = selector.match(/\.([^\s.#\[\]]+)/g);
+    if (classes && classes.length > 0) {
+      const className = classes[0].substring(1);
+      return document.querySelector(`.${className}`);
+    }
+    return null;
+  }
+  function findById(selector) {
+    if (!selector.includes("#")) return null;
+    const ids = selector.match(/#([^\s.#\[\]]+)/g);
+    if (ids && ids.length > 0) {
+      const id = ids[0].substring(1);
+      return document.querySelector(`#${id}`);
+    }
+    return null;
+  }
+  function findByAriaLabel(selector) {
+    const ariaMatch = selector.match(/\[aria-label="([^"]+)"\]/);
+    if (!ariaMatch) return null;
+    return document.querySelector(`[aria-label="${ariaMatch[1]}"]`);
+  }
+  function findByRole(selector) {
+    const roleMatch = selector.match(/\[role="([^"]+)"\]/);
+    if (!roleMatch) return null;
+    return document.querySelector(`[role="${roleMatch[1]}"]`);
+  }
+  function findByTextContent(selector) {
+    var _a;
+    let text = null;
+    let tagName = "*";
+    if (selector.includes('text="')) {
+      const textMatch = selector.match(/text="([^"]+)"/);
+      text = textMatch ? textMatch[1] : null;
+    } else if (selector.includes('textContent="')) {
+      const textMatch = selector.match(/textContent="([^"]+)"/);
+      text = textMatch ? textMatch[1] : null;
+    } else if (selector.includes(":has-text(")) {
+      const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
+      text = textMatch ? textMatch[1] : null;
+    }
+    const tagMatch = selector.match(/^([a-zA-Z]+)/);
+    if (tagMatch) {
+      tagName = tagMatch[1];
+    }
+    if (!text) return null;
+    const elements = Array.from(document.querySelectorAll(tagName));
+    for (const element of elements) {
+      const elementText = (_a = element.textContent) == null ? void 0 : _a.trim();
+      if (elementText === text || (elementText == null ? void 0 : elementText.includes(text))) {
+        return element;
+      }
+    }
+    return null;
+  }
+  function findByCoordinates(selector) {
+    const clickableElements = document.querySelectorAll(
+      'button, a, input, select, [role="button"], [onclick]'
+    );
+    return clickableElements.length > 0 ? clickableElements[0] : null;
+  }
+  function createUniqueSelector(element) {
+    var _a;
+    if (element.id && /^[a-zA-Z][\w-]*$/.test(element.id)) {
+      const idSelector = `#${element.id}`;
+      if (document.querySelectorAll(idSelector).length === 1) {
+        return idSelector;
+      }
+    }
+    const testId = (_a = element.dataset) == null ? void 0 : _a.testid;
+    if (testId) {
+      const testIdSelector = `[data-testid="${testId}"]`;
+      if (document.querySelectorAll(testIdSelector).length === 1) {
+        return testIdSelector;
+      }
+    }
+    const ariaLabel = element.getAttribute("aria-label");
+    if (ariaLabel) {
+      const ariaSelector = `[aria-label="${ariaLabel}"]`;
+      if (document.querySelectorAll(ariaSelector).length === 1) {
+        return ariaSelector;
+      }
+    }
+    const tagName = element.tagName.toLowerCase();
+    const classes = Array.from(element.classList).filter((cls) => {
+      return !cls.match(/^[a-zA-Z0-9_-]*[0-9a-f]{6,}/) && !cls.includes("emotion-") && !cls.includes("css-") && !cls.includes("module__") && cls.length < 30;
+    });
+    if (classes.length > 0) {
+      for (let i = 1; i <= Math.min(classes.length, 3); i++) {
+        const classSelector = `${tagName}.${classes.slice(0, i).join(".")}`;
+        if (isValidSelector(classSelector)) {
+          const matches = document.querySelectorAll(classSelector);
+          if (matches.length === 1) {
+            return classSelector;
+          }
+        }
+      }
+    }
+    const attributes = ["type", "name", "role", "title"];
+    for (const attr of attributes) {
+      const value = element.getAttribute(attr);
+      if (value) {
+        const attrSelector = `${tagName}[${attr}="${value}"]`;
+        if (isValidSelector(attrSelector)) {
+          const matches = document.querySelectorAll(attrSelector);
+          if (matches.length === 1) {
+            return attrSelector;
+          }
+        }
+      }
+    }
+    const parent = element.parentElement;
+    if (parent) {
+      const siblings = Array.from(parent.children);
+      const index = siblings.indexOf(element);
+      if (index >= 0) {
+        const nthSelector = `${tagName}:nth-child(${index + 1})`;
+        if (isValidSelector(nthSelector)) {
+          return nthSelector;
+        }
+      }
+      const typeSiblings = Array.from(parent.children).filter(
+        (child) => child.tagName === element.tagName
+      );
+      const typeIndex = typeSiblings.indexOf(element);
+      if (typeIndex >= 0) {
+        const nthTypeSelector = `${tagName}:nth-of-type(${typeIndex + 1})`;
+        if (isValidSelector(nthTypeSelector)) {
+          return nthTypeSelector;
+        }
+      }
+    }
+    return tagName;
   }
   async function waitForElement(selector, matchedText) {
     const startTime = Date.now();
@@ -2012,8 +1754,7 @@ var userBehaviour = (() => {
     return null;
   }
   function ensureStylesInDocument(doc) {
-    if (doc.querySelector("#staktrak-highlight-styles"))
-      return;
+    if (doc.querySelector("#staktrak-highlight-styles")) return;
     const style = doc.createElement("style");
     style.id = "staktrak-highlight-styles";
     style.textContent = `
@@ -2099,8 +1840,7 @@ var userBehaviour = (() => {
   }
   async function verifyExpectation(action) {
     var _a, _b;
-    if (!action.selector)
-      return;
+    if (!action.selector) return;
     switch (action.expectation) {
       case "toBeVisible":
         const element = await waitForElement(action.selector);
@@ -2109,7 +1849,10 @@ var userBehaviour = (() => {
         }
         break;
       case "toContainText":
-        const textElement = await waitForElement(action.selector, action.value);
+        const textElement = await waitForElement(
+          action.selector,
+          String(action.value)
+        );
         if (!textElement || !((_a = textElement.textContent) == null ? void 0 : _a.includes(String(action.value || "")))) {
           throw new Error(
             `Element does not contain text "${action.value}": ${action.selector}`
@@ -2119,7 +1862,7 @@ var userBehaviour = (() => {
       case "toHaveText":
         const exactTextElement = await waitForElement(
           action.selector,
-          action.value
+          String(action.value)
         );
         if (!exactTextElement || ((_b = exactTextElement.textContent) == null ? void 0 : _b.trim()) !== String(action.value || "")) {
           throw new Error(
@@ -2198,6 +1941,11 @@ var userBehaviour = (() => {
         return `Execute ${action.type}`;
     }
   }
+
+  // src/playwright-replay/index.ts
+  var playwrightReplayRef = {
+    current: null
+  };
   function startPlaywrightReplay(testCode) {
     try {
       const actions = parsePlaywrightTest(testCode);
@@ -2318,8 +2066,7 @@ var userBehaviour = (() => {
   }
   function getPlaywrightReplayState() {
     const state = playwrightReplayRef.current;
-    if (!state)
-      return null;
+    if (!state) return null;
     return {
       actions: state.actions,
       status: state.status,
@@ -2331,8 +2078,7 @@ var userBehaviour = (() => {
   function initPlaywrightReplay() {
     window.addEventListener("message", (event) => {
       const { data } = event;
-      if (!data || !data.type)
-        return;
+      if (!data || !data.type) return;
       switch (data.type) {
         case "staktrak-playwright-replay-start":
           if (data.testCode) {
@@ -2748,12 +2494,10 @@ var userBehaviour = (() => {
       );
     }
     setupMessageHandling() {
-      if (this.memory.alwaysListeners.length > 0)
-        return;
+      if (this.memory.alwaysListeners.length > 0) return;
       const messageHandler = (event) => {
         var _a;
-        if (!((_a = event.data) == null ? void 0 : _a.type))
-          return;
+        if (!((_a = event.data) == null ? void 0 : _a.type)) return;
         switch (event.data.type) {
           case "staktrak-start":
             this.resetResults();
@@ -2980,6 +2724,6 @@ var userBehaviour = (() => {
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
   userBehaviour.createClickDetail = createClickDetail;
-  var src_default = userBehaviour;
-  return __toCommonJS(src_exports);
+  var index_default = userBehaviour;
+  return __toCommonJS(index_exports);
 })();
