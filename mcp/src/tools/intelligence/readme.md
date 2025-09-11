@@ -48,11 +48,11 @@ C --> D[LLM Filter: Validate Relevance]
     M -.->|Retrieve| Y
 
     %% Styling
-    classDef cacheHit fill:#e1f5fe
-    classDef cacheMiss fill:#fff3e0
-    classDef partialHit fill:#fff9c4
-    classDef database fill:#f3e5f5
-    classDef codeLink fill:#e8f5e8
+    classDef cacheHit fill:#238636,stroke:#2ea043,stroke-width:2px,color:#ffffff
+    classDef cacheMiss fill:#da3633,stroke:#f85149,stroke-width:2px,color:#ffffff
+    classDef partialHit fill:#bf8700,stroke:#d29922,stroke-width:2px,color:#ffffff
+    classDef database fill:#8b5cf6,stroke:#a78bfa,stroke-width:2px,color:#ffffff
+    classDef codeLink fill:#0969da,stroke:#1f6feb,stroke-width:2px,color:#ffffff
 
     class F,M cacheHit
     class N,P,Q,R cacheMiss
