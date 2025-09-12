@@ -64,12 +64,32 @@ export function authMiddleware(
   if (!apiToken) {
     return next();
   }
+
+  // Check for x-api-token header
   const requestToken = req.header("x-api-token");
-  if (!requestToken || requestToken !== apiToken) {
-    res.status(401).json({ error: "Unauthorized: Invalid API token" });
-    return;
+  if (requestToken && requestToken === apiToken) {
+    return next();
   }
-  next();
+
+  // Check for Basic Auth header
+  const authHeader = req.header("Authorization") || req.header("authorization");
+  if (authHeader && authHeader.startsWith("Basic ")) {
+    try {
+      const base64Credentials = authHeader.substring(6);
+      const credentials = Buffer.from(base64Credentials, "base64").toString(
+        "ascii"
+      );
+      const [username, token] = credentials.split(":");
+      if (token && token === apiToken) {
+        return next();
+      }
+    } catch (error) {
+      // Invalid base64 encoding
+    }
+  }
+
+  res.status(401).json({ error: "Unauthorized: Invalid API token" });
+  return;
 }
 
 export async function explore(req: Request, res: Response) {
@@ -145,9 +165,36 @@ export async function ask(req: Request, res: Response) {
 }
 
 export function learn(req: Request, res: Response) {
-  const html = LEARN_HTML;
-  res.setHeader("Content-Type", "text/html");
-  res.send(html);
+  const apiToken = process.env.API_TOKEN;
+  if (!apiToken) {
+    res.setHeader("Content-Type", "text/html");
+    res.send(LEARN_HTML);
+    return;
+  }
+
+  // Check if user is already authenticated
+  const authHeader = req.header("Authorization") || req.header("authorization");
+  if (authHeader && authHeader.startsWith("Basic ")) {
+    try {
+      const base64Credentials = authHeader.substring(6);
+      const credentials = Buffer.from(base64Credentials, "base64").toString(
+        "ascii"
+      );
+      const [username, token] = credentials.split(":");
+
+      if (token && token === apiToken) {
+        res.setHeader("Content-Type", "text/html");
+        res.send(LEARN_HTML);
+        return;
+      }
+    } catch (error) {
+      // Invalid base64 encoding, fall through to challenge
+    }
+  }
+
+  // Send Basic Auth challenge
+  res.setHeader("WWW-Authenticate", 'Basic realm="API Access"');
+  res.status(401).send("Authentication required");
 }
 
 export async function seed_stories(req: Request, res: Response) {

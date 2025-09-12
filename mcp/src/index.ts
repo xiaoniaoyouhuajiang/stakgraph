@@ -52,6 +52,9 @@ evalRoutes(app);
 
 test_routes(app);
 
+// Learn route needs to handle its own authentication
+app.get("/learn", r.learn);
+
 app.use(r.authMiddleware);
 app.use(r.logEndpoint);
 app.get("/nodes", r.get_nodes);
@@ -72,7 +75,6 @@ app.get("/explore", r.explore);
 app.get("/understand", r.understand);
 app.post("/seed_understanding", r.seed_understanding);
 app.get("/ask", r.ask);
-app.get("/learn", r.learn);
 app.post("/seed_stories", r.seed_stories);
 
 app.get("/_cache/info", cacheInfo);
