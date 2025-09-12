@@ -33,6 +33,8 @@ Generate 1-5 specific questions that developers would need to answer. Make each 
 - **Workflow-oriented** (following user journeys)
 - **Entity-specific** (mention likely code components)
 
+YOU DO NOT HAVE TO WRITE 5 QUESTIONS. IF ITS A VERY SIMPLE USER REQUEST, A SINGLE QUESTION IS ENOUGH! Just try to boil it down to fundamental user flow(s).
+
 **Question Types to Consider:**
 - **User Workflows**: "How does a user [specific action] in this system?"
 - **Data Handling**: "How is [business entity] data stored/validated/retrieved?"

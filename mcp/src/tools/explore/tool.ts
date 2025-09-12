@@ -4,7 +4,13 @@ import {
   getApiKeyForProvider,
   Provider,
 } from "../../aieo/src/provider.js";
-import { EXPLORER, RE_EXPLORER } from "./prompts.js";
+import {
+  EXPLORER,
+  RE_EXPLORER,
+  GENERAL_EXPLORER,
+  GENERAL_FINAL_ANSWER_DESCRIPTION,
+  FINAL_ANSWER_DESCRIPTION,
+} from "./prompts.js";
 import { z } from "zod";
 import * as G from "../../graph/graph.js";
 
@@ -13,6 +19,7 @@ curl "http://localhost:3000/explore?prompt=how%20does%20auth%20work%20in%20the%2
 */
 
 function logStep(contents: any) {
+  return;
   if (!Array.isArray(contents)) return;
   for (const content of contents) {
     if (content.type === "tool-call") {
@@ -31,9 +38,16 @@ function logStep(contents: any) {
   }
 }
 
+export interface GeneralContextResult {
+  summary: string;
+  key_files: string[];
+  features: string[];
+}
+
 export async function get_context(
   prompt: string | ModelMessage[],
-  re_explore: boolean = false
+  re_explore: boolean = false,
+  general_explore: boolean = false
 ): Promise<string> {
   const provider = process.env.LLM_PROVIDER || "anthropic";
   const apiKey = getApiKeyForProvider(provider);
@@ -45,6 +59,7 @@ export async function get_context(
         "Get a high-level view of the codebase architecture and structure. Use this to understand the project layout and identify where specific functionality might be located. Call this when you need to: 1) Orient yourself in an unfamiliar codebase, 2) Locate which directories/files might contain relevant code for a user's question, 3) Understand the overall project structure before diving deeper. Don't call this if you already know which specific files you need to examine.",
       inputSchema: z.object({}),
       execute: async () => {
+        // git ls-tree -r --name-only HEAD | tree -L 3 --fromfile
         try {
           return await G.get_repo_map("", "", "Repository", false);
         } catch (e) {
@@ -132,14 +147,19 @@ export async function get_context(
       },
     }),
     final_answer: tool({
-      // Define a tool that signals the end of the process
-      description:
-        "Provide the final answer to the user. ALWAYS include relevant files or function names in the answer (and a quick note about why this piece of code is relevant to the issue at hand). DO NOT include long lists of irrelevant file names like migration files. This answer will be used by the next model to actually build the feature, so try to give clues for locating core functionality to the issue at hand. You don't need to be super verbose.YOU **MUST** CALL THIS TOOL AT THE END OF YOUR EXPLORATION.",
+      // The tool that signals the end of the process
+      description: general_explore
+        ? GENERAL_FINAL_ANSWER_DESCRIPTION
+        : FINAL_ANSWER_DESCRIPTION,
       inputSchema: z.object({ answer: z.string() }),
       execute: async ({ answer }: { answer: string }) => answer,
     }),
   };
-  const system = re_explore ? RE_EXPLORER : EXPLORER;
+  const system = general_explore
+    ? GENERAL_EXPLORER
+    : re_explore
+    ? RE_EXPLORER
+    : EXPLORER;
   const { steps } = await generateText({
     model,
     tools,
@@ -179,3 +199,14 @@ export async function get_context(
   // console.log("FINAL", final);
   return final;
 }
+
+setTimeout(async () => {
+  return;
+  console.log("calling GENERAL get_context");
+  const gres = await get_context(
+    "How does this repository work? Please provide a summary of the codebase, a few key files, and 50 core user stories.",
+    false,
+    true
+  );
+  console.log("GENERAL get_context result:", gres);
+}, 5000);

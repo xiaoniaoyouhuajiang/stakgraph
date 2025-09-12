@@ -9,6 +9,9 @@ export async function decomposeAndAsk(
   const answers: Answer[] = [];
   const dq = await decomposeQuestion(prompt);
 
+  dq.questions.forEach((q) => {
+    console.log(" ======== Q:", q);
+  });
   for (const q of dq.questions) {
     const answer = await ask_question(q, threshold, provider, prompt);
     if (answers.find((a) => a.hint_ref_id === answer.hint_ref_id)) {

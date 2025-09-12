@@ -15,7 +15,7 @@ export {
 };
 
 export const PROMPT_SIMILARITY_THRESHOLD = 0.9;
-export const QUESTION_SIMILARITY_THRESHOLD = 0.75;
+export const QUESTION_SIMILARITY_THRESHOLD = 0.78;
 
 export async function ask_prompt(
   prompt: string,
