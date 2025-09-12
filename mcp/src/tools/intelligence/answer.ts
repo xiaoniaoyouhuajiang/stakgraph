@@ -4,9 +4,9 @@ import {
   ModelMessage,
   Provider,
 } from "../../aieo/src/index.js";
-import { Answer } from "./questions.js";
+import { Answer } from "./ask.js";
 
-function PROMPT(user_query: string, qas: string): string {
+function RECOMPOSE_PROMPT(user_query: string, qas: string): string {
   return `
 You are a technical documentation synthesizer. Your task is to combine fragmented search results into a comprehensive, actionable response while identifying the most important technical references.
 
@@ -47,12 +47,16 @@ Create a comprehensive response that:
 - Maintain the technical depth appropriate for the user's request
 
 Please synthesize the information and provide the structured response.
+
+**IMPORTANT:**
+IF YOU ARE ASKED TO BUILD A FEATURE IN THE Original User Request, DONT WORRY ABOUT ACTUALLY WRITING CODE.
+YOUR JOB IS TO GENERATE CONCISE INSIGHTS, GUIDANCE, AND POINTERS TO RELEVANTS PARTS OF THE CODEBASE.
 `;
 }
 
 export interface RecomposedAnswer {
   answer: string;
-  sub_questions: string[];
+  hints: Answer[];
 }
 
 export async function recomposeAnswer(
@@ -65,7 +69,7 @@ export async function recomposeAnswer(
     qas +=
       "Question: " + answer.question + "\n" + "Answer: " + answer.answer + "\n";
   }
-  const content = PROMPT(user_query, qas);
+  const content = RECOMPOSE_PROMPT(user_query, qas);
   const provider = llm_provider || "anthropic";
   const apiKey = getApiKeyForProvider(provider as Provider);
   const messages: ModelMessage[] = [{ role: "user", content }];
@@ -76,6 +80,6 @@ export async function recomposeAnswer(
   });
   return {
     answer: answer,
-    sub_questions: answers.map((answer) => answer.question),
+    hints: answers,
   };
 }

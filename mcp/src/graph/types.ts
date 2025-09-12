@@ -53,7 +53,8 @@ export type NodeType =
   | "Message"
   | "Person"
   | "Video"
-  | "Hint";
+  | "Hint"
+  | "Prompt";
 
 export type EdgeType =
   | "CALLS"
@@ -116,7 +117,8 @@ export function relevant_node_types(): NodeType[] {
     "Message",
     "Person",
     "Video",
-  "Hint",
+    "Hint",
+    "Prompt",
   ];
 }
 
@@ -142,7 +144,8 @@ export function all_node_types(): NodeType[] {
     "Message",
     "Person",
     "Video",
-  "Hint",
+    "Hint",
+    "Prompt",
   ];
 }
 
@@ -194,7 +197,8 @@ export function node_type_descriptions(): { [k in NodeType]: string } {
       "A message in a conversation between developers, projects managers, or other stakeholders.",
     Person: "A person working on the project.",
     Video: "A recorded video conversation between stakeholders.",
-  Hint: "A question and answer pair generated from exploring the codebase to capture contextual understanding.",
+    Hint: "A question and answer pair generated from exploring the codebase to capture contextual understanding.",
+    Prompt: "A prompt asked by a user to the AI assistant.",
   };
 }
 

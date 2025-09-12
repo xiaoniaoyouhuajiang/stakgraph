@@ -1,76 +1,216 @@
 import { getApiKeyForProvider, Provider } from "../../aieo/src/provider.js";
-import { callGenerateObject } from "../../aieo/src/index.js";
+import { callGenerateObject, ModelMessage } from "../../aieo/src/index.js";
 import { z } from "zod";
+import { db } from "../../graph/neo4j.js";
+import { get_context } from "../explore/tool.js";
+import { vectorizeQuery } from "../../vector/index.js";
+import { create_hint_edges_llm } from "./seed.js";
+import * as G from "../../graph/graph.js";
+import { filterAnswers } from "./filter.js";
+import { Neo4jNode } from "../../graph/types.js";
 
 /*
 curl "http://localhost:3000/ask?question=how%20does%20auth%20work%20in%20the%20repo"
 */
 
-function PROMPT(user_query: string) {
-  return `
-You are a technical requirements analyst. Given a user request, your task is to:
+/*
+DECOMPOSE QUESTION into business context and specific implementation questions
+*/
 
-1. Break down the request into concrete implementation tasks
-2. Generate specific, searchable questions that would help find relevant code, files, functions, and data models in a knowledge base
+function DECOMPOSE_PROMPT(user_query: string) {
+  return `
+You are bridging business requirements to technical implementation. Given a user request:
 
 **User Request:** ${user_query}
 
-Please provide:
+## Step 1: Business Context Analysis
+Identify the core business functionality and user workflows involved.
 
-## A. Task Breakdown
-Decompose the request into 1-5 specific implementation tasks, ordered by dependency/priority.
+## Step 2: Implementation Questions
+Generate 1-5 specific questions that developers would need to answer. Make each question:
+- **Short and concise**
+- **Specific enough** to match existing cached answers
+- **Workflow-oriented** (following user journeys)
+- **Entity-specific** (mention likely code components)
 
-## B. Search Questions
-Generate 1-5 targeted questions that would help find relevant information in a code knowledge base. Focus on:
+YOU DO NOT HAVE TO WRITE 5 QUESTIONS. IF ITS A VERY SIMPLE USER REQUEST, A SINGLE QUESTION IS ENOUGH! Just try to boil it down to fundamental user flow(s).
 
-**Technical Implementation:**
-- How to implement [specific feature]?
-- What components/libraries are used for [functionality]?
-- How to handle [specific user action/workflow]?
+**Question Types to Consider:**
+- **User Workflows**: "How does a user [specific action] in this system?"
+- **Data Handling**: "How is [business entity] data stored/validated/retrieved?"
+- **Business Logic**: "What happens when [business event] occurs?"
+- **Integration Points**: "How does [business process] connect with [other system/feature]?"
+- **Permissions**: "What user roles can [perform action] and how is this enforced?"
+- **UI Patterns**: "What UI components handle [user interaction type]?"
 
-**Data & Models:**
-- What data models are needed for [entity]?
-- How is [data type] stored and retrieved?
-- What database schema supports [functionality]?
+**Format each question for optimal embedding:**
+- Use business terminology first, technical second. Focus on front-end terminology, since that is what the user is seeing and asking about.
 
-**Authentication & Permissions:**
-- How to implement [permission type] in [context]?
-- What authentication patterns are used for [user type]?
-- How to validate [specific permission]?
+**IMPORTANT:**
+MAKE YOUR QUESTIONS SHORT AND CONCISE. DO NOT ASSUME THINGS ABOUT THE CODEBASE THAT YOU DON'T KNOW.
 
-**UI/Frontend:**
-- What UI components exist for [interface element]?
-- How to build [specific page/form type]?
-- What styling patterns are used for [UI element]?
-
-**Integration & APIs:**
-- What API endpoints handle [functionality]?
-- How to integrate [feature] with existing systems?
-- What services manage [specific operations]?
-
-Format each question to be specific and likely to match against existing Q&A pairs about implementation details, code patterns, and technical decisions.
-
-PLEASE OUTPUT IN JSON FORMAT:
-
-**Example Output Format:**
+**EXPECTED OUTPUT FORMAT:**
 {
-  "tasks": [
-    "Create workspace data model",
-    "Implement member invitation system",
-    ...
-  ],
+  "business_context": "Brief description of core functionality",
   "questions": [
-    "1. How to create a workspace data model with member relationships?",
-    "2. What authentication middleware is used for admin permissions?",
-    "3. How to implement user invitation workflow with email notifications?",
+    "How does user registration workflow handle email verification and account activation?",
+    "What user permission system controls access to workspace creation features?",
     ...
   ]
 }
 `;
 }
 
+export interface Answer {
+  question: string;
+  answer: string;
+  hint_ref_id: string;
+  reused: boolean;
+  reused_question?: string;
+  edges_added: number;
+  linked_ref_ids: string[];
+}
+
+function cached_answer(
+  question: string,
+  e: Neo4jNode
+): FilterByRelevanceFromCacheResult {
+  return {
+    cachedAnswer: {
+      question,
+      answer: e.properties.body,
+      hint_ref_id: e.ref_id as string,
+      reused: true,
+      reused_question: e.properties.question,
+      edges_added: 0,
+      linked_ref_ids: [],
+    },
+    reexplore: false,
+  };
+}
+
+export const QUESTION_HIGHLY_RELEVANT_THRESHOLD = 0.92;
+
+interface FilterByRelevanceFromCacheResult {
+  cachedAnswer?: Answer;
+  reexplore: boolean;
+}
+
+async function filter_by_relevance_from_cache(
+  question: string,
+  similarityThreshold: number,
+  provider?: string,
+  originalPrompt?: string
+): Promise<FilterByRelevanceFromCacheResult | undefined> {
+  const existingAll = await G.search(
+    question,
+    5,
+    ["Hint"],
+    false,
+    100000,
+    "vector",
+    "json"
+  );
+  if (!Array.isArray(existingAll)) {
+    return;
+  }
+  const existing = existingAll.filter(
+    (e: any) => e.properties.score && e.properties.score >= similarityThreshold
+  );
+  if (Array.isArray(existingAll) && existingAll.length > 0) {
+    if (originalPrompt) {
+      let qas = "";
+      existing.forEach((e: any) => {
+        qas += `**Question:** ${e.properties.question}\n**Answer:** ${e.properties.body}\n\n`;
+      });
+      const filtered = await filterAnswers(qas, originalPrompt, provider);
+      if (filtered === "NO_MATCH") {
+        return;
+      }
+      const top: any = existing.find(
+        (e: any) => e.properties.question === filtered
+      );
+      if (!top) {
+        return;
+      }
+      if (top.properties.score > QUESTION_HIGHLY_RELEVANT_THRESHOLD) {
+        console.log(
+          ">> REUSED RELEVANT question!!!:",
+          question,
+          ">>",
+          top.properties.question
+        );
+        return cached_answer(question, top);
+      } else {
+        console.log(
+          ">> REUSED RELEVANT question but not highly relevant ---- RE-EXPLORING!!!:",
+          question,
+          ">>",
+          top.properties.question
+        );
+        const ca = cached_answer(question, top);
+        ca.reexplore = true;
+        return ca;
+      }
+    }
+    const top: any = existing[0];
+    console.log(">> REUSED question:", question, ">>", top.properties.question);
+    return cached_answer(question, top);
+  }
+}
+
+export async function ask_question(
+  question: string,
+  similarityThreshold: number,
+  provider?: string,
+  originalPrompt?: string
+): Promise<Answer> {
+  const filtered = await filter_by_relevance_from_cache(
+    question,
+    similarityThreshold,
+    provider,
+    originalPrompt
+  );
+  if (filtered && filtered.cachedAnswer && !filtered.reexplore) {
+    return filtered.cachedAnswer;
+  }
+  let q: string | ModelMessage[] = question;
+  let reexplore = false;
+  if (filtered && filtered.cachedAnswer && filtered.reexplore) {
+    const msgs: ModelMessage[] = [
+      { role: "user", content: filtered.cachedAnswer.question },
+      { role: "assistant", content: filtered.cachedAnswer.answer },
+      { role: "user", content: question },
+    ];
+    q = msgs;
+    reexplore = true;
+  }
+  console.log(">> NEW question:", question);
+  const ctx = await get_context(q, reexplore);
+  const answer = ctx;
+  const embeddings = await vectorizeQuery(question);
+  const created = await db.create_hint(question, answer, embeddings);
+  let edges_added = 0;
+  let linked_ref_ids: string[] = [];
+  try {
+    const r = await create_hint_edges_llm(created.ref_id, answer, provider);
+    edges_added = r.edges_added;
+    linked_ref_ids = r.linked_ref_ids;
+  } catch (e) {
+    console.error("Failed to create edges from hint", e);
+  }
+  return {
+    question,
+    answer,
+    hint_ref_id: created.ref_id,
+    reused: false,
+    edges_added,
+    linked_ref_ids,
+  };
+}
+
 interface DecomposedQuestion {
-  tasks: string[];
+  business_context: string;
   questions: string[];
 }
 export async function decomposeQuestion(
@@ -80,13 +220,13 @@ export async function decomposeQuestion(
   const provider = llm_provider ? llm_provider : "anthropic";
   const apiKey = getApiKeyForProvider(provider);
   const schema = z.object({
-    tasks: z.array(z.string()),
+    business_context: z.string(),
     questions: z.array(z.string()),
   });
   return await callGenerateObject({
     provider: provider as Provider,
     apiKey,
-    prompt: PROMPT(question),
+    prompt: DECOMPOSE_PROMPT(question),
     schema,
   });
 }

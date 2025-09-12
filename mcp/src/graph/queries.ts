@@ -94,6 +94,22 @@ export const GET_HINT_QUERY = `
 MATCH (n:Hint {node_key: $node_key}) RETURN n
 `;
 
+export const CREATE_PROMPT_QUERY = `
+MERGE (n:Prompt:${Data_Bank} {node_key: $node_key})
+ON CREATE SET n.ref_id = randomUUID(), n.date_added_to_graph = $ts
+SET n.name = $name, n.file = $file, n.body = $body, n.start = 0, n.end = 0, n.question = $question, n.embeddings = $embeddings
+RETURN n
+`;
+
+export const GET_PROMPT_QUERY = `
+MATCH (n:Prompt {node_key: $node_key}) RETURN n
+`;
+
+export const GET_CONNECTED_HINTS_QUERY = `
+MATCH (p:Prompt {ref_id: $prompt_ref_id})-[r]->(h:Hint)
+RETURN h
+`;
+
 export const FIND_NODES_BY_NAME_QUERY = `
 MATCH (n:{LABEL})
 WHERE n.name = $name
@@ -108,7 +124,8 @@ LIMIT 5
 `;
 
 export const CREATE_HINT_EDGES_BY_REF_IDS_QUERY = `
-MATCH (h:Hint {ref_id: $hint_ref_id})
+MATCH (h)
+WHERE h.ref_id = $hint_ref_id AND (h:Hint OR h:Prompt)
 UNWIND $weighted_ref_ids AS weighted_ref
 MATCH (t {ref_id: weighted_ref.ref_id})
 MERGE (h)-[r:USES]->(t)

@@ -235,7 +235,7 @@ class Db {
       );
     }
     const session = this.driver.session();
-    console.log("get_repo_subtree", name, ref_id, this.skip_string(disclude));
+    // console.log("get_repo_subtree", name, ref_id, this.skip_string(disclude));
     try {
       return await session.run(Q.REPO_SUBGRAPH_QUERY, {
         node_label: node_type,
@@ -539,6 +539,48 @@ class Db {
         ts: Date.now() / 1000,
       });
       const r = await session.run(Q.GET_HINT_QUERY, { node_key });
+      const record = r.records[0];
+      const n = record.get("n");
+      return { ref_id: n.properties.ref_id, node_key };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_connected_hints(prompt_ref_id: string) {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.GET_CONNECTED_HINTS_QUERY, {
+        prompt_ref_id,
+      });
+      return result.records.map((record) => clean_node(record.get("h")));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async create_prompt(question: string, answer: string, embeddings: number[]) {
+    const session = this.driver.session();
+    const name = question.slice(0, 80);
+    const node_key = create_node_key({
+      node_type: "Prompt",
+      node_data: {
+        name,
+        file: "prompt://generated",
+        start: 0,
+      },
+    } as Node);
+    try {
+      await session.run(Q.CREATE_PROMPT_QUERY, {
+        node_key,
+        name,
+        file: "prompt://generated",
+        body: answer,
+        question,
+        embeddings,
+        ts: Date.now() / 1000,
+      });
+      const r = await session.run(Q.GET_PROMPT_QUERY, { node_key });
       const record = r.records[0];
       const n = record.get("n");
       return { ref_id: n.properties.ref_id, node_key };
