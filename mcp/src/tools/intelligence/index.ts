@@ -15,7 +15,6 @@ export {
 };
 
 export const PROMPT_SIMILARITY_THRESHOLD = 0.9;
-export const QUESTION_HIGHLY_RELEVANT_THRESHOLD = 0.95;
 export const QUESTION_SIMILARITY_THRESHOLD = 0.75;
 
 export async function ask_prompt(

@@ -16,7 +16,7 @@ function logStep(contents: any) {
   if (!Array.isArray(contents)) return;
   for (const content of contents) {
     if (content.type === "tool-call") {
-      if (content.toolName === "finalAnswer") {
+      if (content.toolName === "final_answer") {
         console.log("FINAL ANSWER:", content.input.answer);
       } else {
         console.log("TOOL CALL:", content.toolName, ":", content.input);
@@ -65,7 +65,9 @@ export async function get_context(
       }),
       execute: async ({ file_path }: { file_path: string }) => {
         try {
-          return await G.get_file_map(file_path);
+          const file_map = await G.get_file_map(file_path);
+          // limit to 75000 characters (for large files)
+          return file_map.substring(0, 75000);
         } catch (e) {
           return "Bad file path";
         }
@@ -110,25 +112,26 @@ export async function get_context(
         }
       },
     }),
-    // function_interface: {
-    //   desciption:
-    //     "Examine the interface and immediate dependencies of a specific function/component. Use this when you've identified a key function and need to understand: 1) Its parameters and return type, 2) What it directly calls, 3) How it fits into the larger system. Call this when you have a specific question like 'How does this authentication function work?' or 'What data does this component need?'. Don't call this for functions that seem peripheral to the user's question.",
-    //   inputSchema: z.object({
-    //     function_name: z
-    //       .string()
-    //       .describe("Name of the function/component to examine"),
-    //     file_path: z.string().describe("File containing the function"),
-    //     question: z
-    //       .string()
-    //       .describe(
-    //         "Specific question you're trying to answer about this function"
-    //       ),
-    //   }),
-    //   execute: async () => {
-    //     return "function interface:";
-    //   },
-    // },
-    finalAnswer: tool({
+    fulltext_search: tool({
+      description:
+        "Search the entire codebase for a specific term. Use this when you need to find a specific function, component, or file. Call this when the user provided specific text that might be present in the codebase. For example, if the query is 'Add a subtitle to the User Journeys page', you could call this with the query \"User Journeys\". Don't call this if you do not have specific text to search for",
+      inputSchema: z.object({
+        query: z.string().describe("The term to search for"),
+      }),
+      execute: async ({ query }: { query: string }) => {
+        return await G.search(
+          query,
+          5,
+          [],
+          false,
+          100000,
+          "fulltext",
+          "snippet",
+          false
+        );
+      },
+    }),
+    final_answer: tool({
       // Define a tool that signals the end of the process
       description:
         "Provide the final answer to the user. ALWAYS include relevant files or function names in the answer (and a quick note about why this piece of code is relevant to the issue at hand). DO NOT include long lists of irrelevant file names like migration files. This answer will be used by the next model to actually build the feature, so try to give clues for locating core functionality to the issue at hand. You don't need to be super verbose.YOU **MUST** CALL THIS TOOL AT THE END OF YOUR EXPLORATION.",
@@ -142,7 +145,7 @@ export async function get_context(
     tools,
     prompt,
     system,
-    stopWhen: hasToolCall("finalAnswer"),
+    stopWhen: hasToolCall("final_answer"),
     onStepFinish: (sf) => {
       // console.log("step", JSON.stringify(sf.content, null, 2));
       logStep(sf.content);
@@ -160,18 +163,18 @@ export async function get_context(
   steps.reverse();
   for (const step of steps) {
     // console.log("step", JSON.stringify(step.content, null, 2));
-    const finalAnswer = step.content.find((c) => {
-      return c.type === "tool-result" && c.toolName === "finalAnswer";
+    const final_answer = step.content.find((c) => {
+      return c.type === "tool-result" && c.toolName === "final_answer";
     });
-    if (finalAnswer) {
-      final = (finalAnswer as any).output;
+    if (final_answer) {
+      final = (final_answer as any).output;
     }
   }
   if (!final && lastText) {
     console.warn(
-      "No finalAnswer tool call detected; falling back to last reasoning text."
+      "No final_answer tool call detected; falling back to last reasoning text."
     );
-    final = `${lastText}\n\n(Note: Model did not invoke finalAnswer tool; using last reasoning text as answer.)`;
+    final = `${lastText}\n\n(Note: Model did not invoke final_answer tool; using last reasoning text as answer.)`;
   }
   // console.log("FINAL", final);
   return final;

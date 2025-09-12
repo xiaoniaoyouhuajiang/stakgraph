@@ -38,11 +38,13 @@ IMPORTANT: Return ONLY the exact question text of the most relevant match, or "N
 `;
 }
 
+export type FilteredAnswer = "NO_MATCH" | string;
+
 export async function filterAnswers(
   qas: string,
   originalPrompt: string,
   llm_provider?: string
-) {
+): Promise<FilteredAnswer> {
   console.log(">> filterAnswers!!!!");
   const provider = (llm_provider || "anthropic") as Provider;
   const apiKey = getApiKeyForProvider(provider);

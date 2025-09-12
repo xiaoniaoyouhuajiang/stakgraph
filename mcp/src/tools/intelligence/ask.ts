@@ -1,5 +1,5 @@
 import { getApiKeyForProvider, Provider } from "../../aieo/src/provider.js";
-import { callGenerateObject } from "../../aieo/src/index.js";
+import { callGenerateObject, ModelMessage } from "../../aieo/src/index.js";
 import { z } from "zod";
 import { db } from "../../graph/neo4j.js";
 import { get_context } from "../explore/tool.js";
@@ -30,7 +30,6 @@ Identify the core business functionality and user workflows involved.
 Generate 1-5 specific questions that developers would need to answer. Make each question:
 - **Short and concise**
 - **Specific enough** to match existing cached answers
-- **Business-focused** but technically actionable  
 - **Workflow-oriented** (following user journeys)
 - **Entity-specific** (mention likely code components)
 
@@ -43,9 +42,7 @@ Generate 1-5 specific questions that developers would need to answer. Make each 
 - **UI Patterns**: "What UI components handle [user interaction type]?"
 
 **Format each question for optimal embedding:**
-- Use business terminology first, technical second
-- Include context: "In the context of [workflow], how does..."
-- Be specific: Instead of "How to implement auth" → "How does user password reset workflow work with email verification?"
+- Use business terminology first, technical second. Focus on front-end terminology, since that is what the user is seeing and asking about.
 
 **IMPORTANT:**
 MAKE YOUR QUESTIONS SHORT AND CONCISE. DO NOT ASSUME THINGS ABOUT THE CODEBASE THAT YOU DON'T KNOW.
@@ -72,16 +69,29 @@ export interface Answer {
   linked_ref_ids: string[];
 }
 
-function cached_answer(question: string, e: Neo4jNode): Answer {
+function cached_answer(
+  question: string,
+  e: Neo4jNode
+): FilterByRelevanceFromCacheResult {
   return {
-    question,
-    answer: e.properties.body,
-    hint_ref_id: e.ref_id as string,
-    reused: true,
-    reused_question: e.properties.question,
-    edges_added: 0,
-    linked_ref_ids: [],
+    cachedAnswer: {
+      question,
+      answer: e.properties.body,
+      hint_ref_id: e.ref_id as string,
+      reused: true,
+      reused_question: e.properties.question,
+      edges_added: 0,
+      linked_ref_ids: [],
+    },
+    reexplore: false,
   };
+}
+
+export const QUESTION_HIGHLY_RELEVANT_THRESHOLD = 0.92;
+
+interface FilterByRelevanceFromCacheResult {
+  cachedAnswer?: Answer;
+  reexplore: boolean;
 }
 
 async function filter_by_relevance_from_cache(
@@ -89,7 +99,7 @@ async function filter_by_relevance_from_cache(
   similarityThreshold: number,
   provider?: string,
   originalPrompt?: string
-): Promise<Answer | undefined> {
+): Promise<FilterByRelevanceFromCacheResult | undefined> {
   const existingAll = await G.search(
     question,
     5,
@@ -112,19 +122,33 @@ async function filter_by_relevance_from_cache(
         qas += `**Question:** ${e.properties.question}\n**Answer:** ${e.properties.body}\n\n`;
       });
       const filtered = await filterAnswers(qas, originalPrompt, provider);
-      if (filtered !== "NO_MATCH") {
-        const top: any = existing.find(
-          (e: any) => e.properties.question === filtered
+      if (filtered === "NO_MATCH") {
+        return;
+      }
+      const top: any = existing.find(
+        (e: any) => e.properties.question === filtered
+      );
+      if (!top) {
+        return;
+      }
+      if (top.properties.score > QUESTION_HIGHLY_RELEVANT_THRESHOLD) {
+        console.log(
+          ">> REUSED RELEVANT question!!!:",
+          question,
+          ">>",
+          top.properties.question
         );
-        if (top) {
-          console.log(
-            ">> REUSED RELEVANT question!!!:",
-            question,
-            ">>",
-            top.properties.question
-          );
-          return cached_answer(question, top);
-        }
+        return cached_answer(question, top);
+      } else {
+        console.log(
+          ">> REUSED RELEVANT question but not highly relevant ---- RE-EXPLORING!!!:",
+          question,
+          ">>",
+          top.properties.question
+        );
+        const ca = cached_answer(question, top);
+        ca.reexplore = true;
+        return ca;
       }
     }
     const top: any = existing[0];
@@ -139,17 +163,28 @@ export async function ask_question(
   provider?: string,
   originalPrompt?: string
 ): Promise<Answer> {
-  const cachedAnswer = await filter_by_relevance_from_cache(
+  const filtered = await filter_by_relevance_from_cache(
     question,
     similarityThreshold,
     provider,
     originalPrompt
   );
-  if (cachedAnswer) {
-    return cachedAnswer;
+  if (filtered && filtered.cachedAnswer && !filtered.reexplore) {
+    return filtered.cachedAnswer;
+  }
+  let q: string | ModelMessage[] = question;
+  let reexplore = false;
+  if (filtered && filtered.cachedAnswer && filtered.reexplore) {
+    const msgs: ModelMessage[] = [
+      { role: "user", content: filtered.cachedAnswer.question },
+      { role: "assistant", content: filtered.cachedAnswer.answer },
+      { role: "user", content: question },
+    ];
+    q = msgs;
+    reexplore = true;
   }
   console.log(">> NEW question:", question);
-  const ctx = await get_context(question);
+  const ctx = await get_context(q, reexplore);
   const answer = ctx;
   const embeddings = await vectorizeQuery(question);
   const created = await db.create_hint(question, answer, embeddings);
