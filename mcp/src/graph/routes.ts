@@ -34,6 +34,7 @@ import {
   LEARN_HTML,
   ask_prompt,
 } from "../tools/intelligence/index.js";
+import { clone_and_get_context } from "gitsee-agent";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -324,6 +325,37 @@ export async function get_rules_files(req: Request, res: Response) {
   } catch (error) {
     console.error("Error fetching rules files:", error);
     res.status(500).json({ error: "Failed to fetch rules files" });
+  }
+}
+
+export async function gitsee_services(req: Request, res: Response) {
+  // curl "http://localhost:3000/services_agent?owner=stakwork&repo=hive"
+  try {
+    const owner = req.query.owner as string;
+    const repo = req.query.repo as string | undefined;
+    if (!repo || !owner) {
+      res.status(400).json({ error: "Missing repo" });
+      return;
+    }
+    const username = req.query.username as string | undefined;
+    const pat = req.query.pat as string | undefined;
+    const ctx = await clone_and_get_context(
+      owner,
+      repo,
+      "How do I set up this repo?",
+      "services",
+      {
+        username,
+        token: pat,
+      }
+    );
+    res.send(ctx);
+  } catch (error) {
+    console.log("===> error", error);
+    console.error("Error getting services config:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to generate services configuration" });
   }
 }
 

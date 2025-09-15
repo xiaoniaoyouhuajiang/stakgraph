@@ -39,6 +39,7 @@
     "fast-glob": "^3.3.3",
     "fastembed": "^1.14.1",
     "git-url-parse": "^16.0.1",
+    "gitsee-agent": "^1.0.0",
     "js-yaml": "^4.1.0",
     "neo4j-driver": "^5.28.1",
     "node-cache": "^5.1.2",
