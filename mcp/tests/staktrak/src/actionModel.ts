@@ -8,6 +8,7 @@ export interface ActionLocator {
   role?: string
   text?: string
   tagName?: string
+  stableSelector?: string
 }
 
 export interface Action {
@@ -35,11 +36,12 @@ export function resultsToActions(results: Results): Action[] {
         kind: 'click',
         timestamp: cd.timestamp,
         locator: {
-          primary: cd.selectors.primary,
+          primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
             fallbacks: cd.selectors.fallbacks || [],
             role: cd.selectors.role,
             text: cd.selectors.text,
-            tagName: cd.selectors.tagName
+            tagName: cd.selectors.tagName,
+            stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary
         }
       })
     }

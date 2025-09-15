@@ -443,13 +443,29 @@ export const createClickDetail = (e: MouseEvent): ClickDetail => {
     if (ancestors.length) selAny.ancestors = ancestors;
 
     // Uniqueness stabilization: if primary is generic (tag or simple class) and we have id/testId/text role data, promote a better one
-    selectors.primary = chooseStablePrimary(html, selectors.primary, selectors.fallbacks, {
+    const stabilized = chooseStablePrimary(html, selectors.primary, selectors.fallbacks, {
       testId,
       id,
       accessibleName,
       role: getElementRole(html) || undefined,
       nth,
     });
+    let uniqueStabilized = ensureStabilizedUnique(html, stabilized);
+    // Immediate capture validation loop (simple): if still not unique in DOM (and not text=) try ancestor builder directly
+    try {
+      if (typeof document !== 'undefined' && !uniqueStabilized.startsWith('text=')) {
+        const matches = document.querySelectorAll(uniqueStabilized);
+        if (matches.length !== 1) {
+          const ancestorOnly = buildAncestorNthSelector(html);
+          if (ancestorOnly && ancestorOnly !== uniqueStabilized) {
+            const mm = document.querySelectorAll(ancestorOnly);
+            if (mm.length === 1) uniqueStabilized = ancestorOnly;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  (selectors as any).stabilizedPrimary = uniqueStabilized;
+  selectors.primary = uniqueStabilized;
 
   return {
     x: e.clientX,
@@ -613,3 +629,48 @@ const chooseStablePrimary = (
   // As last resort keep original
   return current;
 };
+
+function isSelectorUnique(sel: string): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const n = document.querySelectorAll(sel);
+    return n.length === 1;
+  } catch { return false; }
+}
+
+function buildAncestorNthSelector(el: HTMLElement): string | null {
+  if (!el.parentElement) return null;
+  const path: string[] = [];
+  let current: HTMLElement | null = el;
+  let depth = 0;
+  while (current && depth < 6) {
+    const tag = current.tagName.toLowerCase();
+    let part = tag;
+    const cur = current as HTMLElement | null;
+    if (cur && cur.parentElement) {
+      const same = Array.from(cur.parentElement.children).filter(c => (c as HTMLElement).tagName === cur.tagName);
+      if (same.length > 1) {
+        const idx = same.indexOf(cur) + 1;
+        part += `:nth-of-type(${idx})`;
+      }
+    }
+    path.unshift(part);
+    const selector = path.join(' > ');
+    if (isSelectorUnique(selector)) return selector;
+    current = current.parentElement;
+    depth++;
+  }
+
+  const withBody = 'body > ' + path.join(' > ');
+  if (isSelectorUnique(withBody)) return withBody;
+  return null;
+}
+
+function ensureStabilizedUnique(html: HTMLElement, stabilized: string): string {
+  if (stabilized.startsWith('#') || stabilized.startsWith('[data-testid=')) return stabilized;
+  if (stabilized.startsWith('text=')) return stabilized; 
+  if (isSelectorUnique(stabilized)) return stabilized;
+  const ancestor = buildAncestorNthSelector(html);
+  if (ancestor && ancestor.length < 180) return ancestor;
+  return stabilized;
+}

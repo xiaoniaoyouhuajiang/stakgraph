@@ -17,7 +17,7 @@ function normalizeText(t?: string) {
 
 function locatorToSelector(l: ActionLocator): string {
   if (!l) return 'page.locator("body")';
-  const primary = l.primary;
+  const primary = l.stableSelector || l.primary;
   if (/\[data-testid=/.test(primary)) {
     const m = primary.match(/\[data-testid=["']([^"']+)["']\]/);
     if (m) return `page.getByTestId('${escapeTextForAssertion(m[1])}')`;

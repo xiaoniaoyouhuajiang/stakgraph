@@ -43,23 +43,26 @@ var userBehaviour = (() => {
 
   // src/utils.ts
   var getTimeStamp = () => Date.now();
-  var getElementRole = (element) => {
-    const explicit = element.getAttribute("role");
+  var getElementRole = (el) => {
+    const explicit = el.getAttribute("role");
     if (explicit) return explicit;
-    const tag = element.tagName.toLowerCase();
+    const tag = el.tagName.toLowerCase();
     if (tag === "button") return "button";
-    if (tag === "a" && element.hasAttribute("href")) return "link";
+    if (tag === "a" && el.hasAttribute("href")) return "link";
     if (tag === "input") {
-      const type = element.getAttribute("type");
-      if (["button", "submit", "reset"].includes(type || "text")) return "button";
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      if (["button", "submit", "reset"].includes(type)) return "button";
+      if (type === "checkbox") return "checkbox";
+      if (type === "radio") return "radio";
       return "textbox";
     }
+    if (tag === "select") return "combobox";
+    if (tag === "textarea") return "textbox";
     if (tag === "nav") return "navigation";
-    if (tag === "main") return "main";
     if (tag === "header") return "banner";
     if (tag === "footer") return "contentinfo";
-    if (tag === "aside") return "complementary";
-    if (tag === "section") return "region";
+    if (tag === "main") return "main";
+    if (tag === "form") return "form";
     return null;
   };
   var getEnhancedElementText = (element) => {
@@ -291,6 +294,56 @@ var userBehaviour = (() => {
   var createClickDetail = (e) => {
     const target = e.target;
     const selectors = generateSelectorStrategies(target);
+    const html = target;
+    const testId = html.dataset && html.dataset["testid"] || void 0;
+    const id = html.id || void 0;
+    const accessibleName = getEnhancedElementText(html) || void 0;
+    let nth;
+    if (html.parentElement) {
+      const same = Array.from(html.parentElement.children).filter((c) => c.tagName === html.tagName);
+      if (same.length > 1) nth = same.indexOf(html) + 1;
+    }
+    const ancestors = [];
+    let p = html.parentElement;
+    let depth = 0;
+    while (p && depth < 4) {
+      const role = p.getAttribute("role");
+      const tag = p.tagName.toLowerCase();
+      if (["main", "nav", "header", "footer", "aside", "section", "form", "article"].includes(tag) || role) {
+        ancestors.push(role ? `${tag}[role=${role}]` : tag);
+      }
+      p = p.parentElement;
+      depth++;
+    }
+    const selAny = selectors;
+    selAny.id = id;
+    selAny.testId = testId;
+    selAny.accessibleName = accessibleName;
+    if (nth) selAny.nth = nth;
+    if (ancestors.length) selAny.ancestors = ancestors;
+    const stabilized = chooseStablePrimary(html, selectors.primary, selectors.fallbacks, {
+      testId,
+      id,
+      accessibleName,
+      role: getElementRole(html) || void 0,
+      nth
+    });
+    let uniqueStabilized = ensureStabilizedUnique(html, stabilized);
+    try {
+      if (typeof document !== "undefined" && !uniqueStabilized.startsWith("text=")) {
+        const matches = document.querySelectorAll(uniqueStabilized);
+        if (matches.length !== 1) {
+          const ancestorOnly = buildAncestorNthSelector(html);
+          if (ancestorOnly && ancestorOnly !== uniqueStabilized) {
+            const mm = document.querySelectorAll(ancestorOnly);
+            if (mm.length === 1) uniqueStabilized = ancestorOnly;
+          }
+        }
+      }
+    } catch (e2) {
+    }
+    selectors.stabilizedPrimary = uniqueStabilized;
+    selectors.primary = uniqueStabilized;
     return {
       x: e.clientX,
       y: e.clientY,
@@ -369,6 +422,67 @@ var userBehaviour = (() => {
     });
     return result.sort((a, b) => a.timestamp - b.timestamp);
   };
+  var isWeakSelector = (selector) => {
+    if (!selector) return true;
+    if (/^\w+$/.test(selector)) return true;
+    if (/^\w+\.[^.]+$/.test(selector)) return true;
+    if (selector.startsWith("text=")) return false;
+    if (selector.startsWith("[data-testid=")) return false;
+    if (selector.startsWith("#")) return false;
+    return false;
+  };
+  var chooseStablePrimary = (el, current, fallbacks, meta) => {
+    if (!isWeakSelector(current)) return current;
+    if (meta.testId) return `[data-testid="${meta.testId}"]`;
+    if (meta.id && /^[a-zA-Z][\w-]*$/.test(meta.id)) return `#${meta.id}`;
+    if (meta.role && meta.accessibleName && meta.accessibleName.length < 80) {
+      return `text=${meta.accessibleName.replace(/"/g, '\\"')}`;
+    }
+    return current;
+  };
+  function isSelectorUnique(sel) {
+    if (typeof document === "undefined") return false;
+    try {
+      const n = document.querySelectorAll(sel);
+      return n.length === 1;
+    } catch (e) {
+      return false;
+    }
+  }
+  function buildAncestorNthSelector(el) {
+    if (!el.parentElement) return null;
+    const path = [];
+    let current = el;
+    let depth = 0;
+    while (current && depth < 6) {
+      const tag = current.tagName.toLowerCase();
+      let part = tag;
+      const cur = current;
+      if (cur && cur.parentElement) {
+        const same = Array.from(cur.parentElement.children).filter((c) => c.tagName === cur.tagName);
+        if (same.length > 1) {
+          const idx = same.indexOf(cur) + 1;
+          part += `:nth-of-type(${idx})`;
+        }
+      }
+      path.unshift(part);
+      const selector = path.join(" > ");
+      if (isSelectorUnique(selector)) return selector;
+      current = current.parentElement;
+      depth++;
+    }
+    const withBody = "body > " + path.join(" > ");
+    if (isSelectorUnique(withBody)) return withBody;
+    return null;
+  }
+  function ensureStabilizedUnique(html, stabilized) {
+    if (stabilized.startsWith("#") || stabilized.startsWith("[data-testid=")) return stabilized;
+    if (stabilized.startsWith("text=")) return stabilized;
+    if (isSelectorUnique(stabilized)) return stabilized;
+    const ancestor = buildAncestorNthSelector(html);
+    if (ancestor && ancestor.length < 180) return ancestor;
+    return stabilized;
+  }
 
   // src/debug.ts
   function rectsIntersect(rect1, rect2) {
@@ -1363,6 +1477,29 @@ var userBehaviour = (() => {
       return u.replace(/[#?].*$/, "").replace(/\/$/, "");
     }
   }
+  function getRoleSelector(role) {
+    const roleMap = {
+      button: 'button, [role="button"], input[type="button"], input[type="submit"]',
+      heading: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
+      link: 'a, [role="link"]',
+      textbox: 'input[type="text"], input[type="email"], input[type="password"], textarea, [role="textbox"]',
+      checkbox: 'input[type="checkbox"], [role="checkbox"]',
+      radio: 'input[type="radio"], [role="radio"]',
+      listitem: 'li, [role="listitem"]',
+      list: 'ul, ol, [role="list"]',
+      img: 'img, [role="img"]',
+      table: 'table, [role="table"]',
+      row: 'tr, [role="row"]',
+      cell: 'td, th, [role="cell"], [role="gridcell"]',
+      menu: '[role="menu"]',
+      menuitem: '[role="menuitem"]',
+      dialog: '[role="dialog"]',
+      alert: '[role="alert"]',
+      tab: '[role="tab"]',
+      tabpanel: '[role="tabpanel"]'
+    };
+    return roleMap[role] || `[role="${role}"]`;
+  }
   async function executePlaywrightAction(action) {
     var _a;
     try {
@@ -1632,7 +1769,106 @@ var userBehaviour = (() => {
     return element ? [element] : [];
   }
   function findElementWithFallbacks(selector) {
+    var _a, _b;
     if (!selector || selector.trim() === "") return null;
+    if (selector.startsWith("role:")) {
+      const roleMatch = selector.match(/^role:([^\[]+)(?:\[name(?:-regex)?="(.+?)"\])?/);
+      if (roleMatch) {
+        const role = roleMatch[1];
+        const nameRaw = roleMatch[2];
+        const nameRegex = selector.includes("[name-regex=");
+        const candidates = Array.from(queryByRole(role.trim()));
+        if (!nameRaw) {
+          return candidates[0] || null;
+        }
+        let matcher;
+        if (nameRegex) {
+          const rx = nameRaw.match(/^\/(.*)\/(.*)$/);
+          if (rx) {
+            const r = new RegExp(rx[1], rx[2]);
+            matcher = (s) => r.test(s);
+          } else {
+            matcher = (s) => s.includes(nameRaw);
+          }
+        } else {
+          const target = nameRaw;
+          matcher = (s) => s === target;
+        }
+        for (const el of candidates) {
+          const acc = getAccessibleName(el);
+          if (acc && matcher(acc)) {
+            el.__stakTrakMatchedText = nameRaw;
+            return el;
+          }
+        }
+        return null;
+      }
+    }
+    if (selector.startsWith("getByTestId:")) {
+      const val = selector.substring("getByTestId:".length);
+      return document.querySelector(`[data-testid="${cssEscape(val)}"]`);
+    }
+    if (selector.startsWith("getByText-regex:")) {
+      const body = selector.substring("getByText-regex:".length);
+      const rx = body.match(/^\/(.*)\/(.*)$/);
+      let r = null;
+      if (rx) try {
+        r = new RegExp(rx[1], rx[2]);
+      } catch (e) {
+      }
+      const all = textSearchCandidates();
+      for (const el of all) {
+        const txt = ((_a = el.textContent) == null ? void 0 : _a.trim()) || "";
+        if (r && r.test(txt)) {
+          el.__stakTrakMatchedText = txt;
+          return el;
+        }
+      }
+      return null;
+    }
+    if (selector.startsWith("getByText:")) {
+      const exact = selector.endsWith(":exact");
+      const core = exact ? selector.slice("getByText:".length, -":exact".length) : selector.slice("getByText:".length);
+      const norm = core.trim();
+      const all = textSearchCandidates();
+      for (const el of all) {
+        const txt = ((_b = el.textContent) == null ? void 0 : _b.trim()) || "";
+        if (exact && txt === norm || !exact && txt.includes(norm)) {
+          el.__stakTrakMatchedText = norm;
+          return el;
+        }
+      }
+      return null;
+    }
+    if (selector.startsWith("getByLabel:")) {
+      const label = selector.substring("getByLabel:".length).trim();
+      const labels = Array.from(document.querySelectorAll("label")).filter((l) => {
+        var _a2;
+        return ((_a2 = l.textContent) == null ? void 0 : _a2.trim()) === label;
+      });
+      for (const lab of labels) {
+        const forId = lab.getAttribute("for");
+        if (forId) {
+          const ctl = document.getElementById(forId);
+          if (ctl) return ctl;
+        }
+        const nested = lab.querySelector("input,select,textarea,button");
+        if (nested) return nested;
+      }
+      return document.querySelector(`[aria-label="${cssEscape(label)}"]`);
+    }
+    if (selector.startsWith("getByPlaceholder:")) {
+      const ph = selector.substring("getByPlaceholder:".length);
+      return document.querySelector(`[placeholder="${cssEscape(ph)}"]`);
+    }
+    if (selector.startsWith("getByTitle:")) {
+      const t = selector.substring("getByTitle:".length);
+      return document.querySelector(`[title="${cssEscape(t)}"]`);
+    }
+    if (selector.startsWith("getByAltText:")) {
+      const alt = selector.substring("getByAltText:".length);
+      return document.querySelector(`[alt="${cssEscape(alt)}"]`);
+    }
     const browserSelector = convertToBrowserSelector(selector);
     if (browserSelector && isValidSelector(browserSelector)) {
       const element = document.querySelector(browserSelector);
@@ -1658,6 +1894,39 @@ var userBehaviour = (() => {
       }
     }
     return null;
+  }
+  function cssEscape(value) {
+    return value.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`);
+  }
+  function queryByRole(role) {
+    const selector = getRoleSelector(role);
+    return Array.from(document.querySelectorAll(selector)).filter((el) => el instanceof HTMLElement);
+  }
+  function getAccessibleName(el) {
+    var _a;
+    const aria = el.getAttribute("aria-label");
+    if (aria) return aria.trim();
+    const labelled = el.getAttribute("aria-labelledby");
+    if (labelled) {
+      const parts = labelled.split(/\s+/).map((id) => {
+        var _a2, _b;
+        return (_b = (_a2 = document.getElementById(id)) == null ? void 0 : _a2.textContent) == null ? void 0 : _b.trim();
+      }).filter(Boolean);
+      if (parts.length) return parts.join(" ");
+    }
+    const tag = el.tagName.toLowerCase();
+    if (tag === "input" || tag === "textarea") {
+      const val = el.value || el.getAttribute("placeholder");
+      if (val) return val.trim();
+    }
+    const txt = (_a = el.textContent) == null ? void 0 : _a.trim();
+    if (txt) return txt.slice(0, 120);
+    const title = el.getAttribute("title");
+    if (title) return title.trim();
+    return null;
+  }
+  function textSearchCandidates() {
+    return Array.from(document.querySelectorAll("button, a, [role], input, textarea, select, label, div, span"));
   }
   function convertToBrowserSelector(selector) {
     var _a;
@@ -2143,7 +2412,7 @@ var userBehaviour = (() => {
           kind: "click",
           timestamp: cd.timestamp,
           locator: {
-            primary: cd.selectors.primary,
+            primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
             fallbacks: cd.selectors.fallbacks || [],
             role: cd.selectors.role,
             text: cd.selectors.text,

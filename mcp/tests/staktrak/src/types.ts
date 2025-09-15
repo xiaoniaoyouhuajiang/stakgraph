@@ -52,6 +52,7 @@ export interface ClickDetail {
   accessibleName?: string;
   nth?: number;
   ancestors?: string[]; // semantic ancestor tag or role chain
+  stabilizedPrimary?: string; // Chosen stable selector (priority algorithm)
   };
   elementInfo: {
     tagName: string;

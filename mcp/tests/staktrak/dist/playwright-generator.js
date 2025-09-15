@@ -13,7 +13,7 @@ function resultsToActions(results) {
         kind: "click",
         timestamp: cd.timestamp,
         locator: {
-          primary: cd.selectors.primary,
+          primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
           fallbacks: cd.selectors.fallbacks || [],
           role: cd.selectors.role,
           text: cd.selectors.text,
