@@ -4,6 +4,10 @@ import { PlaywrightAction, ReplayStatus } from "../types";
 const __stakReplayMatch = (window as any).__stakTrakReplayMatch || { last: null as null | { requested: string; matched: string; text?: string; time: number; element?: Element } };
 (window as any).__stakTrakReplayMatch = __stakReplayMatch;
 
+// Maintain last structurally-unique selector to stabilize transitions
+const __stakReplayState = (window as any).__stakTrakReplayState || { lastStructural: null as string | null, lastEl: null as Element | null };
+(window as any).__stakTrakReplayState = __stakReplayState;
+
 function highlight(element: Element, actionType: string = "action"): void {
   const htmlElement = element as HTMLElement;
 
@@ -153,9 +157,7 @@ export async function executePlaywrightAction(
 
             try {
               htmlElement.focus();
-            } catch (e) {
-              console.warn("Could not focus element:", e);
-            }
+            } catch {}
 
             try {
               element.dispatchEvent(
@@ -186,10 +188,7 @@ export async function executePlaywrightAction(
                   view: window,
                 })
               );
-            } catch (clickError) {
-              console.warn("Error during click simulation:", clickError);
-              throw clickError;
-            }
+            } catch (clickError) { throw clickError; }
 
             await new Promise((resolve) => setTimeout(resolve, 50));
           } else {
@@ -363,7 +362,7 @@ export async function executePlaywrightAction(
         break;
 
       default:
-        console.warn(`Unknown action type: ${action.type}`);
+  // unknown action type ignored
         break;
     }
   } catch (error) {
@@ -383,9 +382,7 @@ async function waitForElements(
       if (elements.length > 0) {
         return elements;
       }
-    } catch (error) {
-      console.warn(`Error finding elements with selector: ${selector}`, error);
-    }
+    } catch {}
 
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -400,6 +397,32 @@ function findElements(selector: string): Element[] {
 
 function findElementWithFallbacks(selector: string): Element | null {
   if (!selector || selector.trim() === "") return null;
+
+  // Fast path: unique structural tag.class selector
+  if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/.test(selector)) {
+    try {
+      const matches = document.querySelectorAll(selector);
+      if (matches.length === 1) {
+        __stakReplayState.lastStructural = selector;
+        __stakReplayState.lastEl = matches[0];
+        return matches[0];
+      }
+    } catch {}
+  }
+
+  // If selector is role/text and we have a previous unique structural pointing to same accessible name, reuse it to avoid container highlight flicker
+  if ((selector.startsWith('role:') || selector.startsWith('text=')) && __stakReplayState.lastStructural && __stakReplayState.lastEl) {
+    // verify element still present
+    try {
+      if (document.contains(__stakReplayState.lastEl)) {
+        const acc = getAccessibleName(__stakReplayState.lastEl as HTMLElement);
+        const nameMatch = selector.includes('name="') ? selector.includes(`name="${acc}`) : selector.includes(acc || '');
+        if (acc && nameMatch) {
+          return __stakReplayState.lastEl;
+        }
+      }
+    } catch {}
+  }
 
   const noteMatch = (el: Element | null, matched: string, text?: string) => {
     if (el) {
@@ -423,8 +446,7 @@ function findElementWithFallbacks(selector: string): Element | null {
       if (nameRegex) {
         const rx = nameRaw.match(/^\/(.*)\/(.*)$/);
         if (rx) {
-          const r = new RegExp(rx[1], rx[2]);
-          matcher = (s) => r.test(s);
+          try { const r = new RegExp(rx[1], rx[2]); matcher = (s) => r.test(s); } catch { matcher = (s)=>s.includes(nameRaw); }
         } else {
           matcher = (s) => s.includes(nameRaw);
         }
@@ -440,6 +462,20 @@ function findElementWithFallbacks(selector: string): Element | null {
       }
       return noteMatch(null, selector);
     }
+  }
+
+  if (selector.startsWith('text=') && selector.endsWith(':exact')) {
+    const core = selector.slice('text='.length, -(':exact'.length));
+    const norm = core.trim();
+    const interactive = Array.from(document.querySelectorAll('button, a, [role], input, textarea, select')) as HTMLElement[];
+    const exact = interactive.filter(el => (el.textContent||'').trim() === norm);
+    if (exact.length === 1) return noteMatch(exact[0], selector, norm);
+    if (exact.length > 1) {
+      // take the deepest (most specific) element to avoid container highlight
+      const deepest = exact.sort((a,b) => depth(b)-depth(a))[0];
+      return noteMatch(deepest, selector, norm);
+    }
+    return noteMatch(null, selector);
   }
 
   if (selector.startsWith('getByTestId:')) {
@@ -511,12 +547,11 @@ function findElementWithFallbacks(selector: string): Element | null {
 
   const strategies = [
     () => findByDataTestId(selector),
-    () => findByClass(selector),
     () => findById(selector),
+    () => findByClassUnique(selector),
     () => findByAriaLabel(selector),
     () => findByRole(selector),
-    () => findByTextContent(selector),
-    () => findByCoordinates(selector),
+    () => findByTextContentTight(selector),
   ];
 
   for (const strategy of strategies) {
@@ -525,9 +560,7 @@ function findElementWithFallbacks(selector: string): Element | null {
       if (element) {
         return noteMatch(element, selector);
       }
-    } catch (error) {
-      console.warn(`Strategy failed for ${selector}:`, error);
-    }
+    } catch {}
   }
 
   return noteMatch(null, selector);
@@ -619,12 +652,20 @@ function findByDataTestId(selector: string): Element | null {
   return null;
 }
 
-function findByClass(selector: string): Element | null {
-  if (!selector.includes(".")) return null;
-  const classes = selector.match(/\.([^\s.#\[\]]+)/g);
-  if (classes && classes.length > 0) {
-    const className = classes[0].substring(1);
-    return document.querySelector(`.${className}`);
+function findByClassUnique(selector: string): Element | null {
+  if (!selector.includes('.')) return null;
+  if (selector.startsWith('text=') || selector.startsWith('role:')) return null;
+  // only accept if unique to avoid selecting container ancestor
+  try {
+    const els = document.querySelectorAll(selector);
+    if (els.length === 1) return els[0];
+  } catch {}
+  // fallback: first exact class-only element if unique among interactive
+  const classOnly = selector.match(/^\w+\.[^.]+$/);
+  if (classOnly) {
+    const els = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+    const interactive = els.filter(isInteractive);
+    if (interactive.length === 1) return interactive[0];
   }
   return null;
 }
@@ -651,36 +692,36 @@ function findByRole(selector: string): Element | null {
   return document.querySelector(`[role="${roleMatch[1]}"]`);
 }
 
-function findByTextContent(selector: string): Element | null {
-  let text: string | null = null;
-  let tagName = "*";
-
-  if (selector.includes('text="')) {
-    const textMatch = selector.match(/text="([^"]+)"/);
-    text = textMatch ? textMatch[1] : null;
-  } else if (selector.includes('textContent="')) {
-    const textMatch = selector.match(/textContent="([^"]+)"/);
-    text = textMatch ? textMatch[1] : null;
-  } else if (selector.includes(":has-text(")) {
-    const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
-    text = textMatch ? textMatch[1] : null;
-  }
-
-  const tagMatch = selector.match(/^([a-zA-Z]+)/);
-  if (tagMatch) {
-    tagName = tagMatch[1];
-  }
-
-  if (!text) return null;
-
-  const elements = Array.from(document.querySelectorAll(tagName));
-  for (const element of elements) {
-    const elementText = element.textContent?.trim();
-    if (elementText === text || elementText?.includes(text)) {
-      return element;
-    }
+function findByTextContentTight(selector: string): Element | null {
+  if (!selector.startsWith('text=')) return null;
+  const exact = selector.endsWith(':exact');
+  const core = exact ? selector.slice('text='.length, -(':exact'.length)) : selector.slice('text='.length);
+  const norm = core.trim();
+  const candidates = textSearchCandidates().filter(isInteractiveOrSmall);
+  for (const el of candidates) {
+    const txt = (el.textContent||'').trim();
+    if ((exact && txt === norm) || (!exact && txt.includes(norm))) return el;
   }
   return null;
+}
+
+function isInteractive(el: HTMLElement): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (['button','a','input','textarea','select','option'].includes(tag)) return true;
+  const role = el.getAttribute('role');
+  if (role && ['button','link','menuitem','option','tab'].includes(role)) return true;
+  return false;
+}
+
+function isInteractiveOrSmall(el: HTMLElement): boolean {
+  if (isInteractive(el)) return true;
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 400 && rect.height < 200) return true;
+  return false;
+}
+
+function depth(el: HTMLElement): number {
+  let d=0; let p=el.parentElement; while (p){d++;p=p.parentElement;} return d;
 }
 
 function findByCoordinates(selector: string): Element | null {
@@ -979,7 +1020,7 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     default:
-      console.warn(`Unknown expectation: ${action.expectation}`);
+      // ignore unknown expectation
   }
 }
 function isElementVisible(element: Element): boolean {

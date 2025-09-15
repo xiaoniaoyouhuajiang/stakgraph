@@ -17,7 +17,8 @@ function resultsToActions(results) {
           fallbacks: cd.selectors.fallbacks || [],
           role: cd.selectors.role,
           text: cd.selectors.text,
-          tagName: cd.selectors.tagName
+          tagName: cd.selectors.tagName,
+          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary
         }
       });
     }
@@ -103,13 +104,16 @@ function normalizeText(t) {
 }
 function locatorToSelector(l) {
   if (!l) return 'page.locator("body")';
-  const primary = l.primary;
+  const primary = l.stableSelector || l.primary;
   if (/\[data-testid=/.test(primary)) {
     const m = primary.match(/\[data-testid=["']([^"']+)["']\]/);
     if (m) return `page.getByTestId('${escapeTextForAssertion(m[1])}')`;
   }
   if (primary.startsWith("#") && /^[a-zA-Z][\w-]*$/.test(primary.slice(1)))
     return `page.locator('${primary}')`;
+  if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+/.test(primary)) {
+    return `page.locator('${primary}')`;
+  }
   if (l.role && l.text) {
     const txt = normalizeText(l.text);
     if (txt && txt.length <= 50)

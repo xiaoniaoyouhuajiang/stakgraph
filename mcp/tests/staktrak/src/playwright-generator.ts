@@ -24,6 +24,10 @@ function locatorToSelector(l: ActionLocator): string {
   }
   if (primary.startsWith("#") && /^[a-zA-Z][\w-]*$/.test(primary.slice(1)))
     return `page.locator('${primary}')`;
+  // Prefer explicit structural class/attribute selector over role/text if present
+  if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+/.test(primary)) {
+    return `page.locator('${primary}')`;
+  }
   if (l.role && l.text) {
     const txt = normalizeText(l.text);
     if (txt && txt.length <= 50)

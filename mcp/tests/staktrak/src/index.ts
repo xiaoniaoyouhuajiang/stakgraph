@@ -116,7 +116,7 @@ class UserBehaviorTracker {
       };
       sessionStorage.setItem('stakTrakActiveRecording', JSON.stringify(sessionData));
     } catch (error) {
-      console.warn("🔍 STAKTRAK: Failed to save session state:", error);
+      
     }
   }
 
@@ -727,7 +727,7 @@ class UserBehaviorTracker {
         sessionStorage.removeItem('stakTrakActiveRecording');
       }
     } catch (error) {
-      console.warn("🔍 STAKTRAK: Session restoration failed:", error);
+      
       sessionStorage.removeItem('stakTrakActiveRecording');
     }
   }
@@ -741,7 +741,7 @@ class UserBehaviorTracker {
     
     // If we have fewer listeners than expected, re-setup
     if (this.isRunning && this.memory.listeners.length === 0) {
-      console.warn("🔍 STAKTRAK: No listeners found, re-establishing...");
+      
       this.setupEventListeners();
     }
   }
@@ -768,7 +768,7 @@ class UserBehaviorTracker {
       if (this.isRunning) {
         // Verify listeners are still active
         if (this.memory.listeners.length === 0) {
-          console.warn("🔍 STAKTRAK: Health check failed - no listeners, attempting recovery");
+          
           this.recoverRecording();
         }
         
