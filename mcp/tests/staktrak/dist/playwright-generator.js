@@ -18,7 +18,8 @@ function resultsToActions(results) {
           role: cd.selectors.role,
           text: cd.selectors.text,
           tagName: cd.selectors.tagName,
-          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary
+          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+          candidates: cd.selectors.scores || void 0
         }
       });
     }

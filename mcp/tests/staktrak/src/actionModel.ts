@@ -9,6 +9,7 @@ export interface ActionLocator {
   text?: string
   tagName?: string
   stableSelector?: string
+  candidates?: { selector: string; score: number; reasons: string[] }[]
 }
 
 export interface Action {
@@ -37,11 +38,12 @@ export function resultsToActions(results: Results): Action[] {
         timestamp: cd.timestamp,
         locator: {
           primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
-            fallbacks: cd.selectors.fallbacks || [],
-            role: cd.selectors.role,
-            text: cd.selectors.text,
-            tagName: cd.selectors.tagName,
-            stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary
+          fallbacks: cd.selectors.fallbacks || [],
+          role: cd.selectors.role,
+          text: cd.selectors.text,
+          tagName: cd.selectors.tagName,
+          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+          candidates: (cd.selectors as any).scores || undefined
         }
       })
     }

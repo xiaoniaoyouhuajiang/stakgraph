@@ -187,37 +187,74 @@ export const generateSelectorStrategies = (
   role?: string;
   tagName: string;
   xpath?: string;
+  // scoring additions
+  scores?: { selector: string; score: number; reasons: string[] }[];
 } => {
   const htmlEl = element as HTMLElement;
   const tagName = element.tagName.toLowerCase();
   const fallbacks: string[] = [];
 
+  // INTERNAL scoring helpers ---------------------------------------------
+  const reasonsMap: Record<string,string[]> = {};
+  const scored: { selector: string; score: number; reasons: string[] }[] = [];
+  const pushCandidate = (sel: string, baseScore: number, reason: string) => {
+    if (!sel) return;
+    if (!reasonsMap[sel]) reasonsMap[sel] = [];
+    reasonsMap[sel].push(reason);
+    // compute dynamic penalties
+    let score = baseScore;
+    // length penalty
+    if (sel.length > 60) score -= Math.min(20, Math.floor((sel.length-60)/5));
+    // depth penalty
+    const depth = sel.split('>').length - 1;
+    if (depth > 3) score -= (depth-3)*2;
+    // volatility penalty: heuristic for classes with hex fragments
+    if (/\.[a-zA-Z0-9_-]*[0-9a-f]{6,}\b/.test(sel)) score -= 25;
+    // generic tag penalty
+    if (/^\w+$/.test(sel)) score -= 30;
+    // text selector slight risk
+    if (sel.startsWith('text=')) score -= 5;
+    // role selector moderate
+    if (sel.startsWith('role:')) score -= 3;
+    scored.push({ selector: sel, score, reasons: reasonsMap[sel] });
+  };
+
+  const finalizeReturn = (primary: string, fallbacks: string[], extra: any) => {
+    // de-duplicate scored entries
+    const dedup: Record<string,{ selector: string; score: number; reasons: string[] }> = {};
+    for (const c of scored) {
+      if (!dedup[c.selector] || dedup[c.selector].score < c.score) dedup[c.selector] = c;
+    }
+    const ordered = Object.values(dedup).sort((a,b)=>b.score-a.score);
+    return { primary, fallbacks, ...extra, scores: ordered };
+  };
+
   // Strategy 1: data-testid (highest priority)
   const testId = htmlEl.dataset?.testid;
   if (testId) {
-    return {
-      primary: `[data-testid="${testId}"]`,
-      fallbacks: [],
+    const sel = `[data-testid="${testId}"]`;
+    pushCandidate(sel, 100, 'data-testid attribute');
+    return finalizeReturn(sel, [], {
       tagName,
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
       role: getElementRole(htmlEl) || undefined,
-    };
+    });
   }
 
   // Strategy 2: ID
   const id = htmlEl.id;
   if (id && /^[a-zA-Z][\w-]*$/.test(id)) {
-    return {
-      primary: `#${id}`,
-      fallbacks: [],
+    const sel = `#${id}`;
+    pushCandidate(sel, 95, 'element id');
+    return finalizeReturn(sel, [], {
       tagName,
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
       role: getElementRole(htmlEl) || undefined,
-    };
+    });
   }
 
   // Strategy 3: Clean class-based selector first (prefer structural primary)
@@ -226,11 +263,14 @@ export const generateSelectorStrategies = (
   const classSelector = generateClassBasedSelector(element);
   if (classSelector && classSelector !== tagName) {
     fallbacks.push(classSelector);
+    pushCandidate(classSelector, 80, 'class-based selector');
   }
 
   // Strategy 4: Role+name (only if not already uniquely represented by class)
   if (!testId && !id && role === 'button' && text && text.length < 40) {
-    fallbacks.push(`role:button[name="${text.replace(/"/g,'\\"')}"]`);
+    const rsel = `role:button[name="${text.replace(/"/g,'\\"')}"]`;
+    fallbacks.push(rsel);
+    pushCandidate(rsel, 70, 'role+name');
   }
 
   // Strategy 5: For interactive elements, text-based selectors (after structural + role)
@@ -245,50 +285,61 @@ export const generateSelectorStrategies = (
     const textSelector = generateTextBasedSelector(element, text2);
     if (textSelector) {
       fallbacks.push(textSelector);
+      pushCandidate(textSelector, 60, 'text content');
     }
   }
 
   // Strategy 6: aria-label
   const ariaLabel = htmlEl.getAttribute("aria-label");
   if (ariaLabel) {
-    fallbacks.push(`[aria-label="${ariaLabel}"]`);
+    const al = `[aria-label="${ariaLabel}"]`;
+    fallbacks.push(al);
+    pushCandidate(al, 65, 'aria-label');
   }
 
   // Strategy 7: generic role fallback only (without name) if not already pushed
   if (role && !fallbacks.find(f=>f.startsWith('role:')||f.startsWith(`[role="${role}`))) {
-    fallbacks.push(`[role="${role}"]`);
+    const rs = `[role="${role}"]`;
+    fallbacks.push(rs);
+    pushCandidate(rs, 40, 'generic role');
   }
 
   // Strategy 8: Attribute-based selectors for inputs
   if (tagName === "input") {
     const type = (element as HTMLInputElement).type;
     const name = (element as HTMLInputElement).name;
-    if (type) fallbacks.push(`input[type="${type}"]`);
-    if (name) fallbacks.push(`input[name="${name}"]`);
+    if (type) { const tsel = `input[type="${type}"]`; fallbacks.push(tsel); pushCandidate(tsel, 55, 'input type'); }
+    if (name) { const nsel = `input[name="${name}"]`; fallbacks.push(nsel); pushCandidate(nsel, 58, 'input name'); }
   }
 
   // Strategy 9: Parent-child relationship for specific elements (reduced to avoid broad container > button selectors)
   const contextualSelector = generateContextualSelector(element);
   if (contextualSelector) {
     fallbacks.push(contextualSelector);
+    pushCandidate(contextualSelector, 45, 'contextual');
   }
 
   // Strategy 9: XPath as last resort
   const xpath = generateXPath(element);
 
   // Choose primary selector
-  const primary = fallbacks.length > 0 ? fallbacks[0] : tagName;
+  // Add bare tag candidate (low score) if nothing else
+  if (fallbacks.length === 0) {
+    pushCandidate(tagName, 10, 'bare tag');
+  }
 
-  return {
-    primary,
-    fallbacks: fallbacks.slice(1), // Remove primary from fallbacks
+  // choose top scoring unique-ish candidate as primary: sort by score (scored already holds most) but restrict to ones we actually added
+  const best = scored.sort((a,b)=>b.score-a.score)[0];
+  const primary = best ? best.selector : (fallbacks.length>0? fallbacks[0] : tagName);
+  const fb = fallbacks.filter(f=>f!==primary);
+  return finalizeReturn(primary, fb, {
     text: text || undefined,
     ariaLabel: ariaLabel || undefined,
     title: htmlEl.getAttribute("title") || undefined,
     role: role || undefined,
     tagName,
     xpath,
-  };
+  });
 };
 
 /**

@@ -9,6 +9,7 @@ import {
 import { debugMsg, isReactDevModeActive } from "./debug";
 import { initPlaywrightReplay } from "./playwright-replay/index";
 import { resultsToActions } from "./actionModel";
+import { buildScenario, serializeScenario } from './scenario';
 import {
   generatePlaywrightTestFromActions,
   GenerateOptions,
@@ -818,6 +819,25 @@ document.readyState === "loading"
   const test = generatePlaywrightTestFromActions(actions, options);
   (userBehaviour as any)._lastGeneratedUsingActions = true;
   return { actions, test };
+};
+
+(userBehaviour as any).getScenario = () => {
+  const results = userBehaviour.result();
+  const actions = resultsToActions(results);
+  return buildScenario(results, actions);
+};
+(userBehaviour as any).exportScenarioJSON = () => {
+  const sc = (userBehaviour as any).getScenario();
+  return serializeScenario(sc);
+};
+
+(userBehaviour as any).getSelectorScores = () => {
+  const results = userBehaviour.result();
+  if (!results.clicks || !results.clicks.clickDetails.length) return [];
+  const last = results.clicks.clickDetails[results.clicks.clickDetails.length - 1];
+  const sel = last.selectors as any;
+  if (sel && sel.scores) return sel.scores;
+  return [];
 };
 
 export default userBehaviour;

@@ -157,76 +157,119 @@ var userBehaviour = (() => {
     const htmlEl = element;
     const tagName = element.tagName.toLowerCase();
     const fallbacks = [];
+    const reasonsMap = {};
+    const scored = [];
+    const pushCandidate = (sel, baseScore, reason) => {
+      if (!sel) return;
+      if (!reasonsMap[sel]) reasonsMap[sel] = [];
+      reasonsMap[sel].push(reason);
+      let score = baseScore;
+      if (sel.length > 60) score -= Math.min(20, Math.floor((sel.length - 60) / 5));
+      const depth2 = sel.split(">").length - 1;
+      if (depth2 > 3) score -= (depth2 - 3) * 2;
+      if (/\.[a-zA-Z0-9_-]*[0-9a-f]{6,}\b/.test(sel)) score -= 25;
+      if (/^\w+$/.test(sel)) score -= 30;
+      if (sel.startsWith("text=")) score -= 5;
+      if (sel.startsWith("role:")) score -= 3;
+      scored.push({ selector: sel, score, reasons: reasonsMap[sel] });
+    };
+    const finalizeReturn = (primary2, fallbacks2, extra) => {
+      const dedup = {};
+      for (const c of scored) {
+        if (!dedup[c.selector] || dedup[c.selector].score < c.score) dedup[c.selector] = c;
+      }
+      const ordered = Object.values(dedup).sort((a, b) => b.score - a.score);
+      return __spreadProps(__spreadValues({ primary: primary2, fallbacks: fallbacks2 }, extra), { scores: ordered });
+    };
     const testId = (_a = htmlEl.dataset) == null ? void 0 : _a.testid;
     if (testId) {
-      return {
-        primary: `[data-testid="${testId}"]`,
-        fallbacks: [],
+      const sel = `[data-testid="${testId}"]`;
+      pushCandidate(sel, 100, "data-testid attribute");
+      return finalizeReturn(sel, [], {
         tagName,
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
         role: getElementRole(htmlEl) || void 0
-      };
+      });
     }
     const id = htmlEl.id;
     if (id && /^[a-zA-Z][\w-]*$/.test(id)) {
-      return {
-        primary: `#${id}`,
-        fallbacks: [],
+      const sel = `#${id}`;
+      pushCandidate(sel, 95, "element id");
+      return finalizeReturn(sel, [], {
         tagName,
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
         role: getElementRole(htmlEl) || void 0
-      };
+      });
     }
     const text = getEnhancedElementText(htmlEl);
     const role = getElementRole(htmlEl);
     const classSelector = generateClassBasedSelector(element);
     if (classSelector && classSelector !== tagName) {
       fallbacks.push(classSelector);
+      pushCandidate(classSelector, 80, "class-based selector");
     }
     if (!testId && !id && role === "button" && text && text.length < 40) {
-      fallbacks.push(`role:button[name="${text.replace(/"/g, '\\"')}"]`);
+      const rsel = `role:button[name="${text.replace(/"/g, '\\"')}"]`;
+      fallbacks.push(rsel);
+      pushCandidate(rsel, 70, "role+name");
     }
     const text2 = getEnhancedElementText(htmlEl);
     if (text2 && (tagName === "button" || tagName === "a" || role === "button")) {
       const textSelector = generateTextBasedSelector(element, text2);
       if (textSelector) {
         fallbacks.push(textSelector);
+        pushCandidate(textSelector, 60, "text content");
       }
     }
     const ariaLabel = htmlEl.getAttribute("aria-label");
     if (ariaLabel) {
-      fallbacks.push(`[aria-label="${ariaLabel}"]`);
+      const al = `[aria-label="${ariaLabel}"]`;
+      fallbacks.push(al);
+      pushCandidate(al, 65, "aria-label");
     }
     if (role && !fallbacks.find((f) => f.startsWith("role:") || f.startsWith(`[role="${role}`))) {
-      fallbacks.push(`[role="${role}"]`);
+      const rs = `[role="${role}"]`;
+      fallbacks.push(rs);
+      pushCandidate(rs, 40, "generic role");
     }
     if (tagName === "input") {
       const type = element.type;
       const name = element.name;
-      if (type) fallbacks.push(`input[type="${type}"]`);
-      if (name) fallbacks.push(`input[name="${name}"]`);
+      if (type) {
+        const tsel = `input[type="${type}"]`;
+        fallbacks.push(tsel);
+        pushCandidate(tsel, 55, "input type");
+      }
+      if (name) {
+        const nsel = `input[name="${name}"]`;
+        fallbacks.push(nsel);
+        pushCandidate(nsel, 58, "input name");
+      }
     }
     const contextualSelector = generateContextualSelector(element);
     if (contextualSelector) {
       fallbacks.push(contextualSelector);
+      pushCandidate(contextualSelector, 45, "contextual");
     }
     const xpath = generateXPath(element);
-    const primary = fallbacks.length > 0 ? fallbacks[0] : tagName;
-    return {
-      primary,
-      fallbacks: fallbacks.slice(1),
-      // Remove primary from fallbacks
+    if (fallbacks.length === 0) {
+      pushCandidate(tagName, 10, "bare tag");
+    }
+    const best = scored.sort((a, b) => b.score - a.score)[0];
+    const primary = best ? best.selector : fallbacks.length > 0 ? fallbacks[0] : tagName;
+    const fb = fallbacks.filter((f) => f !== primary);
+    return finalizeReturn(primary, fb, {
       text: text || void 0,
       ariaLabel: ariaLabel || void 0,
       title: htmlEl.getAttribute("title") || void 0,
       role: role || void 0,
       tagName,
       xpath
-    };
+    });
   };
   var getElementText = (element) => {
     const htmlEl = element;
@@ -2531,7 +2574,8 @@ var userBehaviour = (() => {
             role: cd.selectors.role,
             text: cd.selectors.text,
             tagName: cd.selectors.tagName,
-            stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary
+            stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+            candidates: cd.selectors.scores || void 0
           }
         });
       }
@@ -2605,6 +2649,29 @@ var userBehaviour = (() => {
     } catch (e) {
       return false;
     }
+  }
+
+  // src/scenario.ts
+  function buildScenario(results, actions) {
+    var _a, _b, _c, _d, _e;
+    const startedAt = ((_a = results == null ? void 0 : results.time) == null ? void 0 : _a.startedAt) || (((_b = actions[0]) == null ? void 0 : _b.timestamp) || Date.now());
+    const completedAt = ((_c = results == null ? void 0 : results.time) == null ? void 0 : _c.completedAt) || (((_d = actions[actions.length - 1]) == null ? void 0 : _d.timestamp) || startedAt);
+    return {
+      version: 1,
+      meta: {
+        baseOrigin: typeof window !== "undefined" ? window.location.origin : "",
+        startedAt,
+        completedAt,
+        durationMs: completedAt - startedAt,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : void 0,
+        viewport: typeof window !== "undefined" ? { width: window.innerWidth, height: window.innerHeight } : void 0,
+        url: (_e = results == null ? void 0 : results.userInfo) == null ? void 0 : _e.url
+      },
+      actions
+    };
+  }
+  function serializeScenario(s) {
+    return JSON.stringify(s);
   }
 
   // src/playwright-generator.ts
@@ -3407,6 +3474,23 @@ ${body.split("\n").filter((l) => l.trim()).map((l) => l).join("\n")}
     const test = generatePlaywrightTestFromActions(actions, options);
     userBehaviour._lastGeneratedUsingActions = true;
     return { actions, test };
+  };
+  userBehaviour.getScenario = () => {
+    const results = userBehaviour.result();
+    const actions = resultsToActions(results);
+    return buildScenario(results, actions);
+  };
+  userBehaviour.exportScenarioJSON = () => {
+    const sc = userBehaviour.getScenario();
+    return serializeScenario(sc);
+  };
+  userBehaviour.getSelectorScores = () => {
+    const results = userBehaviour.result();
+    if (!results.clicks || !results.clicks.clickDetails.length) return [];
+    const last = results.clicks.clickDetails[results.clicks.clickDetails.length - 1];
+    const sel = last.selectors;
+    if (sel && sel.scores) return sel.scores;
+    return [];
   };
   var index_default = userBehaviour;
   return __toCommonJS(index_exports);
