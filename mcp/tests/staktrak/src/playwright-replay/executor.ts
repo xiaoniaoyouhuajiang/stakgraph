@@ -8,7 +8,15 @@ const __stakReplayMatch = (window as any).__stakTrakReplayMatch || { last: null 
 const __stakReplayState = (window as any).__stakTrakReplayState || { lastStructural: null as string | null, lastEl: null as Element | null };
 (window as any).__stakTrakReplayState = __stakReplayState;
 
+// Map for primary selector -> metadata (visualSelector) populated externally before replay
+(window as any).__stakTrakSelectorMap = (window as any).__stakTrakSelectorMap || {};
+
+// Simple one-shot warning cache to avoid log spam
+const __stakWarned: Record<string, boolean> = (window as any).__stakTrakWarned || {};
+(window as any).__stakTrakWarned = __stakWarned;
+
 function highlight(element: Element, actionType: string = "action"): void {
+  try { ensureStylesInDocument(document); } catch {}
   const htmlElement = element as HTMLElement;
 
   const original = {
@@ -144,6 +152,8 @@ export async function executePlaywrightAction(
           }
           // flash the document body to indicate navigation milestone
           try { highlight(document.body, 'nav'); } catch {}
+          // Reinforce styles after possible DOM replacement
+          try { ensureStylesInDocument(document); } catch {}
         }
         break;
 
@@ -397,6 +407,20 @@ function findElements(selector: string): Element[] {
 
 function findElementWithFallbacks(selector: string): Element | null {
   if (!selector || selector.trim() === "") return null;
+
+  // If selector is a DSL (text=/role:) AND we have a stored mapping (window.__stakTrakSelectorMap) use its visualSelector for highlighting attempt
+  try {
+    if ((selector.startsWith('text=') || selector.startsWith('role:')) && (window as any).__stakTrakSelectorMap) {
+      const map = (window as any).__stakTrakSelectorMap as Record<string, { visualSelector?: string }>;
+      const entry = map[selector];
+      if (entry?.visualSelector) {
+        try {
+          const cssEl = document.querySelector(entry.visualSelector);
+          if (cssEl) return cssEl;
+        } catch {}
+      }
+    }
+  } catch {}
 
   // Fast path: unique structural tag.class selector
   if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/.test(selector)) {
@@ -824,6 +848,8 @@ async function waitForElement(
 ): Promise<Element | null> {
   const startTime = Date.now();
   const timeout = 5000;
+  const backoffs = [50, 80, 120, 180, 250, 350, 500, 650, 800];
+  let attempt = 0;
   while (Date.now() - startTime < timeout) {
     try {
       const elements = findElements(selector);
@@ -835,12 +861,19 @@ async function waitForElement(
         return element;
       }
     } catch (error) {
-      console.warn("Error finding element with selector:", selector, error);
+      if (!__stakWarned[selector]) {
+        console.warn('[staktrak] resolution error', selector, error);
+        __stakWarned[selector] = true;
+      }
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const delay = backoffs[Math.min(attempt, backoffs.length - 1)];
+    attempt++;
+    await new Promise(r=>setTimeout(r, delay));
   }
-
+  if (!__stakWarned[selector]) {
+    console.warn('[staktrak] highlight failed: not found', selector);
+    __stakWarned[selector] = true;
+  }
   return null;
 }
 

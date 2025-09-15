@@ -524,6 +524,19 @@ export const createClickDetail = (e: MouseEvent): ClickDetail => {
     } catch { /* ignore */ }
   (selectors as any).stabilizedPrimary = uniqueStabilized;
   selectors.primary = uniqueStabilized;
+  // Provide a guaranteed CSS visualSelector for highlighter (avoid text=/role: only)
+  let visualSelector: string | null = null;
+  const isCssResolvable = (s: string) => !s.startsWith('text=') && !s.startsWith('role:');
+  if (isCssResolvable(uniqueStabilized)) visualSelector = uniqueStabilized;
+  else {
+    const fbCss = (selectors.fallbacks || []).find(isCssResolvable);
+    if (fbCss) visualSelector = fbCss; else {
+      // attempt ancestor nth build
+      const anc = buildAncestorNthSelector(html);
+      if (anc) visualSelector = anc;
+    }
+  }
+  if (visualSelector) (selectors as any).visualSelector = visualSelector;
 
   return {
     x: e.clientX,

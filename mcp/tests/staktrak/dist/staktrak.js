@@ -391,6 +391,18 @@ var userBehaviour = (() => {
     }
     selectors.stabilizedPrimary = uniqueStabilized;
     selectors.primary = uniqueStabilized;
+    let visualSelector = null;
+    const isCssResolvable = (s) => !s.startsWith("text=") && !s.startsWith("role:");
+    if (isCssResolvable(uniqueStabilized)) visualSelector = uniqueStabilized;
+    else {
+      const fbCss = (selectors.fallbacks || []).find(isCssResolvable);
+      if (fbCss) visualSelector = fbCss;
+      else {
+        const anc = buildAncestorNthSelector(html);
+        if (anc) visualSelector = anc;
+      }
+    }
+    if (visualSelector) selectors.visualSelector = visualSelector;
     return {
       x: e.clientX,
       y: e.clientY,
@@ -1558,7 +1570,14 @@ var userBehaviour = (() => {
   window.__stakTrakReplayMatch = __stakReplayMatch;
   var __stakReplayState = window.__stakTrakReplayState || { lastStructural: null, lastEl: null };
   window.__stakTrakReplayState = __stakReplayState;
+  window.__stakTrakSelectorMap = window.__stakTrakSelectorMap || {};
+  var __stakWarned = window.__stakTrakWarned || {};
+  window.__stakTrakWarned = __stakWarned;
   function highlight(element, actionType = "action") {
+    try {
+      ensureStylesInDocument(document);
+    } catch (e) {
+    }
     const htmlElement = element;
     const original = {
       border: htmlElement.style.border,
@@ -1657,6 +1676,10 @@ var userBehaviour = (() => {
             }
             try {
               highlight(document.body, "nav");
+            } catch (e) {
+            }
+            try {
+              ensureStylesInDocument(document);
             } catch (e) {
             }
           }
@@ -1881,6 +1904,20 @@ var userBehaviour = (() => {
   function findElementWithFallbacks(selector) {
     var _a, _b;
     if (!selector || selector.trim() === "") return null;
+    try {
+      if ((selector.startsWith("text=") || selector.startsWith("role:")) && window.__stakTrakSelectorMap) {
+        const map = window.__stakTrakSelectorMap;
+        const entry = map[selector];
+        if (entry == null ? void 0 : entry.visualSelector) {
+          try {
+            const cssEl = document.querySelector(entry.visualSelector);
+            if (cssEl) return cssEl;
+          } catch (e) {
+          }
+        }
+      }
+    } catch (e) {
+    }
     if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/.test(selector)) {
       try {
         const matches = document.querySelectorAll(selector);
@@ -2268,6 +2305,8 @@ var userBehaviour = (() => {
   async function waitForElement(selector, matchedText) {
     const startTime = Date.now();
     const timeout = 5e3;
+    const backoffs = [50, 80, 120, 180, 250, 350, 500, 650, 800];
+    let attempt = 0;
     while (Date.now() - startTime < timeout) {
       try {
         const elements = findElements(selector);
@@ -2279,11 +2318,43 @@ var userBehaviour = (() => {
           return element;
         }
       } catch (error) {
-        console.warn("Error finding element with selector:", selector, error);
+        if (!__stakWarned[selector]) {
+          console.warn("[staktrak] resolution error", selector, error);
+          __stakWarned[selector] = true;
+        }
       }
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const delay = backoffs[Math.min(attempt, backoffs.length - 1)];
+      attempt++;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    if (!__stakWarned[selector]) {
+      console.warn("[staktrak] highlight failed: not found", selector);
+      __stakWarned[selector] = true;
     }
     return null;
+  }
+  function ensureStylesInDocument(doc) {
+    if (doc.querySelector("#staktrak-highlight-styles")) return;
+    const style = doc.createElement("style");
+    style.id = "staktrak-highlight-styles";
+    style.textContent = `
+    .staktrak-text-highlight {
+      background-color: #3b82f6 !important;
+      color: white !important;
+      padding: 2px 4px !important;
+      border-radius: 3px !important;
+      font-weight: bold !important;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.6) !important;
+      animation: staktrak-text-pulse 2s ease-in-out !important;
+    }
+
+    @keyframes staktrak-text-pulse {
+      0% { background-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
+      50% { background-color: #1d4ed8; box-shadow: 0 0 15px rgba(29, 78, 216, 0.8); }
+      100% { background-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
+    }
+  `;
+    doc.head.appendChild(style);
   }
   async function verifyExpectation(action) {
     var _a, _b;
