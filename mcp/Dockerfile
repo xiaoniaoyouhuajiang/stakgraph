@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 
 # Install dependencies
 RUN apt update
-RUN apt install -y sed git vim
+RUN apt install -y sed git vim tree ripgrep
 
 RUN npx -y playwright install-deps
 RUN npx -y playwright install
