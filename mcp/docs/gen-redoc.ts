@@ -8,7 +8,7 @@ dotenv.config();
 
 const SYSTEM_PROMPT = "You are an expert Nodejs dev named Claude";
 
-const PROMPT = `Can you write a yaml swagger doc named repo2graph for those 6 endpoints?
+const PROMPT = `Can you write a yaml swagger doc named repo2graph for those endpoints?
 
 node_type examples should include Page,Function,Class,Trait,Datamodel,Request,Endpoint,Test,E2etest
 
