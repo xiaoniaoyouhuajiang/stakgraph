@@ -80,6 +80,7 @@ app.get("/ask", r.ask);
 app.post("/seed_stories", r.seed_stories);
 app.get("/services_agent", r.gitsee_services);
 app.post("/gitsee", r.gitsee);
+app.get("/progress", r.get_script_progress);
 
 app.get("/_cache/info", cacheInfo);
 app.post("/_cache/clear", (req: Request, res: Response): void => {
