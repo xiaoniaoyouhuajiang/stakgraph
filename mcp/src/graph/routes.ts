@@ -409,6 +409,7 @@ export async function gitsee_services(req: Request, res: Response) {
     res.json({ request_id, status: "pending" });
   } catch (error) {
     console.log("===> error", error);
+    asyncReqs.failReq(request_id, error);
     console.error("Error getting services config:", error);
     res
       .status(500)
