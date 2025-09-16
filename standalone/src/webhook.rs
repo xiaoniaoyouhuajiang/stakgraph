@@ -4,6 +4,7 @@ use sha2::Sha256;
 use std::time::Duration as StdDuration;
 use tokio::time::{sleep, Duration};
 use url::Url;
+use tracing::info;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -33,7 +34,7 @@ fn hmac_signature_hex(secret: &[u8], body: &[u8]) -> String {
     hex::encode(result)
 }
 
-pub async fn send_with_retries<T: serde::Serialize + ?Sized>(
+pub async fn send_with_retries<T: serde::Serialize + ?Sized + std::fmt::Debug>(
     client: &Client,
     request_id: &str,
     url: &Url,
@@ -49,6 +50,9 @@ pub async fn send_with_retries<T: serde::Serialize + ?Sized>(
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(8000);
+
+    info!("STAKGRAPH WEBHOOK PAYLOAD {:?}", payload);
+    
 
     let body_bytes = serde_json::to_vec(payload)
         .map_err(|e| shared::Error::Custom(format!("serialize payload: {e}")))?;
@@ -68,6 +72,7 @@ pub async fn send_with_retries<T: serde::Serialize + ?Sized>(
             .body(body_bytes.clone());
 
         let result = req.send().await;
+
         match result {
             Ok(resp) => {
                 let status = resp.status();
