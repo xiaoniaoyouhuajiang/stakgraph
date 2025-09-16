@@ -2,25 +2,44 @@
 function resultsToActions(results) {
   var _a;
   const actions = [];
-  if (results.pageNavigation) {
-    for (const nav of results.pageNavigation) {
-      actions.push({ kind: "nav", timestamp: nav.timestamp, url: nav.url });
+  const navigations = (results.pageNavigation || []).slice().sort((a, b) => a.timestamp - b.timestamp);
+  const normalize = (u) => {
+    var _a2;
+    try {
+      const url = new URL(u, ((_a2 = results.userInfo) == null ? void 0 : _a2.url) || "http://localhost");
+      return url.origin + url.pathname.replace(/\/$/, "");
+    } catch (e) {
+      return u.replace(/[?#].*$/, "").replace(/\/$/, "");
     }
+  };
+  for (const nav of navigations) {
+    actions.push({ kind: "nav", timestamp: nav.timestamp, url: nav.url, normalizedUrl: normalize(nav.url) });
   }
-  if ((_a = results.clicks) == null ? void 0 : _a.clickDetails) {
-    for (const cd of results.clicks.clickDetails) {
+  const clicks = ((_a = results.clicks) == null ? void 0 : _a.clickDetails) || [];
+  for (let i = 0; i < clicks.length; i++) {
+    const cd = clicks[i];
+    actions.push({
+      kind: "click",
+      timestamp: cd.timestamp,
+      locator: {
+        primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+        fallbacks: cd.selectors.fallbacks || [],
+        role: cd.selectors.role,
+        text: cd.selectors.text,
+        tagName: cd.selectors.tagName,
+        stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+        candidates: cd.selectors.scores || void 0
+      }
+    });
+    const nav = navigations.find((n) => n.timestamp > cd.timestamp && n.timestamp - cd.timestamp < 1800);
+    if (nav) {
       actions.push({
-        kind: "click",
-        timestamp: cd.timestamp,
-        locator: {
-          primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
-          fallbacks: cd.selectors.fallbacks || [],
-          role: cd.selectors.role,
-          text: cd.selectors.text,
-          tagName: cd.selectors.tagName,
-          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
-          candidates: cd.selectors.scores || void 0
-        }
+        kind: "waitForUrl",
+        timestamp: nav.timestamp - 1,
+        // ensure ordering between click and nav
+        expectedUrl: nav.url,
+        normalizedUrl: normalize(nav.url),
+        navRefTimestamp: nav.timestamp
       });
     }
   }
@@ -58,9 +77,21 @@ function resultsToActions(results) {
       });
     }
   }
-  actions.sort((a, b) => a.timestamp - b.timestamp);
+  actions.sort((a, b) => a.timestamp - b.timestamp || weightOrder(a.kind) - weightOrder(b.kind));
   refineLocators(actions);
   return actions;
+}
+function weightOrder(kind) {
+  switch (kind) {
+    case "click":
+      return 1;
+    case "waitForUrl":
+      return 2;
+    case "nav":
+      return 3;
+    default:
+      return 4;
+  }
 }
 function refineLocators(actions) {
   if (typeof document === "undefined") return;

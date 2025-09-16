@@ -1670,17 +1670,77 @@ var userBehaviour = (() => {
           if (action.value && typeof action.value === "string") {
             const target = normalizeUrl(action.value);
             const start = Date.now();
-            while (Date.now() - start < 8e3) {
-              if (normalizeUrl(window.location.href).endsWith(target)) break;
-              await new Promise((r) => setTimeout(r, 150));
-            }
+            let matched = false;
+            let lastPulse = 0;
+            const maxMs = 8e3;
+            const stopSignals = [];
+            const tryMatch = () => {
+              const current = normalizeUrl(window.location.href);
+              if (current === target) {
+                matched = true;
+                return true;
+              }
+              try {
+                const curNoHash = current.replace(/#.*/, "");
+                const tgtNoHash = target.replace(/#.*/, "");
+                if (curNoHash === tgtNoHash) {
+                  matched = true;
+                  return true;
+                }
+              } catch (e) {
+              }
+              return false;
+            };
+            const onHist = (e) => {
+              if (!matched && tryMatch()) {
+              }
+            };
             try {
-              highlight(document.body, "nav");
+              window.addEventListener("staktrak-history-change", onHist);
+              stopSignals.push(() => window.removeEventListener("staktrak-history-change", onHist));
+            } catch (e) {
+            }
+            const onHash = () => {
+              if (!matched && tryMatch()) {
+              }
+            };
+            try {
+              window.addEventListener("hashchange", onHash);
+              stopSignals.push(() => window.removeEventListener("hashchange", onHash));
+            } catch (e) {
+            }
+            tryMatch();
+            while (!matched && Date.now() - start < maxMs) {
+              if (Date.now() - lastPulse > 1e3) {
+                try {
+                  document.body.style.outline = "3px dashed #ff6b6b";
+                  setTimeout(() => {
+                    document.body.style.outline = "";
+                  }, 400);
+                } catch (e) {
+                }
+                lastPulse = Date.now();
+              }
+              await new Promise((r) => setTimeout(r, 120));
+              if (tryMatch()) break;
+            }
+            stopSignals.forEach((fn) => {
+              try {
+                fn();
+              } catch (e) {
+              }
+            });
+            try {
+              highlight(document.body, matched ? "nav" : "nav-timeout");
             } catch (e) {
             }
             try {
               ensureStylesInDocument(document);
             } catch (e) {
+            }
+            if (!matched && !window.__stakTrakWarnedNav) {
+              console.warn("[staktrak] waitForURL timeout \u2014 last, expected", window.location.href, target);
+              window.__stakTrakWarnedNav = true;
             }
           }
           break;
@@ -2454,6 +2514,8 @@ var userBehaviour = (() => {
         return "Wait for page to load";
       case "waitForSelector" /* WAIT_FOR_SELECTOR */:
         return `Wait for element: ${action.selector}`;
+      case "waitForURL" /* WAIT_FOR_URL */:
+        return `Wait for URL: ${action.value}`;
       default:
         return `Execute ${action.type}`;
     }
@@ -2593,6 +2655,34 @@ var userBehaviour = (() => {
     };
   }
   function initPlaywrightReplay() {
+    try {
+      if (!window.__stakTrakHistoryInstrumented) {
+        const fire = () => {
+          try {
+            const detail = { href: window.location.href, path: window.location.pathname, ts: Date.now() };
+            const ev = new CustomEvent("staktrak-history-change", { detail });
+            window.dispatchEvent(ev);
+          } catch (e) {
+          }
+        };
+        const origPush = history.pushState;
+        const origReplace = history.replaceState;
+        history.pushState = function(...args) {
+          const ret = origPush.apply(this, args);
+          setTimeout(fire, 0);
+          return ret;
+        };
+        history.replaceState = function(...args) {
+          const ret = origReplace.apply(this, args);
+          setTimeout(fire, 0);
+          return ret;
+        };
+        window.addEventListener("popstate", fire, { passive: true });
+        setTimeout(fire, 0);
+        window.__stakTrakHistoryInstrumented = true;
+      }
+    } catch (e) {
+    }
     window.addEventListener("message", (event) => {
       const { data } = event;
       if (!data || !data.type) return;
@@ -2629,25 +2719,44 @@ var userBehaviour = (() => {
   function resultsToActions(results) {
     var _a;
     const actions = [];
-    if (results.pageNavigation) {
-      for (const nav of results.pageNavigation) {
-        actions.push({ kind: "nav", timestamp: nav.timestamp, url: nav.url });
+    const navigations = (results.pageNavigation || []).slice().sort((a, b) => a.timestamp - b.timestamp);
+    const normalize = (u) => {
+      var _a2;
+      try {
+        const url = new URL(u, ((_a2 = results.userInfo) == null ? void 0 : _a2.url) || "http://localhost");
+        return url.origin + url.pathname.replace(/\/$/, "");
+      } catch (e) {
+        return u.replace(/[?#].*$/, "").replace(/\/$/, "");
       }
+    };
+    for (const nav of navigations) {
+      actions.push({ kind: "nav", timestamp: nav.timestamp, url: nav.url, normalizedUrl: normalize(nav.url) });
     }
-    if ((_a = results.clicks) == null ? void 0 : _a.clickDetails) {
-      for (const cd of results.clicks.clickDetails) {
+    const clicks = ((_a = results.clicks) == null ? void 0 : _a.clickDetails) || [];
+    for (let i = 0; i < clicks.length; i++) {
+      const cd = clicks[i];
+      actions.push({
+        kind: "click",
+        timestamp: cd.timestamp,
+        locator: {
+          primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+          fallbacks: cd.selectors.fallbacks || [],
+          role: cd.selectors.role,
+          text: cd.selectors.text,
+          tagName: cd.selectors.tagName,
+          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+          candidates: cd.selectors.scores || void 0
+        }
+      });
+      const nav = navigations.find((n) => n.timestamp > cd.timestamp && n.timestamp - cd.timestamp < 1800);
+      if (nav) {
         actions.push({
-          kind: "click",
-          timestamp: cd.timestamp,
-          locator: {
-            primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
-            fallbacks: cd.selectors.fallbacks || [],
-            role: cd.selectors.role,
-            text: cd.selectors.text,
-            tagName: cd.selectors.tagName,
-            stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
-            candidates: cd.selectors.scores || void 0
-          }
+          kind: "waitForUrl",
+          timestamp: nav.timestamp - 1,
+          // ensure ordering between click and nav
+          expectedUrl: nav.url,
+          normalizedUrl: normalize(nav.url),
+          navRefTimestamp: nav.timestamp
         });
       }
     }
@@ -2685,9 +2794,21 @@ var userBehaviour = (() => {
         });
       }
     }
-    actions.sort((a, b) => a.timestamp - b.timestamp);
+    actions.sort((a, b) => a.timestamp - b.timestamp || weightOrder(a.kind) - weightOrder(b.kind));
     refineLocators(actions);
     return actions;
+  }
+  function weightOrder(kind) {
+    switch (kind) {
+      case "click":
+        return 1;
+      case "waitForUrl":
+        return 2;
+      case "nav":
+        return 3;
+      default:
+        return 4;
+    }
   }
   function refineLocators(actions) {
     if (typeof document === "undefined") return;

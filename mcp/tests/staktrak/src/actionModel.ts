@@ -1,6 +1,6 @@
 import { Results } from './types'
 
-export type ActionKind = 'click' | 'input' | 'form' | 'assertion' | 'nav'
+export type ActionKind = 'click' | 'input' | 'form' | 'assertion' | 'nav' | 'waitForUrl'
 
 export interface ActionLocator {
   primary: string
@@ -20,31 +20,49 @@ export interface Action {
   checked?: boolean
   formType?: string
   url?: string
+  expectedUrl?: string
+  normalizedUrl?: string
+  navRefTimestamp?: number
 }
 
 export function resultsToActions(results: Results): Action[] {
   const actions: Action[] = []
+  const navigations = (results.pageNavigation || []).slice().sort((a,b)=>a.timestamp-b.timestamp)
 
-  if (results.pageNavigation) {
-    for (const nav of results.pageNavigation) {
-      actions.push({ kind: 'nav', timestamp: nav.timestamp, url: nav.url })
-    }
+  // Helper to normalize URLs (strip query & hash, remove trailing slash)
+  const normalize = (u: string): string => {
+    try { const url = new URL(u, (results.userInfo?.url) || 'http://localhost'); return url.origin + url.pathname.replace(/\/$/,''); } catch { return u.replace(/[?#].*$/,'').replace(/\/$/,'') }
   }
 
-  if (results.clicks?.clickDetails) {
-    for (const cd of results.clicks.clickDetails) {
+  for (const nav of navigations) {
+    actions.push({ kind: 'nav', timestamp: nav.timestamp, url: nav.url, normalizedUrl: normalize(nav.url) })
+  }
+
+  const clicks = results.clicks?.clickDetails || []
+  for (let i=0;i<clicks.length;i++) {
+    const cd = clicks[i]
+    actions.push({
+      kind: 'click',
+      timestamp: cd.timestamp,
+      locator: {
+        primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+        fallbacks: cd.selectors.fallbacks || [],
+        role: cd.selectors.role,
+        text: cd.selectors.text,
+        tagName: cd.selectors.tagName,
+        stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+        candidates: (cd.selectors as any).scores || undefined
+      }
+    })
+    // Find the first navigation within 1800ms after this click
+    const nav = navigations.find(n => n.timestamp > cd.timestamp && n.timestamp - cd.timestamp < 1800)
+    if (nav) {
       actions.push({
-        kind: 'click',
-        timestamp: cd.timestamp,
-        locator: {
-          primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
-          fallbacks: cd.selectors.fallbacks || [],
-          role: cd.selectors.role,
-          text: cd.selectors.text,
-          tagName: cd.selectors.tagName,
-          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
-          candidates: (cd.selectors as any).scores || undefined
-        }
+        kind: 'waitForUrl',
+        timestamp: nav.timestamp - 1, // ensure ordering between click and nav
+        expectedUrl: nav.url,
+        normalizedUrl: normalize(nav.url),
+        navRefTimestamp: nav.timestamp
       })
     }
   }
@@ -86,9 +104,18 @@ export function resultsToActions(results: Results): Action[] {
     }
   }
 
-  actions.sort((a, b) => a.timestamp - b.timestamp)
+  actions.sort((a, b) => a.timestamp - b.timestamp || weightOrder(a.kind)-weightOrder(b.kind))
   refineLocators(actions)
   return actions
+}
+
+function weightOrder(kind: ActionKind): number {
+  switch(kind){
+    case 'click': return 1
+    case 'waitForUrl': return 2
+    case 'nav': return 3
+    default: return 4
+  }
 }
 
 function refineLocators(actions: Action[]) {

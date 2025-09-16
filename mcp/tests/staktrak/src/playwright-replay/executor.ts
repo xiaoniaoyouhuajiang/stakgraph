@@ -143,17 +143,50 @@ export async function executePlaywrightAction(
         break;
       case PlaywrightActionType.WAIT_FOR_URL:
         if (action.value && typeof action.value === 'string') {
-          // simple polling until location matches (ignoring trailing slashes)
           const target = normalizeUrl(action.value);
           const start = Date.now();
-          while (Date.now() - start < 8000) {
-            if (normalizeUrl(window.location.href).endsWith(target)) break;
-            await new Promise(r=>setTimeout(r,150));
+          let matched = false;
+          let lastPulse = 0;
+          const maxMs = 8000;
+          const stopSignals: Array<() => void> = [];
+          const tryMatch = () => {
+            const current = normalizeUrl(window.location.href);
+            if (current === target) { matched = true; return true; }
+            try {
+              const curNoHash = current.replace(/#.*/,'');
+              const tgtNoHash = target.replace(/#.*/,'');
+              if (curNoHash === tgtNoHash) { matched = true; return true; }
+            } catch {}
+            return false;
+          };
+          // Event-driven shortcut via SPA history instrumentation
+          const onHist = (e: any) => {
+            if (!matched && tryMatch()) {}
+          };
+          try { window.addEventListener('staktrak-history-change', onHist as any); stopSignals.push(()=>window.removeEventListener('staktrak-history-change', onHist as any)); } catch {}
+          // Also listen to hashchange (some routers rely on it)
+          const onHash = () => { if (!matched && tryMatch()) {} };
+          try { window.addEventListener('hashchange', onHash); stopSignals.push(()=>window.removeEventListener('hashchange', onHash)); } catch {}
+          // Initial immediate check
+          tryMatch();
+          while (!matched && Date.now() - start < maxMs) {
+            if (Date.now() - lastPulse > 1000) {
+              try {
+                document.body.style.outline = '3px dashed #ff6b6b';
+                setTimeout(()=>{ document.body.style.outline = ''; }, 400);
+              } catch {}
+              lastPulse = Date.now();
+            }
+            await new Promise(r=>setTimeout(r,120));
+            if (tryMatch()) break;
           }
-          // flash the document body to indicate navigation milestone
-          try { highlight(document.body, 'nav'); } catch {}
-          // Reinforce styles after possible DOM replacement
+          stopSignals.forEach(fn=>{ try { fn(); } catch {} });
+          try { highlight(document.body, matched ? 'nav' : 'nav-timeout'); } catch {}
           try { ensureStylesInDocument(document); } catch {}
+          if (!matched && !(window as any).__stakTrakWarnedNav) {
+            console.warn('[staktrak] waitForURL timeout — last, expected', window.location.href, target);
+            (window as any).__stakTrakWarnedNav = true;
+          }
         }
         break;
 
@@ -1101,6 +1134,8 @@ export function getActionDescription(action: PlaywrightAction): string {
       return "Wait for page to load";
     case PlaywrightActionType.WAIT_FOR_SELECTOR:
       return `Wait for element: ${action.selector}`;
+    case PlaywrightActionType.WAIT_FOR_URL:
+      return `Wait for URL: ${action.value}`;
     default:
       return `Execute ${action.type}`;
   }
