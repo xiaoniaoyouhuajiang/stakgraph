@@ -503,6 +503,8 @@ pub async fn sync_async(
     let callback_url = body.callback_url.clone();
     let started_at = Utc::now();
 
+    info!("/sync with Request ID: {} and callback_url:  {:?}", request_id_clone.clone(), callback_url.clone());
+ 
     //run /sync as a background task
     tokio::spawn(async move {
         let result = process(body_clone).await;
@@ -532,6 +534,7 @@ pub async fn sync_async(
                             duration_ms: (Utc::now() - started_at).num_milliseconds().max(0) as u64,
                         };
                         let client = Client::new();
+                        
                         let _ = crate::webhook::send_with_retries(
                             &client,
                             &request_id_clone,
