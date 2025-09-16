@@ -35,7 +35,8 @@ import {
   ask_prompt,
 } from "../tools/intelligence/index.js";
 import { clone_and_explore_parse_files } from "gitsee-agent";
-import { createGitSeeServer, GitSeeHandler } from "gitsee/server";
+import { GitSeeHandler } from "gitsee/server";
+import * as asyncReqs from "./reqs.js";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -376,7 +377,10 @@ export async function gitseeEvents(req: Request, res: Response) {
 }
 
 export async function gitsee_services(req: Request, res: Response) {
-  // curl "http://localhost:3000/services_agent?owner=stakwork&repo=hive"
+  // curl "http://localhost:3355/services_agent?owner=stakwork&repo=hive"
+  // curl "http://localhost:3355/progress?request_id=123"
+  console.log("===> gitsee_services", req.url, req.method);
+  const request_id = asyncReqs.startReq();
   try {
     const owner = req.query.owner as string;
     const repo = req.query.repo as string | undefined;
@@ -386,7 +390,7 @@ export async function gitsee_services(req: Request, res: Response) {
     }
     const username = req.query.username as string | undefined;
     const pat = req.query.pat as string | undefined;
-    const ctx = await clone_and_explore_parse_files(
+    clone_and_explore_parse_files(
       owner,
       repo,
       "How do I set up this repo?",
@@ -395,8 +399,14 @@ export async function gitsee_services(req: Request, res: Response) {
         username,
         token: pat,
       }
-    );
-    res.json(ctx);
+    )
+      .then((ctx) => {
+        asyncReqs.finishReq(request_id, ctx);
+      })
+      .catch((error) => {
+        asyncReqs.failReq(request_id, error);
+      });
+    res.json({ request_id, status: "pending" });
   } catch (error) {
     console.log("===> error", error);
     console.error("Error getting services config:", error);
@@ -613,6 +623,26 @@ export async function get_graph(req: Request, res: Response) {
     });
   } catch (error) {
     console.error("Error:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
+export async function get_script_progress(req: Request, res: Response) {
+  console.log(`===> GET /script_progress`);
+  try {
+    const request_id = req.query.request_id as string;
+    if (!request_id) {
+      res.status(400).json({ error: "request_id is required" });
+      return;
+    }
+    const progress = asyncReqs.checkReq(request_id);
+    if (!progress) {
+      res.status(404).json({ error: "Request not found" });
+      return;
+    }
+    res.json(progress);
+  } catch (error) {
+    console.error("Error checking script progress:", error);
     res.status(500).send("Internal Server Error");
   }
 }
