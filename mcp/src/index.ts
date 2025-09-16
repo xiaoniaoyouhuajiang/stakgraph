@@ -55,6 +55,8 @@ test_routes(app);
 // Learn route needs to handle its own authentication
 app.get("/learn", r.learn);
 
+app.get("/gitsee/events/:owner/:repo", r.gitseeEvents);
+
 app.use(r.authMiddleware);
 app.use(r.logEndpoint);
 app.get("/nodes", r.get_nodes);
@@ -77,6 +79,7 @@ app.post("/seed_understanding", r.seed_understanding);
 app.get("/ask", r.ask);
 app.post("/seed_stories", r.seed_stories);
 app.get("/services_agent", r.gitsee_services);
+app.post("/gitsee", r.gitsee);
 
 app.get("/_cache/info", cacheInfo);
 app.post("/_cache/clear", (req: Request, res: Response): void => {
