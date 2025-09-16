@@ -35,6 +35,7 @@ import {
   ask_prompt,
 } from "../tools/intelligence/index.js";
 import { clone_and_explore_parse_files } from "gitsee-agent";
+import { createGitSeeServer, GitSeeHandler } from "gitsee/server";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -325,6 +326,52 @@ export async function get_rules_files(req: Request, res: Response) {
   } catch (error) {
     console.error("Error fetching rules files:", error);
     res.status(500).json({ error: "Failed to fetch rules files" });
+  }
+}
+
+const gitSeeHandler = new GitSeeHandler({
+  token: process.env.GITHUB_TOKEN,
+});
+
+// rm -rf node_modules/gitsee && yarn add file:../../../evanf/gitsee
+
+export async function gitsee(req: Request, res: Response) {
+  console.log("===> gitsee API request", req.url, req.method);
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+  try {
+    return await gitSeeHandler.handleJson(req.body, res);
+  } catch (error) {
+    console.error("gitsee API error:", error);
+    res.status(500).json({ error: "Failed to handle gitsee request" });
+  }
+}
+
+export async function gitseeEvents(req: Request, res: Response) {
+  console.log("===> gitsee SSE request", req.url, req.method);
+  if (req.method !== "GET") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+  // Extract owner/repo from URL params
+  const { owner, repo } = req.params;
+  if (!owner || !repo) {
+    res.status(400).json({ error: "Owner and repo are required" });
+    return;
+  }
+  console.log(`📡 SSE connection for ${owner}/${repo}`);
+  try {
+    return await gitSeeHandler.handleEvents(
+      req as any,
+      res as any,
+      owner,
+      repo
+    );
+  } catch (error) {
+    console.error("gitsee SSE error:", error);
+    res.status(500).json({ error: "Failed to handle SSE connection" });
   }
 }
 
