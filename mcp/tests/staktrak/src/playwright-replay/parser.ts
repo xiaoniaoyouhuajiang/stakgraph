@@ -282,6 +282,17 @@ export function parsePlaywrightTest(testCode: string): PlaywrightAction[] {
             lineNumber,
           });
         }
+      } else if (/page\.[a-zA-Z]+\([^)]*\)\.click\([^)]*\)\s*;?$/.test(trimmed)) {
+        const locatorCallMatch = trimmed.match(/page\.([a-zA-Z]+\([^)]*\))\.click\([^)]*\)/);
+        if (locatorCallMatch) {
+          const selector = parseLocatorCall(locatorCallMatch[1]);
+          actions.push({
+            type: 'click',
+            selector,
+            comment,
+            lineNumber,
+          });
+        }
       } else if (trimmed.startsWith('await Promise.all([') && trimmed.includes('waitForURL')) {
         // Attempt to capture compound click+waitForURL pattern
         // Collect lines until closing ']);'

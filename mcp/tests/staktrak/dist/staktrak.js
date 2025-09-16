@@ -1121,6 +1121,17 @@ var userBehaviour = (() => {
               lineNumber
             });
           }
+        } else if (/page\.getByText\(/.test(trimmed) && /\.click\([^)]*\)\s*;?$/.test(trimmed)) {
+          const locatorCallMatch = trimmed.match(/page\.(getByText\([^)]*\))\.click\([^)]*\)/);
+          if (locatorCallMatch) {
+            const selector = parseLocatorCall(locatorCallMatch[1]);
+            actions.push({
+              type: "click",
+              selector,
+              comment,
+              lineNumber
+            });
+          }
         } else if (trimmed.startsWith("await Promise.all([") && trimmed.includes("waitForURL")) {
           const blockLines = [trimmed];
           let j = lineNumber;
@@ -2481,6 +2492,7 @@ var userBehaviour = (() => {
     return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0;
   }
   function getActionDescription(action) {
+    var _a, _b;
     switch (action.type) {
       case "goto" /* GOTO */:
         return `Navigate to ${action.value}`;
@@ -2507,7 +2519,7 @@ var userBehaviour = (() => {
       case "expect" /* EXPECT */:
         return `Verify ${action.selector} ${action.expectation}`;
       case "setViewportSize" /* SET_VIEWPORT_SIZE */:
-        return `Set viewport size to ${action.value}`;
+        return `Set viewport size to ${(_a = action.options) == null ? void 0 : _a.width}x${(_b = action.options) == null ? void 0 : _b.height}`;
       case "waitForTimeout" /* WAIT_FOR_TIMEOUT */:
         return `Wait ${action.value}ms`;
       case "waitForLoadState" /* WAIT_FOR_LOAD_STATE */:

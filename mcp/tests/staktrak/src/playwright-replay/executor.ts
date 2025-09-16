@@ -1127,7 +1127,7 @@ export function getActionDescription(action: PlaywrightAction): string {
     case PlaywrightActionType.EXPECT:
       return `Verify ${action.selector} ${action.expectation}`;
     case PlaywrightActionType.SET_VIEWPORT_SIZE:
-      return `Set viewport size to ${action.value}`;
+      return `Set viewport size to ${action.options?.width}x${action.options?.height}`;
     case PlaywrightActionType.WAIT_FOR_TIMEOUT:
       return `Wait ${action.value}ms`;
     case PlaywrightActionType.WAIT_FOR_LOAD_STATE:
