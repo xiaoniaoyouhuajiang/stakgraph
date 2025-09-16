@@ -34,7 +34,7 @@ import {
   LEARN_HTML,
   ask_prompt,
 } from "../tools/intelligence/index.js";
-import { clone_and_get_context } from "gitsee-agent";
+import { clone_and_explore_parse_files } from "gitsee-agent";
 
 export function schema(_req: Request, res: Response) {
   const schema = node_type_descriptions();
@@ -339,7 +339,7 @@ export async function gitsee_services(req: Request, res: Response) {
     }
     const username = req.query.username as string | undefined;
     const pat = req.query.pat as string | undefined;
-    const ctx = await clone_and_get_context(
+    const ctx = await clone_and_explore_parse_files(
       owner,
       repo,
       "How do I set up this repo?",
@@ -349,7 +349,7 @@ export async function gitsee_services(req: Request, res: Response) {
         token: pat,
       }
     );
-    res.send(ctx);
+    res.json(ctx);
   } catch (error) {
     console.log("===> error", error);
     console.error("Error getting services config:", error);
