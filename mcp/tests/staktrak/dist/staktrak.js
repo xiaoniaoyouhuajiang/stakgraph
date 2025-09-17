@@ -43,23 +43,26 @@ var userBehaviour = (() => {
 
   // src/utils.ts
   var getTimeStamp = () => Date.now();
-  var getElementRole = (element) => {
-    const explicit = element.getAttribute("role");
+  var getElementRole = (el) => {
+    const explicit = el.getAttribute("role");
     if (explicit) return explicit;
-    const tag = element.tagName.toLowerCase();
+    const tag = el.tagName.toLowerCase();
     if (tag === "button") return "button";
-    if (tag === "a" && element.hasAttribute("href")) return "link";
+    if (tag === "a" && el.hasAttribute("href")) return "link";
     if (tag === "input") {
-      const type = element.getAttribute("type");
-      if (["button", "submit", "reset"].includes(type || "text")) return "button";
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      if (["button", "submit", "reset"].includes(type)) return "button";
+      if (type === "checkbox") return "checkbox";
+      if (type === "radio") return "radio";
       return "textbox";
     }
+    if (tag === "select") return "combobox";
+    if (tag === "textarea") return "textbox";
     if (tag === "nav") return "navigation";
-    if (tag === "main") return "main";
     if (tag === "header") return "banner";
     if (tag === "footer") return "contentinfo";
-    if (tag === "aside") return "complementary";
-    if (tag === "section") return "region";
+    if (tag === "main") return "main";
+    if (tag === "form") return "form";
     return null;
   };
   var getEnhancedElementText = (element) => {
@@ -154,72 +157,119 @@ var userBehaviour = (() => {
     const htmlEl = element;
     const tagName = element.tagName.toLowerCase();
     const fallbacks = [];
+    const reasonsMap = {};
+    const scored = [];
+    const pushCandidate = (sel, baseScore, reason) => {
+      if (!sel) return;
+      if (!reasonsMap[sel]) reasonsMap[sel] = [];
+      reasonsMap[sel].push(reason);
+      let score = baseScore;
+      if (sel.length > 60) score -= Math.min(20, Math.floor((sel.length - 60) / 5));
+      const depth2 = sel.split(">").length - 1;
+      if (depth2 > 3) score -= (depth2 - 3) * 2;
+      if (/\.[a-zA-Z0-9_-]*[0-9a-f]{6,}\b/.test(sel)) score -= 25;
+      if (/^\w+$/.test(sel)) score -= 30;
+      if (sel.startsWith("text=")) score -= 5;
+      if (sel.startsWith("role:")) score -= 3;
+      scored.push({ selector: sel, score, reasons: reasonsMap[sel] });
+    };
+    const finalizeReturn = (primary2, fallbacks2, extra) => {
+      const dedup = {};
+      for (const c of scored) {
+        if (!dedup[c.selector] || dedup[c.selector].score < c.score) dedup[c.selector] = c;
+      }
+      const ordered = Object.values(dedup).sort((a, b) => b.score - a.score);
+      return __spreadProps(__spreadValues({ primary: primary2, fallbacks: fallbacks2 }, extra), { scores: ordered });
+    };
     const testId = (_a = htmlEl.dataset) == null ? void 0 : _a.testid;
     if (testId) {
-      return {
-        primary: `[data-testid="${testId}"]`,
-        fallbacks: [],
+      const sel = `[data-testid="${testId}"]`;
+      pushCandidate(sel, 100, "data-testid attribute");
+      return finalizeReturn(sel, [], {
         tagName,
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
         role: getElementRole(htmlEl) || void 0
-      };
+      });
     }
     const id = htmlEl.id;
     if (id && /^[a-zA-Z][\w-]*$/.test(id)) {
-      return {
-        primary: `#${id}`,
-        fallbacks: [],
+      const sel = `#${id}`;
+      pushCandidate(sel, 95, "element id");
+      return finalizeReturn(sel, [], {
         tagName,
         text: getElementText(element),
         ariaLabel: htmlEl.getAttribute("aria-label") || void 0,
         title: htmlEl.getAttribute("title") || void 0,
         role: getElementRole(htmlEl) || void 0
-      };
+      });
     }
     const text = getEnhancedElementText(htmlEl);
     const role = getElementRole(htmlEl);
-    if (text && (tagName === "button" || tagName === "a" || role === "button")) {
-      const textSelector = generateTextBasedSelector(element, text);
+    const classSelector = generateClassBasedSelector(element);
+    if (classSelector && classSelector !== tagName) {
+      fallbacks.push(classSelector);
+      pushCandidate(classSelector, 80, "class-based selector");
+    }
+    if (!testId && !id && role === "button" && text && text.length < 40) {
+      const rsel = `role:button[name="${text.replace(/"/g, '\\"')}"]`;
+      fallbacks.push(rsel);
+      pushCandidate(rsel, 70, "role+name");
+    }
+    const text2 = getEnhancedElementText(htmlEl);
+    if (text2 && (tagName === "button" || tagName === "a" || role === "button")) {
+      const textSelector = generateTextBasedSelector(element, text2);
       if (textSelector) {
         fallbacks.push(textSelector);
+        pushCandidate(textSelector, 60, "text content");
       }
     }
     const ariaLabel = htmlEl.getAttribute("aria-label");
     if (ariaLabel) {
-      fallbacks.push(`[aria-label="${ariaLabel}"]`);
+      const al = `[aria-label="${ariaLabel}"]`;
+      fallbacks.push(al);
+      pushCandidate(al, 65, "aria-label");
     }
-    if (role && text) {
-      fallbacks.push(`[role="${role}"]`);
-    }
-    const classSelector = generateClassBasedSelector(element);
-    if (classSelector && classSelector !== tagName) {
-      fallbacks.push(classSelector);
+    if (role && !fallbacks.find((f) => f.startsWith("role:") || f.startsWith(`[role="${role}`))) {
+      const rs = `[role="${role}"]`;
+      fallbacks.push(rs);
+      pushCandidate(rs, 40, "generic role");
     }
     if (tagName === "input") {
       const type = element.type;
       const name = element.name;
-      if (type) fallbacks.push(`input[type="${type}"]`);
-      if (name) fallbacks.push(`input[name="${name}"]`);
+      if (type) {
+        const tsel = `input[type="${type}"]`;
+        fallbacks.push(tsel);
+        pushCandidate(tsel, 55, "input type");
+      }
+      if (name) {
+        const nsel = `input[name="${name}"]`;
+        fallbacks.push(nsel);
+        pushCandidate(nsel, 58, "input name");
+      }
     }
     const contextualSelector = generateContextualSelector(element);
     if (contextualSelector) {
       fallbacks.push(contextualSelector);
+      pushCandidate(contextualSelector, 45, "contextual");
     }
     const xpath = generateXPath(element);
-    const primary = fallbacks.length > 0 ? fallbacks[0] : tagName;
-    return {
-      primary,
-      fallbacks: fallbacks.slice(1),
-      // Remove primary from fallbacks
+    if (fallbacks.length === 0) {
+      pushCandidate(tagName, 10, "bare tag");
+    }
+    const best = scored.sort((a, b) => b.score - a.score)[0];
+    const primary = best ? best.selector : fallbacks.length > 0 ? fallbacks[0] : tagName;
+    const fb = fallbacks.filter((f) => f !== primary);
+    return finalizeReturn(primary, fb, {
       text: text || void 0,
       ariaLabel: ariaLabel || void 0,
       title: htmlEl.getAttribute("title") || void 0,
       role: role || void 0,
       tagName,
       xpath
-    };
+    });
   };
   var getElementText = (element) => {
     const htmlEl = element;
@@ -291,6 +341,68 @@ var userBehaviour = (() => {
   var createClickDetail = (e) => {
     const target = e.target;
     const selectors = generateSelectorStrategies(target);
+    const html = target;
+    const testId = html.dataset && html.dataset["testid"] || void 0;
+    const id = html.id || void 0;
+    const accessibleName = getEnhancedElementText(html) || void 0;
+    let nth;
+    if (html.parentElement) {
+      const same = Array.from(html.parentElement.children).filter((c) => c.tagName === html.tagName);
+      if (same.length > 1) nth = same.indexOf(html) + 1;
+    }
+    const ancestors = [];
+    let p = html.parentElement;
+    let depth2 = 0;
+    while (p && depth2 < 4) {
+      const role = p.getAttribute("role");
+      const tag = p.tagName.toLowerCase();
+      if (["main", "nav", "header", "footer", "aside", "section", "form", "article"].includes(tag) || role) {
+        ancestors.push(role ? `${tag}[role=${role}]` : tag);
+      }
+      p = p.parentElement;
+      depth2++;
+    }
+    const selAny = selectors;
+    selAny.id = id;
+    selAny.testId = testId;
+    selAny.accessibleName = accessibleName;
+    if (nth) selAny.nth = nth;
+    if (ancestors.length) selAny.ancestors = ancestors;
+    const stabilized = chooseStablePrimary(html, selectors.primary, selectors.fallbacks, {
+      testId,
+      id,
+      accessibleName,
+      role: getElementRole(html) || void 0,
+      nth
+    });
+    let uniqueStabilized = ensureStabilizedUnique(html, stabilized);
+    try {
+      if (typeof document !== "undefined" && !uniqueStabilized.startsWith("text=")) {
+        const matches = document.querySelectorAll(uniqueStabilized);
+        if (matches.length !== 1) {
+          const ancestorOnly = buildAncestorNthSelector(html);
+          if (ancestorOnly && ancestorOnly !== uniqueStabilized) {
+            const mm = document.querySelectorAll(ancestorOnly);
+            if (mm.length === 1) uniqueStabilized = ancestorOnly;
+          }
+        }
+      }
+    } catch (e2) {
+    }
+    selectors.stabilizedPrimary = uniqueStabilized;
+    selectors.primary = uniqueStabilized;
+    let visualSelector = null;
+    const isCssResolvable = (s) => !s.startsWith("text=") && !s.startsWith("role:");
+    if (isCssResolvable(uniqueStabilized)) visualSelector = uniqueStabilized;
+    else {
+      const fbCss = (selectors.fallbacks || []).find(isCssResolvable);
+      if (fbCss) visualSelector = fbCss;
+      else {
+        const anc = buildAncestorNthSelector(html);
+        if (anc) visualSelector = anc;
+      }
+    }
+    if (visualSelector) selectors.visualSelector = visualSelector;
     return {
       x: e.clientX,
       y: e.clientY,
@@ -369,6 +481,124 @@ var userBehaviour = (() => {
     });
     return result.sort((a, b) => a.timestamp - b.timestamp);
   };
+  var isWeakSelector = (selector, el) => {
+    if (!selector) return true;
+    if (selector.startsWith("[data-testid=")) return false;
+    if (selector.startsWith("#")) return false;
+    if (selector.startsWith("text=")) return false;
+    if (/^\w+$/.test(selector)) return true;
+    if (/^\w+\.[^.]+$/.test(selector)) {
+      if (el && typeof document !== "undefined") {
+        try {
+          const count = document.querySelectorAll(selector).length;
+          if (count === 1) return false;
+        } catch (e) {
+        }
+      }
+      return true;
+    }
+    return false;
+  };
+  var chooseStablePrimary = (el, current, fallbacks, meta) => {
+    if (!isWeakSelector(current, el)) return current;
+    if (meta.testId) return `[data-testid="${meta.testId}"]`;
+    if (meta.id && /^[a-zA-Z][\w-]*$/.test(meta.id)) return `#${meta.id}`;
+    if (typeof document !== "undefined") {
+      const structural = [current, ...fallbacks].filter((s) => s && !s.startsWith("text=") && !s.startsWith("[") && !s.startsWith("#"));
+      for (const s of structural) {
+        try {
+          if (document.querySelectorAll(s).length === 1) {
+            return s;
+          }
+        } catch (e) {
+        }
+      }
+    }
+    if (meta.role && meta.accessibleName && meta.accessibleName.length < 60) {
+      return `role:${meta.role}[name="${meta.accessibleName.replace(/"/g, '\\"')}"]`;
+    }
+    if (meta.accessibleName && meta.accessibleName.length < 40) {
+      return `text=${meta.accessibleName.replace(/"/g, '\\"')}:exact`;
+    }
+    return current;
+  };
+  function isSelectorUnique(sel) {
+    if (typeof document === "undefined") return false;
+    try {
+      const n = document.querySelectorAll(sel);
+      return n.length === 1;
+    } catch (e) {
+      return false;
+    }
+  }
+  function buildAncestorNthSelector(el) {
+    if (!el.parentElement) return null;
+    const path = [];
+    let current = el;
+    let depth2 = 0;
+    while (current && depth2 < 6) {
+      const tag = current.tagName.toLowerCase();
+      let part = tag;
+      const cur = current;
+      if (cur && cur.parentElement) {
+        const same = Array.from(cur.parentElement.children).filter((c) => c.tagName === cur.tagName);
+        if (same.length > 1) {
+          const idx = same.indexOf(cur) + 1;
+          part += `:nth-of-type(${idx})`;
+        }
+      }
+      path.unshift(part);
+      const selector = path.join(" > ");
+      if (isSelectorUnique(selector)) return selector;
+      current = current.parentElement;
+      depth2++;
+    }
+    const withBody = "body > " + path.join(" > ");
+    if (isSelectorUnique(withBody)) return withBody;
+    return null;
+  }
+  function ensureStabilizedUnique(html, stabilized) {
+    if (stabilized.startsWith("#") || stabilized.startsWith("[data-testid=")) return stabilized;
+    if (stabilized.startsWith("role:")) {
+      try {
+        const el = findByRoleLike(stabilized);
+        if (el) return stabilized;
+      } catch (e) {
+      }
+    }
+    if (stabilized.startsWith("text=") && stabilized.endsWith(":exact")) {
+      const exactTxt = stabilized.slice("text=".length, -":exact".length);
+      try {
+        const candidates = Array.from(document.querySelectorAll("button, a, [role], input, textarea, select")).filter((e) => (e.textContent || "").trim() === exactTxt);
+        if (candidates.length === 1) return stabilized;
+      } catch (e) {
+      }
+    }
+    if (isSelectorUnique(stabilized)) return stabilized;
+    const ancestor = buildAncestorNthSelector(html);
+    if (ancestor && ancestor.length < 180) return ancestor;
+    return stabilized;
+  }
+  function findByRoleLike(sel) {
+    if (!sel.startsWith("role:")) return null;
+    const m = sel.match(/^role:([^\[]+)(?:\[name="(.+?)"\])?/);
+    if (!m) return null;
+    const role = m[1];
+    const name = m[2];
+    const candidates = Array.from(document.querySelectorAll("*")).filter((el) => {
+      const r = el.getAttribute("role") || inferRole(el);
+      return r === role;
+    });
+    if (!name) return candidates[0] || null;
+    return candidates.find((c) => (c.textContent || "").trim() === name) || null;
+  }
+  function inferRole(el) {
+    const tag = el.tagName.toLowerCase();
+    if (tag === "button") return "button";
+    if (tag === "a" && el.hasAttribute("href")) return "link";
+    if (tag === "input") return "textbox";
+    return null;
+  }
 
   // src/debug.ts
   function rectsIntersect(rect1, rect2) {
@@ -629,6 +859,7 @@ var userBehaviour = (() => {
 
   // src/playwright-replay/parser.ts
   function parsePlaywrightTest(testCode) {
+    var _a, _b;
     const actions = [];
     const lines = testCode.split("\n");
     let lineNumber = 0;
@@ -879,6 +1110,45 @@ var userBehaviour = (() => {
               comment,
               lineNumber
             });
+          }
+        } else if (trimmed.includes("page.waitForURL(")) {
+          const urlMatch = trimmed.match(/page\.waitForURL\(['\"](.*?)['\"]\)/);
+          if (urlMatch) {
+            actions.push({
+              type: "waitForURL",
+              value: urlMatch[1],
+              comment,
+              lineNumber
+            });
+          }
+        } else if (/page\.getByText\(/.test(trimmed) && /\.click\([^)]*\)\s*;?$/.test(trimmed)) {
+          const locatorCallMatch = trimmed.match(/page\.(getByText\([^)]*\))\.click\([^)]*\)/);
+          if (locatorCallMatch) {
+            const selector = parseLocatorCall(locatorCallMatch[1]);
+            actions.push({
+              type: "click",
+              selector,
+              comment,
+              lineNumber
+            });
+          }
+        } else if (trimmed.startsWith("await Promise.all([") && trimmed.includes("waitForURL")) {
+          const blockLines = [trimmed];
+          let j = lineNumber;
+          for (let k = 1; k <= 6 && lineNumber + k - 1 < lines.length; k++) {
+            const peek = lines[lineNumber + k - 1].trim();
+            blockLines.push(peek);
+            if (peek.endsWith("]);")) break;
+          }
+          const block = blockLines.join(" ");
+          const url = (_a = block.match(/page\.waitForURL\(['\"](.*?)['\"]\)/)) == null ? void 0 : _a[1];
+          const clickSelector = (_b = block.match(/page\.(getBy[^.]+\([^)]*\)|locator\([^)]*\))\.click\(\)/)) == null ? void 0 : _b[1];
+          if (url) {
+            actions.push({ type: "waitForURL", value: url, comment: (comment ? comment + " " : "") + "(compound)", lineNumber });
+          }
+          if (clickSelector) {
+            const selector = parseLocatorCall(clickSelector);
+            actions.push({ type: "click", selector, comment, lineNumber });
           }
         } else if (trimmed.includes("page.getByRole(")) {
           const roleMatch = trimmed.match(
@@ -1307,11 +1577,78 @@ var userBehaviour = (() => {
   }
 
   // src/playwright-replay/executor.ts
+  var __stakReplayMatch = window.__stakTrakReplayMatch || { last: null };
+  window.__stakTrakReplayMatch = __stakReplayMatch;
+  var __stakReplayState = window.__stakTrakReplayState || { lastStructural: null, lastEl: null };
+  window.__stakTrakReplayState = __stakReplayState;
+  window.__stakTrakSelectorMap = window.__stakTrakSelectorMap || {};
+  var __stakWarned = window.__stakTrakWarned || {};
+  window.__stakTrakWarned = __stakWarned;
+  function highlight(element, actionType = "action") {
+    try {
+      ensureStylesInDocument(document);
+    } catch (e) {
+    }
+    const htmlElement = element;
+    const original = {
+      border: htmlElement.style.border,
+      boxShadow: htmlElement.style.boxShadow,
+      backgroundColor: htmlElement.style.backgroundColor
+    };
+    htmlElement.style.border = "3px solid #ff6b6b";
+    htmlElement.style.boxShadow = "0 0 20px rgba(255, 107, 107, 0.8)";
+    htmlElement.style.backgroundColor = "rgba(255, 107, 107, 0.2)";
+    htmlElement.style.transition = "all 0.3s ease";
+    const last = __stakReplayMatch.last;
+    if (last && last.element === element && Date.now() - last.time < 4e3) {
+      htmlElement.setAttribute("data-staktrak-matched-selector", last.matched);
+      htmlElement.setAttribute("data-staktrak-requested-selector", last.requested);
+      if (last.text) htmlElement.setAttribute("data-staktrak-matched-text", last.text);
+    }
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => {
+      htmlElement.style.border = original.border;
+      htmlElement.style.boxShadow = original.boxShadow;
+      htmlElement.style.backgroundColor = original.backgroundColor;
+      htmlElement.style.transition = "";
+    }, 1500);
+  }
+  function normalizeUrl(u) {
+    try {
+      const url = new URL(u, window.location.origin);
+      return url.href.replace(/[#?].*$/, "").replace(/\/$/, "");
+    } catch (e) {
+      return u.replace(/[#?].*$/, "").replace(/\/$/, "");
+    }
+  }
+  function getRoleSelector(role) {
+    const roleMap = {
+      button: 'button, [role="button"], input[type="button"], input[type="submit"]',
+      heading: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
+      link: 'a, [role="link"]',
+      textbox: 'input[type="text"], input[type="email"], input[type="password"], textarea, [role="textbox"]',
+      checkbox: 'input[type="checkbox"], [role="checkbox"]',
+      radio: 'input[type="radio"], [role="radio"]',
+      listitem: 'li, [role="listitem"]',
+      list: 'ul, ol, [role="list"]',
+      img: 'img, [role="img"]',
+      table: 'table, [role="table"]',
+      row: 'tr, [role="row"]',
+      cell: 'td, th, [role="cell"], [role="gridcell"]',
+      menu: '[role="menu"]',
+      menuitem: '[role="menuitem"]',
+      dialog: '[role="dialog"]',
+      alert: '[role="alert"]',
+      tab: '[role="tab"]',
+      tabpanel: '[role="tabpanel"]'
+    };
+    return roleMap[role] || `[role="${role}"]`;
+  }
   async function executePlaywrightAction(action) {
     var _a;
     try {
       switch (action.type) {
-        case "goto":
+        case "goto" /* GOTO */:
           if (action.value && typeof action.value === "string") {
             window.parent.postMessage(
               {
@@ -1322,7 +1659,7 @@ var userBehaviour = (() => {
             );
           }
           break;
-        case "setViewportSize":
+        case "setViewportSize" /* SET_VIEWPORT_SIZE */:
           if (action.options) {
             try {
               if (window.top === window) {
@@ -1333,35 +1670,140 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "waitForLoadState":
+        case "waitForLoadState" /* WAIT_FOR_LOAD_STATE */:
           break;
-        case "waitForSelector":
+        case "waitForSelector" /* WAIT_FOR_SELECTOR */:
           if (action.selector) {
             await waitForElement(action.selector);
           }
           break;
-        case "click":
+        case "waitForURL" /* WAIT_FOR_URL */:
+          if (action.value && typeof action.value === "string") {
+            const target = normalizeUrl(action.value);
+            const start = Date.now();
+            let matched = false;
+            let lastPulse = 0;
+            const maxMs = 8e3;
+            const stopSignals = [];
+            const tryMatch = () => {
+              const current = normalizeUrl(window.location.href);
+              if (current === target) {
+                matched = true;
+                return true;
+              }
+              try {
+                const curNoHash = current.replace(/#.*/, "");
+                const tgtNoHash = target.replace(/#.*/, "");
+                if (curNoHash === tgtNoHash) {
+                  matched = true;
+                  return true;
+                }
+              } catch (e) {
+              }
+              return false;
+            };
+            const onHist = (e) => {
+              if (!matched && tryMatch()) {
+              }
+            };
+            try {
+              window.addEventListener("staktrak-history-change", onHist);
+              stopSignals.push(() => window.removeEventListener("staktrak-history-change", onHist));
+            } catch (e) {
+            }
+            const onHash = () => {
+              if (!matched && tryMatch()) {
+              }
+            };
+            try {
+              window.addEventListener("hashchange", onHash);
+              stopSignals.push(() => window.removeEventListener("hashchange", onHash));
+            } catch (e) {
+            }
+            tryMatch();
+            while (!matched && Date.now() - start < maxMs) {
+              if (Date.now() - lastPulse > 1e3) {
+                try {
+                  document.body.style.outline = "3px dashed #ff6b6b";
+                  setTimeout(() => {
+                    document.body.style.outline = "";
+                  }, 400);
+                } catch (e) {
+                }
+                lastPulse = Date.now();
+              }
+              await new Promise((r) => setTimeout(r, 120));
+              if (tryMatch()) break;
+            }
+            stopSignals.forEach((fn) => {
+              try {
+                fn();
+              } catch (e) {
+              }
+            });
+            try {
+              highlight(document.body, matched ? "nav" : "nav-timeout");
+            } catch (e) {
+            }
+            try {
+              ensureStylesInDocument(document);
+            } catch (e) {
+            }
+            if (!matched && !window.__stakTrakWarnedNav) {
+              console.warn("[staktrak] waitForURL timeout \u2014 last, expected", window.location.href, target);
+              window.__stakTrakWarnedNav = true;
+            }
+          }
+          break;
+        case "click" /* CLICK */:
           if (action.selector) {
             const element = await waitForElement(action.selector);
             if (element) {
               const htmlElement = element;
-              const originalBorder = htmlElement.style.border;
-              htmlElement.style.border = "3px solid #ff6b6b";
-              htmlElement.style.boxShadow = "0 0 10px rgba(255, 107, 107, 0.5)";
-              htmlElement.click();
-              setTimeout(() => {
-                htmlElement.style.border = originalBorder;
-                htmlElement.style.boxShadow = "";
-              }, 300);
+              highlight(element, "click");
+              try {
+                htmlElement.focus();
+              } catch (e) {
+              }
+              try {
+                element.dispatchEvent(
+                  new MouseEvent("mousedown", {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                  })
+                );
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                element.dispatchEvent(
+                  new MouseEvent("mouseup", {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                  })
+                );
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                htmlElement.click();
+                element.dispatchEvent(
+                  new MouseEvent("click", {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                  })
+                );
+              } catch (clickError) {
+                throw clickError;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 50));
             } else {
               throw new Error(`Element not found: ${action.selector}`);
             }
           }
           break;
-        case "fill":
+        case "fill" /* FILL */:
           if (action.selector && action.value !== void 0) {
             const element = await waitForElement(action.selector);
             if (element) {
+              highlight(element, "fill");
               element.focus();
               element.value = "";
               element.value = String(action.value);
@@ -1372,12 +1814,13 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "check":
+        case "check" /* CHECK */:
           if (action.selector) {
             const element = await waitForElement(
               action.selector
             );
             if (element && (element.type === "checkbox" || element.type === "radio")) {
+              highlight(element, "check");
               if (!element.checked) {
                 element.click();
               }
@@ -1388,12 +1831,13 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "uncheck":
+        case "uncheck" /* UNCHECK */:
           if (action.selector) {
             const element = await waitForElement(
               action.selector
             );
             if (element && element.type === "checkbox") {
+              highlight(element, "uncheck");
               if (element.checked) {
                 element.click();
               }
@@ -1402,12 +1846,13 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "selectOption":
+        case "selectOption" /* SELECT_OPTION */:
           if (action.selector && action.value !== void 0) {
             const element = await waitForElement(
               action.selector
             );
             if (element && element.tagName === "SELECT") {
+              highlight(element, "select");
               element.value = String(action.value);
               element.dispatchEvent(new Event("change", { bubbles: true }));
             } else {
@@ -1415,11 +1860,11 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "waitForTimeout":
+        case "waitForTimeout" /* WAIT_FOR_TIMEOUT */:
           const shortDelay = Math.min(action.value, 500);
           await new Promise((resolve) => setTimeout(resolve, shortDelay));
           break;
-        case "waitFor":
+        case "waitFor" /* WAIT_FOR */:
           if (action.selector) {
             const element = await waitForElement(action.selector);
             if (!element) {
@@ -1434,10 +1879,11 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "hover":
+        case "hover" /* HOVER */:
           if (action.selector) {
             const element = await waitForElement(action.selector);
             if (element) {
+              highlight(element, "hover");
               element.dispatchEvent(
                 new MouseEvent("mouseover", { bubbles: true })
               );
@@ -1449,12 +1895,13 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "focus":
+        case "focus" /* FOCUS */:
           if (action.selector) {
             const element = await waitForElement(
               action.selector
             );
             if (element && typeof element.focus === "function") {
+              highlight(element, "focus");
               element.focus();
             } else {
               throw new Error(
@@ -1463,12 +1910,13 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "blur":
+        case "blur" /* BLUR */:
           if (action.selector) {
             const element = await waitForElement(
               action.selector
             );
             if (element && typeof element.blur === "function") {
+              highlight(element, "blur");
               element.blur();
             } else {
               throw new Error(
@@ -1477,10 +1925,11 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "scrollIntoView":
+        case "scrollIntoView" /* SCROLL_INTO_VIEW */:
           if (action.selector) {
             const element = await waitForElement(action.selector);
             if (element) {
+              highlight(element, "scroll");
               element.scrollIntoView({
                 behavior: "smooth",
                 block: "center",
@@ -1493,13 +1942,12 @@ var userBehaviour = (() => {
             }
           }
           break;
-        case "expect":
+        case "expect" /* EXPECT */:
           if (action.selector) {
             await verifyExpectation(action);
           }
           break;
         default:
-          console.warn(`Unknown action type: ${action.type}`);
           break;
       }
     } catch (error) {
@@ -1514,8 +1962,7 @@ var userBehaviour = (() => {
         if (elements.length > 0) {
           return elements;
         }
-      } catch (error) {
-        console.warn(`Error finding elements with selector: ${selector}`, error);
+      } catch (e) {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -1526,32 +1973,219 @@ var userBehaviour = (() => {
     return element ? [element] : [];
   }
   function findElementWithFallbacks(selector) {
+    var _a, _b;
     if (!selector || selector.trim() === "") return null;
+    try {
+      if ((selector.startsWith("text=") || selector.startsWith("role:")) && window.__stakTrakSelectorMap) {
+        const map = window.__stakTrakSelectorMap;
+        const entry = map[selector];
+        if (entry == null ? void 0 : entry.visualSelector) {
+          try {
+            const cssEl = document.querySelector(entry.visualSelector);
+            if (cssEl) return cssEl;
+          } catch (e) {
+          }
+        }
+      }
+    } catch (e) {
+    }
+    if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/.test(selector)) {
+      try {
+        const matches = document.querySelectorAll(selector);
+        if (matches.length === 1) {
+          __stakReplayState.lastStructural = selector;
+          __stakReplayState.lastEl = matches[0];
+          return matches[0];
+        }
+      } catch (e) {
+      }
+    }
+    if ((selector.startsWith("role:") || selector.startsWith("text=")) && __stakReplayState.lastStructural && __stakReplayState.lastEl) {
+      try {
+        if (document.contains(__stakReplayState.lastEl)) {
+          const acc = getAccessibleName(__stakReplayState.lastEl);
+          const nameMatch = selector.includes('name="') ? selector.includes(`name="${acc}`) : selector.includes(acc || "");
+          if (acc && nameMatch) {
+            return __stakReplayState.lastEl;
+          }
+        }
+      } catch (e) {
+      }
+    }
+    const noteMatch = (el, matched, text) => {
+      if (el) {
+        __stakReplayMatch.last = { requested: selector, matched, text, time: Date.now(), element: el };
+        if (text) el.__stakTrakMatchedText = text;
+      }
+      return el;
+    };
+    if (selector.startsWith("role:")) {
+      const roleMatch = selector.match(/^role:([^\[]+)(?:\[name(?:-regex)?="(.+?)"\])?/);
+      if (roleMatch) {
+        const role = roleMatch[1];
+        const nameRaw = roleMatch[2];
+        const nameRegex = selector.includes("[name-regex=");
+        const candidates = Array.from(queryByRole(role.trim()));
+        if (!nameRaw) {
+          return noteMatch(candidates[0] || null, selector);
+        }
+        let matcher;
+        if (nameRegex) {
+          const rx = nameRaw.match(/^\/(.*)\/(.*)$/);
+          if (rx) {
+            try {
+              const r = new RegExp(rx[1], rx[2]);
+              matcher = (s) => r.test(s);
+            } catch (e) {
+              matcher = (s) => s.includes(nameRaw);
+            }
+          } else {
+            matcher = (s) => s.includes(nameRaw);
+          }
+        } else {
+          const target = nameRaw;
+          matcher = (s) => s === target;
+        }
+        for (const el of candidates) {
+          const acc = getAccessibleName(el);
+          if (acc && matcher(acc)) {
+            return noteMatch(el, selector, acc);
+          }
+        }
+        return noteMatch(null, selector);
+      }
+    }
+    if (selector.startsWith("text=") && selector.endsWith(":exact")) {
+      const core = selector.slice("text=".length, -":exact".length);
+      const norm = core.trim();
+      const interactive = Array.from(document.querySelectorAll("button, a, [role], input, textarea, select"));
+      const exact = interactive.filter((el) => (el.textContent || "").trim() === norm);
+      if (exact.length === 1) return noteMatch(exact[0], selector, norm);
+      if (exact.length > 1) {
+        const deepest = exact.sort((a, b) => depth(b) - depth(a))[0];
+        return noteMatch(deepest, selector, norm);
+      }
+      return noteMatch(null, selector);
+    }
+    if (selector.startsWith("getByTestId:")) {
+      const val = selector.substring("getByTestId:".length);
+      return noteMatch(document.querySelector(`[data-testid="${cssEscape(val)}"]`), `[data-testid="${val}"]`);
+    }
+    if (selector.startsWith("getByText-regex:")) {
+      const body = selector.substring("getByText-regex:".length);
+      const rx = body.match(/^\/(.*)\/(.*)$/);
+      let r = null;
+      if (rx) try {
+        r = new RegExp(rx[1], rx[2]);
+      } catch (e) {
+      }
+      const all = textSearchCandidates();
+      for (const el of all) {
+        const txt = ((_a = el.textContent) == null ? void 0 : _a.trim()) || "";
+        if (r && r.test(txt)) {
+          return noteMatch(el, selector, txt);
+        }
+      }
+      return noteMatch(null, selector);
+    }
+    if (selector.startsWith("getByText:")) {
+      const exact = selector.endsWith(":exact");
+      const core = exact ? selector.slice("getByText:".length, -":exact".length) : selector.slice("getByText:".length);
+      const norm = core.trim();
+      const all = textSearchCandidates();
+      for (const el of all) {
+        const txt = ((_b = el.textContent) == null ? void 0 : _b.trim()) || "";
+        if (exact && txt === norm || !exact && txt.includes(norm)) {
+          return noteMatch(el, selector, txt);
+        }
+      }
+      return noteMatch(null, selector);
+    }
+    if (selector.startsWith("getByLabel:")) {
+      const label = selector.substring("getByLabel:".length).trim();
+      const labels = Array.from(document.querySelectorAll("label")).filter((l) => {
+        var _a2;
+        return ((_a2 = l.textContent) == null ? void 0 : _a2.trim()) === label;
+      });
+      for (const lab of labels) {
+        const forId = lab.getAttribute("for");
+        if (forId) {
+          const ctl = document.getElementById(forId);
+          if (ctl) return noteMatch(ctl, selector);
+        }
+        const nested = lab.querySelector("input,select,textarea,button");
+        if (nested) return noteMatch(nested, selector);
+      }
+      return noteMatch(document.querySelector(`[aria-label="${cssEscape(label)}"]`), selector);
+    }
+    if (selector.startsWith("getByPlaceholder:")) {
+      const ph = selector.substring("getByPlaceholder:".length);
+      return noteMatch(document.querySelector(`[placeholder="${cssEscape(ph)}"]`), selector);
+    }
+    if (selector.startsWith("getByTitle:")) {
+      const t = selector.substring("getByTitle:".length);
+      return noteMatch(document.querySelector(`[title="${cssEscape(t)}"]`), selector);
+    }
+    if (selector.startsWith("getByAltText:")) {
+      const alt = selector.substring("getByAltText:".length);
+      return noteMatch(document.querySelector(`[alt="${cssEscape(alt)}"]`), selector);
+    }
     const browserSelector = convertToBrowserSelector(selector);
     if (browserSelector && isValidSelector(browserSelector)) {
       const element = document.querySelector(browserSelector);
-      if (element) return element;
+      if (element) return noteMatch(element, browserSelector);
     }
     const strategies = [
       () => findByDataTestId(selector),
-      () => findByClass(selector),
       () => findById(selector),
+      () => findByClassUnique(selector),
       () => findByAriaLabel(selector),
       () => findByRole(selector),
-      () => findByTextContent(selector),
-      () => findByCoordinates(selector)
+      () => findByTextContentTight(selector)
     ];
     for (const strategy of strategies) {
       try {
         const element = strategy();
         if (element) {
-          return element;
+          return noteMatch(element, selector);
         }
-      } catch (error) {
-        console.warn(`Strategy failed for ${selector}:`, error);
+      } catch (e) {
       }
     }
+    return noteMatch(null, selector);
+  }
+  function cssEscape(value) {
+    return value.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`);
+  }
+  function queryByRole(role) {
+    const selector = getRoleSelector(role);
+    return Array.from(document.querySelectorAll(selector)).filter((el) => el instanceof HTMLElement);
+  }
+  function getAccessibleName(el) {
+    var _a;
+    const aria = el.getAttribute("aria-label");
+    if (aria) return aria.trim();
+    const labelled = el.getAttribute("aria-labelledby");
+    if (labelled) {
+      const parts = labelled.split(/\s+/).map((id) => {
+        var _a2, _b;
+        return (_b = (_a2 = document.getElementById(id)) == null ? void 0 : _a2.textContent) == null ? void 0 : _b.trim();
+      }).filter(Boolean);
+      if (parts.length) return parts.join(" ");
+    }
+    const tag = el.tagName.toLowerCase();
+    if (tag === "input" || tag === "textarea") {
+      const val = el.value || el.getAttribute("placeholder");
+      if (val) return val.trim();
+    }
+    const txt = (_a = el.textContent) == null ? void 0 : _a.trim();
+    if (txt) return txt.slice(0, 120);
+    const title = el.getAttribute("title");
+    if (title) return title.trim();
     return null;
+  }
+  function textSearchCandidates() {
+    return Array.from(document.querySelectorAll("button, a, [role], input, textarea, select, label, div, span"));
   }
   function convertToBrowserSelector(selector) {
     var _a;
@@ -1597,12 +2231,19 @@ var userBehaviour = (() => {
     }
     return null;
   }
-  function findByClass(selector) {
+  function findByClassUnique(selector) {
     if (!selector.includes(".")) return null;
-    const classes = selector.match(/\.([^\s.#\[\]]+)/g);
-    if (classes && classes.length > 0) {
-      const className = classes[0].substring(1);
-      return document.querySelector(`.${className}`);
+    if (selector.startsWith("text=") || selector.startsWith("role:")) return null;
+    try {
+      const els = document.querySelectorAll(selector);
+      if (els.length === 1) return els[0];
+    } catch (e) {
+    }
+    const classOnly = selector.match(/^\w+\.[^.]+$/);
+    if (classOnly) {
+      const els = Array.from(document.querySelectorAll(selector));
+      const interactive = els.filter(isInteractive);
+      if (interactive.length === 1) return interactive[0];
     }
     return null;
   }
@@ -1625,39 +2266,39 @@ var userBehaviour = (() => {
     if (!roleMatch) return null;
     return document.querySelector(`[role="${roleMatch[1]}"]`);
   }
-  function findByTextContent(selector) {
-    var _a;
-    let text = null;
-    let tagName = "*";
-    if (selector.includes('text="')) {
-      const textMatch = selector.match(/text="([^"]+)"/);
-      text = textMatch ? textMatch[1] : null;
-    } else if (selector.includes('textContent="')) {
-      const textMatch = selector.match(/textContent="([^"]+)"/);
-      text = textMatch ? textMatch[1] : null;
-    } else if (selector.includes(":has-text(")) {
-      const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
-      text = textMatch ? textMatch[1] : null;
-    }
-    const tagMatch = selector.match(/^([a-zA-Z]+)/);
-    if (tagMatch) {
-      tagName = tagMatch[1];
-    }
-    if (!text) return null;
-    const elements = Array.from(document.querySelectorAll(tagName));
-    for (const element of elements) {
-      const elementText = (_a = element.textContent) == null ? void 0 : _a.trim();
-      if (elementText === text || (elementText == null ? void 0 : elementText.includes(text))) {
-        return element;
-      }
+  function findByTextContentTight(selector) {
+    if (!selector.startsWith("text=")) return null;
+    const exact = selector.endsWith(":exact");
+    const core = exact ? selector.slice("text=".length, -":exact".length) : selector.slice("text=".length);
+    const norm = core.trim();
+    const candidates = textSearchCandidates().filter(isInteractiveOrSmall);
+    for (const el of candidates) {
+      const txt = (el.textContent || "").trim();
+      if (exact && txt === norm || !exact && txt.includes(norm)) return el;
     }
     return null;
   }
-  function findByCoordinates(selector) {
-    const clickableElements = document.querySelectorAll(
-      'button, a, input, select, [role="button"], [onclick]'
-    );
-    return clickableElements.length > 0 ? clickableElements[0] : null;
+  function isInteractive(el) {
+    const tag = el.tagName.toLowerCase();
+    if (["button", "a", "input", "textarea", "select", "option"].includes(tag)) return true;
+    const role = el.getAttribute("role");
+    if (role && ["button", "link", "menuitem", "option", "tab"].includes(role)) return true;
+    return false;
+  }
+  function isInteractiveOrSmall(el) {
+    if (isInteractive(el)) return true;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 400 && rect.height < 200) return true;
+    return false;
+  }
+  function depth(el) {
+    let d = 0;
+    let p = el.parentElement;
+    while (p) {
+      d++;
+      p = p.parentElement;
+    }
+    return d;
   }
   function createUniqueSelector(element) {
     var _a;
@@ -1735,6 +2376,8 @@ var userBehaviour = (() => {
   async function waitForElement(selector, matchedText) {
     const startTime = Date.now();
     const timeout = 5e3;
+    const backoffs = [50, 80, 120, 180, 250, 350, 500, 650, 800];
+    let attempt = 0;
     while (Date.now() - startTime < timeout) {
       try {
         const elements = findElements(selector);
@@ -1743,13 +2386,21 @@ var userBehaviour = (() => {
           if (matchedText) {
             element.__stakTrakMatchedText = matchedText;
           }
-          setTimeout(() => highlightElement(element), 100);
           return element;
         }
       } catch (error) {
-        console.warn("Error finding element with selector:", selector, error);
+        if (!__stakWarned[selector]) {
+          console.warn("[staktrak] resolution error", selector, error);
+          __stakWarned[selector] = true;
+        }
       }
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const delay = backoffs[Math.min(attempt, backoffs.length - 1)];
+      attempt++;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    if (!__stakWarned[selector]) {
+      console.warn("[staktrak] highlight failed: not found", selector);
+      __stakWarned[selector] = true;
     }
     return null;
   }
@@ -1775,68 +2426,6 @@ var userBehaviour = (() => {
     }
   `;
     doc.head.appendChild(style);
-  }
-  function highlightElement(element, matchedText) {
-    try {
-      ensureStylesInDocument(document);
-      const textToHighlight = matchedText || element.__stakTrakMatchedText;
-      if (textToHighlight) {
-        highlightTextInElement(element, textToHighlight);
-      }
-    } catch (error) {
-      console.warn("Error highlighting element:", error);
-    }
-  }
-  function highlightTextInElement(element, textToHighlight) {
-    try {
-      let wrapTextNodes2 = function(node) {
-        var _a;
-        if (node.nodeType === Node.TEXT_NODE) {
-          const textContent = node.textContent || "";
-          if (textContent.includes(textToHighlight)) {
-            const parent = node.parentNode;
-            if (parent) {
-              const tempDiv = document.createElement("div");
-              tempDiv.innerHTML = textContent.replace(
-                new RegExp(
-                  `(${textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-                  "gi"
-                ),
-                '<span class="staktrak-text-highlight">$1</span>'
-              );
-              while (tempDiv.firstChild) {
-                parent.insertBefore(tempDiv.firstChild, node);
-              }
-              parent.removeChild(node);
-            }
-          }
-        } else if (node.nodeType === Node.ELEMENT_NODE && !((_a = node.classList) == null ? void 0 : _a.contains("staktrak-text-highlight"))) {
-          const children = Array.from(node.childNodes);
-          children.forEach((child) => wrapTextNodes2(child));
-        }
-      };
-      var wrapTextNodes = wrapTextNodes2;
-      ensureStylesInDocument(document);
-      wrapTextNodes2(element);
-      element.setAttribute("data-staktrak-processed", "true");
-      setTimeout(() => {
-        const highlights = element.querySelectorAll(".staktrak-text-highlight");
-        highlights.forEach((highlight) => {
-          const parent = highlight.parentNode;
-          if (parent) {
-            parent.insertBefore(
-              document.createTextNode(highlight.textContent || ""),
-              highlight
-            );
-            parent.removeChild(highlight);
-          }
-        });
-        element.removeAttribute("data-staktrak-processed");
-        element.normalize();
-      }, 3e3);
-    } catch (error) {
-      console.warn("Error highlighting text:", error);
-    }
   }
   async function verifyExpectation(action) {
     var _a, _b;
@@ -1896,7 +2485,6 @@ var userBehaviour = (() => {
         }
         break;
       default:
-        console.warn(`Unknown expectation: ${action.expectation}`);
     }
   }
   function isElementVisible(element) {
@@ -1904,39 +2492,42 @@ var userBehaviour = (() => {
     return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0;
   }
   function getActionDescription(action) {
+    var _a, _b;
     switch (action.type) {
-      case "goto":
+      case "goto" /* GOTO */:
         return `Navigate to ${action.value}`;
-      case "click":
+      case "click" /* CLICK */:
         return `Click element: ${action.selector}`;
-      case "fill":
+      case "fill" /* FILL */:
         return `Fill "${action.value}" in ${action.selector}`;
-      case "check":
+      case "check" /* CHECK */:
         return `Check checkbox: ${action.selector}`;
-      case "uncheck":
+      case "uncheck" /* UNCHECK */:
         return `Uncheck checkbox: ${action.selector}`;
-      case "selectOption":
+      case "selectOption" /* SELECT_OPTION */:
         return `Select "${action.value}" in ${action.selector}`;
-      case "hover":
+      case "hover" /* HOVER */:
         return `Hover over element: ${action.selector}`;
-      case "focus":
+      case "focus" /* FOCUS */:
         return `Focus element: ${action.selector}`;
-      case "blur":
+      case "blur" /* BLUR */:
         return `Blur element: ${action.selector}`;
-      case "scrollIntoView":
+      case "scrollIntoView" /* SCROLL_INTO_VIEW */:
         return `Scroll element into view: ${action.selector}`;
-      case "waitFor":
+      case "waitFor" /* WAIT_FOR */:
         return `Wait for element: ${action.selector}`;
-      case "expect":
+      case "expect" /* EXPECT */:
         return `Verify ${action.selector} ${action.expectation}`;
-      case "setViewportSize":
-        return `Set viewport size to ${action.value}`;
-      case "waitForTimeout":
+      case "setViewportSize" /* SET_VIEWPORT_SIZE */:
+        return `Set viewport size to ${(_a = action.options) == null ? void 0 : _a.width}x${(_b = action.options) == null ? void 0 : _b.height}`;
+      case "waitForTimeout" /* WAIT_FOR_TIMEOUT */:
         return `Wait ${action.value}ms`;
-      case "waitForLoadState":
+      case "waitForLoadState" /* WAIT_FOR_LOAD_STATE */:
         return "Wait for page to load";
-      case "waitForSelector":
+      case "waitForSelector" /* WAIT_FOR_SELECTOR */:
         return `Wait for element: ${action.selector}`;
+      case "waitForURL" /* WAIT_FOR_URL */:
+        return `Wait for URL: ${action.value}`;
       default:
         return `Execute ${action.type}`;
     }
@@ -2076,6 +2667,34 @@ var userBehaviour = (() => {
     };
   }
   function initPlaywrightReplay() {
+    try {
+      if (!window.__stakTrakHistoryInstrumented) {
+        const fire = () => {
+          try {
+            const detail = { href: window.location.href, path: window.location.pathname, ts: Date.now() };
+            const ev = new CustomEvent("staktrak-history-change", { detail });
+            window.dispatchEvent(ev);
+          } catch (e) {
+          }
+        };
+        const origPush = history.pushState;
+        const origReplace = history.replaceState;
+        history.pushState = function(...args) {
+          const ret = origPush.apply(this, args);
+          setTimeout(fire, 0);
+          return ret;
+        };
+        history.replaceState = function(...args) {
+          const ret = origReplace.apply(this, args);
+          setTimeout(fire, 0);
+          return ret;
+        };
+        window.addEventListener("popstate", fire, { passive: true });
+        setTimeout(fire, 0);
+        window.__stakTrakHistoryInstrumented = true;
+      }
+    } catch (e) {
+    }
     window.addEventListener("message", (event) => {
       const { data } = event;
       if (!data || !data.type) return;
@@ -2106,6 +2725,308 @@ var userBehaviour = (() => {
           break;
       }
     });
+  }
+
+  // src/actionModel.ts
+  function resultsToActions(results) {
+    var _a;
+    const actions = [];
+    const navigations = (results.pageNavigation || []).slice().sort((a, b) => a.timestamp - b.timestamp);
+    const normalize = (u) => {
+      var _a2;
+      try {
+        const url = new URL(u, ((_a2 = results.userInfo) == null ? void 0 : _a2.url) || "http://localhost");
+        return url.origin + url.pathname.replace(/\/$/, "");
+      } catch (e) {
+        return u.replace(/[?#].*$/, "").replace(/\/$/, "");
+      }
+    };
+    for (const nav of navigations) {
+      actions.push({ kind: "nav", timestamp: nav.timestamp, url: nav.url, normalizedUrl: normalize(nav.url) });
+    }
+    const clicks = ((_a = results.clicks) == null ? void 0 : _a.clickDetails) || [];
+    for (let i = 0; i < clicks.length; i++) {
+      const cd = clicks[i];
+      actions.push({
+        kind: "click",
+        timestamp: cd.timestamp,
+        locator: {
+          primary: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+          fallbacks: cd.selectors.fallbacks || [],
+          role: cd.selectors.role,
+          text: cd.selectors.text,
+          tagName: cd.selectors.tagName,
+          stableSelector: cd.selectors.stabilizedPrimary || cd.selectors.primary,
+          candidates: cd.selectors.scores || void 0
+        }
+      });
+      const nav = navigations.find((n) => n.timestamp > cd.timestamp && n.timestamp - cd.timestamp < 1800);
+      if (nav) {
+        actions.push({
+          kind: "waitForUrl",
+          timestamp: nav.timestamp - 1,
+          // ensure ordering between click and nav
+          expectedUrl: nav.url,
+          normalizedUrl: normalize(nav.url),
+          navRefTimestamp: nav.timestamp
+        });
+      }
+    }
+    if (results.inputChanges) {
+      for (const input of results.inputChanges) {
+        if (input.action === "complete" || !input.action) {
+          actions.push({
+            kind: "input",
+            timestamp: input.timestamp,
+            locator: { primary: input.elementSelector, fallbacks: [] },
+            value: input.value
+          });
+        }
+      }
+    }
+    if (results.formElementChanges) {
+      for (const fe of results.formElementChanges) {
+        actions.push({
+          kind: "form",
+          timestamp: fe.timestamp,
+          locator: { primary: fe.elementSelector, fallbacks: [] },
+          formType: fe.type,
+          value: fe.value,
+          checked: fe.checked
+        });
+      }
+    }
+    if (results.assertions) {
+      for (const asrt of results.assertions) {
+        actions.push({
+          kind: "assertion",
+          timestamp: asrt.timestamp,
+          locator: { primary: asrt.selector, fallbacks: [] },
+          value: asrt.value
+        });
+      }
+    }
+    actions.sort((a, b) => a.timestamp - b.timestamp || weightOrder(a.kind) - weightOrder(b.kind));
+    refineLocators(actions);
+    return actions;
+  }
+  function weightOrder(kind) {
+    switch (kind) {
+      case "click":
+        return 1;
+      case "waitForUrl":
+        return 2;
+      case "nav":
+        return 3;
+      default:
+        return 4;
+    }
+  }
+  function refineLocators(actions) {
+    if (typeof document === "undefined") return;
+    const seen = /* @__PURE__ */ new Set();
+    for (const a of actions) {
+      if (!a.locator) continue;
+      const { primary, fallbacks } = a.locator;
+      const validated = [];
+      if (isUnique(primary)) validated.push(primary);
+      for (const fb of fallbacks) {
+        if (validated.length >= 3) break;
+        if (isUnique(fb)) validated.push(fb);
+      }
+      if (validated.length === 0) continue;
+      a.locator.primary = validated[0];
+      a.locator.fallbacks = validated.slice(1);
+      const key = a.locator.primary + "::" + a.kind;
+      if (seen.has(key) && a.locator.fallbacks.length > 0) {
+        a.locator.primary = a.locator.fallbacks[0];
+        a.locator.fallbacks = a.locator.fallbacks.slice(1);
+      }
+      seen.add(a.locator.primary + "::" + a.kind);
+    }
+  }
+  function isUnique(sel) {
+    if (!sel || /^(html|body|div|span|p|button|input)$/i.test(sel)) return false;
+    try {
+      const nodes = document.querySelectorAll(sel);
+      return nodes.length === 1;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // src/scenario.ts
+  function buildScenario(results, actions) {
+    var _a, _b, _c, _d, _e;
+    const startedAt = ((_a = results == null ? void 0 : results.time) == null ? void 0 : _a.startedAt) || (((_b = actions[0]) == null ? void 0 : _b.timestamp) || Date.now());
+    const completedAt = ((_c = results == null ? void 0 : results.time) == null ? void 0 : _c.completedAt) || (((_d = actions[actions.length - 1]) == null ? void 0 : _d.timestamp) || startedAt);
+    return {
+      version: 1,
+      meta: {
+        baseOrigin: typeof window !== "undefined" ? window.location.origin : "",
+        startedAt,
+        completedAt,
+        durationMs: completedAt - startedAt,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : void 0,
+        viewport: typeof window !== "undefined" ? { width: window.innerWidth, height: window.innerHeight } : void 0,
+        url: (_e = results == null ? void 0 : results.userInfo) == null ? void 0 : _e.url
+      },
+      actions
+    };
+  }
+  function serializeScenario(s) {
+    return JSON.stringify(s);
+  }
+
+  // src/playwright-generator.ts
+  function escapeTextForAssertion(text) {
+    if (!text) return "";
+    return text.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t").trim();
+  }
+  function normalizeText(t) {
+    return (t || "").trim();
+  }
+  function locatorToSelector(l) {
+    if (!l) return 'page.locator("body")';
+    const primary = l.stableSelector || l.primary;
+    if (/\[data-testid=/.test(primary)) {
+      const m = primary.match(/\[data-testid=["']([^"']+)["']\]/);
+      if (m) return `page.getByTestId('${escapeTextForAssertion(m[1])}')`;
+    }
+    if (primary.startsWith("#") && /^[a-zA-Z][\w-]*$/.test(primary.slice(1)))
+      return `page.locator('${primary}')`;
+    if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+/.test(primary)) {
+      return `page.locator('${primary}')`;
+    }
+    if (l.role && l.text) {
+      const txt = normalizeText(l.text);
+      if (txt && txt.length <= 50)
+        return `page.getByRole('${l.role}', { name: '${escapeTextForAssertion(txt)}' })`;
+    }
+    if (l.text && l.text.length <= 30 && l.text.length > 1)
+      return `page.getByText('${escapeTextForAssertion(normalizeText(l.text))}')`;
+    if (primary && !primary.startsWith("page."))
+      return `page.locator('${primary}')`;
+    for (const fb of l.fallbacks) {
+      if (fb && !/^[a-zA-Z]+$/.test(fb)) return `page.locator('${fb}')`;
+    }
+    return 'page.locator("body")';
+  }
+  function generatePlaywrightTestFromActions(actions, options) {
+    const name = options.testName || "Recorded flow";
+    const viewport = options.viewport || { width: 1280, height: 720 };
+    let body = "";
+    let lastTs = null;
+    const base = options.baseUrl ? options.baseUrl.replace(/\/$/, "") : "";
+    function fullUrl(u) {
+      if (!u) return "";
+      if (/^https?:/i.test(u)) return u;
+      if (u.startsWith("/")) return base + u;
+      return base + "/" + u;
+    }
+    let i = 0;
+    const collapsed = [];
+    for (let k = 0; k < actions.length; k++) {
+      const curr = actions[k];
+      const prev = collapsed[collapsed.length - 1];
+      if (curr.kind === "nav" && prev && prev.kind === "nav" && prev.url === curr.url) continue;
+      collapsed.push(curr);
+    }
+    actions = collapsed;
+    while (i < actions.length) {
+      const a = actions[i];
+      if (a.kind === "click" && i + 1 < actions.length) {
+        const nxt = actions[i + 1];
+        if (nxt.kind === "nav" && nxt.timestamp - a.timestamp < 1500) {
+          if (lastTs != null) {
+            const delta = Math.max(0, a.timestamp - lastTs);
+            const wait = Math.min(3e3, Math.max(100, delta));
+            if (wait > 400) body += `  await page.waitForTimeout(${wait});
+`;
+          }
+          body += `  await Promise.all([
+`;
+          body += `    page.waitForURL('${fullUrl(nxt.url)}'),
+`;
+          body += `    ${locatorToSelector(a.locator)}.click()
+`;
+          body += `  ]);
+`;
+          lastTs = nxt.timestamp;
+          i += 2;
+          continue;
+        }
+      }
+      if (lastTs != null) {
+        const delta = Math.max(0, a.timestamp - lastTs);
+        const wait = Math.min(3e3, Math.max(100, delta));
+        if (wait > 500) body += `  await page.waitForTimeout(${wait});
+`;
+      }
+      switch (a.kind) {
+        case "nav": {
+          const target = fullUrl(a.url);
+          if (i === 0) {
+            body += `  await page.goto('${target}');
+`;
+          } else {
+            body += `  await page.waitForURL('${target}');
+`;
+          }
+          break;
+        }
+        case "click":
+          body += `  await ${locatorToSelector(a.locator)}.click();
+`;
+          break;
+        case "input":
+          body += `  await ${locatorToSelector(a.locator)}.fill('${escapeTextForAssertion(a.value || "")}');
+`;
+          break;
+        case "form":
+          if (a.formType === "checkbox" || a.formType === "radio") {
+            body += a.checked ? `  await ${locatorToSelector(a.locator)}.check();
+` : `  await ${locatorToSelector(a.locator)}.uncheck();
+`;
+          } else if (a.formType === "select") {
+            body += `  await ${locatorToSelector(a.locator)}.selectOption('${escapeTextForAssertion(a.value || "")}');
+`;
+          }
+          break;
+        case "assertion":
+          if (a.value && a.value.length > 0) {
+            body += `  await expect(${locatorToSelector(a.locator)}).toContainText('${escapeTextForAssertion(a.value)}');
+`;
+          } else {
+            body += `  await expect(${locatorToSelector(a.locator)}).toBeVisible();
+`;
+          }
+          break;
+      }
+      lastTs = a.timestamp;
+      i++;
+    }
+    return `import { test, expect } from '@playwright/test'
+
+test('${name}', async ({ page }) => {
+  await page.setViewportSize({ width: ${viewport.width}, height: ${viewport.height} })
+${body.split("\n").filter((l) => l.trim()).map((l) => l).join("\n")}
+})
+`;
+  }
+  if (typeof window !== "undefined") {
+    const existing = window.PlaywrightGenerator || {};
+    existing.generatePlaywrightTestFromActions = generatePlaywrightTestFromActions;
+    existing.generatePlaywrightTest = (baseUrl, results) => {
+      try {
+        const actions = resultsToActions(results);
+        return generatePlaywrightTestFromActions(actions, { baseUrl });
+      } catch (e) {
+        console.warn("PlaywrightGenerator.generatePlaywrightTest failed", e);
+        return "";
+      }
+    };
+    window.PlaywrightGenerator = existing;
   }
 
   // src/index.ts
@@ -2199,7 +3120,6 @@ var userBehaviour = (() => {
         };
         sessionStorage.setItem("stakTrakActiveRecording", JSON.stringify(sessionData));
       } catch (error) {
-        console.warn("\u{1F50D} STAKTRAK: Failed to save session state:", error);
       }
     }
     resetResults() {
@@ -2492,6 +3412,31 @@ var userBehaviour = (() => {
       this.memory.alwaysListeners.push(
         () => window.removeEventListener("popstate", popstateHandler)
       );
+      const hashHandler = () => {
+        recordStateChange("hashchange");
+      };
+      window.addEventListener("hashchange", hashHandler);
+      this.memory.alwaysListeners.push(
+        () => window.removeEventListener("hashchange", hashHandler)
+      );
+      const anchorClickHandler = (e) => {
+        const a = e.target.closest("a");
+        if (!a) return;
+        if (a.target && a.target !== "_self") return;
+        const href = a.getAttribute("href");
+        if (!href) return;
+        try {
+          const dest = new URL(href, window.location.href);
+          if (dest.origin === window.location.origin) {
+            this.results.pageNavigation.push({ type: "anchorClick", url: dest.href, timestamp: getTimeStamp() });
+          }
+        } catch (e2) {
+        }
+      };
+      document.addEventListener("click", anchorClickHandler, true);
+      this.memory.alwaysListeners.push(
+        () => document.removeEventListener("click", anchorClickHandler, true)
+      );
     }
     setupMessageHandling() {
       if (this.memory.alwaysListeners.length > 0) return;
@@ -2676,7 +3621,6 @@ var userBehaviour = (() => {
           sessionStorage.removeItem("stakTrakActiveRecording");
         }
       } catch (error) {
-        console.warn("\u{1F50D} STAKTRAK: Session restoration failed:", error);
         sessionStorage.removeItem("stakTrakActiveRecording");
       }
     }
@@ -2687,7 +3631,6 @@ var userBehaviour = (() => {
         mutationObserver: !!this.memory.mutationObserver
       });
       if (this.isRunning && this.memory.listeners.length === 0) {
-        console.warn("\u{1F50D} STAKTRAK: No listeners found, re-establishing...");
         this.setupEventListeners();
       }
     }
@@ -2705,7 +3648,6 @@ var userBehaviour = (() => {
       this.memory.healthCheckInterval = setInterval(() => {
         if (this.isRunning) {
           if (this.memory.listeners.length === 0) {
-            console.warn("\u{1F50D} STAKTRAK: Health check failed - no listeners, attempting recovery");
             this.recoverRecording();
           }
           this.saveSessionState();
@@ -2724,6 +3666,36 @@ var userBehaviour = (() => {
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", initializeStakTrak) : initializeStakTrak();
   userBehaviour.createClickDetail = createClickDetail;
+  userBehaviour.getActions = () => resultsToActions(userBehaviour.result());
+  userBehaviour.generatePlaywrightTest = (options) => {
+    const actions = resultsToActions(userBehaviour.result());
+    const code = generatePlaywrightTestFromActions(actions, options);
+    userBehaviour._lastGeneratedUsingActions = true;
+    return code;
+  };
+  userBehaviour.exportSession = (options) => {
+    const actions = resultsToActions(userBehaviour.result());
+    const test = generatePlaywrightTestFromActions(actions, options);
+    userBehaviour._lastGeneratedUsingActions = true;
+    return { actions, test };
+  };
+  userBehaviour.getScenario = () => {
+    const results = userBehaviour.result();
+    const actions = resultsToActions(results);
+    return buildScenario(results, actions);
+  };
+  userBehaviour.exportScenarioJSON = () => {
+    const sc = userBehaviour.getScenario();
+    return serializeScenario(sc);
+  };
+  userBehaviour.getSelectorScores = () => {
+    const results = userBehaviour.result();
+    if (!results.clicks || !results.clicks.clickDetails.length) return [];
+    const last = results.clicks.clickDetails[results.clicks.clickDetails.length - 1];
+    const sel = last.selectors;
+    if (sel && sel.scores) return sel.scores;
+    return [];
+  };
   var index_default = userBehaviour;
   return __toCommonJS(index_exports);
 })();

@@ -8,6 +8,12 @@ import {
 } from "./utils";
 import { debugMsg, isReactDevModeActive } from "./debug";
 import { initPlaywrightReplay } from "./playwright-replay/index";
+import { resultsToActions } from "./actionModel";
+import { buildScenario, serializeScenario } from './scenario';
+import {
+  generatePlaywrightTestFromActions,
+  GenerateOptions,
+} from "./playwright-generator";
 
 
 const defaultConfig: Config = {
@@ -111,7 +117,7 @@ class UserBehaviorTracker {
       };
       sessionStorage.setItem('stakTrakActiveRecording', JSON.stringify(sessionData));
     } catch (error) {
-      console.warn("🔍 STAKTRAK: Failed to save session state:", error);
+      
     }
   }
 
@@ -469,6 +475,32 @@ class UserBehaviorTracker {
       window.removeEventListener("popstate", popstateHandler)
     );
 
+    const hashHandler = () => {
+      recordStateChange("hashchange");
+    };
+    window.addEventListener('hashchange', hashHandler);
+    this.memory.alwaysListeners.push(() =>
+      window.removeEventListener('hashchange', hashHandler)
+    );
+
+    const anchorClickHandler = (e: Event) => {
+      const a = (e.target as HTMLElement).closest('a');
+      if (!a) return;
+      if (a.target && a.target !== '_self') return;
+      const href = a.getAttribute('href');
+      if (!href) return;
+      try {
+        const dest = new URL(href, window.location.href);
+        if (dest.origin === window.location.origin) {
+          this.results.pageNavigation.push({ type: 'anchorClick', url: dest.href, timestamp: getTimeStamp() });
+        }
+      } catch {}
+    };
+    document.addEventListener('click', anchorClickHandler, true);
+    this.memory.alwaysListeners.push(() =>
+      document.removeEventListener('click', anchorClickHandler, true)
+    );
+
     // Note: We don't restore original pushState/replaceState since they're global
     // and would break if multiple instances exist
   }
@@ -696,7 +728,7 @@ class UserBehaviorTracker {
         sessionStorage.removeItem('stakTrakActiveRecording');
       }
     } catch (error) {
-      console.warn("🔍 STAKTRAK: Session restoration failed:", error);
+      
       sessionStorage.removeItem('stakTrakActiveRecording');
     }
   }
@@ -710,7 +742,7 @@ class UserBehaviorTracker {
     
     // If we have fewer listeners than expected, re-setup
     if (this.isRunning && this.memory.listeners.length === 0) {
-      console.warn("🔍 STAKTRAK: No listeners found, re-establishing...");
+      
       this.setupEventListeners();
     }
   }
@@ -737,7 +769,7 @@ class UserBehaviorTracker {
       if (this.isRunning) {
         // Verify listeners are still active
         if (this.memory.listeners.length === 0) {
-          console.warn("🔍 STAKTRAK: Health check failed - no listeners, attempting recovery");
+          
           this.recoverRecording();
         }
         
@@ -774,5 +806,38 @@ document.readyState === "loading"
 
 // Add utility functions to the userBehaviour object for testing
 (userBehaviour as any).createClickDetail = createClickDetail;
+(userBehaviour as any).getActions = () =>
+  resultsToActions(userBehaviour.result());
+(userBehaviour as any).generatePlaywrightTest = (options: GenerateOptions) => {
+  const actions = resultsToActions(userBehaviour.result());
+  const code = generatePlaywrightTestFromActions(actions, options);
+  (userBehaviour as any)._lastGeneratedUsingActions = true;
+  return code;
+};
+(userBehaviour as any).exportSession = (options: GenerateOptions) => {
+  const actions = resultsToActions(userBehaviour.result());
+  const test = generatePlaywrightTestFromActions(actions, options);
+  (userBehaviour as any)._lastGeneratedUsingActions = true;
+  return { actions, test };
+};
+
+(userBehaviour as any).getScenario = () => {
+  const results = userBehaviour.result();
+  const actions = resultsToActions(results);
+  return buildScenario(results, actions);
+};
+(userBehaviour as any).exportScenarioJSON = () => {
+  const sc = (userBehaviour as any).getScenario();
+  return serializeScenario(sc);
+};
+
+(userBehaviour as any).getSelectorScores = () => {
+  const results = userBehaviour.result();
+  if (!results.clicks || !results.clicks.clickDetails.length) return [];
+  const last = results.clicks.clickDetails[results.clicks.clickDetails.length - 1];
+  const sel = last.selectors as any;
+  if (sel && sel.scores) return sel.scores;
+  return [];
+};
 
 export default userBehaviour;
