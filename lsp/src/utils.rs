@@ -53,3 +53,10 @@ pub async fn get_lsp_version(l: Language) -> Result<String> {
     stdout.read_to_end(&mut buf).await?;
     Ok(String::from_utf8_lossy(&buf).to_string())
 }
+
+pub fn remove_dir(path: &str) -> Result<()> {
+    if std::path::Path::new(path).exists() {
+        std::fs::remove_dir_all(path)?;
+    }
+    Ok(())
+}

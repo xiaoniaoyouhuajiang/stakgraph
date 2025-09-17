@@ -1,4 +1,4 @@
-use crate::utils::{run, run_res_in_dir};
+use crate::utils::{run, run_res_in_dir, remove_dir};
 use shared::error::{Context, Error, Result};
 use std::path::Path;
 use tracing::{debug, info};
@@ -77,6 +77,7 @@ pub async fn git_clone(
         run_res_in_dir("git", &["pull"], path).await?;
     } else {
         info!("Repository doesn't exist at {}, cloning it", path);
+        remove_dir(path)?;
         let output = run("git", &["clone", &repo_url, "--single-branch", path]).await;
         match output {
             Ok(_) => {
