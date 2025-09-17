@@ -77,6 +77,7 @@ app.get("/explore", r.explore);
 app.get("/understand", r.understand);
 app.post("/seed_understanding", r.seed_understanding);
 app.get("/ask", r.ask);
+app.get("/learnings", r.get_learnings);
 app.post("/seed_stories", r.seed_stories);
 app.get("/services_agent", r.gitsee_services);
 app.post("/gitsee", r.gitsee);

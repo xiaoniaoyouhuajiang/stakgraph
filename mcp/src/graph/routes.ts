@@ -33,6 +33,7 @@ import {
   QUESTIONS,
   LEARN_HTML,
   ask_prompt,
+  learnings,
 } from "../tools/intelligence/index.js";
 import { clone_and_explore_parse_files } from "gitsee-agent";
 import { GitSeeHandler } from "gitsee/server";
@@ -164,6 +165,26 @@ export async function ask(req: Request, res: Response) {
   } catch (error) {
     console.error("Ask Error:", error);
     res.status(500).send("Internal Server Error");
+  }
+}
+
+export async function get_learnings(req: Request, res: Response) {
+  // curl "http://localhost:3355/learnings?question=how%20does%20auth%20work%20in%20the%20repo"
+  const question =
+    (req.query.question as string) ||
+    "What are the core user stories in this project?";
+
+  try {
+    // Fetch top 25 Prompt nodes using vector search
+    const { prompts, hints } = await learnings(question);
+
+    res.json({
+      prompts: Array.isArray(prompts) ? prompts : [],
+      hints: Array.isArray(hints) ? hints : [],
+    });
+  } catch (error) {
+    console.error("Learnings Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 }
 

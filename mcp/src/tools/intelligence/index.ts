@@ -98,6 +98,37 @@ export async function ask_prompt(
   }
 }
 
+export async function learnings(question: string) {
+  const prompts = await G.search(
+    question,
+    25,
+    ["Prompt"],
+    false,
+    100000,
+    "vector",
+    "json"
+  );
+  const hints = await G.search(
+    question,
+    25,
+    ["Hint"],
+    false,
+    100000,
+    "vector",
+    "json"
+  );
+
+  // Extract only the question field (or name if no question) from node properties
+  const extractQuestion = (node: any) => {
+    return node?.properties?.question || node?.properties?.name || "";
+  };
+
+  return {
+    prompts: Array.isArray(prompts) ? prompts.map(extractQuestion) : [],
+    hints: Array.isArray(hints) ? hints.map(extractQuestion) : [],
+  };
+}
+
 /*
 
 NOTES
