@@ -38,7 +38,6 @@ function highlight(element: Element, actionType: string = "action"): void {
     if (last.text) htmlElement.setAttribute('data-staktrak-matched-text', last.text);
   }
 
-  element.scrollIntoView({ behavior: "smooth", block: "center" });
 
   setTimeout(() => {
     htmlElement.style.border = original.border;
@@ -171,17 +170,13 @@ export async function executePlaywrightAction(
           tryMatch();
           while (!matched && Date.now() - start < maxMs) {
             if (Date.now() - lastPulse > 1000) {
-              try {
-                document.body.style.outline = '3px dashed #ff6b6b';
-                setTimeout(()=>{ document.body.style.outline = ''; }, 400);
-              } catch {}
               lastPulse = Date.now();
             }
             await new Promise(r=>setTimeout(r,120));
             if (tryMatch()) break;
           }
           stopSignals.forEach(fn=>{ try { fn(); } catch {} });
-          try { highlight(document.body, matched ? 'nav' : 'nav-timeout'); } catch {}
+          
           try { ensureStylesInDocument(document); } catch {}
           if (!matched && !(window as any).__stakTrakWarnedNav) {
             console.warn('[staktrak] waitForURL timeout — last, expected', window.location.href, target);
@@ -385,11 +380,17 @@ export async function executePlaywrightAction(
           const element = await waitForElement(action.selector);
           if (element) {
             highlight(element, "scroll");
-            element.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-              inline: "center",
-            });
+            const rect = element.getBoundingClientRect();
+            const isVisible = rect.top >= 0 && rect.left >= 0 && 
+              rect.bottom <= window.innerHeight && rect.right <= window.innerWidth;
+            
+            if (!isVisible) {
+              element.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+                inline: "nearest",
+              });
+            }
           } else {
             throw new Error(
               `Element not found for scrollIntoView: ${action.selector}`

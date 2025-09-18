@@ -97,7 +97,6 @@ class UserBehaviorTracker {
 
     // Persist recording state to survive script reloads
     this.saveSessionState();
-    console.log("🔍 STAKTRAK: Recording state saved to sessionStorage");
 
     return this;
   }
@@ -185,7 +184,6 @@ class UserBehaviorTracker {
   }
 
   public setupEventListeners() {
-    console.log("🔍 STAKTRAK: Setting up event listeners", { isRunning: this.isRunning });
     
     if (this.config.clicks) {
       const clickHandler = (e: MouseEvent) => {
@@ -648,7 +646,6 @@ class UserBehaviorTracker {
 
     // Clear persisted state after successful stop
     sessionStorage.removeItem('stakTrakActiveRecording');
-    console.log("🔍 STAKTRAK: Recording state cleared from sessionStorage");
 
     return this;
   }
@@ -674,23 +671,19 @@ class UserBehaviorTracker {
     try {
       const activeRecording = sessionStorage.getItem('stakTrakActiveRecording');
       if (!activeRecording) {
-        console.log("🔍 STAKTRAK: No previous session to restore");
         return;
       }
 
       const recordingData = JSON.parse(activeRecording);
-      console.log("🔍 STAKTRAK: Found previous session data in sessionStorage");
 
       // Simple validation: if session data exists and claims to be recording, restore it
       if (recordingData && recordingData.isRecording && recordingData.version === "1.0") {
-        console.log("🔍 STAKTRAK: Attempting session restoration...");
 
         // Detect if this is an iframe reload (page loaded recently after session was saved)
         const timeSinceLastSave = Date.now() - (recordingData.lastSaved || 0);
         const isLikelyIframeReload = timeSinceLastSave < 10000; // Within 10 seconds
 
         if (isLikelyIframeReload) {
-          console.log("🔍 STAKTRAK: Detected iframe reload, restoring recording state");
           
           // Restore state
           if (recordingData.results) {
@@ -708,11 +701,6 @@ class UserBehaviorTracker {
           // Start health check for restored session
           this.startHealthCheck();
           
-          console.log("🔍 STAKTRAK: Session restored successfully", {
-            clicks: this.results.clicks.clickCount,
-            inputs: this.results.inputChanges.length,
-            assertions: this.memory.assertions.length
-          });
 
           // Verify event listeners are working
           this.verifyEventListeners();
@@ -720,11 +708,10 @@ class UserBehaviorTracker {
           // Notify parent that recording is active again
           window.parent.postMessage({ type: "staktrak-replay-ready" }, "*");
         } else {
-          console.log("🔍 STAKTRAK: Session data is too old, starting fresh");
           sessionStorage.removeItem('stakTrakActiveRecording');
         }
       } else {
-        console.log("🔍 STAKTRAK: Invalid session data, starting fresh");
+        // Invalid session data, starting fresh
         sessionStorage.removeItem('stakTrakActiveRecording');
       }
     } catch (error) {
@@ -734,11 +721,6 @@ class UserBehaviorTracker {
   }
 
   private verifyEventListeners() {
-    console.log("🔍 STAKTRAK: Verifying event listeners", {
-      isRunning: this.isRunning,
-      listenersCount: this.memory.listeners.length,
-      mutationObserver: !!this.memory.mutationObserver
-    });
     
     // If we have fewer listeners than expected, re-setup
     if (this.isRunning && this.memory.listeners.length === 0) {
@@ -748,9 +730,7 @@ class UserBehaviorTracker {
   }
 
   public recoverRecording() {
-    console.log("🔍 STAKTRAK: Attempting recording recovery");
     if (!this.isRunning) {
-      console.log("🔍 STAKTRAK: Recording was not active, starting fresh");
       return;
     }
     
@@ -759,8 +739,6 @@ class UserBehaviorTracker {
     
     // Save current state
     this.saveSessionState();
-    
-    console.log("🔍 STAKTRAK: Recording recovery completed");
   }
 
   private startHealthCheck() {
@@ -778,7 +756,6 @@ class UserBehaviorTracker {
       }
     }, 5000);
     
-    console.log("🔍 STAKTRAK: Health check started");
   }
 }
 
@@ -789,8 +766,9 @@ const userBehaviour = new UserBehaviorTracker();
 const initializeStakTrak = () => {
   userBehaviour
     .makeConfig({
-      processData: (results) =>
-        console.log("StakTrak recording processed:", results),
+      processData: (results) => {
+        // Recording completed - results are available
+      },
     })
     .listen();
   
