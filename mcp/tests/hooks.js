@@ -413,295 +413,14 @@ export function usePopup() {
   return { showPopup };
 }
 
-export function useIframeReplay(iframeRef) {
-  const { showPopup } = usePopup();
-  const [isReplaying, setIsReplaying] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [replaySpeed, setReplaySpeed] = useState(1);
-  const [replayStatus, setReplayStatus] = useState("idle");
-  const replayInitializedRef = useRef(false);
-
-  const startReplay = (trackingData) => {
-    if (!iframeRef?.current?.contentWindow) {
-      showPopup("Iframe not available for replay", "error");
-      return false;
-    }
-
-    const actions = trackingData;
-    if (!actions) {
-      showPopup("No actions to replay", "warning");
-      return false;
-    }
-
-    setIsReplaying(true);
-    setIsPaused(false);
-    setReplayStatus("playing");
-    const lens =
-      actions.clicks.clickDetails.length +
-      actions.inputChanges.length +
-      actions.formElementChanges.length;
-    setProgress({ current: 0, total: lens });
-
-    try {
-      // Clean and validate actions
-
-      const container = document.querySelector(".iframe-container");
-      if (container) {
-        container.classList.add("replaying");
-      }
-
-      // Send actions to iframe
-      iframeRef.current.contentWindow.postMessage(
-        {
-          type: "staktrak-replay-actions",
-          actions,
-        },
-        "*"
-      );
-
-      // Start replay with delay
-      setTimeout(() => {
-        if (iframeRef.current && iframeRef.current.contentWindow) {
-          iframeRef.current.contentWindow.postMessage(
-            {
-              type: "staktrak-replay-start",
-              speed: replaySpeed,
-            },
-            "*"
-          );
-          showPopup(`Test replay started with ${lens}} actions`, "info");
-        } else {
-          showPopup("Iframe not available for replay", "error");
-          setIsReplaying(false);
-
-          if (container) {
-            container.classList.remove("replaying");
-          }
-        }
-      }, 500);
-
-      return true;
-    } catch (error) {
-      console.error("Error starting replay:", error);
-      showPopup(`Error starting replay: ${error.message}`, "error");
-      setIsReplaying(false);
-
-      const container = document.querySelector(".iframe-container");
-      if (container) {
-        container.classList.remove("replaying");
-      }
-
-      return false;
-    }
-  };
-
-  const pauseReplay = () => {
-    if (!isReplaying || !iframeRef?.current?.contentWindow) return;
-
-    try {
-      iframeRef.current.contentWindow.postMessage(
-        { type: "staktrak-replay-pause" },
-        "*"
-      );
-      setIsPaused(true);
-      setReplayStatus("paused");
-      showPopup("Test replay paused", "info");
-    } catch (error) {
-      console.error("Error pausing replay:", error);
-      showPopup(`Error pausing replay: ${error.message}`, "error");
-    }
-  };
-
-  const resumeReplay = () => {
-    if (!isReplaying || !isPaused || !iframeRef?.current?.contentWindow) return;
-
-    try {
-      iframeRef.current.contentWindow.postMessage(
-        { type: "staktrak-replay-resume" },
-        "*"
-      );
-      setIsPaused(false);
-      setReplayStatus("playing");
-      showPopup("Test replay resumed", "info");
-    } catch (error) {
-      console.error("Error resuming replay:", error);
-      showPopup(`Error resuming replay: ${error.message}`, "error");
-    }
-  };
-
-  const stopReplay = () => {
-    if (!iframeRef?.current?.contentWindow) return;
-
-    try {
-      iframeRef.current.contentWindow.postMessage(
-        {
-          type: "staktrak-replay-stop",
-        },
-        "*"
-      );
-
-      setIsReplaying(false);
-      setIsPaused(false);
-      setReplayStatus("idle");
-      showPopup("Test replay stopped", "warning");
-    } catch (error) {
-      console.error("Error stopping replay:", error);
-      showPopup(`Error stopping replay: ${error.message}`, "error");
-      setIsReplaying(false);
-      setIsPaused(false);
-      setReplayStatus("idle");
-
-      const container = document.querySelector(".iframe-container");
-      if (container) {
-        container.classList.remove("replaying");
-        container.classList.remove("replaying-fadeout");
-      }
-    }
-  };
-
-  const changeReplaySpeed = (speed) => {
-    if (!iframeRef?.current?.contentWindow) return;
-
-    const newSpeed = parseFloat(speed);
-    if (isNaN(newSpeed) || newSpeed <= 0) return;
-
-    try {
-      iframeRef.current.contentWindow.postMessage(
-        {
-          type: "staktrak-replay-speed",
-          speed: newSpeed,
-        },
-        "*"
-      );
-
-      setReplaySpeed(newSpeed);
-      showPopup(`Replay speed set to ${newSpeed}x`, "info");
-    } catch (error) {
-      console.error("Error changing replay speed:", error);
-      showPopup(`Error changing speed: ${error.message}`, "error");
-    }
-  };
-
-  useEffect(() => {
-    const checkReplayReady = () => {
-      if (!iframeRef?.current?.contentWindow) return;
-
-      try {
-        iframeRef.current.contentWindow.postMessage(
-          { type: "staktrak-replay-ping" },
-          "*"
-        );
-      } catch (error) {
-        console.error("Error checking replay ready state:", error);
-      }
-    };
-
-    const interval = setInterval(checkReplayReady, 2000);
-    checkReplayReady();
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [iframeRef]);
-
-  useEffect(() => {
-    const handleMessage = (event) => {
-      if (!event.data?.type) return;
-
-      switch (event.data.type) {
-        case "staktrak-replay-ready":
-          replayInitializedRef.current = true;
-          break;
-
-        case "staktrak-replay-progress":
-          setProgress({
-            current: event.data.currentAction,
-            total: event.data.totalActions,
-          });
-          break;
-
-        case "staktrak-replay-completed":
-          if (event.data.totalActions) {
-            setProgress({
-              current: event.data.totalActions - 1,
-              total: event.data.totalActions,
-            });
-          }
-          setReplayStatus("completed");
-          showPopup("Test replay completed", "success");
-          break;
-
-        case "staktrak-replay-fadeout":
-          const container = document.querySelector(".iframe-container");
-          if (container) {
-            container.classList.add("replaying-fadeout");
-          }
-
-          setTimeout(() => {
-            if (container) {
-              container.classList.remove("replaying");
-              container.classList.remove("replaying-fadeout");
-              setIsReplaying(false);
-              setIsPaused(false);
-            }
-          }, 1000);
-          break;
-
-        case "staktrak-replay-paused":
-          setIsPaused(true);
-          setReplayStatus("paused");
-          break;
-
-        case "staktrak-replay-resumed":
-          setIsPaused(false);
-          setReplayStatus("playing");
-          break;
-
-        case "staktrak-replay-stopped":
-          setIsReplaying(false);
-          setIsPaused(false);
-          setReplayStatus("idle");
-
-          const containerElement = document.querySelector(".iframe-container");
-          if (containerElement) {
-            containerElement.classList.remove("replaying");
-            containerElement.classList.remove("replaying-fadeout");
-          }
-          break;
-
-        case "staktrak-replay-error":
-          showPopup(`Error during replay: ${event.data.error}`, "error");
-          break;
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, []);
-
-  return {
-    isReplaying,
-    isPaused,
-    replayStatus,
-    progress,
-    replaySpeed,
-    startReplay,
-    pauseReplay,
-    resumeReplay,
-    stopReplay,
-    changeReplaySpeed,
-    isReplayReady: replayInitializedRef.current,
-  };
-}
-
 export function usePlaywrightReplay(iframeRef) {
   const { showPopup } = usePopup();
   const [isPlaywrightReplaying, setIsPlaywrightReplaying] = useState(false);
   const [isPlaywrightPaused, setIsPlaywrightPaused] = useState(false);
-  const [playwrightProgress, setPlaywrightProgress] = useState({ current: 0, total: 0 });
+  const [playwrightProgress, setPlaywrightProgress] = useState({
+    current: 0,
+    total: 0,
+  });
 
   const [playwrightStatus, setPlaywrightStatus] = useState("idle");
   const [currentAction, setCurrentAction] = useState(null);
@@ -713,12 +432,12 @@ export function usePlaywrightReplay(iframeRef) {
       return false;
     }
 
-    if (!testCode || typeof testCode !== 'string') {
+    if (!testCode || typeof testCode !== "string") {
       showPopup("No test code provided for replay", "warning");
       return false;
     }
 
-    if (!testCode.includes('page.') || !testCode.includes('test(')) {
+    if (!testCode.includes("page.") || !testCode.includes("test(")) {
       showPopup("Invalid Playwright test format", "error");
       return false;
     }
@@ -777,7 +496,12 @@ export function usePlaywrightReplay(iframeRef) {
   };
 
   const resumePlaywrightReplay = () => {
-    if (!isPlaywrightReplaying || !isPlaywrightPaused || !iframeRef?.current?.contentWindow) return;
+    if (
+      !isPlaywrightReplaying ||
+      !isPlaywrightPaused ||
+      !iframeRef?.current?.contentWindow
+    )
+      return;
 
     try {
       iframeRef.current.contentWindow.postMessage(
@@ -819,7 +543,6 @@ export function usePlaywrightReplay(iframeRef) {
     }
   };
 
-
   useEffect(() => {
     const handleMessage = (event) => {
       const { data } = event;
@@ -840,28 +563,34 @@ export function usePlaywrightReplay(iframeRef) {
           setIsPlaywrightPaused(false);
           setPlaywrightStatus("completed");
           setCurrentAction(null);
-          
+
           const container = document.querySelector(".iframe-container");
           if (container) {
             container.classList.remove("playwright-replaying");
           }
-          
+
           showPopup("Playwright replay completed successfully", "success");
           break;
 
         case "staktrak-playwright-replay-error":
           const errorMsg = data.error || "Unknown error";
-          setReplayErrors(prev => [...prev, {
-            message: errorMsg,
-            actionIndex: data.actionIndex,
-            action: data.action,
-            timestamp: new Date().toISOString()
-          }]);
-          
+          setReplayErrors((prev) => [
+            ...prev,
+            {
+              message: errorMsg,
+              actionIndex: data.actionIndex,
+              action: data.action,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+
           // Don't stop replay on error, just log it
           console.warn("Playwright replay error:", errorMsg);
           if (data.actionIndex !== undefined) {
-            showPopup(`Error at action ${data.actionIndex + 1}: ${errorMsg}`, "warning");
+            showPopup(
+              `Error at action ${data.actionIndex + 1}: ${errorMsg}`,
+              "warning"
+            );
           }
           break;
 
@@ -881,7 +610,7 @@ export function usePlaywrightReplay(iframeRef) {
           setPlaywrightStatus("idle");
           setCurrentAction(null);
           setPlaywrightProgress({ current: 0, total: 0 });
-          
+
           const stopContainer = document.querySelector(".iframe-container");
           if (stopContainer) {
             stopContainer.classList.remove("playwright-replaying");
