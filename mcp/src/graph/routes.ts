@@ -35,7 +35,7 @@ import {
   ask_prompt,
   learnings,
 } from "../tools/intelligence/index.js";
-import { clone_and_explore_parse_files } from "gitsee-agent";
+import { clone_and_explore_parse_files, clone_and_explore } from "gitsee-agent";
 import { GitSeeHandler } from "gitsee/server";
 import * as asyncReqs from "./reqs.js";
 
@@ -419,6 +419,58 @@ export async function gitsee_services(req: Request, res: Response) {
       {
         username,
         token: pat,
+      }
+    )
+      .then((ctx) => {
+        asyncReqs.finishReq(request_id, ctx);
+      })
+      .catch((error) => {
+        asyncReqs.failReq(request_id, error);
+      });
+    res.json({ request_id, status: "pending" });
+  } catch (error) {
+    console.log("===> error", error);
+    asyncReqs.failReq(request_id, error);
+    console.error("Error getting services config:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to generate services configuration" });
+  }
+}
+
+export async function gitsee_agent(req: Request, res: Response) {
+  // curl "http://localhost:3355/agent?owner=stakwork&repo=hive&prompt=How%20do%20I%20set%20up%20this%20repo"
+  // curl "http://localhost:3355/progress?request_id=51f5cce2-d5e8-4619-add3-c2f4cb37e1ba"
+  console.log("===> gitsee agent", req.url, req.method, req.query.prompt);
+  const request_id = asyncReqs.startReq();
+  try {
+    const owner = req.query.owner as string;
+    const repo = req.query.repo as string | undefined;
+    const prompt = req.query.prompt as string | undefined;
+    const system = req.query.system as string | undefined;
+    const final_answer = req.query.final_answer as string | undefined;
+    if (!repo || !owner) {
+      res.status(400).json({ error: "Missing repo" });
+      return;
+    }
+    if (!prompt) {
+      res.status(400).json({ error: "Missing prompt" });
+      return;
+    }
+    const username = req.query.username as string | undefined;
+    const pat = req.query.pat as string | undefined;
+    clone_and_explore(
+      owner,
+      repo,
+      prompt,
+      "generic",
+      {
+        username,
+        token: pat,
+      },
+      {
+        system_prompt: system,
+        final_answer_description: final_answer,
       }
     )
       .then((ctx) => {
