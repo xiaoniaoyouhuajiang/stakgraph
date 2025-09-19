@@ -119,22 +119,9 @@ async function filter_by_relevance_from_cache(
   const existing = existingAll.filter(
     (e: any) => e.properties.score && e.properties.score >= similarityThreshold
   );
-  let candidates = existing;
-  if (persona) {
-    const byPersona = existing.filter(
-      (e: any) => (e.properties.persona || "PM") === persona
-    );
-    if (byPersona.length > 0) {
-      candidates = byPersona;
-    } else {
-      const byPM = existing.filter(
-        (e: any) => (e.properties.persona || "PM") === "PM"
-      );
-      if (byPM.length > 0) {
-        candidates = byPM;
-      }
-    }
-  }
+  const candidates = persona
+    ? existing.filter((e: any) => (e.properties.persona || "PM") === persona)
+    : existing;
   if (Array.isArray(existingAll) && existingAll.length > 0) {
     if (originalPrompt) {
       let qas = "";
