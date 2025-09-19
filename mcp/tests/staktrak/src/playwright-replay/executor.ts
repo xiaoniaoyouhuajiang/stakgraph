@@ -1,5 +1,81 @@
 import { PlaywrightAction, ReplayStatus } from "../types";
 
+// Replay match tracking (stores last matched selector + requested selector + text)
+const __stakReplayMatch = (window as any).__stakTrakReplayMatch || { last: null as null | { requested: string; matched: string; text?: string; time: number; element?: Element } };
+(window as any).__stakTrakReplayMatch = __stakReplayMatch;
+
+// Maintain last structurally-unique selector to stabilize transitions
+const __stakReplayState = (window as any).__stakTrakReplayState || { lastStructural: null as string | null, lastEl: null as Element | null };
+(window as any).__stakTrakReplayState = __stakReplayState;
+
+// Map for primary selector -> metadata (visualSelector) populated externally before replay
+(window as any).__stakTrakSelectorMap = (window as any).__stakTrakSelectorMap || {};
+
+// Simple one-shot warning cache to avoid log spam
+const __stakWarned: Record<string, boolean> = (window as any).__stakTrakWarned || {};
+(window as any).__stakTrakWarned = __stakWarned;
+
+function highlight(element: Element, actionType: string = "action"): void {
+  try { ensureStylesInDocument(document); } catch {}
+  const htmlElement = element as HTMLElement;
+
+  const original = {
+    border: htmlElement.style.border,
+    boxShadow: htmlElement.style.boxShadow,
+    backgroundColor: htmlElement.style.backgroundColor,
+  };
+
+  htmlElement.style.border = "3px solid #ff6b6b";
+  htmlElement.style.boxShadow = "0 0 20px rgba(255, 107, 107, 0.8)";
+  htmlElement.style.backgroundColor = "rgba(255, 107, 107, 0.2)";
+  htmlElement.style.transition = "all 0.3s ease";
+
+  // Attach match metadata if present
+  const last = __stakReplayMatch.last;
+  if (last && last.element === element && Date.now() - last.time < 4000) {
+    htmlElement.setAttribute('data-staktrak-matched-selector', last.matched);
+    htmlElement.setAttribute('data-staktrak-requested-selector', last.requested);
+    if (last.text) htmlElement.setAttribute('data-staktrak-matched-text', last.text);
+  }
+
+
+  setTimeout(() => {
+    htmlElement.style.border = original.border;
+    htmlElement.style.boxShadow = original.boxShadow;
+    htmlElement.style.backgroundColor = original.backgroundColor;
+    htmlElement.style.transition = "";
+  }, 1500);
+}
+
+function normalizeUrl(u: string): string {
+  try {
+    const url = new URL(u, window.location.origin);
+    return url.href.replace(/[#?].*$/, '').replace(/\/$/, '');
+  } catch {
+    return u.replace(/[#?].*$/, '').replace(/\/$/, '');
+  }
+}
+
+enum PlaywrightActionType {
+  GOTO = "goto",
+  CLICK = "click",
+  FILL = "fill",
+  CHECK = "check",
+  UNCHECK = "uncheck",
+  SELECT_OPTION = "selectOption",
+  WAIT_FOR_TIMEOUT = "waitForTimeout",
+  WAIT_FOR_SELECTOR = "waitForSelector",
+  WAIT_FOR_URL = "waitForURL",
+  WAIT_FOR = "waitFor",
+  WAIT_FOR_LOAD_STATE = "waitForLoadState",
+  SET_VIEWPORT_SIZE = "setViewportSize",
+  HOVER = "hover",
+  FOCUS = "focus",
+  BLUR = "blur",
+  SCROLL_INTO_VIEW = "scrollIntoView",
+  EXPECT = "expect",
+}
+
 function getRoleSelector(role: string): string {
   const roleMap: Record<string, string> = {
     button:
@@ -32,7 +108,7 @@ export async function executePlaywrightAction(
 ): Promise<void> {
   try {
     switch (action.type) {
-      case "goto":
+      case PlaywrightActionType.GOTO:
         if (action.value && typeof action.value === "string") {
           window.parent.postMessage(
             {
@@ -44,7 +120,7 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "setViewportSize":
+      case PlaywrightActionType.SET_VIEWPORT_SIZE:
         if (action.options) {
           try {
             if (window.top === window) {
@@ -56,46 +132,116 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "waitForLoadState":
+      case PlaywrightActionType.WAIT_FOR_LOAD_STATE:
         break;
 
-      case "waitForSelector":
+      case PlaywrightActionType.WAIT_FOR_SELECTOR:
         if (action.selector) {
           await waitForElement(action.selector);
         }
         break;
+      case PlaywrightActionType.WAIT_FOR_URL:
+        if (action.value && typeof action.value === 'string') {
+          const target = normalizeUrl(action.value);
+          const start = Date.now();
+          let matched = false;
+          let lastPulse = 0;
+          const maxMs = 8000;
+          const stopSignals: Array<() => void> = [];
+          const tryMatch = () => {
+            const current = normalizeUrl(window.location.href);
+            if (current === target) { matched = true; return true; }
+            try {
+              const curNoHash = current.replace(/#.*/,'');
+              const tgtNoHash = target.replace(/#.*/,'');
+              if (curNoHash === tgtNoHash) { matched = true; return true; }
+            } catch {}
+            return false;
+          };
+          // Event-driven shortcut via SPA history instrumentation
+          const onHist = (e: any) => {
+            if (!matched && tryMatch()) {}
+          };
+          try { window.addEventListener('staktrak-history-change', onHist as any); stopSignals.push(()=>window.removeEventListener('staktrak-history-change', onHist as any)); } catch {}
+          // Also listen to hashchange (some routers rely on it)
+          const onHash = () => { if (!matched && tryMatch()) {} };
+          try { window.addEventListener('hashchange', onHash); stopSignals.push(()=>window.removeEventListener('hashchange', onHash)); } catch {}
+          // Initial immediate check
+          tryMatch();
+          while (!matched && Date.now() - start < maxMs) {
+            if (Date.now() - lastPulse > 1000) {
+              lastPulse = Date.now();
+            }
+            await new Promise(r=>setTimeout(r,120));
+            if (tryMatch()) break;
+          }
+          stopSignals.forEach(fn=>{ try { fn(); } catch {} });
+          
+          try { ensureStylesInDocument(document); } catch {}
+          if (!matched && !(window as any).__stakTrakWarnedNav) {
+            console.warn('[staktrak] waitForURL timeout — last, expected', window.location.href, target);
+            (window as any).__stakTrakWarnedNav = true;
+          }
+        }
+        break;
 
-      case "click":
+      case PlaywrightActionType.CLICK:
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
             const htmlElement = element as HTMLElement;
-            // element.scrollIntoView({ behavior: "auto", block: "center" });
 
-            const originalBorder = htmlElement.style.border;
-            htmlElement.style.border = "3px solid #ff6b6b";
-            htmlElement.style.boxShadow = "0 0 10px rgba(255, 107, 107, 0.5)";
+            highlight(element, "click");
 
-            htmlElement.click();
+            try {
+              htmlElement.focus();
+            } catch {}
 
-            setTimeout(() => {
-              htmlElement.style.border = originalBorder;
-              htmlElement.style.boxShadow = "";
-            }, 300);
+            try {
+              element.dispatchEvent(
+                new MouseEvent("mousedown", {
+                  bubbles: true,
+                  cancelable: true,
+                  view: window,
+                })
+              );
+
+              await new Promise((resolve) => setTimeout(resolve, 10));
+
+              element.dispatchEvent(
+                new MouseEvent("mouseup", {
+                  bubbles: true,
+                  cancelable: true,
+                  view: window,
+                })
+              );
+
+              await new Promise((resolve) => setTimeout(resolve, 10));
+
+              htmlElement.click();
+              element.dispatchEvent(
+                new MouseEvent("click", {
+                  bubbles: true,
+                  cancelable: true,
+                  view: window,
+                })
+              );
+            } catch (clickError) { throw clickError; }
+
+            await new Promise((resolve) => setTimeout(resolve, 50));
           } else {
             throw new Error(`Element not found: ${action.selector}`);
           }
         }
         break;
 
-      case "fill":
+      case PlaywrightActionType.FILL:
         if (action.selector && action.value !== undefined) {
           const element = (await waitForElement(action.selector)) as
             | HTMLInputElement
             | HTMLTextAreaElement;
           if (element) {
-            // element.scrollIntoView({ behavior: "auto", block: "center" });
-
+            highlight(element, "fill");
             element.focus();
             element.value = "";
             element.value = String(action.value);
@@ -107,7 +253,7 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "check":
+      case PlaywrightActionType.CHECK:
         if (action.selector) {
           const element = (await waitForElement(
             action.selector
@@ -116,8 +262,7 @@ export async function executePlaywrightAction(
             element &&
             (element.type === "checkbox" || element.type === "radio")
           ) {
-            // element.scrollIntoView({ behavior: "auto", block: "center" });
-
+            highlight(element, "check");
             if (!element.checked) {
               element.click();
             }
@@ -129,14 +274,13 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "uncheck":
+      case PlaywrightActionType.UNCHECK:
         if (action.selector) {
           const element = (await waitForElement(
             action.selector
           )) as HTMLInputElement;
           if (element && element.type === "checkbox") {
-            // element.scrollIntoView({ behavior: "auto", block: "center" });
-
+            highlight(element, "uncheck");
             if (element.checked) {
               element.click();
             }
@@ -146,14 +290,13 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "selectOption":
+      case PlaywrightActionType.SELECT_OPTION:
         if (action.selector && action.value !== undefined) {
           const element = (await waitForElement(
             action.selector
           )) as HTMLSelectElement;
           if (element && element.tagName === "SELECT") {
-            // element.scrollIntoView({ behavior: "auto", block: "center" });
-
+            highlight(element, "select");
             element.value = String(action.value);
             element.dispatchEvent(new Event("change", { bubbles: true }));
           } else {
@@ -162,12 +305,12 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "waitForTimeout":
+      case PlaywrightActionType.WAIT_FOR_TIMEOUT:
         const shortDelay = Math.min(action.value as number, 500);
         await new Promise((resolve) => setTimeout(resolve, shortDelay));
         break;
 
-      case "waitFor":
+      case PlaywrightActionType.WAIT_FOR:
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (!element) {
@@ -183,11 +326,11 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "hover":
+      case PlaywrightActionType.HOVER:
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
-            // element.scrollIntoView({ behavior: "auto", block: "center" });
+            highlight(element, "hover");
             element.dispatchEvent(
               new MouseEvent("mouseover", { bubbles: true })
             );
@@ -200,13 +343,13 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "focus":
+      case PlaywrightActionType.FOCUS:
         if (action.selector) {
           const element = (await waitForElement(
             action.selector
           )) as HTMLElement;
           if (element && typeof element.focus === "function") {
-            // element.scrollIntoView({ behavior: "auto", block: "center" });
+            highlight(element, "focus");
             element.focus();
           } else {
             throw new Error(
@@ -216,12 +359,13 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "blur":
+      case PlaywrightActionType.BLUR:
         if (action.selector) {
           const element = (await waitForElement(
             action.selector
           )) as HTMLElement;
           if (element && typeof element.blur === "function") {
+            highlight(element, "blur");
             element.blur();
           } else {
             throw new Error(
@@ -231,15 +375,22 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "scrollIntoView":
+      case PlaywrightActionType.SCROLL_INTO_VIEW:
         if (action.selector) {
           const element = await waitForElement(action.selector);
           if (element) {
-            element.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-              inline: "center",
-            });
+            highlight(element, "scroll");
+            const rect = element.getBoundingClientRect();
+            const isVisible = rect.top >= 0 && rect.left >= 0 && 
+              rect.bottom <= window.innerHeight && rect.right <= window.innerWidth;
+            
+            if (!isVisible) {
+              element.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+                inline: "nearest",
+              });
+            }
           } else {
             throw new Error(
               `Element not found for scrollIntoView: ${action.selector}`
@@ -248,14 +399,14 @@ export async function executePlaywrightAction(
         }
         break;
 
-      case "expect":
+      case PlaywrightActionType.EXPECT:
         if (action.selector) {
           await verifyExpectation(action);
         }
         break;
 
       default:
-        console.warn(`Unknown action type: ${action.type}`);
+  // unknown action type ignored
         break;
     }
   } catch (error) {
@@ -275,9 +426,7 @@ async function waitForElements(
       if (elements.length > 0) {
         return elements;
       }
-    } catch (error) {
-      console.warn(`Error finding elements with selector: ${selector}`, error);
-    }
+    } catch {}
 
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -293,35 +442,223 @@ function findElements(selector: string): Element[] {
 function findElementWithFallbacks(selector: string): Element | null {
   if (!selector || selector.trim() === "") return null;
 
+  // If selector is a DSL (text=/role:) AND we have a stored mapping (window.__stakTrakSelectorMap) use its visualSelector for highlighting attempt
+  try {
+    if ((selector.startsWith('text=') || selector.startsWith('role:')) && (window as any).__stakTrakSelectorMap) {
+      const map = (window as any).__stakTrakSelectorMap as Record<string, { visualSelector?: string }>;
+      const entry = map[selector];
+      if (entry?.visualSelector) {
+        try {
+          const cssEl = document.querySelector(entry.visualSelector);
+          if (cssEl) return cssEl;
+        } catch {}
+      }
+    }
+  } catch {}
+
+  // Fast path: unique structural tag.class selector
+  if (/^[a-zA-Z]+\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/.test(selector)) {
+    try {
+      const matches = document.querySelectorAll(selector);
+      if (matches.length === 1) {
+        __stakReplayState.lastStructural = selector;
+        __stakReplayState.lastEl = matches[0];
+        return matches[0];
+      }
+    } catch {}
+  }
+
+  // If selector is role/text and we have a previous unique structural pointing to same accessible name, reuse it to avoid container highlight flicker
+  if ((selector.startsWith('role:') || selector.startsWith('text=')) && __stakReplayState.lastStructural && __stakReplayState.lastEl) {
+    // verify element still present
+    try {
+      if (document.contains(__stakReplayState.lastEl)) {
+        const acc = getAccessibleName(__stakReplayState.lastEl as HTMLElement);
+        const nameMatch = selector.includes('name="') ? selector.includes(`name="${acc}`) : selector.includes(acc || '');
+        if (acc && nameMatch) {
+          return __stakReplayState.lastEl;
+        }
+      }
+    } catch {}
+  }
+
+  const noteMatch = (el: Element | null, matched: string, text?: string) => {
+    if (el) {
+      __stakReplayMatch.last = { requested: selector, matched, text, time: Date.now(), element: el };
+      if (text) (el as any).__stakTrakMatchedText = text;
+    }
+    return el;
+  };
+
+  if (selector.startsWith('role:')) {
+    const roleMatch = selector.match(/^role:([^\[]+)(?:\[name(?:-regex)?="(.+?)"\])?/);
+    if (roleMatch) {
+      const role = roleMatch[1];
+      const nameRaw = roleMatch[2];
+      const nameRegex = selector.includes('[name-regex=');
+      const candidates = Array.from(queryByRole(role.trim()));
+      if (!nameRaw) {
+        return noteMatch((candidates[0] as Element) || null, selector);
+      }
+      let matcher: (s: string) => boolean;
+      if (nameRegex) {
+        const rx = nameRaw.match(/^\/(.*)\/(.*)$/);
+        if (rx) {
+          try { const r = new RegExp(rx[1], rx[2]); matcher = (s) => r.test(s); } catch { matcher = (s)=>s.includes(nameRaw); }
+        } else {
+          matcher = (s) => s.includes(nameRaw);
+        }
+      } else {
+        const target = nameRaw;
+        matcher = (s) => s === target;
+      }
+      for (const el of candidates) {
+        const acc = getAccessibleName(el as HTMLElement);
+        if (acc && matcher(acc)) {
+          return noteMatch(el as Element, selector, acc);
+        }
+      }
+      return noteMatch(null, selector);
+    }
+  }
+
+  if (selector.startsWith('text=') && selector.endsWith(':exact')) {
+    const core = selector.slice('text='.length, -(':exact'.length));
+    const norm = core.trim();
+    const interactive = Array.from(document.querySelectorAll('button, a, [role], input, textarea, select')) as HTMLElement[];
+    const exact = interactive.filter(el => (el.textContent||'').trim() === norm);
+    if (exact.length === 1) return noteMatch(exact[0], selector, norm);
+    if (exact.length > 1) {
+      // take the deepest (most specific) element to avoid container highlight
+      const deepest = exact.sort((a,b) => depth(b)-depth(a))[0];
+      return noteMatch(deepest, selector, norm);
+    }
+    return noteMatch(null, selector);
+  }
+
+  if (selector.startsWith('getByTestId:')) {
+    const val = selector.substring('getByTestId:'.length);
+    return noteMatch(document.querySelector(`[data-testid="${cssEscape(val)}"]`), `[data-testid="${val}"]`);
+  }
+  if (selector.startsWith('getByText-regex:')) {
+    const body = selector.substring('getByText-regex:'.length);
+    const rx = body.match(/^\/(.*)\/(.*)$/);
+    let r: RegExp | null = null;
+    if (rx) try { r = new RegExp(rx[1], rx[2]); } catch {}
+    const all = textSearchCandidates();
+    for (const el of all) {
+      const txt = el.textContent?.trim() || '';
+      if (r && r.test(txt)) { return noteMatch(el, selector, txt); }
+    }
+    return noteMatch(null, selector);
+  }
+  if (selector.startsWith('getByText:')) {
+    // format getByText:Text or getByText:Text:exact
+    const exact = selector.endsWith(':exact');
+    const core = exact ? selector.slice('getByText:'.length, -(':exact'.length)) : selector.slice('getByText:'.length);
+    const norm = core.trim();
+    const all = textSearchCandidates();
+    for (const el of all) {
+      const txt = el.textContent?.trim() || '';
+      if ((exact && txt === norm) || (!exact && txt.includes(norm))) {
+        return noteMatch(el, selector, txt);
+      }
+    }
+    return noteMatch(null, selector);
+  }
+  if (selector.startsWith('getByLabel:')) {
+    const label = selector.substring('getByLabel:'.length).trim();
+    // label[for]
+    const labels = Array.from(document.querySelectorAll('label')).filter(l => l.textContent?.trim() === label);
+    for (const lab of labels) {
+      const forId = lab.getAttribute('for');
+      if (forId) {
+        const ctl = document.getElementById(forId);
+        if (ctl) return noteMatch(ctl, selector);
+      }
+      // nested control
+      const nested = lab.querySelector('input,select,textarea,button');
+      if (nested) return noteMatch(nested, selector);
+    }
+    // aria-label fallback
+    return noteMatch(document.querySelector(`[aria-label="${cssEscape(label)}"]`), selector);
+  }
+  if (selector.startsWith('getByPlaceholder:')) {
+    const ph = selector.substring('getByPlaceholder:'.length);
+    return noteMatch(document.querySelector(`[placeholder="${cssEscape(ph)}"]`), selector);
+  }
+  if (selector.startsWith('getByTitle:')) {
+    const t = selector.substring('getByTitle:'.length);
+    return noteMatch(document.querySelector(`[title="${cssEscape(t)}"]`), selector);
+  }
+  if (selector.startsWith('getByAltText:')) {
+    const alt = selector.substring('getByAltText:'.length);
+    return noteMatch(document.querySelector(`[alt="${cssEscape(alt)}"]`), selector);
+  }
+
   const browserSelector = convertToBrowserSelector(selector);
 
   if (browserSelector && isValidSelector(browserSelector)) {
     const element = document.querySelector(browserSelector);
-    if (element) return element;
+    if (element) return noteMatch(element, browserSelector);
   }
 
   const strategies = [
     () => findByDataTestId(selector),
-    () => findByClass(selector),
     () => findById(selector),
+    () => findByClassUnique(selector),
     () => findByAriaLabel(selector),
     () => findByRole(selector),
-    () => findByTextContent(selector),
-    () => findByCoordinates(selector),
+    () => findByTextContentTight(selector),
   ];
 
   for (const strategy of strategies) {
     try {
       const element = strategy();
       if (element) {
-        return element;
+        return noteMatch(element, selector);
       }
-    } catch (error) {
-      console.warn(`Strategy failed for ${selector}:`, error);
-    }
+    } catch {}
   }
 
+  return noteMatch(null, selector);
+}
+
+// --- Helper utilities added for enhanced selector resolution ---
+function cssEscape(value: string): string {
+  // Basic CSS.escape polyfill (not full spec)
+  return value.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`);
+}
+
+function queryByRole(role: string): HTMLElement[] {
+  const selector = getRoleSelector(role);
+  return Array.from(document.querySelectorAll(selector))
+    .filter(el => el instanceof HTMLElement) as HTMLElement[];
+}
+
+function getAccessibleName(el: HTMLElement): string | null {
+  // priority: aria-label, aria-labelledby, text content, title, value/placeholder
+  const aria = el.getAttribute('aria-label');
+  if (aria) return aria.trim();
+  const labelled = el.getAttribute('aria-labelledby');
+  if (labelled) {
+    const parts = labelled.split(/\s+/).map(id => document.getElementById(id)?.textContent?.trim()).filter(Boolean) as string[];
+    if (parts.length) return parts.join(' ');
+  }
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'input' || tag === 'textarea') {
+    const val = (el as HTMLInputElement).value || el.getAttribute('placeholder');
+    if (val) return val.trim();
+  }
+  const txt = el.textContent?.trim();
+  if (txt) return txt.slice(0,120);
+  const title = el.getAttribute('title');
+  if (title) return title.trim();
   return null;
+}
+
+function textSearchCandidates(): HTMLElement[] {
+  return Array.from(document.querySelectorAll('button, a, [role], input, textarea, select, label, div, span')) as HTMLElement[];
 }
 
 function convertToBrowserSelector(selector: string): string {
@@ -373,12 +710,20 @@ function findByDataTestId(selector: string): Element | null {
   return null;
 }
 
-function findByClass(selector: string): Element | null {
-  if (!selector.includes(".")) return null;
-  const classes = selector.match(/\.([^\s.#\[\]]+)/g);
-  if (classes && classes.length > 0) {
-    const className = classes[0].substring(1);
-    return document.querySelector(`.${className}`);
+function findByClassUnique(selector: string): Element | null {
+  if (!selector.includes('.')) return null;
+  if (selector.startsWith('text=') || selector.startsWith('role:')) return null;
+  // only accept if unique to avoid selecting container ancestor
+  try {
+    const els = document.querySelectorAll(selector);
+    if (els.length === 1) return els[0];
+  } catch {}
+  // fallback: first exact class-only element if unique among interactive
+  const classOnly = selector.match(/^\w+\.[^.]+$/);
+  if (classOnly) {
+    const els = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+    const interactive = els.filter(isInteractive);
+    if (interactive.length === 1) return interactive[0];
   }
   return null;
 }
@@ -405,36 +750,36 @@ function findByRole(selector: string): Element | null {
   return document.querySelector(`[role="${roleMatch[1]}"]`);
 }
 
-function findByTextContent(selector: string): Element | null {
-  let text: string | null = null;
-  let tagName = "*";
-
-  if (selector.includes('text="')) {
-    const textMatch = selector.match(/text="([^"]+)"/);
-    text = textMatch ? textMatch[1] : null;
-  } else if (selector.includes('textContent="')) {
-    const textMatch = selector.match(/textContent="([^"]+)"/);
-    text = textMatch ? textMatch[1] : null;
-  } else if (selector.includes(":has-text(")) {
-    const textMatch = selector.match(/:has-text\("([^"]+)"\)/);
-    text = textMatch ? textMatch[1] : null;
-  }
-
-  const tagMatch = selector.match(/^([a-zA-Z]+)/);
-  if (tagMatch) {
-    tagName = tagMatch[1];
-  }
-
-  if (!text) return null;
-
-  const elements = Array.from(document.querySelectorAll(tagName));
-  for (const element of elements) {
-    const elementText = element.textContent?.trim();
-    if (elementText === text || elementText?.includes(text)) {
-      return element;
-    }
+function findByTextContentTight(selector: string): Element | null {
+  if (!selector.startsWith('text=')) return null;
+  const exact = selector.endsWith(':exact');
+  const core = exact ? selector.slice('text='.length, -(':exact'.length)) : selector.slice('text='.length);
+  const norm = core.trim();
+  const candidates = textSearchCandidates().filter(isInteractiveOrSmall);
+  for (const el of candidates) {
+    const txt = (el.textContent||'').trim();
+    if ((exact && txt === norm) || (!exact && txt.includes(norm))) return el;
   }
   return null;
+}
+
+function isInteractive(el: HTMLElement): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (['button','a','input','textarea','select','option'].includes(tag)) return true;
+  const role = el.getAttribute('role');
+  if (role && ['button','link','menuitem','option','tab'].includes(role)) return true;
+  return false;
+}
+
+function isInteractiveOrSmall(el: HTMLElement): boolean {
+  if (isInteractive(el)) return true;
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 400 && rect.height < 200) return true;
+  return false;
+}
+
+function depth(el: HTMLElement): number {
+  let d=0; let p=el.parentElement; while (p){d++;p=p.parentElement;} return d;
 }
 
 function findByCoordinates(selector: string): Element | null {
@@ -537,6 +882,8 @@ async function waitForElement(
 ): Promise<Element | null> {
   const startTime = Date.now();
   const timeout = 5000;
+  const backoffs = [50, 80, 120, 180, 250, 350, 500, 650, 800];
+  let attempt = 0;
   while (Date.now() - startTime < timeout) {
     try {
       const elements = findElements(selector);
@@ -545,16 +892,22 @@ async function waitForElement(
         if (matchedText) {
           (element as any).__stakTrakMatchedText = matchedText;
         }
-        setTimeout(() => highlightElement(element), 100);
         return element;
       }
     } catch (error) {
-      console.warn("Error finding element with selector:", selector, error);
+      if (!__stakWarned[selector]) {
+        console.warn('[staktrak] resolution error', selector, error);
+        __stakWarned[selector] = true;
+      }
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const delay = backoffs[Math.min(attempt, backoffs.length - 1)];
+    attempt++;
+    await new Promise(r=>setTimeout(r, delay));
   }
-
+  if (!__stakWarned[selector]) {
+    console.warn('[staktrak] highlight failed: not found', selector);
+    __stakWarned[selector] = true;
+  }
   return null;
 }
 
@@ -588,17 +941,13 @@ function highlightElement(element: Element, matchedText?: string): void {
   try {
     ensureStylesInDocument(document);
 
-    // element.scrollIntoView({
-    //   behavior: "smooth",
-    //   block: "center",
-    //   inline: "center",
-    // });
-
     const textToHighlight =
       matchedText || (element as any).__stakTrakMatchedText;
 
     if (textToHighlight) {
       highlightTextInElement(element, textToHighlight);
+    } else {
+      highlight(element, "element");
     }
   } catch (error) {
     console.warn("Error highlighting element:", error);
@@ -738,7 +1087,7 @@ async function verifyExpectation(action: PlaywrightAction): Promise<void> {
       break;
 
     default:
-      console.warn(`Unknown expectation: ${action.expectation}`);
+      // ignore unknown expectation
   }
 }
 function isElementVisible(element: Element): boolean {
@@ -754,38 +1103,40 @@ function isElementVisible(element: Element): boolean {
 
 export function getActionDescription(action: PlaywrightAction): string {
   switch (action.type) {
-    case "goto":
+    case PlaywrightActionType.GOTO:
       return `Navigate to ${action.value}`;
-    case "click":
+    case PlaywrightActionType.CLICK:
       return `Click element: ${action.selector}`;
-    case "fill":
+    case PlaywrightActionType.FILL:
       return `Fill "${action.value}" in ${action.selector}`;
-    case "check":
+    case PlaywrightActionType.CHECK:
       return `Check checkbox: ${action.selector}`;
-    case "uncheck":
+    case PlaywrightActionType.UNCHECK:
       return `Uncheck checkbox: ${action.selector}`;
-    case "selectOption":
+    case PlaywrightActionType.SELECT_OPTION:
       return `Select "${action.value}" in ${action.selector}`;
-    case "hover":
+    case PlaywrightActionType.HOVER:
       return `Hover over element: ${action.selector}`;
-    case "focus":
+    case PlaywrightActionType.FOCUS:
       return `Focus element: ${action.selector}`;
-    case "blur":
+    case PlaywrightActionType.BLUR:
       return `Blur element: ${action.selector}`;
-    case "scrollIntoView":
+    case PlaywrightActionType.SCROLL_INTO_VIEW:
       return `Scroll element into view: ${action.selector}`;
-    case "waitFor":
+    case PlaywrightActionType.WAIT_FOR:
       return `Wait for element: ${action.selector}`;
-    case "expect":
+    case PlaywrightActionType.EXPECT:
       return `Verify ${action.selector} ${action.expectation}`;
-    case "setViewportSize":
-      return `Set viewport size to ${action.value}`;
-    case "waitForTimeout":
+    case PlaywrightActionType.SET_VIEWPORT_SIZE:
+      return `Set viewport size to ${action.options?.width}x${action.options?.height}`;
+    case PlaywrightActionType.WAIT_FOR_TIMEOUT:
       return `Wait ${action.value}ms`;
-    case "waitForLoadState":
+    case PlaywrightActionType.WAIT_FOR_LOAD_STATE:
       return "Wait for page to load";
-    case "waitForSelector":
+    case PlaywrightActionType.WAIT_FOR_SELECTOR:
       return `Wait for element: ${action.selector}`;
+    case PlaywrightActionType.WAIT_FOR_URL:
+      return `Wait for URL: ${action.value}`;
     default:
       return `Execute ${action.type}`;
   }

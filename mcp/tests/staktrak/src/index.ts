@@ -8,6 +8,12 @@ import {
 } from "./utils";
 import { debugMsg, isReactDevModeActive } from "./debug";
 import { initPlaywrightReplay } from "./playwright-replay/index";
+import { resultsToActions } from "./actionModel";
+import { buildScenario, serializeScenario } from './scenario';
+import {
+  generatePlaywrightTestFromActions,
+  GenerateOptions,
+} from "./playwright-generator";
 
 
 const defaultConfig: Config = {
@@ -91,7 +97,6 @@ class UserBehaviorTracker {
 
     // Persist recording state to survive script reloads
     this.saveSessionState();
-    console.log("🔍 STAKTRAK: Recording state saved to sessionStorage");
 
     return this;
   }
@@ -111,7 +116,7 @@ class UserBehaviorTracker {
       };
       sessionStorage.setItem('stakTrakActiveRecording', JSON.stringify(sessionData));
     } catch (error) {
-      console.warn("🔍 STAKTRAK: Failed to save session state:", error);
+      
     }
   }
 
@@ -179,7 +184,6 @@ class UserBehaviorTracker {
   }
 
   public setupEventListeners() {
-    console.log("🔍 STAKTRAK: Setting up event listeners", { isRunning: this.isRunning });
     
     if (this.config.clicks) {
       const clickHandler = (e: MouseEvent) => {
@@ -469,6 +473,32 @@ class UserBehaviorTracker {
       window.removeEventListener("popstate", popstateHandler)
     );
 
+    const hashHandler = () => {
+      recordStateChange("hashchange");
+    };
+    window.addEventListener('hashchange', hashHandler);
+    this.memory.alwaysListeners.push(() =>
+      window.removeEventListener('hashchange', hashHandler)
+    );
+
+    const anchorClickHandler = (e: Event) => {
+      const a = (e.target as HTMLElement).closest('a');
+      if (!a) return;
+      if (a.target && a.target !== '_self') return;
+      const href = a.getAttribute('href');
+      if (!href) return;
+      try {
+        const dest = new URL(href, window.location.href);
+        if (dest.origin === window.location.origin) {
+          this.results.pageNavigation.push({ type: 'anchorClick', url: dest.href, timestamp: getTimeStamp() });
+        }
+      } catch {}
+    };
+    document.addEventListener('click', anchorClickHandler, true);
+    this.memory.alwaysListeners.push(() =>
+      document.removeEventListener('click', anchorClickHandler, true)
+    );
+
     // Note: We don't restore original pushState/replaceState since they're global
     // and would break if multiple instances exist
   }
@@ -616,7 +646,6 @@ class UserBehaviorTracker {
 
     // Clear persisted state after successful stop
     sessionStorage.removeItem('stakTrakActiveRecording');
-    console.log("🔍 STAKTRAK: Recording state cleared from sessionStorage");
 
     return this;
   }
@@ -642,23 +671,19 @@ class UserBehaviorTracker {
     try {
       const activeRecording = sessionStorage.getItem('stakTrakActiveRecording');
       if (!activeRecording) {
-        console.log("🔍 STAKTRAK: No previous session to restore");
         return;
       }
 
       const recordingData = JSON.parse(activeRecording);
-      console.log("🔍 STAKTRAK: Found previous session data in sessionStorage");
 
       // Simple validation: if session data exists and claims to be recording, restore it
       if (recordingData && recordingData.isRecording && recordingData.version === "1.0") {
-        console.log("🔍 STAKTRAK: Attempting session restoration...");
 
         // Detect if this is an iframe reload (page loaded recently after session was saved)
         const timeSinceLastSave = Date.now() - (recordingData.lastSaved || 0);
         const isLikelyIframeReload = timeSinceLastSave < 10000; // Within 10 seconds
 
         if (isLikelyIframeReload) {
-          console.log("🔍 STAKTRAK: Detected iframe reload, restoring recording state");
           
           // Restore state
           if (recordingData.results) {
@@ -676,11 +701,6 @@ class UserBehaviorTracker {
           // Start health check for restored session
           this.startHealthCheck();
           
-          console.log("🔍 STAKTRAK: Session restored successfully", {
-            clicks: this.results.clicks.clickCount,
-            inputs: this.results.inputChanges.length,
-            assertions: this.memory.assertions.length
-          });
 
           // Verify event listeners are working
           this.verifyEventListeners();
@@ -688,37 +708,29 @@ class UserBehaviorTracker {
           // Notify parent that recording is active again
           window.parent.postMessage({ type: "staktrak-replay-ready" }, "*");
         } else {
-          console.log("🔍 STAKTRAK: Session data is too old, starting fresh");
           sessionStorage.removeItem('stakTrakActiveRecording');
         }
       } else {
-        console.log("🔍 STAKTRAK: Invalid session data, starting fresh");
+        // Invalid session data, starting fresh
         sessionStorage.removeItem('stakTrakActiveRecording');
       }
     } catch (error) {
-      console.warn("🔍 STAKTRAK: Session restoration failed:", error);
+      
       sessionStorage.removeItem('stakTrakActiveRecording');
     }
   }
 
   private verifyEventListeners() {
-    console.log("🔍 STAKTRAK: Verifying event listeners", {
-      isRunning: this.isRunning,
-      listenersCount: this.memory.listeners.length,
-      mutationObserver: !!this.memory.mutationObserver
-    });
     
     // If we have fewer listeners than expected, re-setup
     if (this.isRunning && this.memory.listeners.length === 0) {
-      console.warn("🔍 STAKTRAK: No listeners found, re-establishing...");
+      
       this.setupEventListeners();
     }
   }
 
   public recoverRecording() {
-    console.log("🔍 STAKTRAK: Attempting recording recovery");
     if (!this.isRunning) {
-      console.log("🔍 STAKTRAK: Recording was not active, starting fresh");
       return;
     }
     
@@ -727,8 +739,6 @@ class UserBehaviorTracker {
     
     // Save current state
     this.saveSessionState();
-    
-    console.log("🔍 STAKTRAK: Recording recovery completed");
   }
 
   private startHealthCheck() {
@@ -737,7 +747,7 @@ class UserBehaviorTracker {
       if (this.isRunning) {
         // Verify listeners are still active
         if (this.memory.listeners.length === 0) {
-          console.warn("🔍 STAKTRAK: Health check failed - no listeners, attempting recovery");
+          
           this.recoverRecording();
         }
         
@@ -746,7 +756,6 @@ class UserBehaviorTracker {
       }
     }, 5000);
     
-    console.log("🔍 STAKTRAK: Health check started");
   }
 }
 
@@ -757,8 +766,9 @@ const userBehaviour = new UserBehaviorTracker();
 const initializeStakTrak = () => {
   userBehaviour
     .makeConfig({
-      processData: (results) =>
-        console.log("StakTrak recording processed:", results),
+      processData: (results) => {
+        // Recording completed - results are available
+      },
     })
     .listen();
   
@@ -774,5 +784,38 @@ document.readyState === "loading"
 
 // Add utility functions to the userBehaviour object for testing
 (userBehaviour as any).createClickDetail = createClickDetail;
+(userBehaviour as any).getActions = () =>
+  resultsToActions(userBehaviour.result());
+(userBehaviour as any).generatePlaywrightTest = (options: GenerateOptions) => {
+  const actions = resultsToActions(userBehaviour.result());
+  const code = generatePlaywrightTestFromActions(actions, options);
+  (userBehaviour as any)._lastGeneratedUsingActions = true;
+  return code;
+};
+(userBehaviour as any).exportSession = (options: GenerateOptions) => {
+  const actions = resultsToActions(userBehaviour.result());
+  const test = generatePlaywrightTestFromActions(actions, options);
+  (userBehaviour as any)._lastGeneratedUsingActions = true;
+  return { actions, test };
+};
+
+(userBehaviour as any).getScenario = () => {
+  const results = userBehaviour.result();
+  const actions = resultsToActions(results);
+  return buildScenario(results, actions);
+};
+(userBehaviour as any).exportScenarioJSON = () => {
+  const sc = (userBehaviour as any).getScenario();
+  return serializeScenario(sc);
+};
+
+(userBehaviour as any).getSelectorScores = () => {
+  const results = userBehaviour.result();
+  if (!results.clicks || !results.clicks.clickDetails.length) return [];
+  const last = results.clicks.clickDetails[results.clicks.clickDetails.length - 1];
+  const sel = last.selectors as any;
+  if (sel && sel.scores) return sel.scores;
+  return [];
+};
 
 export default userBehaviour;

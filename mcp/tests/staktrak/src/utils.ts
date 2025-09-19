@@ -1,32 +1,32 @@
-// Enhanced utils.ts
+// Enhanced utils.ts (cleaned)
 import { Results, Assertion, Config, ClickDetail } from "./types";
 
 export const getTimeStamp = (): number => Date.now();
 
 /**
- * Get ARIA role for an element, including implicit roles for semantic HTML
+ * Lightweight role derivation (fallback if no explicit role attribute)
  */
-export const getElementRole = (element: HTMLElement): string | null => {
-  // 1. Check explicit role first (highest priority)
-  const explicit = element.getAttribute('role');
+export const getElementRole = (el: HTMLElement): string | null => {
+  // Explicit role always wins
+  const explicit = el.getAttribute("role");
   if (explicit) return explicit;
-  
-  // 2. Handle basic implicit roles that are commonly failing
-  const tag = element.tagName.toLowerCase();
-  if (tag === 'button') return 'button';
-  if (tag === 'a' && element.hasAttribute('href')) return 'link';
-  if (tag === 'input') {
-    const type = element.getAttribute('type');
-    if (['button', 'submit', 'reset'].includes(type || 'text')) return 'button';
-    return 'textbox';
+  const tag = el.tagName.toLowerCase();
+  if (tag === "button") return "button";
+  if (tag === "a" && el.hasAttribute("href")) return "link";
+  if (tag === "input") {
+    const type = (el.getAttribute("type") || "text").toLowerCase();
+    if (["button", "submit", "reset"].includes(type)) return "button";
+    if (type === "checkbox") return "checkbox";
+    if (type === "radio") return "radio";
+    return "textbox";
   }
-  if (tag === 'nav') return 'navigation';
-  if (tag === 'main') return 'main';
-  if (tag === 'header') return 'banner';
-  if (tag === 'footer') return 'contentinfo';
-  if (tag === 'aside') return 'complementary';
-  if (tag === 'section') return 'region';
-  
+  if (tag === "select") return "combobox";
+  if (tag === "textarea") return "textbox";
+  if (tag === "nav") return "navigation";
+  if (tag === "header") return "banner";
+  if (tag === "footer") return "contentinfo";
+  if (tag === "main") return "main";
+  if (tag === "form") return "form";
   return null;
 };
 
@@ -187,101 +187,159 @@ export const generateSelectorStrategies = (
   role?: string;
   tagName: string;
   xpath?: string;
+  // scoring additions
+  scores?: { selector: string; score: number; reasons: string[] }[];
 } => {
   const htmlEl = element as HTMLElement;
   const tagName = element.tagName.toLowerCase();
   const fallbacks: string[] = [];
 
+  // INTERNAL scoring helpers ---------------------------------------------
+  const reasonsMap: Record<string,string[]> = {};
+  const scored: { selector: string; score: number; reasons: string[] }[] = [];
+  const pushCandidate = (sel: string, baseScore: number, reason: string) => {
+    if (!sel) return;
+    if (!reasonsMap[sel]) reasonsMap[sel] = [];
+    reasonsMap[sel].push(reason);
+    // compute dynamic penalties
+    let score = baseScore;
+    // length penalty
+    if (sel.length > 60) score -= Math.min(20, Math.floor((sel.length-60)/5));
+    // depth penalty
+    const depth = sel.split('>').length - 1;
+    if (depth > 3) score -= (depth-3)*2;
+    // volatility penalty: heuristic for classes with hex fragments
+    if (/\.[a-zA-Z0-9_-]*[0-9a-f]{6,}\b/.test(sel)) score -= 25;
+    // generic tag penalty
+    if (/^\w+$/.test(sel)) score -= 30;
+    // text selector slight risk
+    if (sel.startsWith('text=')) score -= 5;
+    // role selector moderate
+    if (sel.startsWith('role:')) score -= 3;
+    scored.push({ selector: sel, score, reasons: reasonsMap[sel] });
+  };
+
+  const finalizeReturn = (primary: string, fallbacks: string[], extra: any) => {
+    // de-duplicate scored entries
+    const dedup: Record<string,{ selector: string; score: number; reasons: string[] }> = {};
+    for (const c of scored) {
+      if (!dedup[c.selector] || dedup[c.selector].score < c.score) dedup[c.selector] = c;
+    }
+    const ordered = Object.values(dedup).sort((a,b)=>b.score-a.score);
+    return { primary, fallbacks, ...extra, scores: ordered };
+  };
+
   // Strategy 1: data-testid (highest priority)
   const testId = htmlEl.dataset?.testid;
   if (testId) {
-    return {
-      primary: `[data-testid="${testId}"]`,
-      fallbacks: [],
+    const sel = `[data-testid="${testId}"]`;
+    pushCandidate(sel, 100, 'data-testid attribute');
+    return finalizeReturn(sel, [], {
       tagName,
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
       role: getElementRole(htmlEl) || undefined,
-    };
+    });
   }
 
   // Strategy 2: ID
   const id = htmlEl.id;
   if (id && /^[a-zA-Z][\w-]*$/.test(id)) {
-    return {
-      primary: `#${id}`,
-      fallbacks: [],
+    const sel = `#${id}`;
+    pushCandidate(sel, 95, 'element id');
+    return finalizeReturn(sel, [], {
       tagName,
       text: getElementText(element),
       ariaLabel: htmlEl.getAttribute("aria-label") || undefined,
       title: htmlEl.getAttribute("title") || undefined,
       role: getElementRole(htmlEl) || undefined,
-    };
+    });
   }
 
-  // Strategy 3: For interactive elements, try text-based selectors
+  // Strategy 3: Clean class-based selector first (prefer structural primary)
   const text = getEnhancedElementText(htmlEl);
   const role = getElementRole(htmlEl);
+  const classSelector = generateClassBasedSelector(element);
+  if (classSelector && classSelector !== tagName) {
+    fallbacks.push(classSelector);
+    pushCandidate(classSelector, 80, 'class-based selector');
+  }
+
+  // Strategy 4: Role+name (only if not already uniquely represented by class)
+  if (!testId && !id && role === 'button' && text && text.length < 40) {
+    const rsel = `role:button[name="${text.replace(/"/g,'\\"')}"]`;
+    fallbacks.push(rsel);
+    pushCandidate(rsel, 70, 'role+name');
+  }
+
+  // Strategy 5: For interactive elements, text-based selectors (after structural + role)
+  const text2 = getEnhancedElementText(htmlEl);
+  // recompute not needed but keep variable for clarity
   if (
-    text &&
+    text2 &&
     (tagName === "button" ||
       tagName === "a" ||
       role === "button")
   ) {
-    const textSelector = generateTextBasedSelector(element, text);
+    const textSelector = generateTextBasedSelector(element, text2);
     if (textSelector) {
       fallbacks.push(textSelector);
+      pushCandidate(textSelector, 60, 'text content');
     }
   }
 
-  // Strategy 4: aria-label
+  // Strategy 6: aria-label
   const ariaLabel = htmlEl.getAttribute("aria-label");
   if (ariaLabel) {
-    fallbacks.push(`[aria-label="${ariaLabel}"]`);
+    const al = `[aria-label="${ariaLabel}"]`;
+    fallbacks.push(al);
+    pushCandidate(al, 65, 'aria-label');
   }
 
-  // Strategy 5: role + accessible name
-  if (role && text) {
-    fallbacks.push(`[role="${role}"]`);
+  // Strategy 7: generic role fallback only (without name) if not already pushed
+  if (role && !fallbacks.find(f=>f.startsWith('role:')||f.startsWith(`[role="${role}`))) {
+    const rs = `[role="${role}"]`;
+    fallbacks.push(rs);
+    pushCandidate(rs, 40, 'generic role');
   }
 
-  // Strategy 6: Clean class-based selector
-  const classSelector = generateClassBasedSelector(element);
-  if (classSelector && classSelector !== tagName) {
-    fallbacks.push(classSelector);
-  }
-
-  // Strategy 7: Attribute-based selectors for inputs
+  // Strategy 8: Attribute-based selectors for inputs
   if (tagName === "input") {
     const type = (element as HTMLInputElement).type;
     const name = (element as HTMLInputElement).name;
-    if (type) fallbacks.push(`input[type="${type}"]`);
-    if (name) fallbacks.push(`input[name="${name}"]`);
+    if (type) { const tsel = `input[type="${type}"]`; fallbacks.push(tsel); pushCandidate(tsel, 55, 'input type'); }
+    if (name) { const nsel = `input[name="${name}"]`; fallbacks.push(nsel); pushCandidate(nsel, 58, 'input name'); }
   }
 
-  // Strategy 8: Parent-child relationship for specific elements
+  // Strategy 9: Parent-child relationship for specific elements (reduced to avoid broad container > button selectors)
   const contextualSelector = generateContextualSelector(element);
   if (contextualSelector) {
     fallbacks.push(contextualSelector);
+    pushCandidate(contextualSelector, 45, 'contextual');
   }
 
   // Strategy 9: XPath as last resort
   const xpath = generateXPath(element);
 
   // Choose primary selector
-  const primary = fallbacks.length > 0 ? fallbacks[0] : tagName;
+  // Add bare tag candidate (low score) if nothing else
+  if (fallbacks.length === 0) {
+    pushCandidate(tagName, 10, 'bare tag');
+  }
 
-  return {
-    primary,
-    fallbacks: fallbacks.slice(1), // Remove primary from fallbacks
+  // choose top scoring unique-ish candidate as primary: sort by score (scored already holds most) but restrict to ones we actually added
+  const best = scored.sort((a,b)=>b.score-a.score)[0];
+  const primary = best ? best.selector : (fallbacks.length>0? fallbacks[0] : tagName);
+  const fb = fallbacks.filter(f=>f!==primary);
+  return finalizeReturn(primary, fb, {
     text: text || undefined,
     ariaLabel: ariaLabel || undefined,
     title: htmlEl.getAttribute("title") || undefined,
     role: role || undefined,
     tagName,
     xpath,
-  };
+  });
 };
 
 /**
@@ -413,6 +471,72 @@ export const generateXPath = (element: Element): string => {
 export const createClickDetail = (e: MouseEvent): ClickDetail => {
   const target = e.target as Element;
   const selectors = generateSelectorStrategies(target);
+  // canonical enrichment
+  const html = target as HTMLElement;
+  const testId = (html.dataset && html.dataset['testid']) || undefined;
+  const id = html.id || undefined;
+  const accessibleName = getEnhancedElementText(html) || undefined;
+  // nth-of-type among same tag siblings
+  let nth: number | undefined;
+  if (html.parentElement) {
+    const same = Array.from(html.parentElement.children).filter(c => c.tagName === html.tagName);
+    if (same.length > 1) nth = same.indexOf(html) + 1;
+  }
+  const ancestors: string[] = [];
+  let p: HTMLElement | null = html.parentElement;
+  let depth = 0;
+  while (p && depth < 4) {
+    const role = p.getAttribute('role');
+    const tag = p.tagName.toLowerCase();
+    if (['main','nav','header','footer','aside','section','form','article'].includes(tag) || role) {
+      ancestors.push(role ? `${tag}[role=${role}]` : tag);
+    }
+    p = p.parentElement; depth++;
+  }
+    const selAny: any = selectors as any;
+    selAny.id = id;
+    selAny.testId = testId;
+    selAny.accessibleName = accessibleName;
+    if (nth) selAny.nth = nth;
+    if (ancestors.length) selAny.ancestors = ancestors;
+
+    // Uniqueness stabilization: if primary is generic (tag or simple class) and we have id/testId/text role data, promote a better one
+    const stabilized = chooseStablePrimary(html, selectors.primary, selectors.fallbacks, {
+      testId,
+      id,
+      accessibleName,
+      role: getElementRole(html) || undefined,
+      nth,
+    });
+    let uniqueStabilized = ensureStabilizedUnique(html, stabilized);
+    // Immediate capture validation loop (simple): if still not unique in DOM (and not text=) try ancestor builder directly
+    try {
+      if (typeof document !== 'undefined' && !uniqueStabilized.startsWith('text=')) {
+        const matches = document.querySelectorAll(uniqueStabilized);
+        if (matches.length !== 1) {
+          const ancestorOnly = buildAncestorNthSelector(html);
+          if (ancestorOnly && ancestorOnly !== uniqueStabilized) {
+            const mm = document.querySelectorAll(ancestorOnly);
+            if (mm.length === 1) uniqueStabilized = ancestorOnly;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  (selectors as any).stabilizedPrimary = uniqueStabilized;
+  selectors.primary = uniqueStabilized;
+  // Provide a guaranteed CSS visualSelector for highlighter (avoid text=/role: only)
+  let visualSelector: string | null = null;
+  const isCssResolvable = (s: string) => !s.startsWith('text=') && !s.startsWith('role:');
+  if (isCssResolvable(uniqueStabilized)) visualSelector = uniqueStabilized;
+  else {
+    const fbCss = (selectors.fallbacks || []).find(isCssResolvable);
+    if (fbCss) visualSelector = fbCss; else {
+      // attempt ancestor nth build
+      const anc = buildAncestorNthSelector(html);
+      if (anc) visualSelector = anc;
+    }
+  }
+  if (visualSelector) (selectors as any).visualSelector = visualSelector;
 
   return {
     x: e.clientX,
@@ -540,3 +664,150 @@ export const filterClickDetails = (
 
   return result.sort((a, b) => a.timestamp - b.timestamp);
 };
+
+// Determine if a selector is weak. We now treat a single class selector as strong if it is unique.
+const isWeakSelector = (selector: string, el?: HTMLElement): boolean => {
+  if (!selector) return true;
+  if (selector.startsWith('[data-testid=')) return false;
+  if (selector.startsWith('#')) return false;
+  if (selector.startsWith('text=')) return false; // text selectors are deliberate
+  if (/^\w+$/.test(selector)) return true; // bare tag
+  if (/^\w+\.[^.]+$/.test(selector)) {
+    // tag.singleClass -> check uniqueness; if unique treat as strong
+    if (el && typeof document !== 'undefined') {
+      try {
+        const count = document.querySelectorAll(selector).length;
+        if (count === 1) return false; // strong enough
+      } catch {}
+    }
+    return true;
+  }
+  return false;
+};
+
+interface StableInputs {
+  testId?: string;
+  id?: string;
+  accessibleName?: string;
+  role?: string;
+  nth?: number;
+}
+
+const chooseStablePrimary = (
+  el: HTMLElement,
+  current: string,
+  fallbacks: string[],
+  meta: StableInputs
+): string => {
+  // If already strong, keep it.
+  if (!isWeakSelector(current, el)) return current;
+  // Prefer testId
+  if (meta.testId) return `[data-testid="${meta.testId}"]`;
+  // Then ID
+  if (meta.id && /^[a-zA-Z][\w-]*$/.test(meta.id)) return `#${meta.id}`;
+  // Before using text, see if any fallback structural selector is unique.
+  if (typeof document !== 'undefined') {
+    const structural = [current, ...fallbacks].filter(s => s && !s.startsWith('text=') && !s.startsWith('[') && !s.startsWith('#'));
+    for (const s of structural) {
+      try {
+        if (document.querySelectorAll(s).length === 1) {
+          return s; // use the unique structural selector instead of text
+        }
+      } catch {}
+    }
+  }
+  // Role + accessibleName -> prefer explicit getByRole semantics (we encode as role: for replay, but for primary keep structural if possible)
+  if (meta.role && meta.accessibleName && meta.accessibleName.length < 60) {
+    // Use role marker instead of raw text= for traceability; executor already understands role:
+    return `role:${meta.role}[name="${meta.accessibleName.replace(/"/g,'\\"')}"]`;
+  }
+  // Fallback: if accessibleName short, still allow text= but mark exact to narrow matches
+  if (meta.accessibleName && meta.accessibleName.length < 40) {
+    return `text=${meta.accessibleName.replace(/"/g,'\\"')}:exact`;
+  }
+  return current;
+};
+
+function isSelectorUnique(sel: string): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const n = document.querySelectorAll(sel);
+    return n.length === 1;
+  } catch { return false; }
+}
+
+function buildAncestorNthSelector(el: HTMLElement): string | null {
+  if (!el.parentElement) return null;
+  const path: string[] = [];
+  let current: HTMLElement | null = el;
+  let depth = 0;
+  while (current && depth < 6) {
+    const tag = current.tagName.toLowerCase();
+    let part = tag;
+    const cur = current as HTMLElement | null;
+    if (cur && cur.parentElement) {
+      const same = Array.from(cur.parentElement.children).filter(c => (c as HTMLElement).tagName === cur.tagName);
+      if (same.length > 1) {
+        const idx = same.indexOf(cur) + 1;
+        part += `:nth-of-type(${idx})`;
+      }
+    }
+    path.unshift(part);
+    const selector = path.join(' > ');
+    if (isSelectorUnique(selector)) return selector;
+    current = current.parentElement;
+    depth++;
+  }
+
+  const withBody = 'body > ' + path.join(' > ');
+  if (isSelectorUnique(withBody)) return withBody;
+  return null;
+}
+
+function ensureStabilizedUnique(html: HTMLElement, stabilized: string): string {
+  if (stabilized.startsWith('#') || stabilized.startsWith('[data-testid=')) return stabilized;
+  // For role: and text:exact selectors validate they point to the original element; if not unique escalate
+  if (stabilized.startsWith('role:')) {
+    // attempt resolution count
+    try {
+      const el = findByRoleLike(stabilized);
+      if (el) return stabilized;
+    } catch {}
+  }
+  if (stabilized.startsWith('text=') && stabilized.endsWith(':exact')) {
+    // verify uniqueness by scanning exact text matches
+    const exactTxt = stabilized.slice('text='.length, -(':exact'.length));
+    try {
+      const candidates = Array.from(document.querySelectorAll('button, a, [role], input, textarea, select'))
+        .filter(e => (e.textContent||'').trim() === exactTxt);
+      if (candidates.length === 1) return stabilized; // keep it
+    } catch {}
+  }
+  if (isSelectorUnique(stabilized)) return stabilized;
+  const ancestor = buildAncestorNthSelector(html);
+  if (ancestor && ancestor.length < 180) return ancestor;
+  return stabilized;
+}
+
+// Minimal role: resolution for uniqueness validation
+function findByRoleLike(sel: string): Element | null {
+  if (!sel.startsWith('role:')) return null;
+  const m = sel.match(/^role:([^\[]+)(?:\[name="(.+?)"\])?/);
+  if (!m) return null;
+  const role = m[1];
+  const name = m[2];
+  const candidates = Array.from(document.querySelectorAll('*')).filter(el => {
+    const r = (el as HTMLElement).getAttribute('role') || inferRole(el as HTMLElement);
+    return r === role;
+  });
+  if (!name) return candidates[0] || null;
+  return candidates.find(c => (c.textContent||'').trim() === name) || null;
+}
+
+function inferRole(el: HTMLElement): string | null {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'button') return 'button';
+  if (tag === 'a' && el.hasAttribute('href')) return 'link';
+  if (tag === 'input') return 'textbox';
+  return null;
+}

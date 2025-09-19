@@ -175,6 +175,35 @@ export function getPlaywrightReplayState(): PlaywrightReplayState | null {
 }
 
 export function initPlaywrightReplay(): void {
+  // Lightweight SPA history instrumentation (idempotent)
+  try {
+    if (!(window as any).__stakTrakHistoryInstrumented) {
+      const fire = () => {
+        try {
+          const detail = { href: window.location.href, path: window.location.pathname, ts: Date.now() };
+          const ev = new CustomEvent('staktrak-history-change', { detail });
+          window.dispatchEvent(ev);
+        } catch {}
+      };
+      const origPush = history.pushState;
+      const origReplace = history.replaceState;
+      history.pushState = function(this: any, ...args: any[]) {
+        const ret = origPush.apply(this, args as any);
+        setTimeout(fire, 0);
+        return ret;
+      } as any;
+      history.replaceState = function(this: any, ...args: any[]) {
+        const ret = origReplace.apply(this, args as any);
+        setTimeout(fire, 0);
+        return ret;
+      } as any;
+      window.addEventListener('popstate', fire, { passive: true });
+      // Initial fire to mark baseline
+      setTimeout(fire, 0);
+      (window as any).__stakTrakHistoryInstrumented = true;
+    }
+  } catch {}
+
   window.addEventListener("message", (event) => {
     const { data } = event;
 
