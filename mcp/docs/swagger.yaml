@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Repo2Graph API
-  description: API for exploring and analyzing code repositories as a graph
+  description: API for exploring and querying code repositories as graph data
   version: 1.0.0
 servers:
   - url: http://localhost:3000
@@ -17,33 +17,33 @@ paths:
           description: Type of node to retrieve
           schema:
             type: string
-            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint, UnitTest, IntegrationTest, E2etest, Repository, Directory, File, Import, Library, Var, Message, Person, Video, Hint, Prompt]
-            example: Function
+            enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint, UnitTest, IntegrationTest, E2etest]
+          example: Function
         - name: concise
           in: query
           description: Only include name and file in returned data
           schema:
             type: boolean
-            default: false
+          example: true
         - name: ref_ids
           in: query
           description: Comma-separated list of reference IDs
           schema:
             type: string
-            example: "func_123,func_456"
+          example: "123,456,789"
         - name: output
           in: query
           description: Output format
           schema:
             type: string
             enum: [json, snippet]
-            default: json
+          example: json
         - name: language
           in: query
           description: Filter by programming language
           schema:
             type: string
-            example: "typescript"
+          example: typescript
       responses:
         '200':
           description: Successful response
@@ -53,8 +53,6 @@ paths:
                 type: array
                 items:
                   type: object
-        '500':
-          description: Internal server error
   /edges:
     get:
       summary: /edges
@@ -66,32 +64,32 @@ paths:
           schema:
             type: string
             enum: [CALLS, USES, OPERAND, CONTAINS, IMPORTS, OF, HANDLER, RENDERS]
-            example: CALLS
+          example: CALLS
         - name: concise
           in: query
           description: Only include name and file in returned data
           schema:
             type: boolean
-            default: false
+          example: true
         - name: ref_ids
           in: query
           description: Comma-separated list of reference IDs
           schema:
             type: string
-            example: "func_123,func_456"
+          example: "123,456,789"
         - name: output
           in: query
           description: Output format
           schema:
             type: string
             enum: [json, snippet]
-            default: json
+          example: json
         - name: language
           in: query
           description: Filter by programming language
           schema:
             type: string
-            example: "typescript"
+          example: typescript
       responses:
         '200':
           description: Successful response
@@ -101,8 +99,6 @@ paths:
                 type: array
                 items:
                   type: object
-        '500':
-          description: Internal server error
   /graph:
     get:
       summary: /graph
@@ -114,56 +110,57 @@ paths:
           schema:
             type: string
             enum: [CALLS, USES, OPERAND, CONTAINS, IMPORTS, OF, HANDLER, RENDERS]
-            default: CALLS
+          example: CALLS
         - name: concise
           in: query
           description: Only include name and file in returned data
           schema:
             type: boolean
-            default: false
+          example: true
         - name: edges
           in: query
           description: Include edges in the response
           schema:
             type: boolean
-            default: false
+          example: true
         - name: language
           in: query
           description: Filter by programming language
           schema:
             type: string
-            example: "typescript"
+          example: typescript
         - name: since
           in: query
           description: Filter nodes added after this date
           schema:
             type: string
             format: date-time
+          example: "2023-01-01T00:00:00Z"
         - name: limit
           in: query
           description: Maximum number of nodes to return
           schema:
             type: integer
-            default: 100
+          example: 100
         - name: limit_mode
           in: query
           description: How to apply the limit
           schema:
             type: string
             enum: [total, per_type]
-            default: per_type
+          example: total
         - name: node_types
           in: query
           description: Comma-separated list of node types to include
           schema:
             type: string
-            example: "Function,Class,Page"
+          example: "Page,Function,Endpoint"
         - name: ref_ids
           in: query
           description: Comma-separated list of reference IDs
           schema:
             type: string
-            example: "func_123,func_456"
+          example: "123,456,789"
       responses:
         '200':
           description: Successful response
@@ -184,8 +181,6 @@ paths:
                     type: string
                   meta:
                     type: object
-        '500':
-          description: Internal server error
   /search:
     get:
       summary: /search
@@ -193,66 +188,67 @@ paths:
       parameters:
         - name: query
           in: query
-          required: true
           description: Search query
+          required: true
           schema:
             type: string
-            example: "user authentication"
+          example: "authentication"
         - name: limit
           in: query
           description: Maximum number of results to return
           schema:
             type: integer
-            default: 25
+          example: 25
         - name: concise
           in: query
           description: Only include name and file in returned data
           schema:
             type: boolean
-            default: false
+          example: true
         - name: node_types
           in: query
           description: Comma-separated list of node types to search
           schema:
             type: string
-            example: "Function,Class,Page"
+          example: "Function,Endpoint"
         - name: node_type
           in: query
           description: Single node type to search
           schema:
             type: string
-            example: "Function"
+          example: Function
         - name: method
           in: query
           description: Search method to use
           schema:
             type: string
-            enum: [vector, text]
-            default: vector
+            enum: [fulltext, vector]
+          example: vector
         - name: output
           in: query
           description: Output format
           schema:
             type: string
             enum: [json, snippet]
-            default: snippet
+          example: snippet
         - name: tests
           in: query
-          description: Include test files in search
+          description: Include test files in search results
           schema:
             type: boolean
-            default: true
+          example: false
         - name: max_tokens
           in: query
           description: Maximum tokens to include in results
           schema:
             type: integer
+          example: 10000
         - name: language
           in: query
           description: Filter by programming language
           schema:
             type: string
-            example: "typescript"
+          example: typescript
       responses:
         '200':
           description: Successful response
@@ -262,165 +258,155 @@ paths:
                 type: array
                 items:
                   type: object
-            text/plain:
-              schema:
-                type: string
-        '500':
-          description: Internal server error
   /map:
     get:
       summary: /map
-      description: Generate a text-based map of node relationships
+      description: Generate a visual map of node relationships
       parameters:
         - name: node_type
           in: query
-          description: Type of the starting node
+          description: Type of node to map
           schema:
             type: string
             enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint, UnitTest, IntegrationTest, E2etest]
-            example: Page
+          example: Page
         - name: name
           in: query
-          description: Name of the starting node
+          description: Name of the node
           schema:
             type: string
-            example: "LeaderboardPage"
+          example: "LeaderboardPage"
         - name: ref_id
           in: query
-          description: Reference ID of the starting node
+          description: Reference ID of the node
           schema:
             type: string
-            example: "page_123"
+          example: "123"
         - name: tests
           in: query
           description: Include test files in the map
           schema:
             type: boolean
-            default: true
+          example: true
         - name: depth
           in: query
-          description: Maximum depth of relationships to traverse
+          description: Depth of relationships to include
           schema:
             type: integer
-            default: 7
+          example: 7
         - name: direction
           in: query
-          description: Direction of relationships to traverse
+          description: Direction of relationships to follow
           schema:
             type: string
             enum: [incoming, outgoing, both]
-            default: both
+          example: both
         - name: trim
           in: query
-          description: Comma-separated list of node types to trim from the map
+          description: Node types to trim from the map
           schema:
             type: string
-            example: "File,Directory"
+          example: "Import,Directory"
       responses:
         '200':
-          description: Successful response
+          description: HTML representation of the map
           content:
             text/html:
               schema:
                 type: string
-        '500':
-          description: Internal server error
   /repo_map:
     get:
       summary: /repo_map
-      description: Generate a text-based map of a repository
+      description: Generate a map of a repository
       parameters:
         - name: name
           in: query
           description: Name of the repository
           schema:
             type: string
-            example: "my-repo"
+          example: "my-repo"
         - name: ref_id
           in: query
           description: Reference ID of the repository
           schema:
             type: string
-            example: "repo_123"
+          example: "123"
         - name: node_type
           in: query
-          description: Type of the starting node
+          description: Type of node to map
           schema:
             type: string
             default: Repository
+          example: Repository
         - name: include_functions_and_classes
           in: query
           description: Include functions and classes in the map
           schema:
             type: boolean
-            default: false
+          example: true
       responses:
         '200':
-          description: Successful response
+          description: HTML representation of the repository map
           content:
             text/html:
               schema:
                 type: string
-        '500':
-          description: Internal server error
   /code:
     get:
       summary: /code
-      description: Get code for a node and its relationships
+      description: Get code for a specific node
       parameters:
         - name: node_type
           in: query
-          description: Type of the starting node
+          description: Type of node
           schema:
             type: string
             enum: [Page, Function, Class, Trait, Datamodel, Request, Endpoint, UnitTest, IntegrationTest, E2etest]
-            example: Function
+          example: Function
         - name: name
           in: query
-          description: Name of the starting node
+          description: Name of the node
           schema:
             type: string
-            example: "authenticateUser"
+          example: "authenticateUser"
         - name: ref_id
           in: query
-          description: Reference ID of the starting node
+          description: Reference ID of the node
           schema:
             type: string
-            example: "func_123"
+          example: "123"
         - name: tests
           in: query
           description: Include test files
           schema:
             type: boolean
-            default: true
+          example: true
         - name: depth
           in: query
-          description: Maximum depth of relationships to traverse
+          description: Depth of code to include
           schema:
             type: integer
-            default: 7
+          example: 7
         - name: direction
           in: query
-          description: Direction of relationships to traverse
+          description: Direction of relationships to follow
           schema:
             type: string
             enum: [incoming, outgoing, both]
-            default: both
+          example: both
         - name: trim
           in: query
-          description: Comma-separated list of node types to trim
+          description: Node types to trim from the code
           schema:
             type: string
-            example: "File,Directory"
+          example: "Import,Directory"
       responses:
         '200':
-          description: Successful response
+          description: Code content
           content:
             text/plain:
               schema:
                 type: string
-        '500':
-          description: Internal server error
   /shortest_path:
     get:
       summary: /shortest_path
@@ -428,37 +414,39 @@ paths:
       parameters:
         - name: start_node_key
           in: query
-          description: Node key of the starting node
+          description: Key of the starting node
           schema:
             type: string
+          example: "Function:authenticateUser"
         - name: end_node_key
           in: query
-          description: Node key of the ending node
+          description: Key of the ending node
           schema:
             type: string
+          example: "Datamodel:User"
         - name: start_ref_id
           in: query
           description: Reference ID of the starting node
           schema:
             type: string
+          example: "123"
         - name: end_ref_id
           in: query
           description: Reference ID of the ending node
           schema:
             type: string
+          example: "456"
       responses:
         '200':
-          description: Successful response
+          description: Path between nodes
           content:
             text/plain:
               schema:
                 type: string
-        '500':
-          description: Internal server error
   /upload:
     post:
       summary: /upload
-      description: Upload files for processing
+      description: Upload files to be processed and added to the graph
       requestBody:
         content:
           multipart/form-data:
@@ -472,13 +460,16 @@ paths:
                     format: binary
       responses:
         '200':
-          description: Successful response
+          description: Upload successful
           content:
             application/json:
               schema:
                 type: object
-        '500':
-          description: Internal server error
+                properties:
+                  requestId:
+                    type: string
+                  status:
+                    type: string
   /status/{requestId}:
     get:
       summary: /status/{requestId}
@@ -492,20 +483,23 @@ paths:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Status information
           content:
             application/json:
               schema:
                 type: object
-        '500':
-          description: Internal server error
+                properties:
+                  status:
+                    type: string
+                  progress:
+                    type: number
   /schema:
     get:
       summary: /schema
       description: Get the schema of the graph database
       responses:
         '200':
-          description: Successful response
+          description: Schema information
           content:
             application/json:
               schema:
@@ -517,15 +511,13 @@ paths:
                       type: string
                     description:
                       type: string
-        '500':
-          description: Internal server error
   /ontology:
     get:
       summary: /ontology
       description: Get the ontology of the graph database (alias for /schema)
       responses:
         '200':
-          description: Successful response
+          description: Ontology information
           content:
             application/json:
               schema:
@@ -537,23 +529,19 @@ paths:
                       type: string
                     description:
                       type: string
-        '500':
-          description: Internal server error
   /rules_files:
     get:
       summary: /rules_files
       description: Get files containing rules or configurations
       responses:
         '200':
-          description: Successful response
+          description: Rules files
           content:
             application/json:
               schema:
                 type: array
                 items:
                   type: object
-        '500':
-          description: Internal server error
   /services:
     get:
       summary: /services
@@ -561,33 +549,34 @@ paths:
       parameters:
         - name: clone
           in: query
-          description: Clone repository to analyze
+          description: Clone repository to extract services
           schema:
             type: boolean
-            default: false
+          example: true
         - name: repo_url
           in: query
           description: URL of the repository to clone
           schema:
             type: string
+          example: "https://github.com/username/repo"
         - name: username
           in: query
-          description: Username for repository authentication
+          description: GitHub username for authentication
           schema:
             type: string
         - name: pat
           in: query
-          description: Personal access token for repository authentication
+          description: Personal access token for authentication
           schema:
             type: string
         - name: commit
           in: query
-          description: Commit hash to checkout
+          description: Specific commit to checkout
           schema:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Services configuration
           content:
             application/json:
               schema:
@@ -601,44 +590,6 @@ paths:
                     type: array
                     items:
                       type: object
-        '500':
-          description: Internal server error
-  /services_agent:
-    get:
-      summary: /services_agent
-      description: Get services configuration using gitsee-agent
-      parameters:
-        - name: owner
-          in: query
-          required: true
-          description: Repository owner
-          schema:
-            type: string
-        - name: repo
-          in: query
-          required: true
-          description: Repository name
-          schema:
-            type: string
-        - name: username
-          in: query
-          description: Username for repository authentication
-          schema:
-            type: string
-        - name: pat
-          in: query
-          description: Personal access token for repository authentication
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: object
-        '500':
-          description: Internal server error
   /explore:
     get:
       summary: /explore
@@ -650,23 +601,21 @@ paths:
           description: Exploration prompt
           schema:
             type: string
-            example: "How does authentication work?"
+          example: "How does authentication work?"
       responses:
         '200':
-          description: Successful response
+          description: Exploration results
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   result:
-                    type: string
-        '500':
-          description: Internal server error
+                    type: object
   /understand:
     get:
       summary: /understand
-      description: Get understanding of the codebase
+      description: Get understanding of the codebase based on a question
       parameters:
         - name: question
           in: query
@@ -674,13 +623,13 @@ paths:
           description: Question about the codebase
           schema:
             type: string
-            example: "What is the authentication flow?"
+          example: "How does the login flow work?"
         - name: threshold
           in: query
           description: Similarity threshold for vector search
           schema:
             type: number
-            default: 0.88
+          example: 0.88
         - name: provider
           in: query
           description: AI provider to use
@@ -688,28 +637,24 @@ paths:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Understanding results
           content:
             application/json:
               schema:
                 type: object
-        '500':
-          description: Internal server error
   /seed_understanding:
     post:
       summary: /seed_understanding
-      description: Seed the understanding database with predefined questions
+      description: Seed the system with understanding of the codebase
       responses:
         '200':
-          description: Successful response
+          description: Seeding results
           content:
             application/json:
               schema:
                 type: array
                 items:
                   type: object
-        '500':
-          description: Internal server error
   /ask:
     get:
       summary: /ask
@@ -718,15 +663,16 @@ paths:
         - name: question
           in: query
           required: true
-          description: Question to ask
+          description: Question about the codebase
           schema:
             type: string
-            example: "How do I implement a new feature?"
+          example: "What is the authentication flow?"
         - name: threshold
           in: query
           description: Similarity threshold for vector search
           schema:
             type: number
+          example: 0.88
         - name: provider
           in: query
           description: AI provider to use
@@ -734,20 +680,45 @@ paths:
             type: string
       responses:
         '200':
-          description: Successful response
+          description: Answer to the question
           content:
             application/json:
               schema:
                 type: object
-        '500':
-          description: Internal server error
+  /learnings:
+    get:
+      summary: /learnings
+      description: Get learnings about the codebase
+      parameters:
+        - name: question
+          in: query
+          description: Question to filter learnings
+          schema:
+            type: string
+          example: "What are the core user stories in this project?"
+      responses:
+        '200':
+          description: Learnings about the codebase
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prompts:
+                    type: array
+                    items:
+                      type: object
+                  hints:
+                    type: array
+                    items:
+                      type: object
   /learn:
     get:
       summary: /learn
-      description: Access the learning interface
+      description: Learn about the codebase (requires authentication)
       responses:
         '200':
-          description: Successful response
+          description: Learning interface
           content:
             text/html:
               schema:
@@ -757,70 +728,198 @@ paths:
   /seed_stories:
     post:
       summary: /seed_stories
-      description: Seed the database with user stories
+      description: Seed the system with user stories
       parameters:
         - name: prompt
           in: query
-          description: Custom prompt for generating stories
+          description: Prompt to generate stories
           schema:
             type: string
+          example: "How does this repository work? Please provide a summary of the codebase, a few key files, and 50 core user stories."
       responses:
         '200':
-          description: Successful response
+          description: Seeded stories
           content:
             application/json:
               schema:
                 type: array
                 items:
                   type: object
-        '500':
-          description: Internal server error
-  /embed_code:
+  /services_agent:
     get:
-      summary: /embed_code
-      description: Embed code for vector search
+      summary: /services_agent
+      description: Get services configuration using GitSee agent
+      parameters:
+        - name: owner
+          in: query
+          required: true
+          description: GitHub repository owner
+          schema:
+            type: string
+          example: "stakwork"
+        - name: repo
+          in: query
+          required: true
+          description: GitHub repository name
+          schema:
+            type: string
+          example: "hive"
+        - name: username
+          in: query
+          description: GitHub username for authentication
+          schema:
+            type: string
+        - name: pat
+          in: query
+          description: Personal access token for authentication
+          schema:
+            type: string
       responses:
         '200':
-          description: Successful response
+          description: Request ID for checking progress
           content:
             application/json:
               schema:
                 type: object
-        '500':
-          description: Internal server error
-  /update_token_counts:
+                properties:
+                  request_id:
+                    type: string
+                  status:
+                    type: string
+  /agent:
     get:
-      summary: /update_token_counts
-      description: Update token counts for nodes
+      summary: /agent
+      description: Run GitSee agent on a repository
+      parameters:
+        - name: owner
+          in: query
+          required: true
+          description: GitHub repository owner
+          schema:
+            type: string
+          example: "stakwork"
+        - name: repo
+          in: query
+          required: true
+          description: GitHub repository name
+          schema:
+            type: string
+          example: "hive"
+        - name: prompt
+          in: query
+          required: true
+          description: Prompt for the agent
+          schema:
+            type: string
+          example: "How do I set up this repo?"
+        - name: system
+          in: query
+          description: System prompt for the agent
+          schema:
+            type: string
+        - name: final_answer
+          in: query
+          description: Description for final answer
+          schema:
+            type: string
+        - name: username
+          in: query
+          description: GitHub username for authentication
+          schema:
+            type: string
+        - name: pat
+          in: query
+          description: Personal access token for authentication
+          schema:
+            type: string
       responses:
         '200':
-          description: Successful response
+          description: Request ID for checking progress
           content:
             application/json:
               schema:
                 type: object
-        '500':
-          description: Internal server error
+                properties:
+                  request_id:
+                    type: string
+                  status:
+                    type: string
+  /gitsee:
+    post:
+      summary: /gitsee
+      description: Handle GitSee API requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: GitSee response
+          content:
+            application/json:
+              schema:
+                type: object
+  /gitsee/events/{owner}/{repo}:
+    get:
+      summary: /gitsee/events/{owner}/{repo}
+      description: Server-sent events for GitSee
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          description: GitHub repository owner
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          description: GitHub repository name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Server-sent events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /progress:
+    get:
+      summary: /progress
+      description: Check progress of a long-running operation
+      parameters:
+        - name: request_id
+          in: query
+          required: true
+          description: ID of the request to check
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Progress information
+          content:
+            application/json:
+              schema:
+                type: object
   /_cache/info:
     get:
       summary: /_cache/info
       description: Get information about the cache
       responses:
         '200':
-          description: Successful response
+          description: Cache information
           content:
             application/json:
               schema:
                 type: object
-        '500':
-          description: Internal server error
   /_cache/clear:
     post:
       summary: /_cache/clear
       description: Clear the cache
       responses:
         '200':
-          description: Successful response
+          description: Cache cleared
           content:
             application/json:
               schema:
@@ -828,5 +927,3 @@ paths:
                 properties:
                   message:
                     type: string
-        '500':
-          description: Internal server error

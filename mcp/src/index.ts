@@ -80,6 +80,7 @@ app.get("/ask", r.ask);
 app.get("/learnings", r.get_learnings);
 app.post("/seed_stories", r.seed_stories);
 app.get("/services_agent", r.gitsee_services);
+app.get("/agent", r.gitsee_agent);
 app.post("/gitsee", r.gitsee);
 app.get("/progress", r.get_script_progress);
 
