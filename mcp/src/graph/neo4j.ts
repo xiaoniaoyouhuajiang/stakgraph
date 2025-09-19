@@ -517,7 +517,12 @@ class Db {
     }
   }
 
-  async create_hint(question: string, answer: string, embeddings: number[]) {
+  async create_hint(
+    question: string,
+    answer: string,
+    embeddings: number[],
+    persona: string = "PM"
+  ) {
     const session = this.driver.session();
     const name = question.slice(0, 80);
     const node_key = create_node_key({
@@ -537,6 +542,7 @@ class Db {
         question,
         embeddings,
         ts: Date.now() / 1000,
+        persona,
       });
       const r = await session.run(Q.GET_HINT_QUERY, { node_key });
       const record = r.records[0];
@@ -554,6 +560,41 @@ class Db {
         prompt_ref_id,
       });
       return result.records.map((record) => clean_node(record.get("h")));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async hints_without_siblings(): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.HINTS_WITHOUT_SIBLINGS_QUERY);
+      return result.records.map((record) => clean_node(record.get("h")));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async create_sibling_edge(
+    source_ref_id: string,
+    target_ref_id: string
+  ): Promise<void> {
+    const session = this.driver.session();
+    try {
+      await session.run(Q.CREATE_SIBLING_EDGE_QUERY, {
+        source_ref_id,
+        target_ref_id,
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  async get_hint_siblings(ref_id: string): Promise<Neo4jNode[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(Q.GET_HINT_SIBLINGS_QUERY, { ref_id });
+      return result.records.map((record) => clean_node(record.get("s")));
     } finally {
       await session.close();
     }
