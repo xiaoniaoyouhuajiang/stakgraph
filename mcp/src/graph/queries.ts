@@ -85,7 +85,7 @@ SET n.token_count = $token_count
 
 export const CREATE_HINT_QUERY = `
 MERGE (n:Hint:${Data_Bank} {node_key: $node_key})
-ON CREATE SET n.ref_id = randomUUID(), n.date_added_to_graph = $ts
+ON CREATE SET n.ref_id = randomUUID(), n.date_added_to_graph = $ts, n.persona = $persona
 SET n.name = $name, n.file = $file, n.body = $body, n.start = 0, n.end = 0, n.question = $question, n.embeddings = $embeddings
 RETURN n
 `;
@@ -108,6 +108,25 @@ MATCH (n:Prompt {node_key: $node_key}) RETURN n
 export const GET_CONNECTED_HINTS_QUERY = `
 MATCH (p:Prompt {ref_id: $prompt_ref_id})-[r]->(h:Hint)
 RETURN h
+`;
+
+export const HINTS_WITHOUT_SIBLINGS_QUERY = `
+MATCH (h:Hint)
+WHERE NOT (h)-[:SIBLING]-(:Hint)
+RETURN h
+`;
+
+export const CREATE_SIBLING_EDGE_QUERY = `
+MATCH (a:Hint {ref_id: $source_ref_id})
+MATCH (b:Hint {ref_id: $target_ref_id})
+WHERE a.ref_id <> b.ref_id
+MERGE (a)-[r:SIBLING]->(b)
+RETURN r
+`;
+
+export const GET_HINT_SIBLINGS_QUERY = `
+MATCH (h:Hint {ref_id: $ref_id})-[:SIBLING]-(s:Hint)
+RETURN s
 `;
 
 export const FIND_NODES_BY_NAME_QUERY = `

@@ -7,6 +7,7 @@ import { vectorizeQuery } from "../../vector/index.js";
 import { create_hint_edges_llm } from "./seed.js";
 import * as G from "../../graph/graph.js";
 import { filterAnswers } from "./filter.js";
+import { Persona } from "./persona.js";
 import { Neo4jNode } from "../../graph/types.js";
 
 /*
@@ -100,7 +101,8 @@ async function filter_by_relevance_from_cache(
   question: string,
   similarityThreshold: number,
   provider?: string,
-  originalPrompt?: string
+  originalPrompt?: string,
+  persona?: Persona
 ): Promise<FilterByRelevanceFromCacheResult | undefined> {
   const existingAll = await G.search(
     question,
@@ -117,17 +119,20 @@ async function filter_by_relevance_from_cache(
   const existing = existingAll.filter(
     (e: any) => e.properties.score && e.properties.score >= similarityThreshold
   );
+  const candidates = persona
+    ? existing.filter((e: any) => (e.properties.persona || "PM") === persona)
+    : existing;
   if (Array.isArray(existingAll) && existingAll.length > 0) {
     if (originalPrompt) {
       let qas = "";
-      existing.forEach((e: any) => {
+      candidates.forEach((e: any) => {
         qas += `**Question:** ${e.properties.question}\n**Answer:** ${e.properties.body}\n\n`;
       });
       const filtered = await filterAnswers(qas, originalPrompt, provider);
       if (filtered === "NO_MATCH") {
         return;
       }
-      const top: any = existing.find(
+      const top: any = candidates.find(
         (e: any) => e.properties.question === filtered
       );
       if (!top) {
@@ -153,7 +158,7 @@ async function filter_by_relevance_from_cache(
         return ca;
       }
     }
-    const top: any = existing[0];
+    const top: any = candidates[0];
     console.log(">> REUSED question:", question, ">>", top.properties.question);
     return cached_answer(question, top);
   }
@@ -163,13 +168,15 @@ export async function ask_question(
   question: string,
   similarityThreshold: number,
   provider?: string,
-  originalPrompt?: string
+  originalPrompt?: string,
+  persona?: Persona
 ): Promise<Answer> {
   const filtered = await filter_by_relevance_from_cache(
     question,
     similarityThreshold,
     provider,
-    originalPrompt
+    originalPrompt,
+    persona
   );
   if (filtered && filtered.cachedAnswer && !filtered.reexplore) {
     return filtered.cachedAnswer;
@@ -189,7 +196,7 @@ export async function ask_question(
   const ctx = await get_context(q, reexplore);
   const answer = ctx;
   const embeddings = await vectorizeQuery(question);
-  const created = await db.create_hint(question, answer, embeddings);
+  const created = await db.create_hint(question, answer, embeddings, "PM");
   let edges_added = 0;
   let linked_ref_ids: string[] = [];
   try {
